@@ -12,7 +12,10 @@ iml_module(
         "//tools/base/templates",
     ],
     test_srcs = ["testSrc"],
-    test_tags = ["managed"],
+    test_tags = [
+        "managed",
+        "exclusive",
+    ],
     # do not sort: must match IML order
     deps = [
         "//tools/idea/platform/editor-ui-api[module]",
