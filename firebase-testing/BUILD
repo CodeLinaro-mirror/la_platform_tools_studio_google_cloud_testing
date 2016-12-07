@@ -20,7 +20,7 @@ iml_module(
     deps = [
         "//tools/idea/platform/editor-ui-api[module]",
         "//tools/idea/platform/platform-api[module]",
-        "//tools:idea.platform-impl_and_others[module]",
+        "//tools/idea:platform-impl_and_others[module]",
         "//tools/idea/.idea/libraries:Guava",
         "//tools/idea/.idea/libraries:guava-tools",
         "//tools/adt/idea/android[module]",
@@ -41,7 +41,7 @@ iml_module(
         "//tools/idea/java/execution/openapi:execution-openapi[module]",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
         "//tools/analytics-library/protos:analytics-protos[module]",
-        "//tools:idea.compiler-impl_and_others[module]",
+        "//tools/idea:compiler-impl_and_others[module]",
         "//tools/adt/idea/android-test-framework[module, test]",
         "//tools/idea/.idea/libraries:mockito[test]",
         "//tools/base/testutils:studio.testutils[module, test]",
