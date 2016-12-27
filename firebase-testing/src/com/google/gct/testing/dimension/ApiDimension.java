@@ -15,13 +15,12 @@
  */
 package com.google.gct.testing.dimension;
 
+import com.android.tools.idea.model.AndroidModuleInfo;
 import com.google.api.services.testing.model.AndroidDeviceCatalog;
 import com.google.api.services.testing.model.AndroidVersion;
 import com.google.api.services.testing.model.Date;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.gct.testing.CloudConfigurationImpl;
@@ -31,20 +30,19 @@ import org.jetbrains.android.facet.AndroidFacet;
 
 import javax.swing.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class ApiDimension extends CloudConfigurationDimension {
-
   public static final String DISPLAY_NAME = "Platform";
 
   private static ImmutableList<ApiLevel> FULL_DOMAIN;
   private static ApiLevel defaultApi;
   private final int minSdkVersion;
 
-
   public ApiDimension(CloudConfigurationImpl googleCloudTestingConfiguration, AndroidFacet facet) {
     super(googleCloudTestingConfiguration);
-    minSdkVersion = facet.getAndroidModuleInfo().getMinSdkVersion().getApiLevel();
+    minSdkVersion = AndroidModuleInfo.get(facet).getMinSdkVersion().getApiLevel();
     // facet.getManifest().getUsesSdks().get(0).getMinSdkVersion() would read the app's manifest min SDK rather than the global one.
   }
 
@@ -56,35 +54,29 @@ public class ApiDimension extends CloudConfigurationDimension {
 
   @Override
   public List<? extends CloudTestingType> getAppSupportedDomain() {
-    return Lists.newArrayList(Iterables.filter(getFullDomain(), new Predicate<CloudTestingType>() {
-      @Override
-      public boolean apply(CloudTestingType input) {
-        if (input instanceof ApiLevel) {
-          return ((ApiLevel)input).apiVersion >= minSdkVersion;
-        }
-        return false;
+    return Lists.newArrayList(getFullDomain().stream().filter(input -> {
+      if (input instanceof ApiLevel) {
+        return ((ApiLevel)input).apiVersion >= minSdkVersion;
       }
-    }));
+      return false;
+    }).collect(Collectors.toList()));
   }
 
   @Override
   public List<? extends CloudTestingType> getSupportedDomain() {
-    return Lists.newArrayList(Iterables.filter(getAppSupportedDomain(), new Predicate<CloudTestingType>() {
-      @Override
-      public boolean apply(CloudTestingType type) {
-        //return BACKEND_SUPPORTED_API_VERSIONS.contains(type);
-        return true;
-      }
-    }));
+    return Lists.newArrayList(getAppSupportedDomain().stream().filter(type -> {
+      //return BACKEND_SUPPORTED_API_VERSIONS.contains(type);
+      return true;
+    }).collect(Collectors.toList()));
   }
 
   public static List<? extends CloudTestingType> getFullDomain() {
     if (isFullDomainMissing() || shouldPollDiscoveryTestApi(DISPLAY_NAME)) {
-      List<ApiLevel> apiLevels = new LinkedList<ApiLevel>();
+      List<ApiLevel> apiLevels = new LinkedList<>();
       AndroidDeviceCatalog androidDeviceCatalog = CloudAuthenticator.getInstance().getAndroidDeviceCatalog();
       if (androidDeviceCatalog != null) {
         for (AndroidVersion version : androidDeviceCatalog.getVersions()) {
-          Map<String, String> details = new HashMap<String, String>();
+          Map<String, String> details = new HashMap<>();
           Date date = version.getReleaseDate();
           details.put("Release date",
                       date == null ? "???" : String.format("%4d-%02d-%02d", date.getYear(), date.getMonth(), date.getDay()));
@@ -174,10 +166,5 @@ public class ApiDimension extends CloudConfigurationDimension {
     }
   }
 
-  private static final Comparator<ApiLevel> API_LEVEL_COMPARATOR = new Comparator<ApiLevel>() {
-    @Override
-    public int compare(ApiLevel level1, ApiLevel level2) {
-      return level1.apiVersion - level2.apiVersion;
-    }
-  };
+  private static final Comparator<ApiLevel> API_LEVEL_COMPARATOR = (level1, level2) -> level1.apiVersion - level2.apiVersion;
 }
