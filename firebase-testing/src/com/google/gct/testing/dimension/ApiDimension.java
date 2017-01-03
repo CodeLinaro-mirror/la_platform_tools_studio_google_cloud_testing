@@ -42,7 +42,7 @@ public class ApiDimension extends CloudConfigurationDimension {
 
   public ApiDimension(CloudConfigurationImpl googleCloudTestingConfiguration, AndroidFacet facet) {
     super(googleCloudTestingConfiguration);
-    minSdkVersion = AndroidModuleInfo.get(facet).getMinSdkVersion().getApiLevel();
+    minSdkVersion = AndroidModuleInfo.getInstance(facet).getMinSdkVersion().getApiLevel();
     // facet.getManifest().getUsesSdks().get(0).getMinSdkVersion() would read the app's manifest min SDK rather than the global one.
   }
 
