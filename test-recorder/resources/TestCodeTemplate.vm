@@ -3,6 +3,7 @@ package ${PackageName};
 
 #end
 
+import ${EspressoPackageName}.espresso.DataInteraction;
 import ${EspressoPackageName}.espresso.ViewInteraction;
 import android.support.test.rule.ActivityTestRule;
 import android.support.test.runner.AndroidJUnit4;
@@ -12,6 +13,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 
 import static ${EspressoPackageName}.InstrumentationRegistry.getInstrumentation;
+import static ${EspressoPackageName}.espresso.Espresso.onData;
 import static ${EspressoPackageName}.espresso.Espresso.onView;
 import static ${EspressoPackageName}.espresso.Espresso.pressBack;
 import static ${EspressoPackageName}.espresso.Espresso.openActionBarOverflowOrOptionsMenu;
@@ -33,6 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.is;
 
 @LargeTest

@@ -64,4 +64,17 @@ public class TestCodeMapperTest extends AndroidTestCase {
     assertEquals(1, generatedCodeLines.size());
     assertTrue(generatedCodeLines.get(0).contains("Thread.sleep(1500);"));
   }
+
+  public void testAdapterViewAction() {
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
+
+    TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
+    clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", 2, "", "", ""));
+    clickEvent.addElementDescriptor(new ElementDescriptor("android.widget.ListView", -1, "list", "", ""));
+
+    String espressoPickingStatement = testCodeMapper.getTestCodeLinesForEvent(clickEvent).get(0);
+    assertTrue(espressoPickingStatement.equals("DataInteraction someClass = onData(anything())\n" +
+                                               ".inAdapterView(withId(list))\n" +
+                                               ".atPosition(2);"));
+  }
 }

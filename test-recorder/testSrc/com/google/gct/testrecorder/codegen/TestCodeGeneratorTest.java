@@ -163,6 +163,11 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     swipeEvent.setSwipeDirection(Right);
     events.add(swipeEvent);
 
+    TestRecorderEvent viewAdapterItemClickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
+    viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 3, "", "", ""));
+    viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("android.widget.ListView", -1, "list", "", ""));
+    events.add(viewAdapterItemClickEvent);
+
     TestRecorderEvent trailingDelayedMessagePostEvent = new TestRecorderEvent(TestRecorderEvent.DELAYED_MESSAGE_POST, System.currentTimeMillis());
     trailingDelayedMessagePostEvent.setDelayTime(2500);
     events.add(trailingDelayedMessagePostEvent);

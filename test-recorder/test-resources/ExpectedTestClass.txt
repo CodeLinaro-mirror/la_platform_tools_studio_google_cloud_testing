@@ -1,3 +1,4 @@
+import android.support.test.espresso.DataInteraction;
 import android.support.test.espresso.ViewInteraction;
 import android.support.test.rule.ActivityTestRule;
 import android.support.test.runner.AndroidJUnit4;
@@ -13,6 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import static android.support.test.espresso.Espresso.onData;
 import static android.support.test.espresso.Espresso.onView;
 import static android.support.test.espresso.Espresso.pressBack;
 import static android.support.test.espresso.action.ViewActions.*;
@@ -20,6 +22,7 @@ import static android.support.test.espresso.assertion.ViewAssertions.*;
 import static android.support.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition;
 import static android.support.test.espresso.matcher.ViewMatchers.*;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.is;
 
 @LargeTest
@@ -127,6 +130,11 @@ public class MyTest {
                                 0),
                         isDisplayed()));
         elementClass9.perform(swipeRight());
+
+        DataInteraction elementClass10 = onData(anything())
+                .inAdapterView(withId(list))
+                .atPosition(3);
+        elementClass10.perform(click());
 
     }
 

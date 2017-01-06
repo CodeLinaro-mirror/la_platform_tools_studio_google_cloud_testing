@@ -30,6 +30,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.pom.java.LanguageLevel;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.android.sdk.AndroidTargetData;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedList;
@@ -44,6 +45,7 @@ import static com.google.gct.testrecorder.util.StringHelper.*;
 public class TestCodeMapper {
 
   private static final String VIEW_VARIABLE_CLASS_NAME = "ViewInteraction";
+  private static final String DATA_VARIABLE_CLASS_NAME = "DataInteraction";
 
   private final String myApplicationId;
   private final boolean myIsUsingCustomEspresso;
@@ -85,7 +87,7 @@ public class TestCodeMapper {
       return testCodeLines;
     }
 
-    String variableName = addViewPickingStatement(event, testCodeLines);
+    String variableName = addPickingStatement(event, testCodeLines);
     if (event.isSwipe()) {
       testCodeLines.add(createActionStatement(variableName, "swipe" + event.getSwipeDirection().name() + "()", false));
     } else if (event.isPressEditorAction()) {
@@ -137,7 +139,7 @@ public class TestCodeMapper {
     List<String> testCodeLines = new LinkedList<String>();
 
     String rule = assertion.getRule();
-    String variableName = addViewPickingStatement(assertion, testCodeLines);
+    String variableName = addPickingStatement(assertion, testCodeLines);
 
     if (NOT_EXISTS.equals(rule)) {
       testCodeLines.add(variableName + ".check(doesNotExist());");
@@ -153,15 +155,42 @@ public class TestCodeMapper {
     return testCodeLines;
   }
 
+  private String addPickingStatement(ElementAction action, List<String> testCodeLines) {
+    if (isAdapterViewAction(action)) {
+      return addDataPickingStatement(action, testCodeLines);
+    }
+    return addViewPickingStatement(action, testCodeLines);
+  }
+
   private String addViewPickingStatement(ElementAction action, List<String> testCodeLines) {
-    String variableName = generateVariableNameFromElementClassName(action.getElementClassName());
-    testCodeLines.add(VIEW_VARIABLE_CLASS_NAME + " " + variableName + " = onView(\n" + generateElementHierarchyConditions(action) + ");");
+    String variableName = generateVariableNameFromElementClassName(action.getElementClassName(), VIEW_VARIABLE_CLASS_NAME);
+    testCodeLines.add(VIEW_VARIABLE_CLASS_NAME + " " + variableName + " = onView(\n" + generateElementHierarchyConditions(action, 0) + ");");
     return variableName;
   }
 
-  private String generateVariableNameFromElementClassName(@Nullable String elementClassName) {
+  private String addDataPickingStatement(ElementAction action, List<String> testCodeLines) {
+    String variableName = generateVariableNameFromElementClassName(action.getElementClassName(), DATA_VARIABLE_CLASS_NAME);
+    // TODO: Add '.onChildView(...)' when we support AdapterView beyond the immediate parent of the affected element.
+    testCodeLines.add(DATA_VARIABLE_CLASS_NAME + " " + variableName + " = onData(anything())\n.inAdapterView(" +
+                      generateElementHierarchyConditions(action, 1) + ")\n.atPosition(" + action.getElementChildPosition() + ");");
+    return variableName;
+  }
+
+  // TODO: This will not detect an adapter view action if the affected element's immediate parent is not an AdapterView
+  // (e.g., clicking on a button, whose parent's parent is AdapterView will not be detected as an AdapterView action).
+  private boolean isAdapterViewAction(ElementAction action) {
+    if (action.getElementChildPosition() != -1 && action.getElementDescriptorsCount() > 1) {
+      String parentClassName = action.getElementDescriptor(1).getClassName();
+      // TODO: This is a subset of android.widget.AdapterView subclasses.
+      return "android.widget.GridView".equals(parentClassName) || "android.widget.ListView".equals(parentClassName)
+             || "android.widget.Spinner".equals(parentClassName);
+    }
+    return false;
+  }
+
+  private String generateVariableNameFromElementClassName(@Nullable String elementClassName, @NotNull String defaultClassName) {
     if (isNullOrEmpty(elementClassName)) {
-      return generateVariableNameFromTemplate(VIEW_VARIABLE_CLASS_NAME);
+      return generateVariableNameFromTemplate(defaultClassName);
     }
     return generateVariableNameFromTemplate(getClassName(elementClassName));
   }
@@ -182,14 +211,14 @@ public class TestCodeMapper {
     return variableName + unusedIndex;
   }
 
-  private String generateElementHierarchyConditions(ElementAction action) {
+  private String generateElementHierarchyConditions(ElementAction action, int startIndex) {
     List<ElementDescriptor> elementDescriptors = action.getElementDescriptorList();
 
-    if (elementDescriptors.isEmpty()) {
+    if (elementDescriptors.size() <= startIndex) {
       return "UNKNOWN";
     }
     return generateElementHierarchyConditionsRecursively(action instanceof TestRecorderAssertion, !action.canScrollTo(),
-                                                         elementDescriptors, 0);
+                                                         elementDescriptors, startIndex);
   }
 
   private String generateElementHierarchyConditionsRecursively(boolean isAssertionConditions, boolean checkIsDisplayed,
