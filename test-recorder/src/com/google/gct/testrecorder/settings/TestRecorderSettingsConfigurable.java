@@ -43,6 +43,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
   private JPanel myLaunchAndTearDownSettingsPanel;
   private JPanel myDataCollecationAndCodeGenerationSettingsPanel;
   private JCheckBox myUseTextForElementMatchingCheckBox;
+  private JCheckBox myUseContentDescriptionForElementMatchingCheckBox;
 
   public TestRecorderSettingsConfigurable() {
     mySettings = TestRecorderSettings.getInstance();
@@ -110,6 +111,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
            || assertionDepth != null && mySettings.ASSERTION_DEPTH != assertionDepth
            || mySettings.CAP_AT_NON_IDENTIFIABLE_ELEMENTS != myCapEvaluationDepthCheckBox.isSelected()
            || mySettings.USE_TEXT_FOR_ELEMENT_MATCHING != myUseTextForElementMatchingCheckBox.isSelected()
+           || mySettings.USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING != myUseContentDescriptionForElementMatchingCheckBox.isSelected()
            || mySettings.CLEAN_BEFORE_START != myCleanBeforeStartCheckbox.isSelected()
            || mySettings.CLEAN_AFTER_FINISH != myCleanAfterFinishCheckbox.isSelected()
            || mySettings.STOP_APP_AFTER_RECORDING != myStopAppCheckbox.isSelected();
@@ -134,6 +136,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
 
     mySettings.CAP_AT_NON_IDENTIFIABLE_ELEMENTS = myCapEvaluationDepthCheckBox.isSelected();
     mySettings.USE_TEXT_FOR_ELEMENT_MATCHING = myUseTextForElementMatchingCheckBox.isSelected();
+    mySettings.USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING = myUseContentDescriptionForElementMatchingCheckBox.isSelected();
     mySettings.CLEAN_BEFORE_START = myCleanBeforeStartCheckbox.isSelected();
     mySettings.CLEAN_AFTER_FINISH = myCleanAfterFinishCheckbox.isSelected();
     mySettings.STOP_APP_AFTER_RECORDING = myStopAppCheckbox.isSelected();
@@ -146,6 +149,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
     myAssertionDepthSpinner.setValue(mySettings.ASSERTION_DEPTH);
     myCapEvaluationDepthCheckBox.setSelected(mySettings.CAP_AT_NON_IDENTIFIABLE_ELEMENTS);
     myUseTextForElementMatchingCheckBox.setSelected(mySettings.USE_TEXT_FOR_ELEMENT_MATCHING);
+    myUseContentDescriptionForElementMatchingCheckBox.setSelected(mySettings.USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING);
     myCleanBeforeStartCheckbox.setSelected(mySettings.CLEAN_BEFORE_START);
     myCleanAfterFinishCheckbox.setSelected(mySettings.CLEAN_AFTER_FINISH);
     myStopAppCheckbox.setSelected(mySettings.STOP_APP_AFTER_RECORDING);

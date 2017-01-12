@@ -249,7 +249,9 @@ public class TestCodeMapper {
         matcherBuilder.addMatcher(Text, elementDescriptor.getText(), true, isAssertionConditions);
       }
 
-      matcherBuilder.addMatcher(ContentDescription, elementDescriptor.getContentDescription(), true, isAssertionConditions);
+      if (TestRecorderSettings.getInstance().USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING) {
+        matcherBuilder.addMatcher(ContentDescription, elementDescriptor.getContentDescription(), true, isAssertionConditions);
+      }
     }
 
     // TODO: Consider minimizing the generated statement to improve test's readability and maintainability (e.g., by capping parent hierarchy).
