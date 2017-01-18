@@ -380,7 +380,7 @@ public class BreakpointCommand extends DebuggerCommandImpl {
       Value className = evaluateExpression(objectReference + ".getClass().getCanonicalName()", evalContext, nodeManager);
 
       // An empty element descriptor for the non-identifiable element.
-      event.addElementDescriptor(new ElementDescriptor(className == null ? "" : getStringValue(className), -1, "", "", ""));
+      event.addElementDescriptor(new ElementDescriptor(className == null ? "" : getStringValue(className), -1, -1, "", "", ""));
 
       // In case there is no text-identifiable child, use the parent node as the means of identification.
       populateElementDescriptors(event, evalContext, nodeManager, objectReference + PARENT_NODE_CALL, level + 1);
@@ -400,8 +400,18 @@ public class BreakpointCommand extends DebuggerCommandImpl {
       return false;
     }
 
-    Value childPosition = evaluateExpression(objectReference + ".getParent().getPositionForView(" + objectReference + ")",
-                                             evalContext, nodeManager);
+    Value adapterViewChildPositionValue = evaluateExpression(objectReference + ".getParent().getPositionForView(" + objectReference + ")",
+                                                             evalContext, nodeManager);
+
+    int adapterViewChildPosition = adapterViewChildPositionValue == null ? -1 : Integer.parseInt(getStringValue(adapterViewChildPositionValue));
+    int groupViewChildPosition = -1;
+
+    if (adapterViewChildPosition == -1) {
+      Value groupViewChildPositionValue = evaluateExpression(objectReference + ".getParent().indexOfChild(" + objectReference + ")",
+                                                             evalContext, nodeManager);
+
+      groupViewChildPosition = groupViewChildPositionValue == null ? -1 : Integer.parseInt(getStringValue(groupViewChildPositionValue));
+    }
 
     Value resourceNumberIdValue = evaluateExpression(objectReference + ".getId()", evalContext, nodeManager);
 
@@ -412,12 +422,13 @@ public class BreakpointCommand extends DebuggerCommandImpl {
 
     Value contentDescription = evaluateExpression(objectReference + ".getContentDescription()", evalContext, nodeManager);
 
-    if (!TestRecorderSettings.getInstance().CAP_AT_NON_IDENTIFIABLE_ELEMENTS
-        || childPosition != null || resourceId != null || contentDescription != null || text != null) {
+    if (!TestRecorderSettings.getInstance().CAP_AT_NON_IDENTIFIABLE_ELEMENTS || adapterViewChildPosition != -1
+        || groupViewChildPosition != -1 || resourceId != null || contentDescription != null || text != null) {
       Value className = evaluateExpression(objectReference + ".getClass().getCanonicalName()", evalContext, nodeManager);
 
       event.addElementDescriptor(new ElementDescriptor(className == null ? "" : getStringValue(className),
-                                                       childPosition == null ? -1 : Integer.parseInt(getStringValue(childPosition)),
+                                                       adapterViewChildPosition,
+                                                       groupViewChildPosition,
                                                        resourceId == null ? "" : getStringValue(resourceId),
                                                        contentDescription == null ? "" : getStringValue(contentDescription),
                                                        text == null ? "" : getStringValue(text)));

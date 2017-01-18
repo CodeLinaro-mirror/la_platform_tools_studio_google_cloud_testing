@@ -172,20 +172,14 @@ public class TestCodeMapper {
     String variableName = generateVariableNameFromElementClassName(action.getElementClassName(), DATA_VARIABLE_CLASS_NAME);
     // TODO: Add '.onChildView(...)' when we support AdapterView beyond the immediate parent of the affected element.
     testCodeLines.add(DATA_VARIABLE_CLASS_NAME + " " + variableName + " = onData(anything())\n.inAdapterView(" +
-                      generateElementHierarchyConditions(action, 1) + ")\n.atPosition(" + action.getElementChildPosition() + ");");
+                      generateElementHierarchyConditions(action, 1) + ")\n.atPosition(" + action.getElementAdapterViewChildPosition() + ");");
     return variableName;
   }
 
   // TODO: This will not detect an adapter view action if the affected element's immediate parent is not an AdapterView
   // (e.g., clicking on a button, whose parent's parent is AdapterView will not be detected as an AdapterView action).
   private boolean isAdapterViewAction(ElementAction action) {
-    if (action.getElementChildPosition() != -1 && action.getElementDescriptorsCount() > 1) {
-      String parentClassName = action.getElementDescriptor(1).getClassName();
-      // TODO: This is a subset of android.widget.AdapterView subclasses.
-      return "android.widget.GridView".equals(parentClassName) || "android.widget.ListView".equals(parentClassName)
-             || "android.widget.Spinner".equals(parentClassName);
-    }
-    return false;
+    return action.getElementAdapterViewChildPosition() != -1 && action.getElementDescriptorsCount() > 1;
   }
 
   private String generateVariableNameFromElementClassName(@Nullable String elementClassName, @NotNull String defaultClassName) {
@@ -265,19 +259,19 @@ public class TestCodeMapper {
     }
 
     boolean addAllOf = matcherBuilder.getMatcherCount() > 0 || addIsDisplayed;
-    int childPosition = elementDescriptor.getChildPosition();
+    int groupViewChildPosition = elementDescriptor.getGroupViewChildPosition();
 
     // Do not use child position for ViewPager children as it changes dynamically and non-deterministically.
     if (SdkConstants.CLASS_VIEW_PAGER.equals(elementDescriptors.get(index + 1).getClassName())) {
-      childPosition = -1;
+      groupViewChildPosition = -1;
     }
 
-    myIsChildAtPositionAdded = myIsChildAtPositionAdded || childPosition != -1;
+    myIsChildAtPositionAdded = myIsChildAtPositionAdded || groupViewChildPosition != -1;
 
     return (addAllOf ? "allOf(" : "") + matcherBuilder.getMatchers() + (matcherBuilder.getMatcherCount() > 0 ? ",\n" : "")
-           + (childPosition != -1 ? "childAtPosition(\n" : "withParent(")
+           + (groupViewChildPosition != -1 ? "childAtPosition(\n" : "withParent(")
            + generateElementHierarchyConditionsRecursively(isAssertionConditions, checkIsDisplayed, elementDescriptors, index + 1)
-           + (childPosition != -1 ? ",\n" + childPosition : "") + ")"
+           + (groupViewChildPosition != -1 ? ",\n" + groupViewChildPosition : "") + ")"
            + (addIsDisplayed ? ",\nisDisplayed()" : "") + (addAllOf ? ")" : "");
   }
 

@@ -83,7 +83,10 @@ public abstract class ElementAction {
       return getRendererString(displayResourceId);
     }
 
-    int childPosition = getElementChildPosition();
+    int childPosition = getElementAdapterViewChildPosition();
+    if (childPosition == -1) {
+      childPosition = getElementGroupViewChildPosition();
+    }
     if (childPosition != -1) {
       return getRendererString(getIdAttributeDisplayPresentation("child position", String.valueOf(childPosition)));
     }
@@ -144,11 +147,21 @@ public abstract class ElementAction {
   }
 
   /**
-   * Returns top-level element child position.
+   * Returns top-level element {@code AdapterView} child position.
    */
-  public int getElementChildPosition() {
+  public int getElementAdapterViewChildPosition() {
     if (!elementDescriptors.isEmpty()) {
-      return elementDescriptors.get(0).getChildPosition();
+      return elementDescriptors.get(0).getAdapterViewChildPosition();
+    }
+    return -1;
+  }
+
+  /**
+   * Returns top-level element {@code GroupView} child position.
+   */
+  public int getElementGroupViewChildPosition() {
+    if (!elementDescriptors.isEmpty()) {
+      return elementDescriptors.get(0).getGroupViewChildPosition();
     }
     return -1;
   }
