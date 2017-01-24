@@ -31,14 +31,14 @@ import static com.intellij.util.ui.UIUtil.isUnderDarcula;
 public abstract class ElementAction {
 
   /**
-   * Descriptors of elements starting with the affected one and up the UI hierarchy.
-   */
-  private final List<ElementDescriptor> elementDescriptors = Lists.newLinkedList();
-
-  /**
    * Whether the element can be scrolled to (e.g., when it is inside a ScrollView).
    */
   private boolean canScrollTo;
+
+  /**
+   * Descriptors of elements starting with the affected one and up the UI hierarchy.
+   */
+  private final List<ElementDescriptor> elementDescriptors = Lists.newLinkedList();
 
   public ElementDescriptor getElementDescriptor(int index) {
     return elementDescriptors.get(index);
