@@ -100,34 +100,34 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     List<Object> events = Lists.newLinkedList();
 
     TestRecorderEvent viewClickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
-    viewClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 0, "resourceId1", "content description 1", ""));
-    viewClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", 1, "parentResourceId1", "", ""));
-    viewClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", 2, "parentResourceId2", "parent content description 1", ""));
+    viewClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 0, "resourceId1", "content description 1", ""));
+    viewClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 1, "parentResourceId1", "", ""));
+    viewClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", -1, 2, "parentResourceId2", "parent content description 1", ""));
     events.add(viewClickEvent);
 
     TestRecorderEvent viewClickEvent2 = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
-    viewClickEvent2.addElementDescriptor(new ElementDescriptor("ElementClass", 1, "", "", ""));
-    viewClickEvent2.addElementDescriptor(new ElementDescriptor("ParentClass1", 0, "", "", ""));
+    viewClickEvent2.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 1, "", "", ""));
+    viewClickEvent2.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 0, "", "", ""));
     events.add(viewClickEvent2);
 
     TestRecorderEvent viewClickEvent3 = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
-    viewClickEvent3.addElementDescriptor(new ElementDescriptor("GridClass", 0, "gridResourceId", "", ""));
-    viewClickEvent3.addElementDescriptor(new ElementDescriptor("ParentClass1", 0, "gridParentResourceId", "", ""));
+    viewClickEvent3.addElementDescriptor(new ElementDescriptor("GridClass", -1, 0, "gridResourceId", "", ""));
+    viewClickEvent3.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 0, "gridParentResourceId", "", ""));
     viewClickEvent3.setRecyclerViewPosition(5);
     events.add(viewClickEvent3);
 
     TestRecorderAssertion assertion = new TestRecorderAssertion(EXISTS);
-    assertion.addElementDescriptor(new ElementDescriptor("ElementClass", -1, "resourceId2", "content description 2", ""));
+    assertion.addElementDescriptor(new ElementDescriptor("ElementClass", -1, -1, "resourceId2", "content description 2", ""));
     events.add(assertion);
 
     TestRecorderEvent viewLongClickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_LONG_CLICK, System.currentTimeMillis());
-    viewLongClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, "resourceId2", "content description 2", ""));
+    viewLongClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1,-1, "resourceId2", "content description 2", ""));
     events.add(viewLongClickEvent);
 
     TestRecorderEvent listItemClickEvent = new TestRecorderEvent(TestRecorderEvent.LIST_ITEM_CLICK, System.currentTimeMillis());
-    listItemClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 2, "resourceId3", "", ""));
-    listItemClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", 0, "parentResourceId3", "", ""));
-    listItemClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", 1, "parentResourceId4", "", ""));
+    listItemClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 2, "resourceId3", "", ""));
+    listItemClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 0, "parentResourceId3", "", ""));
+    listItemClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", -1, 1, "parentResourceId4", "", ""));
     events.add(listItemClickEvent);
 
     TestRecorderEvent pressBackEvent = new TestRecorderEvent(TestRecorderEvent.PRESS_BACK, System.currentTimeMillis());
@@ -138,34 +138,34 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     events.add(delayedMessagePostEvent);
 
     TestRecorderEvent textChangeEvent = new TestRecorderEvent(TestRecorderEvent.TEXT_CHANGE, System.currentTimeMillis());
-    textChangeEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 1, "resourceId4", "content description 3", "original text"));
-    textChangeEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", 0, "parentResourceId5", "", ""));
-    textChangeEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", 2, "parentResourceId6", "parent content description 2", ""));
+    textChangeEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 1, "resourceId4", "content description 3", "original text"));
+    textChangeEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 0, "parentResourceId5", "", ""));
+    textChangeEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", -1, 2, "parentResourceId6", "parent content description 2", ""));
     textChangeEvent.setReplacementText("replacement \n\ntext\n");
     events.add(textChangeEvent);
 
     TestRecorderAssertion assertion2 = new TestRecorderAssertion(TEXT_IS);
-    assertion2.addElementDescriptor(new ElementDescriptor("ElementClass", 1, "resourceId4", "content description 3", "replacement \n\ntext\n"));
-    assertion2.addElementDescriptor(new ElementDescriptor("ParentClass1", 0, "parentResourceId5", "", ""));
-    assertion2.addElementDescriptor(new ElementDescriptor("ParentClass2", 2, "parentResourceId6", "parent content description 2", ""));
+    assertion2.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 1, "resourceId4", "content description 3", "replacement \n\ntext\n"));
+    assertion2.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 0, "parentResourceId5", "", ""));
+    assertion2.addElementDescriptor(new ElementDescriptor("ParentClass2", -1, 2, "parentResourceId6", "parent content description 2", ""));
     assertion2.setText("replacement \n\ntext\n");
     events.add(assertion2);
 
     TestRecorderEvent pressEditorActionEvent = new TestRecorderEvent(TestRecorderEvent.PRESS_EDITOR_ACTION, System.currentTimeMillis());
-    pressEditorActionEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 1, "resourceId4", "content description 3", "replacement \n\ntext\n"));
-    pressEditorActionEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", 0, "parentResourceId5", "", ""));
-    pressEditorActionEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", 2, "parentResourceId6", "parent content description 2", ""));
+    pressEditorActionEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 1, "resourceId4", "content description 3", "replacement \n\ntext\n"));
+    pressEditorActionEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 0, "parentResourceId5", "", ""));
+    pressEditorActionEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", -1, 2, "parentResourceId6", "parent content description 2", ""));
     events.add(pressEditorActionEvent);
 
     TestRecorderEvent swipeEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_SWIPE, System.currentTimeMillis());
-    swipeEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 0, "resourceId5", "content description 4", ""));
-    swipeEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", 1, "parentResourceId7", "", "parent text"));
+    swipeEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 0, "resourceId5", "content description 4", ""));
+    swipeEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 1, "parentResourceId7", "", "parent text"));
     swipeEvent.setSwipeDirection(Right);
     events.add(swipeEvent);
 
     TestRecorderEvent viewAdapterItemClickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
-    viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 3, "", "", ""));
-    viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("android.widget.ListView", -1, "list", "", ""));
+    viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", 3, -1, "", "", ""));
+    viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, -1, "list", "", ""));
     events.add(viewAdapterItemClickEvent);
 
     TestRecorderEvent trailingDelayedMessagePostEvent = new TestRecorderEvent(TestRecorderEvent.DELAYED_MESSAGE_POST, System.currentTimeMillis());

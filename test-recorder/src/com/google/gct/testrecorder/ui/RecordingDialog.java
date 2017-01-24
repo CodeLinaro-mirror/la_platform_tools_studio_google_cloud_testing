@@ -563,10 +563,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     // Use text identification only for text views.
     String text = isTextView(node) ? getText(node) : "";
     String contentDescription = getContentDescription(node);
-    int childPosition = getChildPosition(node);
+    int viewGroupChildPosition = getViewGroupChildPosition(node);
 
-    if (!className.isEmpty() || !resourceId.isEmpty() || !text.isEmpty() || !contentDescription.isEmpty() || childPosition != -1) {
-      assertion.addElementDescriptor(new ElementDescriptor(className, childPosition, resourceId, contentDescription, text));
+    // TODO: Not sure how to properly handle AdapterView child positions given that assertions are added for the visible node hierarchy.
+    if (!className.isEmpty() || !resourceId.isEmpty() || !text.isEmpty() || !contentDescription.isEmpty() || viewGroupChildPosition != -1) {
+      assertion.addElementDescriptor(new ElementDescriptor(className, -1, viewGroupChildPosition, resourceId, contentDescription, text));
       if (node.getParent() instanceof UiNode) {
         addElementDescriptors(assertion, (UiNode)node.getParent());
       }

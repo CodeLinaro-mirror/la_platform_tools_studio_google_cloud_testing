@@ -18,23 +18,38 @@ package com.google.gct.testrecorder.event;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 public class ElementDescriptor {
-  // Fully qualified class name of the element.
+  /**
+   * Fully qualified class name of the element.
+   */
   private final String className;
 
 
   // Attribute fields:
 
-  // Position of this element among the children of its parent.
-  // The value of -1 signifies that the child position is absent.
-  private final int childPosition;
+  /**
+   * Position of this element in an adapter's data set.
+   * The value of -1 signifies that the child position is unknown (e.g., since its parent is not an {@code AdapterView}).
+   */
+  private final int adapterViewChildPosition;
+
+  /**
+   * Position of this element in a {@code GroupView}.
+   * The value of -1 signifies that the child position is unknown (e.g., since its parent is not a {@code GroupView})
+   * or irrelevant (e.g., if its parent is an {@code AdapterView}, in which case the relevant position is {@code adapterViewChildPosition}).
+   */
+  private final int groupViewChildPosition;
+
   private final String resourceId;
   private final String contentDescription;
   private final String text;
 
 
-  public ElementDescriptor(String className, int childPosition, String resourceId, String contentDescription, String text) {
+  public ElementDescriptor(String className, int adapterViewChildPosition, int groupViewChildPosition, String resourceId,
+                           String contentDescription, String text) {
+
     this.className = className;
-    this.childPosition = childPosition;
+    this.adapterViewChildPosition = adapterViewChildPosition;
+    this.groupViewChildPosition = groupViewChildPosition;
     this.resourceId = resourceId;
     this.contentDescription = contentDescription;
     this.text = text;
@@ -44,8 +59,12 @@ public class ElementDescriptor {
     return className;
   }
 
-  public int getChildPosition() {
-    return childPosition;
+  public int getAdapterViewChildPosition() {
+    return adapterViewChildPosition;
+  }
+
+  public int getGroupViewChildPosition() {
+    return groupViewChildPosition;
   }
 
   public String getResourceId() {
@@ -64,7 +83,7 @@ public class ElementDescriptor {
    * Returns {@code true} iff all attribute fields are absent.
    */
   public boolean isEmpty() {
-    return childPosition == -1 && isEmptyIgnoringChildPosition();
+    return adapterViewChildPosition == -1 && groupViewChildPosition == -1 && isEmptyIgnoringChildPosition();
   }
 
   /**
