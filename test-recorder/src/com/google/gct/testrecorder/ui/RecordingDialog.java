@@ -197,6 +197,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     });
 
     mySaveRoboScriptButton.addActionListener(e -> {
+      UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+                                       .setCategory(EventCategory.TEST_RECORDER)
+                                       .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT));
+
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "txt");
       FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
       VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
