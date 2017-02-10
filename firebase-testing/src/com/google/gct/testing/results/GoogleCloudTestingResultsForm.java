@@ -146,7 +146,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
 
     final GoogleCloudTestTreeStructure structure = new GoogleCloudTestTreeStructure(myProject, myTestsRootNode);
     myTreeBuilder = new GoogleCloudTestTreeBuilder(myTreeView, structure);
-    myTreeBuilder.setTestsComparator(TestConsoleProperties.SORT_ALPHABETICALLY.value(myProperties));
+    myTreeBuilder.setTestsComparator(myProperties);
     Disposer.register(this, myTreeBuilder);
 
     myTestAnimator = new MyAnimator(myTreeBuilder);

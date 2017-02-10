@@ -39,7 +39,7 @@ public class GoogleCloudTestRunnerToolbarPanel extends SMTRunnerToolbarPanel {
     final DefaultActionGroup cloudActionGroup = new DefaultActionGroup(null, false);
     int separatorCounter = 0;
     boolean cloudActionsAdded = false;
-    for (AnAction action : actionToolbar.getActions(true)) {
+    for (AnAction action : actionToolbar.getActions()) {
       cloudActionGroup.add(action);
       if (!cloudActionsAdded) {
         if (action instanceof Separator) {

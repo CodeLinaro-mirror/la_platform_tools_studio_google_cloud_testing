@@ -17,22 +17,32 @@ package com.google.gct.testing.results;
 
 import com.google.gct.testing.CloudMatrixExecutionCancellator;
 import com.intellij.execution.ExecutionException;
+import com.intellij.execution.Location;
 import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.testframework.TestConsoleProperties;
-import com.intellij.execution.testframework.sm.CompositeTestLocationProvider;
+import com.intellij.execution.testframework.sm.FileUrlProvider;
 import com.intellij.execution.testframework.sm.runner.SMTestLocator;
 import com.intellij.execution.testframework.sm.runner.TestProxyFilterProvider;
 import com.intellij.execution.testframework.sm.runner.TestProxyPrinterProvider;
 import com.intellij.execution.testframework.sm.runner.ui.AttachToProcessListener;
 import com.intellij.execution.testframework.ui.BaseTestsOutputConsoleView;
+import com.intellij.openapi.extensions.Extensions;
+import com.intellij.openapi.project.DumbAware;
+import com.intellij.openapi.project.DumbService;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.Key;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.testIntegration.TestLocationProvider;
+import com.intellij.util.io.URLUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Collections;
+import java.util.List;
 
 public class GoogleCloudTestResultsConnectionUtil {
   private static final String TEST_RUNNER_DEBUG_MODE_PROPERTY = "idea.smrunner.debug";
@@ -214,6 +224,48 @@ public class GoogleCloudTestResultsConnectionUtil {
       }
     });
     return processHandler;
+  }
+
+  public static class CompositeTestLocationProvider implements SMTestLocator {
+    @SuppressWarnings("deprecation") private final TestLocationProvider myPrimaryLocator;
+    @SuppressWarnings("deprecation") private final TestLocationProvider[] myLocators;
+
+    @SuppressWarnings("deprecation")
+    public CompositeTestLocationProvider(@Nullable TestLocationProvider primaryLocator) {
+      myPrimaryLocator = primaryLocator;
+      myLocators = Extensions.getExtensions(TestLocationProvider.EP_NAME);
+    }
+
+    @NotNull
+    @Override
+    public List<Location> getLocation(@NotNull String protocol, @NotNull String path, @NotNull Project project, @NotNull GlobalSearchScope scope) {
+      boolean isDumbMode = DumbService.isDumb(project);
+
+      if (myPrimaryLocator != null && (!isDumbMode || myPrimaryLocator instanceof DumbAware)) {
+        List<Location> locations = myPrimaryLocator.getLocation(protocol, path, project);
+        if (!locations.isEmpty()) {
+          return locations;
+        }
+      }
+
+      if (URLUtil.FILE_PROTOCOL.equals(protocol)) {
+        List<Location> locations = FileUrlProvider.INSTANCE.getLocation(protocol, path, project, scope);
+        if (!locations.isEmpty()) {
+          return locations;
+        }
+      }
+
+      for (@SuppressWarnings("deprecation") TestLocationProvider provider : myLocators) {
+        if (!isDumbMode || provider instanceof DumbAware) {
+          List<Location> locations = provider.getLocation(protocol, path, project);
+          if (!locations.isEmpty()) {
+            return locations;
+          }
+        }
+      }
+
+      return Collections.emptyList();
+    }
   }
 
 }
