@@ -47,11 +47,6 @@ public class TestRecorderEvent extends ElementAction {
   private final long timestamp;
 
   /**
-   *  Whether the affected element is checked.
-   */
-  private boolean isChecked;
-
-  /**
    * Relevant for text editing events. Keeps the resulting edited text.
    */
   private String replacementText;
@@ -91,10 +86,6 @@ public class TestRecorderEvent extends ElementAction {
     return timestamp;
   }
 
-  public boolean isChecked() {
-    return isChecked;
-  }
-
   public String getReplacementText() {
     return replacementText;
   }
@@ -113,10 +104,6 @@ public class TestRecorderEvent extends ElementAction {
 
   public long getDelayTime() {
     return delayTime;
-  }
-
-  public void setChecked(boolean checked) {
-    isChecked = checked;
   }
 
   public void setReplacementText(String replacementText) {

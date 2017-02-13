@@ -77,7 +77,7 @@ public class UiAutomatorNodeHelper {
     return getAttribute(node, "content-desc");
   }
 
-  public static int getChildPosition(BasicTreeNode node) {
+  public static int getViewGroupChildPosition(BasicTreeNode node) {
     try {
       return Integer.parseInt(getAttribute(node, "index"));
     } catch (NumberFormatException e) {

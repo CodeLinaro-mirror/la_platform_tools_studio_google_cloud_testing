@@ -17,6 +17,7 @@ package com.google.gct.testrecorder.codegen;
 
 import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
+import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import org.jetbrains.android.AndroidTestCase;
 
 import java.util.List;
@@ -35,7 +36,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
     TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
 
     TestRecorderEvent textChangeEvent = new TestRecorderEvent(TestRecorderEvent.TEXT_CHANGE, System.currentTimeMillis());
-    textChangeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, "", "content description", ""));
+    textChangeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, "", "content description", ""));
     textChangeEvent.setReplacementText("my text\n");
 
     String espressoActionStatement = testCodeMapper.getTestCodeLinesForEvent(textChangeEvent).get(1);
@@ -47,7 +48,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
     TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
 
     TestRecorderEvent swipeEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_SWIPE, System.currentTimeMillis());
-    swipeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, "", "content description", ""));
+    swipeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, "", "content description", ""));
     swipeEvent.setSwipeDirection(Right);
 
     String espressoActionStatement = testCodeMapper.getTestCodeLinesForEvent(swipeEvent).get(1);
@@ -63,5 +64,32 @@ public class TestCodeMapperTest extends AndroidTestCase {
     List<String> generatedCodeLines = testCodeMapper.getTestCodeLinesForEvent(delayedMessagePostEvent);
     assertEquals(1, generatedCodeLines.size());
     assertTrue(generatedCodeLines.get(0).contains("Thread.sleep(1500);"));
+  }
+
+  public void testAdapterViewAction() {
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
+
+    TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
+    clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", 2, -1, "", "", ""));
+    clickEvent.addElementDescriptor(new ElementDescriptor("ParentClass", -1, -1, "list", "", ""));
+
+    String espressoPickingStatement = testCodeMapper.getTestCodeLinesForEvent(clickEvent).get(0);
+    assertTrue(espressoPickingStatement.equals("DataInteraction someClass = onData(anything())\n" +
+                                               ".inAdapterView(withId(list))\n" +
+                                               ".atPosition(2);"));
+  }
+
+  public void testContentDescriptionSuppression() {
+    TestRecorderSettings.getInstance().USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING = false;
+
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
+
+    TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
+    clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, "myId", "my content description", ""));
+
+    String espressoPickingStatement = testCodeMapper.getTestCodeLinesForEvent(clickEvent).get(0);
+    assertFalse(espressoPickingStatement.contains("my content description"));
+
+    TestRecorderSettings.getInstance().USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING = true;
   }
 }

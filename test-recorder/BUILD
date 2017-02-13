@@ -18,7 +18,6 @@ iml_module(
         "//tools/idea/.idea/libraries:Velocity",
         "//tools/idea:java-impl[module]",
         "//tools/idea/java/openapi[module]",
-        "//tools/idea/.idea/libraries:Groovy-Eclipse-Batch",
         "//tools/idea:compiler-impl_and_others[module]",
         "//tools/idea/.idea/libraries:commons-io-2.4",
         "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",

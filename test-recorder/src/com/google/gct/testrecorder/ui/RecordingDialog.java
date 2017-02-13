@@ -15,6 +15,7 @@
  */
 package com.google.gct.testrecorder.ui;
 
+import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.dsl.model.GradleBuildModel;
@@ -33,22 +34,28 @@ import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.event.TestRecorderEventListener;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
+import com.google.gct.testrecorder.util.StringHelper;
+import com.google.gson.GsonBuilder;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.fileChooser.FileSaverDescriptor;
+import com.intellij.openapi.fileChooser.ex.FileSaverDialogImpl;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.psi.PsiClass;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBDimension;
 import com.intellij.util.ui.JBUI;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
@@ -63,6 +70,7 @@ import java.awt.event.ItemListener;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import static com.android.tools.idea.gradle.dsl.model.dependencies.CommonConfigurationNames.ANDROID_TEST_COMPILE;
 import static com.android.tools.idea.templates.SupportLibrary.*;
@@ -70,6 +78,7 @@ import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
 import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.*;
+import static org.apache.commons.lang.StringUtils.isEmpty;
 
 public class RecordingDialog extends DialogWrapper implements TestRecorderEventListener {
   private static final long ANIMATION_INTERVAL = 400; // milliseconds.
@@ -130,6 +139,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private JButton myCancelButton;
   private JButton mySaveAssertionAndAddAnotherButton;
   private JPanel myRecordingPanel;
+  private JButton mySaveRoboScriptButton;
 
   public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName) {
     super(facet.getModule().getProject());
@@ -183,6 +193,25 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             revealScreenshotPanel(preparedImage.getWidth(), preparedImage.getHeight());
           }
         }).queue();
+      }
+    });
+
+    mySaveRoboScriptButton.addActionListener(e -> {
+      UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+                                       .setCategory(EventCategory.TEST_RECORDER)
+                                       .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT));
+
+      FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "txt");
+      FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
+      VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
+
+      if (fileWrapper != null) {
+        try {
+          FileUtils.write(fileWrapper.getFile(), getJsonForEvents(getAllModelEvents()));
+        } catch (Exception ex) {
+          String message = isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
+          Messages.showDialog(myProject, message, "Could not save Robo script to a file", new String[]{"OK"}, 0, null);
+        }
       }
     });
 
@@ -292,6 +321,19 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     });
   }
 
+  @VisibleForTesting
+  static String getJsonForEvents(List<Object> events) {
+    // Consider only TestRecorderEvents.
+    List<TestRecorderEvent> testRecorderEvents = new ArrayList<>();
+    for (Object event : events) {
+      if (event instanceof TestRecorderEvent) {
+        testRecorderEvents.add((TestRecorderEvent)event);
+      }
+    }
+
+    return new GsonBuilder().setPrettyPrinting().create().toJson(testRecorderEvents);
+  }
+
   @NotNull
   @Override
   protected String getHelpId() {
@@ -337,19 +379,21 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       hasCustomEspressoDependency = hasCustomEspressoDependency();
     }
 
-    // Get all events (UI events and assertions).
-    ArrayList<Object> events = new ArrayList<Object>();
-    for (int i = 0; i < myEventListModel.size(); i++) {
-      events.add(myEventListModel.get(i));
-    }
-
     PsiClass testClass = chooser.getTestClass();
 
     if (testClass != null) {
       super.doOKAction();
-      new TestCodeGenerator(myFacet, testClass, events, myLaunchedActivityName, hasCustomEspressoDependency,
+      new TestCodeGenerator(myFacet, testClass, getAllModelEvents(), myLaunchedActivityName, hasCustomEspressoDependency,
                             hasAddedEspressoDependencies).generate();
     }
+  }
+
+  private List<Object> getAllModelEvents() {
+    List<Object> events = new ArrayList<>();
+    for (int i = 0; i < myEventListModel.size(); i++) {
+      events.add(myEventListModel.get(i));
+    }
+    return events;
   }
 
   private void exitAssertionMode(boolean shouldAddAssertion) {
@@ -563,10 +607,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     // Use text identification only for text views.
     String text = isTextView(node) ? getText(node) : "";
     String contentDescription = getContentDescription(node);
-    int childPosition = getChildPosition(node);
+    int viewGroupChildPosition = getViewGroupChildPosition(node);
 
-    if (!className.isEmpty() || !resourceId.isEmpty() || !text.isEmpty() || !contentDescription.isEmpty() || childPosition != -1) {
-      assertion.addElementDescriptor(new ElementDescriptor(className, childPosition, resourceId, contentDescription, text));
+    // TODO: Not sure how to properly handle AdapterView child positions given that assertions are added for the visible node hierarchy.
+    if (!className.isEmpty() || !resourceId.isEmpty() || !text.isEmpty() || !contentDescription.isEmpty() || viewGroupChildPosition != -1) {
+      assertion.addElementDescriptor(new ElementDescriptor(className, -1, viewGroupChildPosition, resourceId, contentDescription, text));
       if (node.getParent() instanceof UiNode) {
         addElementDescriptors(assertion, (UiNode)node.getParent());
       }
