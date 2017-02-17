@@ -1,4 +1,4 @@
-<idea-plugin version="2">
+<idea-plugin>
   <id>com.google.gct.testing</id>
   <name>Firebase Testing</name>
   <version>1.0</version>
