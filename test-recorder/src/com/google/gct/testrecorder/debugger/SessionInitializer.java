@@ -254,7 +254,7 @@ public class SessionInitializer implements Runnable {
           }
         }
 
-        for (ActivityAlias activityAlias : application.getActivityAliass()) {
+        for (ActivityAlias activityAlias : application.getActivityAliases()) {
           if (activityName.equals(ActivityLocatorUtils.getQualifiedName(activityAlias))) {
             // It is an alias, return the actual activity name.
             PsiClass psiClass = activityAlias.getTargetActivity().getValue();

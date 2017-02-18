@@ -22,7 +22,6 @@ iml_module(
         "//tools/idea/platform/platform-api[module]",
         "//tools/idea:platform-impl_and_others[module]",
         "//tools/idea/.idea/libraries:Guava",
-        "//tools/idea/.idea/libraries:guava-tools",
         "//tools/adt/idea/android[module]",
         "//tools/idea/platform/smRunner[module]",
         "//tools/idea/platform/lang-api[module]",

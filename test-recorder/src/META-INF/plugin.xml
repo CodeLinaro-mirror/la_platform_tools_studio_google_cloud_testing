@@ -13,7 +13,7 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<idea-plugin version="2">
+<idea-plugin>
   <id>com.google.gct.test.recorder</id>
   <name>Test Recorder</name>
   <version>1.0</version>
