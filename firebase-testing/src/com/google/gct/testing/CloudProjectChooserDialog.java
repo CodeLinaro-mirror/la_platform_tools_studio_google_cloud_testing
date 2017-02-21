@@ -15,7 +15,7 @@
  */
 package com.google.gct.testing;
 
-import com.google.gct.idea.elysium.ProjectSelector;
+import com.google.gct.idea.resources.ProjectSelector;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 
