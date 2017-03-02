@@ -215,6 +215,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
     });
 
+    //TODO: Hide the feature until the backend is ready.
+    mySaveRoboScriptButton.setVisible(false);
+
     // TODO: take screenshot in Espresso test code
     myTakeScreenshotButton.addActionListener(new ActionListener() {
       @Override
