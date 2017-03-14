@@ -43,8 +43,8 @@ public class RecordingDialogTest extends TestCase {
   private String getExpectedJsonText() {
     File expectedJsonTextFile = ResourceHelper.getFileForResource(this, "expected.json", "expected_json", "txt");
     try {
-      // Remove the trailing empty line, which is always added to a file saved inside IntelliJ.
-      return FileUtils.readFileToString(expectedJsonTextFile).trim();
+      // Remove the trailing empty line, which is always added to a file saved inside IntelliJ, and remove windows line terminator
+      return FileUtils.readFileToString(expectedJsonTextFile).trim().replace("\r", "");
     } catch (Exception e) {
       throw new RuntimeException("Failed to read the expected JSON text " + expectedJsonTextFile.getAbsolutePath(), e);
     }

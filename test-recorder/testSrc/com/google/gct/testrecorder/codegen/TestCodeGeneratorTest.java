@@ -83,7 +83,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
   private String getExpectedTestClassContent() {
     File expectedTestClass = ResourceHelper.getFileForResource(this, "ExpectedTestClass.txt", "expected_test_class_", "txt");
     try {
-      return FileUtils.readFileToString(expectedTestClass);
+      return FileUtils.readFileToString(expectedTestClass).replace("\r", ""); // Fix Windows line terminators
     } catch (Exception e) {
       throw new RuntimeException("Failed to read the expected test class content " + expectedTestClass.getAbsolutePath(), e);
     }
