@@ -28,7 +28,6 @@ iml_module(
         "//tools/idea/.idea/libraries:JUnit4",
         "//tools/idea/plugins/groovy:jetgroovy[module]",
         "//tools/idea/platform/xdebugger-api[module]",
-        "//tools/idea/.idea/libraries:google-api-java-client",
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-storage-v1-rev1-1.18.0-rc",
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-testing-v1-revsnapshot-1.20.0",
         "//tools/studio/google/cloud/tools/core-plugin:google-cloud-tools-core-as[module]",
