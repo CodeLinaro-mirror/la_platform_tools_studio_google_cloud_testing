@@ -98,15 +98,6 @@
                     <border type="none"/>
                     <children/>
                   </grid>
-                  <component id="15e7d" class="javax.swing.JButton" binding="mySaveRoboScriptButton">
-                    <constraints>
-                      <grid row="1" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="4" fill="0" indent="0" use-parent-layout="false"/>
-                    </constraints>
-                    <properties>
-                      <horizontalAlignment value="0"/>
-                      <text value="Save Robo Script"/>
-                    </properties>
-                  </component>
                 </children>
               </grid>
               <grid id="b9968" binding="myEditAssertionPanel" layout-manager="GridLayoutManager" row-count="4" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">

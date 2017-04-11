@@ -80,6 +80,7 @@ public class SessionInitializer implements Runnable {
   private final ExecutionEnvironment myEnvironment;
   private final TestRecorderRunConfigurationProxy myTestRecorderConfigurationProxy;
   private final int myConfigurationId;
+  private final boolean myIsRecordingTest;
   private IDevice myDevice;
   private String myPackageName;
   private volatile DebuggerSession myDebuggerSession;
@@ -88,12 +89,13 @@ public class SessionInitializer implements Runnable {
   private volatile boolean myFailedToStart;
 
   public SessionInitializer(AndroidFacet facet, ExecutionEnvironment environment,
-                            TestRecorderRunConfigurationProxy testRecorderConfigurationProxy, int configurationId) {
+                            TestRecorderRunConfigurationProxy testRecorderConfigurationProxy, int configurationId, boolean isRecordingTest) {
     myFacet = facet;
     myProject = myFacet.getModule().getProject();
     myEnvironment = environment;
     myTestRecorderConfigurationProxy = testRecorderConfigurationProxy;
     myConfigurationId = configurationId;
+    myIsRecordingTest = isRecordingTest;
     // TODO: Although more robust than android.view.View#performClick() breakpoint, this might miss "contrived" clicks,
     // originating from the View object itself (e.g., as a result of processing a touch event).
     myBreakpointDescriptors.add(new BreakpointDescriptor(VIEW_CLICK, "android.view.View$PerformClick", "run", "()V", false));
@@ -193,7 +195,7 @@ public class SessionInitializer implements Runnable {
             @Override
             public void run() {
               //Show Test Recorder dialog after adding and enabling breakpoints.
-              myRecordingDialog = new RecordingDialog(myFacet, myDevice, myPackageName, launchedActivityName);
+              myRecordingDialog = new RecordingDialog(myFacet, myDevice, myPackageName, launchedActivityName, myIsRecordingTest);
               for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
                 breakpointCommand.setEventListener(myRecordingDialog);
               }

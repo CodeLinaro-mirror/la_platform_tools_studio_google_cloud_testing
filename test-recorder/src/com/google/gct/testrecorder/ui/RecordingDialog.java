@@ -104,7 +104,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
                      new ArtifactDependencySpec(DESIGN.getArtifactId(), DESIGN.getGroupId(), null),
                      new ArtifactDependencySpec(RECYCLERVIEW_V7.getArtifactId(), RECYCLERVIEW_V7.getGroupId(), null));
 
-  private static final String RECORDING_DIALOG_TITLE = "Record Your Test";
+  private static final String TEST_RECORDING_DIALOG_TITLE = "Record Your Test";
+  private static final String SCRIPT_RECORDING_DIALOG_TITLE = "Record Your Robo Script";
   private static final String DEFAULT_MESSAGE = "Select an element from screenshot";
 
   private final Project myProject;
@@ -112,6 +113,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private final IDevice myDevice;
   private final String myPackageName;
   private final String myLaunchedActivityName;
+  private final boolean myIsRecordingTest;
   private final GradleBuildModel myGradleBuildModel;
   private final AndroidModuleModel myAndroidModuleModel;
 
@@ -139,22 +141,22 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private JButton myCancelButton;
   private JButton mySaveAssertionAndAddAnotherButton;
   private JPanel myRecordingPanel;
-  private JButton mySaveRoboScriptButton;
 
-  public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName) {
+  public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName, boolean isRecordingTest) {
     super(facet.getModule().getProject());
     myProject = facet.getModule().getProject();
     myFacet = facet;
     myDevice = device;
     myPackageName = packageName;
     myLaunchedActivityName = launchedActivityName;
+    myIsRecordingTest = isRecordingTest;
     myAssertionMode = false;
     myGradleBuildModel = GradleBuildModel.get(myFacet.getModule());
     myAndroidModuleModel = AndroidModuleModel.get(myFacet);
 
     init();
 
-    setTitle(RECORDING_DIALOG_TITLE);
+    setTitle(myIsRecordingTest ? TEST_RECORDING_DIALOG_TITLE : SCRIPT_RECORDING_DIALOG_TITLE);
 
     getRootPane().setDefaultButton(getButton(getOKAction()));
 
@@ -165,6 +167,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     myEventListModel = new DefaultListModel();
     myEventList.setModel(myEventListModel);
     myEventList.setCellRenderer(new TestRecorderListRenderer());
+
+    if (!myIsRecordingTest) {
+      // No need for adding assertions and screenshots while recording a Robo script.
+      myAssertionPanel.setVisible(false);
+    }
 
     myAddAssertionButton.addActionListener(new ActionListener() {
       @Override
@@ -195,28 +202,6 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         }).queue();
       }
     });
-
-    mySaveRoboScriptButton.addActionListener(e -> {
-      UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
-                                       .setCategory(EventCategory.TEST_RECORDER)
-                                       .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT));
-
-      FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "txt");
-      FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
-      VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
-
-      if (fileWrapper != null) {
-        try {
-          FileUtils.write(fileWrapper.getFile(), getJsonForEvents(getAllModelEvents()));
-        } catch (Exception ex) {
-          String message = isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
-          Messages.showDialog(myProject, message, "Could not save Robo script to a file", new String[]{"OK"}, 0, null);
-        }
-      }
-    });
-
-    //TODO: Hide the feature until the backend is ready.
-    mySaveRoboScriptButton.setVisible(false);
 
     // TODO: take screenshot in Espresso test code
     myTakeScreenshotButton.addActionListener(new ActionListener() {
@@ -340,7 +325,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   @NotNull
   @Override
   protected String getHelpId() {
-    return "https://developer.android.com/r/studio-ui/test-recorder.html";
+    // TODO: Replace Firebase Robo help page with an AS page when (if) it is ready?
+    return myIsRecordingTest
+           ? "https://developer.android.com/r/studio-ui/test-recorder.html"
+           : "https://firebase.google.com/docs/test-lab/robo-ux-test";
   }
 
   @Override
@@ -350,44 +338,66 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   @Override
   protected void doOKAction() {
-    // Show the test class name input dialog before (potentially) setting up Espresso dependencies,
-    // which might confuse Gradle about the location of android tests.
-    TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet, myLaunchedActivityName);
-    chooser.show();
+    if (myIsRecordingTest) {
+      // Show the test class name input dialog before (potentially) setting up Espresso dependencies,
+      // which might confuse Gradle about the location of android tests.
+      TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet, myLaunchedActivityName);
+      chooser.show();
 
-    boolean hasAddedEspressoDependencies = false;
-    boolean hasCustomEspressoDependency = false;
-    // Automatically check/setup Espresso dependencies for Gradle projects only.
-    if (myGradleBuildModel != null) {
-      AndroidModel androidModel = myGradleBuildModel.android();
-      // androidModel will be null when the Gradle experimental plugin is used and it's not possible to update the instrumentation runner.
-      // TODO: Provide an appropriate error message or some alternative way to update instrumentation runner when the Gradle experimental
-      // plugin is used.
-      if (androidModel != null && !hasAllRequiredEspressoDependencies(androidModel)) {
-        UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
-                                         .setCategory(EventCategory.TEST_RECORDER)
-                                         .setKind(EventKind.TEST_RECORDER_MISSING_ESPRESSO_DEPENDENCIES));
+      boolean hasAddedEspressoDependencies = false;
+      boolean hasCustomEspressoDependency = false;
+      // Automatically check/setup Espresso dependencies for Gradle projects only.
+      if (myGradleBuildModel != null) {
+        AndroidModel androidModel = myGradleBuildModel.android();
+        // androidModel will be null when the Gradle experimental plugin is used and it's not possible to update the instrumentation runner.
+        // TODO: Provide an appropriate error message or some alternative way to update instrumentation runner when the Gradle experimental
+        // plugin is used.
+        if (androidModel != null && !hasAllRequiredEspressoDependencies(androidModel)) {
+          UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+                                           .setCategory(EventCategory.TEST_RECORDER)
+                                           .setKind(EventKind.TEST_RECORDER_MISSING_ESPRESSO_DEPENDENCIES));
 
-        if (Messages.showDialog(myProject,
-                                "This app is missing some dependencies for running Espresso tests.\n" +
-                                "Would you like to automatically add Espresso dependencies for this app?\n" +
-                                "To complete the set up, Gradle might ask you to install the missing libraries.\n" +
-                                "Please click on the corresponding link(s) to install them.",
-                                "Missing Espresso dependencies",
-                                new String[]{Messages.NO_BUTTON, Messages.YES_BUTTON}, 1, null) != 0) {
-          hasAddedEspressoDependencies = true;
-          setupEspresso();
+          if (Messages.showDialog(myProject,
+                                  "This app is missing some dependencies for running Espresso tests.\n" +
+                                  "Would you like to automatically add Espresso dependencies for this app?\n" +
+                                  "To complete the set up, Gradle might ask you to install the missing libraries.\n" +
+                                  "Please click on the corresponding link(s) to install them.",
+                                  "Missing Espresso dependencies",
+                                  new String[]{Messages.NO_BUTTON, Messages.YES_BUTTON}, 1, null) != 0) {
+            hasAddedEspressoDependencies = true;
+            setupEspresso();
+          }
+        }
+        hasCustomEspressoDependency = hasCustomEspressoDependency();
+      }
+
+      PsiClass testClass = chooser.getTestClass();
+
+      if (testClass != null) {
+        super.doOKAction();
+        new TestCodeGenerator(myFacet, testClass, getAllModelEvents(), myLaunchedActivityName, hasCustomEspressoDependency,
+                              hasAddedEspressoDependencies).generate();
+      }
+    } else {
+      FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "txt");
+      FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
+      VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
+
+      if (fileWrapper != null) {
+        try {
+          FileUtils.write(fileWrapper.getFile(), getJsonForEvents(getAllModelEvents()));
+        } catch (Exception ex) {
+          String message = isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
+          Messages.showDialog(myProject, message, "Could not save Robo script to a file", new String[]{"OK"}, 0, null);
         }
       }
-      hasCustomEspressoDependency = hasCustomEspressoDependency();
-    }
 
-    PsiClass testClass = chooser.getTestClass();
-
-    if (testClass != null) {
-      super.doOKAction();
-      new TestCodeGenerator(myFacet, testClass, getAllModelEvents(), myLaunchedActivityName, hasCustomEspressoDependency,
-                            hasAddedEspressoDependencies).generate();
+      if (fileSaverDialog.isOK()) {
+        UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+                                         .setCategory(EventCategory.TEST_RECORDER)
+                                         .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT));
+        super.doOKAction();
+      }
     }
   }
 

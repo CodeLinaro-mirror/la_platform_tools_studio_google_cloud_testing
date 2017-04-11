@@ -54,8 +54,6 @@ import static org.apache.commons.lang.StringUtils.isEmpty;
 public class TestRecorderAction extends AnAction {
   public static final Icon TEST_RECORDER_ICON = IconLoader.getIcon("circle_small.png", TestRecorderAction.class);
 
-  private Project myProject;
-
 
   @Override
   public void update(final AnActionEvent event) {
@@ -78,26 +76,30 @@ public class TestRecorderAction extends AnAction {
                                    .setCategory(EventCategory.TEST_RECORDER)
                                    .setKind(EventKind.TEST_RECORDER_LAUNCH));
 
-    myProject = event.getProject();
-    if (myProject == null || myProject.isDisposed()) {
+    final Project project = event.getProject();
+    if (project == null || project.isDisposed()) {
       return;
     }
 
-    List<RunConfiguration> suitableRunConfigurations = getSuitableRunConfigurations(myProject);
+    launchTestRecorder(project, true);
+  }
+
+  public static void launchTestRecorder(Project project, boolean isRecordingTest) {
+    List<RunConfiguration> suitableRunConfigurations = getSuitableRunConfigurations(project);
     if (suitableRunConfigurations.isEmpty()) {
       String message = "Please create an Android Application or Blaze Command Run configuration with a valid module and Default or Specified launch activity.";
-      Messages.showDialog(myProject, message, "No suitable run configuration found", new String[]{"OK"}, 0, null);
+      Messages.showDialog(project, message, "No suitable run configuration found", new String[]{"OK"}, 0, null);
       return;
     }
 
     if (suitableRunConfigurations.size() == 1) {
       // If only one configuration is suitable, use it.
-      launchTestRecorder(event, suitableRunConfigurations.get(0));
+      launchTestRecorderOnConfiguration(project, suitableRunConfigurations.get(0), isRecordingTest);
     } else {
-      RunnerAndConfigurationSettings selectedConfiguration = RunManagerEx.getInstanceEx(myProject).getSelectedConfiguration();
+      RunnerAndConfigurationSettings selectedConfiguration = RunManagerEx.getInstanceEx(project).getSelectedConfiguration();
       if (selectedConfiguration != null && suitableRunConfigurations.contains(selectedConfiguration.getConfiguration())) {
         // If currently selected configuration is suitable, use it.
-        launchTestRecorder(event, selectedConfiguration.getConfiguration());
+        launchTestRecorderOnConfiguration(project, selectedConfiguration.getConfiguration(), isRecordingTest);
       } else {
         // If there is more than one possible choice, ask the user to pick a configuration.
         ListPopupImpl configurationPickerPopup = new ListPopupImpl(
@@ -110,16 +112,16 @@ public class TestRecorderAction extends AnAction {
 
             @Override
             public PopupStep onChosen(RunConfiguration runConfiguration, boolean finalChoice) {
-              return doFinalStep(() -> launchTestRecorder(event, runConfiguration));
+              return doFinalStep(() -> launchTestRecorderOnConfiguration(project, runConfiguration, isRecordingTest));
             }
           });
 
-        configurationPickerPopup.showCenteredInCurrentWindow(myProject);
+        configurationPickerPopup.showCenteredInCurrentWindow(project);
       }
     }
   }
 
-  private void launchTestRecorder(AnActionEvent event, RunConfiguration configurationBase) {
+  private static void launchTestRecorderOnConfiguration(Project project, RunConfiguration configurationBase, boolean isRecordingTest) {
     TestRecorderRunConfigurationProxy testRecorderConfigurationProxy = TestRecorderRunConfigurationProxy.getInstance(configurationBase);
     LocatableConfigurationBase testRecorderConfiguration = testRecorderConfigurationProxy.getTestRecorderRunConfiguration();
 
@@ -130,14 +132,14 @@ public class TestRecorderAction extends AnAction {
       throw new RuntimeException("Could not create execution environment builder!");
     }
 
+    ExecutionEnvironment environment = builder.build();
+
     Module module = testRecorderConfigurationProxy.getModule();
     AndroidFacet facet = AndroidFacet.getInstance(module);
 
     if (facet == null) {
       throw new RuntimeException("Could not obtain Android facet for module: " + module.getName());
     }
-
-    ExecutionEnvironment environment = builder.activeTarget().dataContext(event.getDataContext()).build();
 
     // Terminate any active Run or Debug session of the to-be-recorded run configuration.
     // Even if it is a Run session, it still needs to be terminated, since the app will have to be restarted in debug mode.
@@ -148,10 +150,11 @@ public class TestRecorderAction extends AnAction {
 
     try {
       environment.getRunner().execute(environment, descriptor -> ApplicationManager.getApplication().executeOnPooledThread(
-        new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration.getUniqueID())));
+        new SessionInitializer(
+          facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration.getUniqueID(), isRecordingTest)));
     } catch (Exception e) {
       String message = isEmpty(e.getMessage()) ? "Unknown error" : e.getMessage();
-      Messages.showDialog(myProject, message, "Could not start debugging of the app", new String[]{"OK"}, 0, null);
+      Messages.showDialog(project, message, "Could not start debugging of the app", new String[]{"OK"}, 0, null);
     }
   }
 
