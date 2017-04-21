@@ -325,10 +325,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   @NotNull
   @Override
   protected String getHelpId() {
-    // TODO: Replace Firebase Robo help page with an AS page when (if) it is ready?
     return myIsRecordingTest
            ? "https://developer.android.com/r/studio-ui/test-recorder.html"
-           : "https://firebase.google.com/docs/test-lab/robo-ux-test";
+           : "https://firebase.google.com/docs/test-lab/robo-ux-test#scripting";
   }
 
   @Override
