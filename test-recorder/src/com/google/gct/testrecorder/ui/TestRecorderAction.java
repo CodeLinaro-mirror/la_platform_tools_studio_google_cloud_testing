@@ -52,13 +52,25 @@ import java.util.List;
 import static org.apache.commons.lang.StringUtils.isEmpty;
 
 public class TestRecorderAction extends AnAction {
+  // TODO: This is a temporary workaround to deal with the launch schedule conflicts.
+  // If this JVM option is present and set to true, enable Robo script recording.
+  private static final String ENABLE_ROBO_SCRIPT_RECORDING_FLAG = "enable.robo.script.recording";
+
+  private final static String RECORD_TEST_ACTION_TEXT = "Record Espresso Test";
   public static final Icon TEST_RECORDER_ICON = IconLoader.getIcon("circle_small.png", TestRecorderAction.class);
+  public static final Icon SCRIPT_RECORDER_ICON = IconLoader.getIcon("robo_dot.png", TestRecorderAction.class);
 
 
   @Override
   public void update(final AnActionEvent event) {
     final Presentation presentation = event.getPresentation();
-    presentation.setIcon(TEST_RECORDER_ICON);
+    if (isRecordingTestAction(presentation)) {
+      presentation.setIcon(TEST_RECORDER_ICON);
+    } else {
+      presentation.setIcon(SCRIPT_RECORDER_ICON);
+      // TODO: A temporary hack to hide Robo script recording option unless the local flag is specified.
+      presentation.setVisible(Boolean.getBoolean(ENABLE_ROBO_SCRIPT_RECORDING_FLAG));
+    }
 
     final Project project = event.getProject();
 
@@ -81,7 +93,7 @@ public class TestRecorderAction extends AnAction {
       return;
     }
 
-    launchTestRecorder(project, true);
+    launchTestRecorder(project, isRecordingTestAction(event.getPresentation()));
   }
 
   public static void launchTestRecorder(Project project, boolean isRecordingTest) {
@@ -172,5 +184,8 @@ public class TestRecorderAction extends AnAction {
     return suitableRunConfigurations;
   }
 
+  private boolean isRecordingTestAction(Presentation presentation) {
+    return RECORD_TEST_ACTION_TEXT.equals(presentation.getText());
+  }
 
 }
