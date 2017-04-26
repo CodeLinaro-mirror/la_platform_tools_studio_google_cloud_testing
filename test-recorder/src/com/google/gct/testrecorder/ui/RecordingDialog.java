@@ -78,6 +78,7 @@ import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
 import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.*;
+import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_PROJECT_MODIFIED;
 import static org.apache.commons.lang.StringUtils.isEmpty;
 
 public class RecordingDialog extends DialogWrapper implements TestRecorderEventListener {
@@ -589,7 +590,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
           myGradleBuildModel.applyChanges();
 
-          GradleSyncInvoker.getInstance().requestProjectSyncAndSourceGeneration(myProject, null);
+          GradleSyncInvoker.getInstance().requestProjectSyncAndSourceGeneration(myProject, null, TRIGGER_PROJECT_MODIFIED);
         });
       }
     }.queue();
