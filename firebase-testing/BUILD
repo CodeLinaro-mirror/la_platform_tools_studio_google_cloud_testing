@@ -3,6 +3,7 @@ load("//tools/base/bazel:bazel.bzl", "iml_module")
 iml_module(
     name = "firebase-testing",
     srcs = ["src"],
+    javacopts = ["-Xep:MissingCasesInEnumSwitch:WARN"],
     tags = ["managed"],
     test_class = "com.google.gct.testing.FirebaseTestingTestSuite",
     test_data = [
