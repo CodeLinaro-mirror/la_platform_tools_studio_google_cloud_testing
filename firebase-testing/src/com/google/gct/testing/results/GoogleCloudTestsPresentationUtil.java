@@ -325,9 +325,13 @@ public class GoogleCloudTestsPresentationUtil {
         case SKIPPED_INDEX:
           ignoredCount++;
           break;
+        case SCHEDULED_INDEX:
         case NOT_RUN_INDEX:
         case TERMINATED_INDEX:
         case RUNNING_INDEX:
+        case TIMEOUT_INDEX:
+        case INFRASTRUCTURE_FAILURE_INDEX:
+        case TRIGGERING_ERROR_INDEX:
           //Do nothing
           break;
       }
@@ -456,6 +460,12 @@ public class GoogleCloudTestsPresentationUtil {
         break;
       case TERMINATED_INDEX:
         renderer.append(title, TERMINATED_ATTRIBUTES);
+        break;
+      case SCHEDULED_INDEX:
+      case TIMEOUT_INDEX:
+      case INFRASTRUCTURE_FAILURE_INDEX:
+      case TRIGGERING_ERROR_INDEX:
+        //Do nothing
         break;
     }
   }
