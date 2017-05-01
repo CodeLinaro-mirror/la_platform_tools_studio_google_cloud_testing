@@ -40,6 +40,10 @@ import static org.hamcrest.Matchers.is;
 
 @LargeTest
 @RunWith(AndroidJUnit4.class)
+#if (${WasEverPaused})
+// WARNING: Espresso Test Recorder was paused during recording.
+// The generated test may be missing actions which might lead to unexpected behavior.
+#end
 public class ${ClassName} {
 
     @Rule

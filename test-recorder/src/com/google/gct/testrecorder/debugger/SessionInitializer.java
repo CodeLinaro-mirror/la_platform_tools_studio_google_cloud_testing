@@ -54,6 +54,7 @@ import com.intellij.xdebugger.XDebugProcess;
 import com.intellij.xdebugger.XDebugProcessStarter;
 import com.intellij.xdebugger.XDebugSession;
 import com.intellij.xdebugger.XDebuggerManager;
+import com.sun.jdi.request.BreakpointRequest;
 import org.jetbrains.android.dom.manifest.Activity;
 import org.jetbrains.android.dom.manifest.ActivityAlias;
 import org.jetbrains.android.dom.manifest.Application;
@@ -196,6 +197,7 @@ public class SessionInitializer implements Runnable {
             public void run() {
               //Show Test Recorder dialog after adding and enabling breakpoints.
               myRecordingDialog = new RecordingDialog(myFacet, myDevice, myPackageName, launchedActivityName, myIsRecordingTest);
+              myRecordingDialog.setDebuggerSession(myDebuggerSession);
               for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
                 breakpointCommand.setEventListener(myRecordingDialog);
               }
@@ -205,6 +207,7 @@ public class SessionInitializer implements Runnable {
           });
         } else {
           // The restarted debug process, reuse the already shown Test Recorder dialog.
+          myRecordingDialog.setDebuggerSession(myDebuggerSession);
           for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
             breakpointCommand.setEventListener(myRecordingDialog);
           }
@@ -288,6 +291,9 @@ public class SessionInitializer implements Runnable {
         // Keep trying until a successful reconnection or the user explicitly stops attempting to reconnect.
         while (message != null) {
           myDebuggerSession = null;
+          if (myRecordingDialog != null) {
+            myRecordingDialog.setDebuggerSession(null);
+          }
           int userChoice = Messages.showDialog(myProject, message, "Test Recorder has detached from the device VM",
                                                new String[]{"Stop", "Resume"}, 1, null);
           message = null;

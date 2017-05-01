@@ -44,6 +44,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
   private JPanel myDataCollecationAndCodeGenerationSettingsPanel;
   private JCheckBox myUseTextForElementMatchingCheckBox;
   private JCheckBox myUseContentDescriptionForElementMatchingCheckBox;
+  private JCheckBox myEnableTestFragmentRecordingCheckBox;
 
   public TestRecorderSettingsConfigurable() {
     mySettings = TestRecorderSettings.getInstance();
@@ -112,6 +113,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
            || mySettings.CAP_AT_NON_IDENTIFIABLE_ELEMENTS != myCapEvaluationDepthCheckBox.isSelected()
            || mySettings.USE_TEXT_FOR_ELEMENT_MATCHING != myUseTextForElementMatchingCheckBox.isSelected()
            || mySettings.USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING != myUseContentDescriptionForElementMatchingCheckBox.isSelected()
+           || mySettings.ENABLE_TEST_FRAGMENT_RECORDING != myEnableTestFragmentRecordingCheckBox.isSelected()
            || mySettings.CLEAN_BEFORE_START != myCleanBeforeStartCheckbox.isSelected()
            || mySettings.CLEAN_AFTER_FINISH != myCleanAfterFinishCheckbox.isSelected()
            || mySettings.STOP_APP_AFTER_RECORDING != myStopAppCheckbox.isSelected();
@@ -137,6 +139,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
     mySettings.CAP_AT_NON_IDENTIFIABLE_ELEMENTS = myCapEvaluationDepthCheckBox.isSelected();
     mySettings.USE_TEXT_FOR_ELEMENT_MATCHING = myUseTextForElementMatchingCheckBox.isSelected();
     mySettings.USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING = myUseContentDescriptionForElementMatchingCheckBox.isSelected();
+    mySettings.ENABLE_TEST_FRAGMENT_RECORDING = myEnableTestFragmentRecordingCheckBox.isSelected();
     mySettings.CLEAN_BEFORE_START = myCleanBeforeStartCheckbox.isSelected();
     mySettings.CLEAN_AFTER_FINISH = myCleanAfterFinishCheckbox.isSelected();
     mySettings.STOP_APP_AFTER_RECORDING = myStopAppCheckbox.isSelected();
@@ -150,6 +153,7 @@ public class TestRecorderSettingsConfigurable implements SearchableConfigurable,
     myCapEvaluationDepthCheckBox.setSelected(mySettings.CAP_AT_NON_IDENTIFIABLE_ELEMENTS);
     myUseTextForElementMatchingCheckBox.setSelected(mySettings.USE_TEXT_FOR_ELEMENT_MATCHING);
     myUseContentDescriptionForElementMatchingCheckBox.setSelected(mySettings.USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING);
+    myEnableTestFragmentRecordingCheckBox.setSelected(mySettings.ENABLE_TEST_FRAGMENT_RECORDING);
     myCleanBeforeStartCheckbox.setSelected(mySettings.CLEAN_BEFORE_START);
     myCleanAfterFinishCheckbox.setSelected(mySettings.CLEAN_AFTER_FINISH);
     myStopAppCheckbox.setSelected(mySettings.STOP_APP_AFTER_RECORDING);
