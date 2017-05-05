@@ -60,6 +60,11 @@ public class TestRecorderSettings implements PersistentStateComponent<TestRecord
   public boolean USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING = true;
 
   /**
+   * Determines whether the user has the option to record a test fragment by pausing/resuming the recorder.
+   */
+  public boolean ENABLE_TEST_FRAGMENT_RECORDING = false;
+
+  /**
    * Determines whether the app's state should be cleared before the recording starts.
    */
   public boolean CLEAN_BEFORE_START = true;

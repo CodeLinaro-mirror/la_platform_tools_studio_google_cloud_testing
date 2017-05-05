@@ -39,6 +39,8 @@ import com.google.gson.GsonBuilder;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
+import com.intellij.debugger.impl.DebuggerSession;
+import com.intellij.icons.AllIcons;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
@@ -55,6 +57,7 @@ import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBDimension;
 import com.intellij.util.ui.JBUI;
+import com.sun.jdi.request.BreakpointRequest;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -76,6 +79,7 @@ import static com.android.tools.idea.gradle.dsl.model.dependencies.CommonConfigu
 import static com.android.tools.idea.templates.SupportLibrary.*;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
+import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
 import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.*;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_PROJECT_MODIFIED;
@@ -118,11 +122,15 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private final GradleBuildModel myGradleBuildModel;
   private final AndroidModuleModel myAndroidModuleModel;
 
+  private DebuggerSession myDebuggerSession;
   private boolean myAssertionMode;
   private int myAssertionIndex;
   private LinkedHashMap<BasicTreeNode, Integer> myNodeIndentMap;
   private DefaultComboBoxModel myElementComboBoxModel;
   private DefaultListModel myEventListModel;
+  /** Shows whether recording is in progress. */
+  private boolean myIsRecording = true;
+  private boolean myWasEverPaused = false;
 
   private JPanel myRootPanel;
   private ScreenshotPanel myScreenshotPanel;
@@ -142,6 +150,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private JButton myCancelButton;
   private JButton mySaveAssertionAndAddAnotherButton;
   private JPanel myRecordingPanel;
+  private JButton myRecordPauseButton;
 
   public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName, boolean isRecordingTest) {
     super(facet.getModule().getProject());
@@ -172,7 +181,20 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     if (!myIsRecordingTest) {
       // No need for adding assertions and screenshots while recording a Robo script.
       myAssertionPanel.setVisible(false);
+      // Recording a Robo script does not support snippets.
+      myRecordPauseButton.setVisible(false);
+    } else {
+      myRecordPauseButton.setVisible(TestRecorderSettings.getInstance().ENABLE_TEST_FRAGMENT_RECORDING);
     }
+
+    myRecordPauseButton.setIcon(AllIcons.Debugger.ThreadStates.Paused);
+
+    myRecordPauseButton.addActionListener(e -> {
+      myWasEverPaused = true;
+      myIsRecording = !myIsRecording;
+      updateRecordPauseButton();
+      toggleDebugging();
+    });
 
     myAddAssertionButton.addActionListener(new ActionListener() {
       @Override
@@ -310,6 +332,32 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     });
   }
 
+  public void setDebuggerSession(DebuggerSession debuggerSession) {
+    myDebuggerSession = debuggerSession;
+    myIsRecording = myDebuggerSession != null;
+    myRecordPauseButton.setEnabled(myIsRecording);
+    updateRecordPauseButton();
+  }
+
+  private void updateRecordPauseButton() {
+    if (myIsRecording) {
+      myRecordPauseButton.setText("Pause");
+      myRecordPauseButton.setIcon(AllIcons.Debugger.ThreadStates.Paused);
+    } else {
+      myRecordPauseButton.setText("Resume");
+      myRecordPauseButton.setIcon(TEST_RECORDER_ICON);
+    }
+  }
+
+  private void toggleDebugging() {
+    if (myDebuggerSession != null) {
+      List<BreakpointRequest> requests = myDebuggerSession.getProcess().getRequestsManager().getVMRequestManager().breakpointRequests();
+      for (BreakpointRequest request : requests) {
+        request.setEnabled(myIsRecording);
+      }
+    }
+  }
+
   @VisibleForTesting
   static String getJsonForEvents(List<Object> events) {
     // Consider only TestRecorderEvents.
@@ -376,7 +424,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       if (testClass != null) {
         super.doOKAction();
         new TestCodeGenerator(myFacet, testClass, getAllModelEvents(), myLaunchedActivityName, hasCustomEspressoDependency,
-                              hasAddedEspressoDependencies).generate();
+                              hasAddedEspressoDependencies, myWasEverPaused).generate();
       }
     } else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "txt");

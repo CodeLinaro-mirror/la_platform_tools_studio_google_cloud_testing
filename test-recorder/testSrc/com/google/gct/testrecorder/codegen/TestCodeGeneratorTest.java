@@ -38,7 +38,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
   public void testCodeGeneration() throws Exception {
     PsiClass testClass = createTestClass();
 
-    TestCodeGenerator testCodeGenerator = new TestCodeGenerator(myFacet, testClass, createEvents(System.currentTimeMillis()), "p1.p2.MyActivity", false, false);
+    TestCodeGenerator testCodeGenerator = new TestCodeGenerator(myFacet, testClass, createEvents(System.currentTimeMillis()), "p1.p2.MyActivity", false, false, false);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);

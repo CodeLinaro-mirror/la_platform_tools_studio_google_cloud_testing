@@ -83,10 +83,11 @@ public class TestCodeGenerator {
   private final String myLaunchedActivityName;
   private final boolean myHasCustomEspressoDependency;
   private final boolean myHasAddedEspressoDependencies;
+  private final boolean myWasEverPaused;
 
 
   public TestCodeGenerator(AndroidFacet facet, PsiClass testClass, List<Object> events, String launchedActivityName,
-                           boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies) {
+                           boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies, boolean wasEverPaused) {
     myFacet = facet;
     myTestClass = testClass;
     myEvents = events;
@@ -94,6 +95,7 @@ public class TestCodeGenerator {
     myLaunchedActivityName = launchedActivityName;
     myHasCustomEspressoDependency = hasCustomEspressoDependency;
     myHasAddedEspressoDependencies = hasAddedEspressoDependencies;
+    myWasEverPaused = wasEverPaused;
   }
 
   public void generate() {
@@ -205,6 +207,7 @@ public class TestCodeGenerator {
     velocityContext.put("TestMethodName", lowerCaseFirstCharacter(myTestClass.getName()));
     velocityContext.put("PackageName", computePackageName(myFacet.getModule(), testCodeVirtualFile));
     velocityContext.put("EspressoPackageName", myHasCustomEspressoDependency ? ESPRESSO_CUSTOM_PACKAGE : ESPRESSO_STANDARD_PACKAGE);
+    velocityContext.put("WasEverPaused", myWasEverPaused);
 
     String resourcePackageName = myFacet.getManifest().getPackage().getStringValue();
     velocityContext.put("ResourcePackageName", resourcePackageName);
