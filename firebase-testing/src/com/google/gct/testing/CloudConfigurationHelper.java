@@ -620,7 +620,7 @@ public final class CloudConfigurationHelper {
           }
           File appApk = mainOutputs.get(0).getMainOutputFile().getOutputFile();
 
-          AndroidArtifact testArtifactInfo = androidModel.getAndroidTestArtifactInSelectedVariant();
+          AndroidArtifact testArtifactInfo = androidModel.getSelectedVariant().getAndroidTestArtifact();
 
           if (testArtifactInfo == null) {
             CloudTestingUtils.showErrorMessage(runningState.getFacet().getModule().getProject(), "Error uploading APKs",
