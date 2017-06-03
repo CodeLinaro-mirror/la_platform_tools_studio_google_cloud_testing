@@ -14,7 +14,7 @@ iml_module(
     test_srcs = ["testSrc"],
     test_tags = [
         "managed",
-        "exclusive",
+        "block-network",
     ],
     # do not sort: must match IML order
     deps = [
