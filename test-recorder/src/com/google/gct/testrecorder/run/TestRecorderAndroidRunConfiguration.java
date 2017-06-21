@@ -15,9 +15,22 @@
  */
 package com.google.gct.testrecorder.run;
 
+import com.android.ddmlib.IDevice;
+import com.android.ddmlib.NullOutputReceiver;
 import com.android.tools.idea.run.AndroidRunConfiguration;
+import com.android.tools.idea.run.ApkProviderUtil;
+import com.android.tools.idea.run.ApplicationIdProvider;
+import com.android.tools.idea.run.ConsolePrinter;
+import com.android.tools.idea.run.tasks.LaunchTask;
+import com.android.tools.idea.run.util.LaunchStatus;
+import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.intellij.openapi.diagnostic.Logger;
 import org.jdom.Element;
+import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.concurrent.TimeUnit;
 
 public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration {
   private static final Logger LOGGER = Logger.getInstance(TestRecorderAndroidRunConfiguration.class);
@@ -38,5 +51,53 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
   @Override
   public boolean supportsInstantRun() {
     return false;
+  }
+
+  @Nullable
+  @Override
+  protected LaunchTask getApplicationLaunchTask(@NotNull ApplicationIdProvider applicationIdProvider,
+                                                @NotNull AndroidFacet facet,
+                                                boolean waitForDebugger,
+                                                @NotNull LaunchStatus launchStatus) {
+    LaunchTask launchTask = super.getApplicationLaunchTask(applicationIdProvider, facet, waitForDebugger, launchStatus);
+    return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
+  }
+
+  private static class TestRecorderLaunchTask implements LaunchTask {
+    private final LaunchTask myDefaultLaunchTask;
+    private final AndroidFacet myFacet;
+
+    TestRecorderLaunchTask(@NotNull LaunchTask defaultLaunchTask, AndroidFacet facet) {
+      myDefaultLaunchTask = defaultLaunchTask;
+      myFacet = facet;
+    }
+
+    @NotNull
+    @Override
+    public String getDescription() {
+      return myDefaultLaunchTask.getDescription();
+    }
+
+    @Override
+    public int getDuration() {
+      return myDefaultLaunchTask.getDuration();
+    }
+
+    @Override
+    public boolean perform(@NotNull IDevice device, @NotNull LaunchStatus launchStatus, @NotNull ConsolePrinter printer) {
+      if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
+        try {
+          // Clear the app data such that the test recording starts from the initial app state.
+          String command = "pm clear " + ApkProviderUtil.computePackageName(myFacet);
+          printer.stdout("$ adb shell " + command);
+          device.executeShellCommand(command, new NullOutputReceiver(), 5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+          // It is unfortunate that the command to clear the app data might have failed, but it is not a blocker, so proceed.
+          LOGGER.warn("Exception clearing app data", e);
+        }
+      }
+
+      return myDefaultLaunchTask.perform(device, launchStatus, printer);
+    }
   }
 }

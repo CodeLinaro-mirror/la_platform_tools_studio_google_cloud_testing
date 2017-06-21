@@ -54,7 +54,6 @@ import com.intellij.xdebugger.XDebugProcess;
 import com.intellij.xdebugger.XDebugProcessStarter;
 import com.intellij.xdebugger.XDebugSession;
 import com.intellij.xdebugger.XDebuggerManager;
-import com.sun.jdi.request.BreakpointRequest;
 import org.jetbrains.android.dom.manifest.Activity;
 import org.jetbrains.android.dom.manifest.ActivityAlias;
 import org.jetbrains.android.dom.manifest.Application;
@@ -140,7 +139,7 @@ public class SessionInitializer implements Runnable {
     DebuggerManagerEx.getInstanceEx(myProject).addDebuggerManagerListener(myDebuggerManagerListener);
 
     try {
-      assignDeviceAndClearAppData();
+      assignDevice();
     } catch (final Exception e) {
       myFailedToStart = true;
       ApplicationManager.getApplication().invokeLater(new Runnable() {
@@ -316,7 +315,6 @@ public class SessionInitializer implements Runnable {
     RemoteConnection connection = new RemoteConnection(true, "localhost", debugPort, false);
 
     RunProfileState state = new RunProfileState() {
-      @Nullable
       @Override
       public ExecutionResult execute(Executor executor, @NotNull ProgramRunner runner) throws ExecutionException {
         return new DefaultExecutionResult();
@@ -390,7 +388,7 @@ public class SessionInitializer implements Runnable {
     }
   }
 
-  private void assignDeviceAndClearAppData() {
+  private void assignDevice() {
     List<ListenableFuture<IDevice>> listenableFutures = myTestRecorderConfigurationProxy.getDeviceFutures(myEnvironment);
 
     if (listenableFutures == null || listenableFutures.size() != 1) {
@@ -411,17 +409,6 @@ public class SessionInitializer implements Runnable {
       myPackageName = ApkProviderUtil.computePackageName(myFacet);
     } catch (Exception e) {
       throw new RuntimeException("Could not compute package name!");
-    }
-
-    if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
-      try {
-        // Clear app data such that the test recording starts from the initial app state.
-        myDevice.executeShellCommand("pm clear " + myPackageName, new CollectingOutputReceiver(), 5, TimeUnit.SECONDS);
-      }
-      catch (Exception e) {
-        // It is unfortunate that the command to clear app data might have failed, but it is not a blocker, so proceed.
-        LOGGER.warn("Exception clearing app data", e);
-      }
     }
   }
 
