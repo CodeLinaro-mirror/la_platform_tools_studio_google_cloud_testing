@@ -26,6 +26,7 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.ide.fileTemplates.JavaTemplateUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileTypes.StdFileTypes;
+import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.GeneratedSourcesFilter;
 import com.intellij.openapi.roots.ModuleRootManager;
@@ -35,7 +36,6 @@ import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.ui.JBColor;
-import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
@@ -50,23 +50,23 @@ import java.util.List;
 import static com.android.builder.model.AndroidProject.ARTIFACT_ANDROID_TEST;
 
 public class TestClassNameInputDialog extends DialogWrapper {
-  private final AndroidFacet myFacet;
   private final Project myProject;
+  private final String myLaunchedActivityName;
+  private Module myTestClassModule;
   private PsiDirectory myTestClassParent;
   private PsiClass myTestClass;
   private String myClassName;
-  private String myLaunchedActivityName;
 
   private JPanel myRootPanel;
   private JTextField myClassNameField;
   private JLabel myErrorMessageLabel;
 
 
-  protected TestClassNameInputDialog(AndroidFacet facet, String launchedActivityName) {
-    super(facet.getModule().getProject(), true);
-    myFacet = facet;
-    myProject = facet.getModule().getProject();
+  protected TestClassNameInputDialog(Module launchedModule, String launchedActivityName) {
+    super(launchedModule.getProject(), true);
+    myProject = launchedModule.getProject();
     myLaunchedActivityName = launchedActivityName;
+    myTestClassModule = launchedModule;
 
     // Initialize dialog
     init();
@@ -111,14 +111,15 @@ public class TestClassNameInputDialog extends DialogWrapper {
     VirtualFile launchedActivitySourceRoot = getContainingSourceRoot(appendJavaExtension(myLaunchedActivityName.replace('.', '/')));
 
     List<VirtualFile> existingAndroidTestSourceRoots = getExistingAndroidTestSourceRoots();
+
     if (existingAndroidTestSourceRoots.isEmpty()) {
       UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
                                        .setCategory(EventCategory.TEST_RECORDER)
                                        .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER));
 
-      final VirtualFile moduleFile = myFacet.getModule().getModuleFile();
+      final VirtualFile moduleFile = myTestClassModule.getModuleFile();
       if (moduleFile == null) {
-        throw new RuntimeException("Could not find module file for module " + myFacet.getModule().getName());
+        throw new RuntimeException("Could not find module file for module " + myTestClassModule.getName());
       }
       VirtualFile moduleDirectory = moduleFile.getParent();
 
@@ -134,7 +135,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
         String closestAndroidTestSourcePath =
           androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
         String moduleDirectoryCanonicalPath = moduleDirectory.getCanonicalPath();
-        if (!closestAndroidTestSourcePath.startsWith(moduleDirectoryCanonicalPath)) {
+        if (moduleDirectoryCanonicalPath == null || !closestAndroidTestSourcePath.startsWith(moduleDirectoryCanonicalPath)) {
           // Why this should ever be the case?
           throw new RuntimeException("Android test source path is not inside the module: " + closestAndroidTestSourcePath);
         }
@@ -150,7 +151,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
   private List<String> getAndroidTestSourceRoots() {
     List<String> androidTestSourceRoots = Lists.newArrayList();
 
-    AndroidModuleModel androidModel = AndroidModuleModel.get(myFacet.getModule());
+    AndroidModuleModel androidModel = AndroidModuleModel.get(myTestClassModule);
     if (androidModel != null) {
       for (SourceProvider sourceProvider : androidModel.getTestSourceProviders(ARTIFACT_ANDROID_TEST)) {
         for (File javaDirectory : sourceProvider.getJavaDirectories()) {
@@ -237,12 +238,29 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return overlapSize;
   }
 
+  private static void collectModulesClosure(@NotNull Module module, List<Module> result) {
+    if (result.contains(module)) {
+      return;
+    }
+
+    result.add(module);
+
+    for (Module depModule : ModuleRootManager.getInstance(module).getDependencies()) {
+      collectModulesClosure(depModule, result);
+    }
+  }
+
   @Nullable
   private VirtualFile getContainingSourceRoot(String fileRelativePath) {
-    for (VirtualFile sourceRoot : ModuleRootManager.getInstance(myFacet.getModule()).getSourceRoots(JavaSourceRootType.SOURCE)) {
-      if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(sourceRoot, myProject)
-          && sourceRoot.findFileByRelativePath(fileRelativePath) != null) {
-        return sourceRoot;
+    List<Module> relevantModules = Lists.newLinkedList();
+    collectModulesClosure(myTestClassModule, relevantModules);
+    for (Module module : relevantModules) {
+      for (VirtualFile sourceRoot : ModuleRootManager.getInstance(module).getSourceRoots(JavaSourceRootType.SOURCE)) {
+        if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(sourceRoot, myProject)
+            && sourceRoot.findFileByRelativePath(fileRelativePath) != null) {
+          myTestClassModule = module;
+          return sourceRoot;
+        }
       }
     }
     return null;
@@ -250,10 +268,12 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
   private List<VirtualFile> getExistingAndroidTestSourceRoots() {
     List<VirtualFile> existingAndroidTestSourceRoots = Lists.newArrayList();
-    for (VirtualFile testSourceRoot : ModuleRootManager.getInstance(myFacet.getModule()).getSourceRoots(JavaSourceRootType.TEST_SOURCE)) {
-      if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(testSourceRoot, myProject)
-          && TestArtifactSearchScopes.get(myFacet.getModule()).isAndroidTestSource(testSourceRoot)) {
-        existingAndroidTestSourceRoots.add(testSourceRoot);
+    for (VirtualFile testSourceRoot : ModuleRootManager.getInstance(myTestClassModule).getSourceRoots(JavaSourceRootType.TEST_SOURCE)) {
+      if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(testSourceRoot, myProject)) {
+        TestArtifactSearchScopes searchScopes = TestArtifactSearchScopes.get(myTestClassModule);
+        if (searchScopes != null && searchScopes.isAndroidTestSource(testSourceRoot)) {
+          existingAndroidTestSourceRoots.add(testSourceRoot);
+        }
       }
     }
     return existingAndroidTestSourceRoots;
@@ -296,8 +316,12 @@ public class TestClassNameInputDialog extends DialogWrapper {
     setOKActionEnabled(PsiNameHelper.getInstance(myProject).isIdentifier(myClassName));
   }
 
-  public PsiClass getTestClass(){
+  public PsiClass getTestClass() {
     return myTestClass;
+  }
+
+  public Module getTestClassModule() {
+    return myTestClassModule;
   }
 
   @Override

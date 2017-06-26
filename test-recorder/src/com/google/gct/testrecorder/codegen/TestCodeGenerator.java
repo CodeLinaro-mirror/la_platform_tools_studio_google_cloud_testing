@@ -38,6 +38,7 @@ import com.intellij.ide.actions.SelectInContextImpl;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.ProjectViewImpl;
 import com.intellij.ide.projectView.impl.ProjectViewPane;
+import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -48,6 +49,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
+import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidPlatform;
 import org.jetbrains.android.sdk.AndroidTargetData;
@@ -78,6 +80,7 @@ public class TestCodeGenerator {
 
   private final AndroidFacet myFacet;
   private final PsiClass myTestClass;
+  private final Module myTestClassModule;
   private final List<Object> myEvents;
   private final Project myProject;
   private final String myLaunchedActivityName;
@@ -86,12 +89,13 @@ public class TestCodeGenerator {
   private final boolean myWasEverPaused;
 
 
-  public TestCodeGenerator(AndroidFacet facet, PsiClass testClass, List<Object> events, String launchedActivityName,
+  public TestCodeGenerator(AndroidFacet facet, Module testClassModule, PsiClass testClass, List<Object> events, String launchedActivityName,
                            boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies, boolean wasEverPaused) {
     myFacet = facet;
     myTestClass = testClass;
+    myTestClassModule = testClassModule;
     myEvents = events;
-    myProject = myFacet.getModule().getProject();
+    myProject = myTestClassModule.getProject();
     myLaunchedActivityName = launchedActivityName;
     myHasCustomEspressoDependency = hasCustomEspressoDependency;
     myHasAddedEspressoDependencies = hasAddedEspressoDependencies;
@@ -114,7 +118,7 @@ public class TestCodeGenerator {
     OpenFileAction.openFile(testFilePath, myProject);
     final PsiFile testPsiFile = PsiManager.getInstance(myProject).findFile(testVirtualFile);
     // Reformat the code immediately for non-Gradle (e.g., Blaze) projects since it takes too long to refresh asynchronously.
-    if (GradleBuildModel.get(myFacet.getModule()) == null) {
+    if (GradleBuildModel.get(myTestClassModule) == null) {
       new ReformatCodeProcessor(myProject, testPsiFile, null, false).run();
     }
 
@@ -122,7 +126,7 @@ public class TestCodeGenerator {
       @Override
       public void run() {
         // Select the generated test class in the project view hierarchy tree.
-        ProjectView projectView = ProjectViewImpl.getInstance(myProject);
+        ProjectView projectView = ProjectView.getInstance(myProject);
         String currentViewId = projectView.getCurrentViewId() == null ? ProjectViewPane.ID : projectView.getCurrentViewId();
         for (SelectInTarget target : projectView.getSelectInTargets()) {
           if (currentViewId.equals(target.getMinorViewId())) {
@@ -205,11 +209,15 @@ public class TestCodeGenerator {
     velocityContext.put("TestActivityName", getClassName(myLaunchedActivityName));
     velocityContext.put("ClassName", myTestClass.getName());
     velocityContext.put("TestMethodName", lowerCaseFirstCharacter(myTestClass.getName()));
-    velocityContext.put("PackageName", computePackageName(myFacet.getModule(), testCodeVirtualFile));
+    velocityContext.put("PackageName", computePackageName(myTestClassModule, testCodeVirtualFile));
     velocityContext.put("EspressoPackageName", myHasCustomEspressoDependency ? ESPRESSO_CUSTOM_PACKAGE : ESPRESSO_STANDARD_PACKAGE);
     velocityContext.put("WasEverPaused", myWasEverPaused);
 
-    String resourcePackageName = myFacet.getManifest().getPackage().getStringValue();
+    Manifest manifest = myFacet.getManifest();
+    String resourcePackageName = "unknown";
+    if (manifest != null) {
+      resourcePackageName = manifest.getPackage().getStringValue();
+    }
     velocityContext.put("ResourcePackageName", resourcePackageName);
 
     // Generate test code.
@@ -261,7 +269,7 @@ public class TestCodeGenerator {
 
   @Nullable
   private AndroidTargetData getAndroidTargetData() {
-    AndroidPlatform androidPlatform = AndroidPlatform.getInstance(myFacet.getModule());
+    AndroidPlatform androidPlatform = AndroidPlatform.getInstance(myTestClassModule);
     if (androidPlatform == null) {
       return null;
     }
