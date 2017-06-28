@@ -99,7 +99,7 @@ public class MyTest {
                                                 0)),
                                 1),
                         isDisplayed()));
-        elementClass6.perform(replaceText("replacement \n\ntext\n"), closeSoftKeyboard());
+        elementClass6.perform(replaceText("replacement \n\ntext\n"));
 
         ViewInteraction elementClass7 = onView(
                 allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
@@ -110,7 +110,7 @@ public class MyTest {
                                                 0)),
                                 1),
                         isDisplayed()));
-        elementClass7.check(matches(withText("replacement \n\ntext\n")));
+        elementClass7.perform(closeSoftKeyboard());
 
         ViewInteraction elementClass8 = onView(
                 allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
@@ -121,20 +121,31 @@ public class MyTest {
                                                 0)),
                                 1),
                         isDisplayed()));
-        elementClass8.perform(pressImeActionButton());
+        elementClass8.check(matches(withText("replacement \n\ntext\n")));
 
         ViewInteraction elementClass9 = onView(
+                allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
+                        childAtPosition(
+                                allOf(withId(parentResourceId5),
+                                        childAtPosition(
+                                                allOf(withId(parentResourceId6), withContentDescription("parent content description 2")),
+                                                0)),
+                                1),
+                        isDisplayed()));
+        elementClass9.perform(pressImeActionButton());
+
+        ViewInteraction elementClass10 = onView(
                 allOf(withId(resourceId5), withContentDescription("content description 4"),
                         childAtPosition(
                                 allOf(withId(parentResourceId7), withText("parent text")),
                                 0),
                         isDisplayed()));
-        elementClass9.perform(swipeRight());
+        elementClass10.perform(swipeRight());
 
-        DataInteraction elementClass10 = onData(anything())
+        DataInteraction elementClass11 = onData(anything())
                 .inAdapterView(withId(list))
                 .atPosition(3);
-        elementClass10.perform(click());
+        elementClass11.perform(click());
 
     }
 

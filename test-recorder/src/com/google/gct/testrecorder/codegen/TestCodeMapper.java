@@ -101,19 +101,54 @@ public class TestCodeMapper {
         testCodeLines.add(createActionStatement(variableName, event.isViewLongClick() ? "longClick()" : "click()", event.canScrollTo()));
       }
     } else if (event.isTextChange()) {
+      String closeSoftKeyboardAction = doesNeedStandaloneCloseSoftKeyboardAction(event) ? "" : ", closeSoftKeyboard()";
       if (myIsUsingCustomEspresso) {
         testCodeLines.add(createActionStatement(variableName, "clearText()", event.canScrollTo()));
         testCodeLines.add(createActionStatement(
-          variableName, "typeText(" + boxString(event.getReplacementText()) + "), closeSoftKeyboard()", false));
+          variableName, "typeText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, false));
       } else {
         testCodeLines.add(createActionStatement(
-          variableName, "replaceText(" + boxString(event.getReplacementText()) + "), closeSoftKeyboard()", event.canScrollTo()));
+          variableName, "replaceText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, event.canScrollTo()));
       }
     } else {
       throw new RuntimeException("Unsupported event type: " + event.getEventType());
     }
 
+    if (doesNeedStandaloneCloseSoftKeyboardAction(event)) {
+      addStandaloneCloseSoftKeyboardAction(event, testCodeLines);
+    }
+
     return testCodeLines;
+  }
+
+  private void addStandaloneCloseSoftKeyboardAction(TestRecorderEvent textChangeEvent, List<String> testCodeLines) {
+    // Simulate an artificial close soft keyboard event.
+    TestRecorderEvent closeSoftKeyboardEvent = new TestRecorderEvent(textChangeEvent.getEventType(), textChangeEvent.getTimestamp());
+    closeSoftKeyboardEvent.setRecyclerViewPosition(closeSoftKeyboardEvent.getRecyclerViewPosition());
+
+    List<ElementDescriptor> originalElementDescriptors = textChangeEvent.getElementDescriptorList();
+    assert originalElementDescriptors.size() > 0;
+
+    ElementDescriptor originalDescriptor = originalElementDescriptors.get(0);
+    // Copy the first descriptor except for the text, which will become the replacement text.
+    ElementDescriptor updatedDescriptor =
+      new ElementDescriptor(originalDescriptor.getClassName(), originalDescriptor.getAdapterViewChildPosition(),
+                            originalDescriptor.getGroupViewChildPosition(), originalDescriptor.getResourceId(),
+                            originalDescriptor.getContentDescription(), textChangeEvent.getReplacementText());
+    closeSoftKeyboardEvent.addElementDescriptor(updatedDescriptor);
+    // Copy the rest of the descriptors unmodified.
+    for (int i = 1; i < originalElementDescriptors.size(); i++) {
+      closeSoftKeyboardEvent.addElementDescriptor(originalElementDescriptors.get(i));
+    }
+
+    testCodeLines.add("");
+    String variableName = addPickingStatement(closeSoftKeyboardEvent, testCodeLines);
+    testCodeLines.add(createActionStatement(variableName, "closeSoftKeyboard()", false));
+  }
+
+  private boolean doesNeedStandaloneCloseSoftKeyboardAction(TestRecorderEvent event) {
+    return TestRecorderSettings.getInstance().USE_TEXT_FOR_ELEMENT_MATCHING && event.isTextChange()
+           && !isNullOrEmpty(event.getElementText());
   }
 
   private String createSleepStatement(long sleepTime) {
