@@ -36,7 +36,6 @@ import com.intellij.ide.SelectInTarget;
 import com.intellij.ide.actions.OpenFileAction;
 import com.intellij.ide.actions.SelectInContextImpl;
 import com.intellij.ide.projectView.ProjectView;
-import com.intellij.ide.projectView.impl.ProjectViewImpl;
 import com.intellij.ide.projectView.impl.ProjectViewPane;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
@@ -213,10 +212,13 @@ public class TestCodeGenerator {
     velocityContext.put("EspressoPackageName", myHasCustomEspressoDependency ? ESPRESSO_CUSTOM_PACKAGE : ESPRESSO_STANDARD_PACKAGE);
     velocityContext.put("WasEverPaused", myWasEverPaused);
 
-    Manifest manifest = myFacet.getManifest();
     String resourcePackageName = "unknown";
-    if (manifest != null) {
-      resourcePackageName = manifest.getPackage().getStringValue();
+    AndroidFacet testClassFacet = AndroidFacet.getInstance(myTestClassModule);
+    if (testClassFacet !=  null) {
+      Manifest manifest = testClassFacet.getManifest();
+      if (manifest != null) {
+        resourcePackageName = manifest.getPackage().getStringValue();
+      }
     }
     velocityContext.put("ResourcePackageName", resourcePackageName);
 
