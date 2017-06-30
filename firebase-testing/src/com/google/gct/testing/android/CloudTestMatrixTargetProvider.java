@@ -18,7 +18,6 @@ package com.google.gct.testing.android;
 import com.android.tools.idea.run.*;
 import com.android.tools.idea.run.editor.*;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
-import com.google.api.client.util.Maps;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.RunProfile;
@@ -32,6 +31,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -117,24 +117,23 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
                                       int runConfigId) {
         // This method will be called only if hasCustomRunProfileState returned false (i.e., the user clicked Debug), so
         // open the Device Chooser dialog.
-        List<DeployTargetProvider> deployTargetProviders = Collections.emptyList();
-        Map<String, DeployTargetState> deployTargetStates = Maps.newHashMap();
+        List<DeployTargetProvider<DeployTargetState>> deployTargetProviders = Collections.emptyList();
+        Map<String, DeployTargetState> deployTargetStates = new HashMap<>();
         deployTargetStates.put(ShowChooserTargetProvider.ID, new ShowChooserTargetProvider.State());
 
         DeployTargetPickerDialog dialog = new DeployTargetPickerDialog(
-          runConfigId,
-          facet,
-          deviceCount,
-          deployTargetProviders,
-          deployTargetStates,
-          LaunchCompatibilityCheckerImpl.create(facet)
+            runConfigId,
+            facet,
+            deviceCount,
+            deployTargetProviders,
+            deployTargetStates,
+            LaunchCompatibilityCheckerImpl.create(facet)
         );
         if (dialog.showAndGet()) {
           return dialog.getSelectedDeployTarget().getDevices(state, facet, deviceCount, debug, runConfigId);
         }
-        else {
-          return null;
-        }
+
+        return null;
       }
     };
   }
