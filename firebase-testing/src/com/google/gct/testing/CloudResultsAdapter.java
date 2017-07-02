@@ -141,7 +141,7 @@ public class CloudResultsAdapter {
 
   private byte[] getParserInput(ConfigurationResult result) {
     String resultString = result.getResult();
-    if (resultString.indexOf("\r\n") == -1 && resultString.indexOf("\n") != -1) {
+    if (resultString.indexOf("\r\n") == -1 && resultString.indexOf('\n') != -1) {
       //Make sure the result uses \r\n (Windows-style EOL) as line delimiter as this is what parser expects/produces.
       resultString = resultString.replaceAll("\\n", "\r\n");
     }

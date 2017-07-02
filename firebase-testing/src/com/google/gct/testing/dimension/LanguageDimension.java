@@ -219,7 +219,7 @@ public class LanguageDimension extends CloudConfigurationDimension {
 
     @Override
     public String getGroupName() {
-      int endIndex = name.indexOf("(");
+      int endIndex = name.indexOf('(');
       return endIndex != -1 ? name.substring(0, endIndex).trim() : name;
     }
 

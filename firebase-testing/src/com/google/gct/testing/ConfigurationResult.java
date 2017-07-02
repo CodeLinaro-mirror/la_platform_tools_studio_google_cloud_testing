@@ -130,7 +130,7 @@ public class ConfigurationResult {
     String[] fileNameParts = getFileNameParts(fileName);
     String className = fileNameParts[0];
     String methodName = fileNameParts[1];
-    String step = fileNameParts[3].substring(0, fileNameParts[3].indexOf("."));
+    String step = fileNameParts[3].substring(0, fileNameParts[3].indexOf('.'));
     return new ScreenshotKey(className, methodName, step);
   }
 
@@ -210,7 +210,7 @@ public class ConfigurationResult {
       public Integer apply(String fileName) {
         String[] fileNameParts = getFileNameParts(fileName);
         if (testName.getClassName().equals(fileNameParts[0]) && testName.getMethodName().equals(fileNameParts[1])) {
-          return Integer.parseInt(fileNameParts[3].substring(0, fileNameParts[3].indexOf(".")));
+          return Integer.parseInt(fileNameParts[3].substring(0, fileNameParts[3].indexOf('.')));
         }
         return 0;
       }

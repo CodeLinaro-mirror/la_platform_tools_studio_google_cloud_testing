@@ -55,7 +55,7 @@ public class StringHelper {
 
   @NotNull
   public static String getClassName(@NotNull String qualifiedClassName) {
-    return qualifiedClassName.substring(qualifiedClassName.lastIndexOf(".") + 1);
+    return qualifiedClassName.substring(qualifiedClassName.lastIndexOf('.') + 1);
   }
 
   /**

@@ -150,7 +150,7 @@ public class CloudTestingUtils {
   }
 
   public static void showErrorMessage(@Nullable Project project, String errorDialogTitle, String errorMessage) {
-    int newLineIndex = errorMessage.indexOf("\n");
+    int newLineIndex = errorMessage.indexOf('\n');
     String userErrorMessage = newLineIndex != -1 ? errorMessage.substring(0, newLineIndex) : errorMessage;
     String detailedErrorMessage = newLineIndex != -1
                                   ? "<html><a href=" + GOOGLE_GROUP_URL
@@ -169,7 +169,7 @@ public class CloudTestingUtils {
     int debugInfoIndex = errorMessage.indexOf(debugInfoField);
     if (debugInfoIndex != -1) {
       int debugInfoStartIndex = debugInfoIndex + debugInfoField.length();
-      int debugInfoEndIndex = errorMessage.indexOf("\"", debugInfoStartIndex);
+      int debugInfoEndIndex = errorMessage.indexOf('\"', debugInfoStartIndex);
       if (debugInfoEndIndex != -1) {
         String debugInfo = errorMessage.substring(debugInfoStartIndex, debugInfoEndIndex);
         errorMessage = errorMessage.substring(0, debugInfoIndex) + errorMessage.substring(debugInfoEndIndex + 2);
