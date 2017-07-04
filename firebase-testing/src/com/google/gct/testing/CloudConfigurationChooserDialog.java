@@ -436,7 +436,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
       removeConfigurationFromTree(selectedConfiguration);
 
       DefaultMutableTreeNode treeNode;
-      if (editableConfigurations.size() == 0) {
+      if (editableConfigurations.isEmpty()) {
         if (defaultConfigurations.isEmpty()) {
           treeNode = customRoot;
         } else {

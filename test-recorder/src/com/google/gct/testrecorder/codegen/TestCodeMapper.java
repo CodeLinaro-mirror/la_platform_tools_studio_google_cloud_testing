@@ -127,7 +127,7 @@ public class TestCodeMapper {
     closeSoftKeyboardEvent.setRecyclerViewPosition(closeSoftKeyboardEvent.getRecyclerViewPosition());
 
     List<ElementDescriptor> originalElementDescriptors = textChangeEvent.getElementDescriptorList();
-    assert originalElementDescriptors.size() > 0;
+    assert !originalElementDescriptors.isEmpty();
 
     ElementDescriptor originalDescriptor = originalElementDescriptors.get(0);
     // Copy the first descriptor except for the text, which will become the replacement text.
