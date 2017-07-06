@@ -19,7 +19,7 @@ import com.intellij.openapi.components.*;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.impl.PsiModificationTrackerImpl;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 @State(
     name = "GoogleCloudTestingDeveloperSettings",
@@ -42,7 +42,7 @@ public class GoogleCloudTestingDeveloperSettings implements PersistentStateCompo
     return ServiceManager.getService(project, GoogleCloudTestingDeveloperSettings.class);
   }
 
-  @Nullable
+  @NotNull
   @Override
   public GoogleCloudTestingDeveloperConfigurable.GoogleCloudTestingDeveloperState getState() {
     if (myGoogleCloudTestingDeveloperState == null) {
