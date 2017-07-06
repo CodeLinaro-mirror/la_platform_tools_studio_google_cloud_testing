@@ -31,12 +31,10 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.testIntegration.TestLocationProvider;
 import com.intellij.util.ObjectUtils;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.TestOnly;
 
 import java.util.*;
 
@@ -53,7 +51,6 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
 
   private final Set<AbstractTestProxy> myFailedTestsSet = new HashSet<AbstractTestProxy>();
 
-  //private final GoogleCloudTestSuiteStack mySuitesStack = new GoogleCloudTestSuiteStack();
   private final List<GoogleCloudTestEventsListener> myEventsListeners = ContainerUtil.createLockFreeCopyOnWriteList();
   private final GoogleCloudTestProxy.GoogleCloudRootTestProxy myTestsRootNode;
   private final String myTestFrameworkName;
@@ -371,7 +368,7 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
         final String configuration = testFinishedEvent.getConfiguration();
         final String className = testFinishedEvent.getClassName();
         final String testName = testFinishedEvent.getName();
-        final long duration = testFinishedEvent.getDuration();
+        final long duration = testFinishedEvent.getDuration() == null ? -1 : testFinishedEvent.getDuration();
         final String fullTestName = getFullTestName(configuration, className, testName);
         final GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
 
@@ -515,14 +512,11 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
             return;
           } else {
             // try to fix the problem:
-            if (!myFailedTestsSet.contains(testProxy)) {
-              // if hasn't been already reported
-              // 1. report
-              //TODO: Get the actual configuration and class name through the test failed event.
-              onTestStarted(new GoogleCloudTestStartedEvent(testName, null, configuration, className));
-              // 2. add failure
-              testProxy = getProxyByFullTestName(fullTestName);
-            }
+            // 1. report
+            //TODO: Get the actual configuration and class name through the test failed event.
+            onTestStarted(new GoogleCloudTestStartedEvent(testName, null, configuration, className));
+            // 2. add failure
+            testProxy = getProxyByFullTestName(fullTestName);
           }
         }
 
@@ -677,11 +671,6 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
   @Nullable
   protected GoogleCloudTestProxy getProxyByFullTestName(final String fullTestName) {
     return myRunningTestsFullNameToProxy.get(fullTestName);
-  }
-
-  @TestOnly
-  protected void clearInternalSuitesStack() {
-    //mySuitesStack.clear();
   }
 
   private String cannotFindFullTestNameMsg(String fullTestName) {

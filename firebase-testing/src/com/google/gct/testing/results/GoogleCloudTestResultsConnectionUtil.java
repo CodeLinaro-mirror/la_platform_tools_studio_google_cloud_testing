@@ -16,7 +16,6 @@
 package com.google.gct.testing.results;
 
 import com.google.gct.testing.CloudMatrixExecutionCancellator;
-import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Location;
 import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
@@ -68,15 +67,13 @@ public class GoogleCloudTestResultsConnectionUtil {
    * @param processHandler Process handler
    * @param consoleProperties Console properties for test console actions
    * @return Console view
-   * @throws com.intellij.execution.ExecutionException If IDEA cannot executeCloudMatrixTests process this Exception will
-   * be caught and shown in error message box
    */
   public static BaseTestsOutputConsoleView createAndAttachConsole(@NotNull final String testFrameworkName,
                                                                   @NotNull final ProcessHandler processHandler,
                                                                   @NotNull final TestConsoleProperties consoleProperties,
                                                                   ExecutionEnvironment environment,
                                                                   @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator
-  ) throws ExecutionException {
+  ) {
     BaseTestsOutputConsoleView console = createConsole(testFrameworkName, consoleProperties, environment, matrixExecutionCancellator);
     console.attachToProcess(processHandler);
     return console;
@@ -162,7 +159,7 @@ public class GoogleCloudTestResultsConnectionUtil {
     return Boolean.valueOf(System.getProperty(TEST_RUNNER_DEBUG_MODE_PROPERTY));
   }
 
-  private static ProcessHandler attachEventsProcessors(@NotNull final TestConsoleProperties consoleProperties,
+  private static void attachEventsProcessors(@NotNull final TestConsoleProperties consoleProperties,
                                                        final GoogleCloudTestingResultsForm resultsViewer,
                                                        final ProcessHandler processHandler,
                                                        @NotNull final String testFrameworkName,
@@ -178,7 +175,6 @@ public class GoogleCloudTestResultsConnectionUtil {
     final GoogleCloudTestEventsProcessor eventsProcessor;
     if (idBasedTreeConstruction) {
       throw new RuntimeException("ID-based converter is not supported!");
-      //eventsProcessor = new GoogleCloudTestingBasedToSMTRunnerEventsConvertor(resultsViewer.getTestsRootNode(), testFrameworkName);
     } else {
       eventsProcessor = new GoogleCloudTestingToSMTRunnerEventsConvertor(resultsViewer.getTestsRootNode(), testFrameworkName);
     }
@@ -223,7 +219,6 @@ public class GoogleCloudTestResultsConnectionUtil {
         outputConsumer.process(event.getText(), outputType);
       }
     });
-    return processHandler;
   }
 
   public static class CompositeTestLocationProvider implements SMTestLocator {
