@@ -21,8 +21,8 @@ import com.android.builder.model.AndroidArtifactOutput;
 import com.android.ddmlib.IDevice;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
-import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.android.tools.idea.sdk.IdeSdks;
+import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.api.client.util.Maps;
 import com.google.api.client.util.Sets;
 import com.google.api.services.storage.Storage;
@@ -53,7 +53,6 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.execution.DefaultExecutionResult;
-import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionResult;
 import com.intellij.execution.Executor;
 import com.intellij.execution.process.ProcessOutputTypes;
@@ -291,7 +290,7 @@ public final class CloudConfigurationHelper {
 
     CloudConfigurationImpl cloudConfiguration = CloudTestingUtils.getConfigurationById(selectedConfigurationId, facet);
 
-    if (cloudConfiguration.getKind() != CloudConfiguration.Kind.SINGLE_DEVICE) {
+    if (cloudConfiguration == null || cloudConfiguration.getKind() != CloudConfiguration.Kind.SINGLE_DEVICE) {
       // Should handle only single device configurations.
       return;
     }
@@ -326,7 +325,7 @@ public final class CloudConfigurationHelper {
         .setLocale(dimensionValues[2])
         .setOrientation(dimensionValues[3]));
 
-    Device createdDevice = null;
+    Device createdDevice;
     try {
       createdDevice =
         CloudAuthenticator.getInstance().getTest().projects().devices().create(cloudProjectId, device).setSshPublicKey(publicKey).execute();
@@ -339,6 +338,7 @@ public final class CloudConfigurationHelper {
     if (createdDevice == null) {
       CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
                                                                                  "Could not access firebase device\n\n");
+      return;
     }
 
     final String deviceId = createdDevice.getId();
@@ -506,8 +506,7 @@ public final class CloudConfigurationHelper {
   }
 
   public static ExecutionResult executeCloudMatrixTests(
-    int selectedConfigurationId, String cloudProjectId, CloudMatrixTestRunningState runningState, Executor executor)
-    throws ExecutionException {
+    int selectedConfigurationId, String cloudProjectId, CloudMatrixTestRunningState runningState, Executor executor) {
     UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
                                      .setCategory(EventCategory.CLOUD_TESTING)
                                      .setKind(EventKind.CLOUD_TESTING_RUN_TEST_MATRIX));
@@ -523,7 +522,7 @@ public final class CloudConfigurationHelper {
 
     CloudConfigurationImpl cloudConfiguration = CloudTestingUtils.getConfigurationById(selectedConfigurationId, runningState.getFacet());
 
-    if (cloudConfiguration.getKind() != CloudConfiguration.Kind.MATRIX) {
+    if (cloudConfiguration == null || cloudConfiguration.getKind() != CloudConfiguration.Kind.MATRIX) {
       // Should handle only matrix configurations.
       return null;
     }
@@ -664,7 +663,7 @@ public final class CloudConfigurationHelper {
                                                                  ProcessOutputTypes.STDOUT);
             matrixExecutionCancellator.setCloudProjectId(cloudProjectId);
             matrixExecutionCancellator.setTestMatrixId(testMatrix.getTestMatrixId());
-            String testRunId = TEST_RUN_ID_PREFIX + bucketName;
+            String testRunId = TEST_RUN_ID_PREFIX + bucketName + System.currentTimeMillis();
             CloudResultsAdapter cloudResultsAdapter =
               new CloudResultsAdapter(cloudProjectId, bucketName, runningState.getProcessHandler(), cloudResultParser,
                                       expectedConfigurationInstances, testRunId, testMatrix, matrixExecutionCancellator);
@@ -776,7 +775,7 @@ public final class CloudConfigurationHelper {
   private static Session connectSession(JSch jsch, String rhost, int sshPort) throws Exception {
     Session session = jsch.getSession("root", rhost, sshPort);
     Properties config = new Properties();
-    config.put("StrictHostKeyChecking", "no");
+    config.setProperty("StrictHostKeyChecking", "no");
     session.setConfig(config);
     session.setTimeout(30*1000); // 30 seconds.
 

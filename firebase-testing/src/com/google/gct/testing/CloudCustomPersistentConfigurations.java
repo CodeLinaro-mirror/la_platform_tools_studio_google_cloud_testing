@@ -15,10 +15,12 @@
  */
 package com.google.gct.testing;
 
-import com.intellij.openapi.components.*;
+import com.intellij.openapi.components.PersistentStateComponent;
+import com.intellij.openapi.components.State;
+import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleServiceManager;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 @State(
     name = "CloudCustomPersistentConfigurations",
@@ -37,7 +39,7 @@ public class CloudCustomPersistentConfigurations implements PersistentStateCompo
     return ModuleServiceManager.getService(module, CloudCustomPersistentConfigurations.class);
   }
 
-  @Nullable
+  @NotNull
   @Override
   public CloudPersistentState getState() {
     if (myCloudPersistentState == null) {
