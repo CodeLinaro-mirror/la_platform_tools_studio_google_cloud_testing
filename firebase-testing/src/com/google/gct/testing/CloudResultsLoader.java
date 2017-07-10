@@ -93,6 +93,7 @@ public class CloudResultsLoader {
   private final IGoogleCloudTestRunListener testRunListener;
   private final ProcessHandler processHandler;
   private final String bucketName;
+  private final String uniquePrefix;
   private final String testMatrixId;
   private final Set<String> allConfigurationInstances = new HashSet<String>();
   private final Set<String> finishedConfigurationInstances = new HashSet<String>();
@@ -105,11 +106,12 @@ public class CloudResultsLoader {
 
 
   public CloudResultsLoader(String cloudProjectId, IGoogleCloudTestRunListener testRunListener, ProcessHandler processHandler,
-                            String bucketName, TestMatrix testMatrix) {
+                            String bucketName, String uniquePrefix, TestMatrix testMatrix) {
     this.cloudProjectId = cloudProjectId;
     this.testRunListener = testRunListener;
     this.processHandler = processHandler;
     this.bucketName = bucketName;
+    this.uniquePrefix = uniquePrefix;
     // testMatrix is null for runs with a fake bucket.
     if (testMatrix != null) {
       testMatrixId = testMatrix.getTestMatrixId();
@@ -159,8 +161,7 @@ public class CloudResultsLoader {
     newDataReceived = false;
     try {
       if (testMatrixId == null) { // The obsolete logic kept for handling fake buckets.
-        Storage.Objects.List objects = CloudAuthenticator.getInstance().getStorage().objects().list(bucketName);
-        List<StorageObject> storageObjects = objects.execute().getItems();
+        List<StorageObject> storageObjects = getBucketObjects();
 
         Iterable<BucketFileMetadata> files =
           Iterables.transform(storageObjects, Functions.compose(UPDATE_CONFIGURATION_PROGRESS, TO_BUCKET_FILE));
@@ -353,8 +354,7 @@ public class CloudResultsLoader {
 
   private void loadResultFiles(Map<String, ConfigurationResult> results) {
     try {
-      Storage.Objects.List objects = CloudAuthenticator.getInstance().getStorage().objects().list(bucketName);
-      List<StorageObject> storageObjects = objects.execute().getItems();
+      List<StorageObject> storageObjects = getBucketObjects();
 
       Iterable<BucketFileMetadata> files = Iterables.transform(storageObjects, TO_BUCKET_FILE);
 
@@ -376,14 +376,19 @@ public class CloudResultsLoader {
     }
   }
 
+  private List<StorageObject> getBucketObjects() throws IOException {
+    Storage.Objects.List objects = CloudAuthenticator.getInstance().getStorage().objects().list(bucketName);
+    objects.setPrefix(uniquePrefix);
+    return objects.execute().getItems();
+  }
+
   public void loadScreenshots(Map<String, ConfigurationResult> results) {
     if (loadedScreenshotSize > MAX_SCREENSHOT_DOWNLOAD_SIZE) {
       return;
     }
     List<StorageObject> storageObjects = null;
     try {
-      Storage.Objects.List objects = CloudAuthenticator.getInstance().getStorage().objects().list(bucketName);
-      storageObjects = objects.execute().getItems();
+      storageObjects = getBucketObjects();
     }
     catch (IOException e) {
       throw new RuntimeException("Failed to retrieve bucket objects: ", e);

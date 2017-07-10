@@ -75,7 +75,7 @@ public class CloudTestsLauncher {
   /**
    * Returns {@code StorageObject} for the uploaded file (i.e., the file in the bucket).
    */
-  public static StorageObject uploadFile(String bucketName, File file) {
+  public static StorageObject uploadFile(String bucketName, String uniquePrefix, File file) {
     InputStreamContent mediaContent = null;
     try {
       mediaContent = new InputStreamContent("application/octet-stream", new FileInputStream(file));
@@ -94,7 +94,7 @@ public class CloudTestsLauncher {
       // name by parameter. You will probably also want to ensure that your
       // default object ACLs (a bucket property) are set appropriately:
       // https://developers.google.com/storage/docs/json_api/v1/buckets#defaultObjectAcl
-      insertObject.setName(file.getName());
+      insertObject.setName(uniquePrefix + "/" + file.getName());
 
       return insertObject.execute();
     } catch (IOException e) {

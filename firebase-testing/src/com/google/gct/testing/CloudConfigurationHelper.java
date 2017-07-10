@@ -65,6 +65,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.Session;
 import icons.AndroidIcons;
+import org.apache.log4j.helpers.ISO8601DateFormat;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -281,6 +282,20 @@ public final class CloudConfigurationHelper {
                           + "Exception while getting the default bucket name\n\n" + e.getMessage());
       return null;
     }
+  }
+
+  private static String getUniquePathPrefix() {
+    final String characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    final int suffixLength = 4;
+    final Random randomGenerator = new Random();
+
+    StringBuilder suffix = new StringBuilder(suffixLength);
+    for (int i = 0; i < suffixLength; i++) {
+      suffix.append(characters.charAt(randomGenerator.nextInt(characters.length())));
+    }
+
+    String creationTime = new ISO8601DateFormat().format(new Date());
+    return "as-build_" + creationTime.replace(' ', '_').replace(',', '.') + "_" + suffix;
   }
 
   public static void launchCloudDevice(int selectedConfigurationId, @NotNull String cloudProjectId, @NotNull AndroidFacet facet) {
@@ -547,12 +562,13 @@ public final class CloudConfigurationHelper {
     GoogleCloudTestingDeveloperConfigurable.GoogleCloudTestingDeveloperState googleCloudTestingDeveloperState =
       GoogleCloudTestingDeveloperSettings.getInstance(project).getState();
     if (!googleCloudTestingDeveloperState.shouldUseFakeBucket) {
-      performTestsInCloud(cloudConfiguration, cloudProjectId, bucketName, runningState, cloudResultParser, matrixExecutionCancellator);
+      performTestsInCloud(
+        cloudConfiguration, cloudProjectId, bucketName, getUniquePathPrefix(), runningState, cloudResultParser, matrixExecutionCancellator);
     }
     else {
       String testRunId = TEST_RUN_ID_PREFIX + googleCloudTestingDeveloperState.fakeBucketName + System.currentTimeMillis();
       CloudResultsAdapter cloudResultsAdapter =
-        new CloudResultsAdapter(cloudProjectId, googleCloudTestingDeveloperState.fakeBucketName, runningState.getProcessHandler(),
+        new CloudResultsAdapter(cloudProjectId, googleCloudTestingDeveloperState.fakeBucketName, "prefix", runningState.getProcessHandler(),
                                 cloudResultParser, expectedConfigurationInstances, testRunId, null, null);
       addCloudConfiguration(testRunId, cloudConfiguration);
       addCloudResultsAdapter(testRunId, cloudResultsAdapter);
@@ -581,7 +597,8 @@ public final class CloudConfigurationHelper {
   }
 
   private static void performTestsInCloud(final CloudConfigurationImpl cloudTestingConfiguration, final String cloudProjectId,
-                                          final String bucketName, final CloudMatrixTestRunningState runningState,
+                                          final String bucketName, final String uniquePrefix,
+                                          final CloudMatrixTestRunningState runningState,
                                           final GoogleCloudTestingResultParser cloudResultParser,
                                           final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
     if (cloudTestingConfiguration != null && cloudTestingConfiguration.getDeviceConfigurationCount() > 0) {
@@ -590,13 +607,14 @@ public final class CloudConfigurationHelper {
       new Thread(new Runnable() {
         @Override
         public void run() {
+          final String bucketPath = bucketName + "/" + uniquePrefix;
           AndroidTestRunConfiguration testRunConfiguration = runningState.getConfiguration();
 
           if (matrixExecutionCancellator.isCancelled()) {
             return;
           }
           runningState.getProcessHandler().notifyTextAvailable(
-            prepareProgressString("Using Cloud Storage Bucket " + bucketName + " ...", ""), ProcessOutputTypes.STDOUT);
+            prepareProgressString("Using Cloud Storage Bucket location " + bucketPath + " ...", ""), ProcessOutputTypes.STDOUT);
 
           if (matrixExecutionCancellator.isCancelled()) {
             return;
@@ -637,14 +655,14 @@ public final class CloudConfigurationHelper {
 
           runningState.getProcessHandler().notifyTextAvailable(prepareProgressString("Uploading app APK ...", ""),
                                                                ProcessOutputTypes.STDOUT);
-          String appApkName = CloudTestsLauncher.uploadFile(bucketName, appApk).getName();
+          String appApkName = CloudTestsLauncher.uploadFile(bucketName, uniquePrefix, appApk).getName();
 
           if (matrixExecutionCancellator.isCancelled()) {
             return;
           }
           runningState.getProcessHandler().notifyTextAvailable(prepareProgressString("Uploading test APK ...", ""),
                                                                ProcessOutputTypes.STDOUT);
-          String testApkName = CloudTestsLauncher.uploadFile(bucketName, testApk).getName();
+          String testApkName = CloudTestsLauncher.uploadFile(bucketName, uniquePrefix, testApk).getName();
 
           if (matrixExecutionCancellator.isCancelled()) {
             return;
@@ -654,7 +672,7 @@ public final class CloudConfigurationHelper {
           String testSpecification = CloudTestingUtils.prepareTestSpecification(testRunConfiguration);
 
           TestMatrix testMatrix = CloudTestsLauncher
-            .triggerTestApi(cloudProjectId, getBucketGcsPath(bucketName), getApkGcsPath(bucketName, appApkName),
+            .triggerTestApi(cloudProjectId, getBucketGcsPath(bucketPath), getApkGcsPath(bucketName, appApkName),
                             getApkGcsPath(bucketName, testApkName), testSpecification, testRunConfiguration.INSTRUMENTATION_RUNNER_CLASS,
                             cloudTestingConfiguration);
 
@@ -663,9 +681,9 @@ public final class CloudConfigurationHelper {
                                                                  ProcessOutputTypes.STDOUT);
             matrixExecutionCancellator.setCloudProjectId(cloudProjectId);
             matrixExecutionCancellator.setTestMatrixId(testMatrix.getTestMatrixId());
-            String testRunId = TEST_RUN_ID_PREFIX + bucketName + System.currentTimeMillis();
+            String testRunId = TEST_RUN_ID_PREFIX + bucketPath;
             CloudResultsAdapter cloudResultsAdapter =
-              new CloudResultsAdapter(cloudProjectId, bucketName, runningState.getProcessHandler(), cloudResultParser,
+              new CloudResultsAdapter(cloudProjectId, bucketName, uniquePrefix, runningState.getProcessHandler(), cloudResultParser,
                                       expectedConfigurationInstances, testRunId, testMatrix, matrixExecutionCancellator);
             addCloudConfiguration(testRunId, cloudTestingConfiguration);
             addCloudResultsAdapter(testRunId, cloudResultsAdapter);
@@ -682,8 +700,8 @@ public final class CloudConfigurationHelper {
     }
   }
 
-  private static String getBucketGcsPath(String bucketName) {
-    return "gs://" + bucketName;
+  private static String getBucketGcsPath(String bucketPath) {
+    return "gs://" + bucketPath;
   }
 
   private static String getApkGcsPath(String bucketName, String apkName) {

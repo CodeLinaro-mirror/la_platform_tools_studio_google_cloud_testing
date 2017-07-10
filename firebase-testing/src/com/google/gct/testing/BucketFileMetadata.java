@@ -39,13 +39,15 @@ class BucketFileMetadata {
     if (path.endsWith("/")) {
       type = Type.FOLDER;
       name = path.substring(0, path.length() - 1);
-    } else if (path.contains("/")) {
-      String[] fileNameParts = path.split("/");
-      encodedConfigurationInstance = Optional.of(fileNameParts[0]);
-      name = fileNameParts[fileNameParts.length - 1];
     } else {
-      encodedConfigurationInstance = Optional.absent();
-      name = path;
+      String[] fileNameParts = path.split("/");
+      if (fileNameParts.length < 3) {
+        encodedConfigurationInstance = Optional.absent();
+      } else {
+        // The first part is the unique prefix, so the following part is the encoded configuration.
+        encodedConfigurationInstance = Optional.of(fileNameParts[1]);
+      }
+      name = fileNameParts[fileNameParts.length - 1];
     }
 
     if (path.endsWith("/DONE")) {

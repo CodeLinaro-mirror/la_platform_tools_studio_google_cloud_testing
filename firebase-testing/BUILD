@@ -44,5 +44,6 @@ iml_module(
         "//tools/idea/.idea/libraries:mockito[test]",
         "//tools/base/testutils:studio.testutils[module, test]",
         "//tools/adt/idea/android-plugin[module, test]",
+        "//tools/idea/.idea/libraries:Log4J",
     ],
 )

@@ -44,11 +44,11 @@ public class CloudResultsAdapter {
   private final PollingTicker pollingTicker;
 
 
-  public CloudResultsAdapter(String cloudProjectId, String bucketName, ProcessHandler processHandler,
+  public CloudResultsAdapter(String cloudProjectId, String bucketName, String uniquePrefix, ProcessHandler processHandler,
                              GoogleCloudTestingResultParser resultParser, List<String> expectedConfigurationInstances, String testRunId,
                              @Nullable TestMatrix testMatrix, @Nullable CloudMatrixExecutionCancellator matrixExecutionCancellator) {
     this.cloudProjectId = cloudProjectId;
-    loader = new CloudResultsLoader(cloudProjectId, resultParser.getTestRunListener(), processHandler, bucketName, testMatrix);
+    loader = new CloudResultsLoader(cloudProjectId, resultParser.getTestRunListener(), processHandler, bucketName, uniquePrefix, testMatrix);
     this.resultParser = resultParser;
     this.expectedConfigurationInstances = expectedConfigurationInstances;
     pollingTicker = new PollingTicker(matrixExecutionCancellator);
