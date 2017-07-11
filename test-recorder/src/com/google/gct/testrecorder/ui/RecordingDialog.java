@@ -35,7 +35,7 @@ import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.event.TestRecorderEventListener;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.util.StringHelper;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
@@ -72,6 +72,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -81,6 +82,7 @@ import static com.android.tools.idea.templates.SupportLibrary.*;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
 import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
+import static com.google.gct.testrecorder.util.ClassHelper.getInternalName;
 import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.*;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_PROJECT_MODIFIED;
@@ -361,7 +363,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   @VisibleForTesting
-  static String getJsonForEvents(List<Object> events) {
+  static String getJsonForEvents(Project project, List<Object> events) {
     // Consider only TestRecorderEvents.
     List<TestRecorderEvent> testRecorderEvents = new ArrayList<>();
     for (Object event : events) {
@@ -370,7 +372,29 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
     }
 
-    return new GsonBuilder().setPrettyPrinting().create().toJson(testRecorderEvents);
+    GsonBuilder gsonBuilder = new GsonBuilder();
+    gsonBuilder.registerTypeAdapter(ElementDescriptor.class, new ElementDescriptorSerializer(project));
+    return gsonBuilder.setPrettyPrinting().create().toJson(testRecorderEvents);
+  }
+
+  private static class ElementDescriptorSerializer implements JsonSerializer<ElementDescriptor> {
+    private final Project myProject;
+
+    public ElementDescriptorSerializer(Project project) {
+      myProject = project;
+    }
+
+    @Override
+    public JsonElement serialize(ElementDescriptor elementDescriptor, Type typeOfSrc, JsonSerializationContext context) {
+      JsonObject jsonObject = new JsonObject();
+      jsonObject.addProperty("className", getInternalName(myProject, elementDescriptor.getClassName()));
+      jsonObject.addProperty("adapterViewChildPosition", elementDescriptor.getAdapterViewChildPosition());
+      jsonObject.addProperty("groupViewChildPosition", elementDescriptor.getGroupViewChildPosition());
+      jsonObject.addProperty("resourceId", elementDescriptor.getResourceId());
+      jsonObject.addProperty("contentDescription", elementDescriptor.getContentDescription());
+      jsonObject.addProperty("text", elementDescriptor.getText());
+      return jsonObject;
+    }
   }
 
   @NotNull
@@ -439,7 +463,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
       if (fileWrapper != null) {
         try {
-          FileUtils.write(fileWrapper.getFile(), getJsonForEvents(getAllModelEvents()));
+          FileUtils.write(fileWrapper.getFile(), getJsonForEvents(myProject, getAllModelEvents()));
         } catch (Exception ex) {
           String message = isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
           Messages.showDialog(myProject, message, "Could not save Robo script to a file", new String[]{"OK"}, 0, null);

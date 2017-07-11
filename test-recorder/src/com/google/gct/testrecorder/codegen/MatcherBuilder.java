@@ -15,14 +15,11 @@
  */
 package com.google.gct.testrecorder.codegen;
 
-import com.android.tools.idea.lint.LintIdeUtils;
 import com.intellij.openapi.project.Project;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.search.GlobalSearchScope;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.ClassName;
+import static com.google.gct.testrecorder.util.ClassHelper.getInternalName;
 import static com.google.gct.testrecorder.util.StringHelper.boxString;
 
 public class MatcherBuilder {
@@ -30,8 +27,8 @@ public class MatcherBuilder {
 
   private final Project myProject;
 
-  private int matcherCount = 0;
-  private final StringBuilder matchers = new StringBuilder();
+  private int myMatcherCount = 0;
+  private final StringBuilder myMatchers = new StringBuilder();
 
   public MatcherBuilder(Project project) {
     myProject = project;
@@ -40,55 +37,30 @@ public class MatcherBuilder {
   public void addMatcher(Kind kind, String matchedString, boolean shouldBox, boolean isAssertionMatcher) {
     if (!isNullOrEmpty(matchedString)) {
       if (kind == ClassName && !isAssertionMatcher) {
-        matchedString = getInternalName(matchedString);
+        matchedString = getInternalName(myProject, matchedString);
       }
 
-      if (matcherCount > 0) {
-        matchers.append(", ");
+      if (myMatcherCount > 0) {
+        myMatchers.append(", ");
       }
 
       if (kind == ClassName && isAssertionMatcher) {
-       matchers.append("IsInstanceOf.<View>instanceOf(" + matchedString + ".class)");
+       myMatchers.append("IsInstanceOf.<View>instanceOf(").append(matchedString).append(".class)");
       } else {
-        matchers.append("with").append(kind.name()).append(kind == ClassName ? "(is(" : "(")
+        myMatchers.append("with").append(kind.name()).append(kind == ClassName ? "(is(" : "(")
           .append(shouldBox ? boxString(matchedString) : matchedString).append(kind == ClassName ? "))" : ")");
       }
 
-      matcherCount++;
+      myMatcherCount++;
     }
-  }
-
-  /**
-   * Returns the name of the class that can be used in the generated test code.
-   * For example, for a class foo.bar.Foo.Bar it returns foo.bar.Foo$Bar.
-   */
-  private String getInternalName(String className) {
-    PsiClass psiClass = JavaPsiFacade.getInstance(myProject).findClass(className, GlobalSearchScope.allScope(myProject));
-    if (psiClass != null) {
-      String intellijInternalName = LintIdeUtils.getInternalName(psiClass);
-      if (intellijInternalName != null) {
-        return intellijInternalName.replace('/', '.');
-      }
-    }
-
-    // If the PsiClass was not found or its internal name was not obtained, apply a simple heuristic.
-    String[] nameFragments = className.split("\\.");
-    String resultClassName = "";
-    for (int i = 0; i < nameFragments.length - 1; i++) {
-      String fragment = nameFragments[i];
-      resultClassName += fragment + (Character.isUpperCase(fragment.charAt(0)) ? "$" : ".");
-    }
-    resultClassName += nameFragments[nameFragments.length -1];
-
-    return resultClassName;
   }
 
   public int getMatcherCount() {
-    return matcherCount;
+    return myMatcherCount;
   }
 
   public String getMatchers() {
-    return matchers.toString();
+    return myMatchers.toString();
   }
 
 }

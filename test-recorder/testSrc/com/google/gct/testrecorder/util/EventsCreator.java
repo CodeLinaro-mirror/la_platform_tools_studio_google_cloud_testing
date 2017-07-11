@@ -32,7 +32,7 @@ public class EventsCreator {
     List<Object> events = Lists.newLinkedList();
 
     TestRecorderEvent viewClickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, timestamp);
-    viewClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 0, "resourceId1", "content description 1", ""));
+    viewClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass.ElementInnerClass", -1, 0, "resourceId1", "content description 1", ""));
     viewClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, 1, "parentResourceId1", "", ""));
     viewClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass2", -1, 2, "parentResourceId2", "parent content description 1", ""));
     events.add(viewClickEvent);

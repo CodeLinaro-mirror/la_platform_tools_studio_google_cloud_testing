@@ -8,7 +8,7 @@
     "canScrollTo": false,
     "elementDescriptors": [
       {
-        "className": "ElementClass",
+        "className": "ElementClass$ElementInnerClass",
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "resourceId1",
