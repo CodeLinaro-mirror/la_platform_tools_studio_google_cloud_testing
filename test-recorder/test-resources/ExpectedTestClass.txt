@@ -34,7 +34,7 @@ public class MyTest {
 
     @Test
     public void myTest() {
-        ViewInteraction elementClass = onView(
+        ViewInteraction elementInnerClass = onView(
                 allOf(withId(resourceId1), withContentDescription("content description 1"),
                         childAtPosition(
                                 allOf(withId(parentResourceId1),
@@ -43,14 +43,14 @@ public class MyTest {
                                                 1)),
                                 0),
                         isDisplayed()));
-        elementClass.perform(click());
+        elementInnerClass.perform(click());
 
-        ViewInteraction elementClass2 = onView(
+        ViewInteraction elementClass = onView(
                 allOf(childAtPosition(
                         withClassName(is("ParentClass1")),
                         1),
                         isDisplayed()));
-        elementClass2.perform(click());
+        elementClass.perform(click());
 
         ViewInteraction gridClass = onView(
                 allOf(withId(gridResourceId),
@@ -60,15 +60,15 @@ public class MyTest {
                         isDisplayed()));
         gridClass.perform(actionOnItemAtPosition(5, click()));
 
+        ViewInteraction elementClass2 = onView(
+                allOf(withId(resourceId2), withContentDescription("content description 2"), isDisplayed()));
+        elementClass2.check(matches(isDisplayed()));
+
         ViewInteraction elementClass3 = onView(
                 allOf(withId(resourceId2), withContentDescription("content description 2"), isDisplayed()));
-        elementClass3.check(matches(isDisplayed()));
+        elementClass3.perform(longClick());
 
         ViewInteraction elementClass4 = onView(
-                allOf(withId(resourceId2), withContentDescription("content description 2"), isDisplayed()));
-        elementClass4.perform(longClick());
-
-        ViewInteraction elementClass5 = onView(
                 allOf(withId(resourceId3),
                         childAtPosition(
                                 allOf(withId(parentResourceId3),
@@ -77,7 +77,7 @@ public class MyTest {
                                                 0)),
                                 2),
                         isDisplayed()));
-        elementClass5.perform(click());
+        elementClass4.perform(click());
 
         pressBack();
 
@@ -90,7 +90,7 @@ public class MyTest {
             e.printStackTrace();
         }
 
-        ViewInteraction elementClass6 = onView(
+        ViewInteraction elementClass5 = onView(
                 allOf(withId(resourceId4), withText("original text"), withContentDescription("content description 3"),
                         childAtPosition(
                                 allOf(withId(parentResourceId5),
@@ -99,7 +99,18 @@ public class MyTest {
                                                 0)),
                                 1),
                         isDisplayed()));
-        elementClass6.perform(replaceText("replacement \n\ntext\n"));
+        elementClass5.perform(replaceText("replacement \n\ntext\n"));
+
+        ViewInteraction elementClass6 = onView(
+                allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
+                        childAtPosition(
+                                allOf(withId(parentResourceId5),
+                                        childAtPosition(
+                                                allOf(withId(parentResourceId6), withContentDescription("parent content description 2")),
+                                                0)),
+                                1),
+                        isDisplayed()));
+        elementClass6.perform(closeSoftKeyboard());
 
         ViewInteraction elementClass7 = onView(
                 allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
@@ -110,7 +121,7 @@ public class MyTest {
                                                 0)),
                                 1),
                         isDisplayed()));
-        elementClass7.perform(closeSoftKeyboard());
+        elementClass7.check(matches(withText("replacement \n\ntext\n")));
 
         ViewInteraction elementClass8 = onView(
                 allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
@@ -121,31 +132,20 @@ public class MyTest {
                                                 0)),
                                 1),
                         isDisplayed()));
-        elementClass8.check(matches(withText("replacement \n\ntext\n")));
+        elementClass8.perform(pressImeActionButton());
 
         ViewInteraction elementClass9 = onView(
-                allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
-                        childAtPosition(
-                                allOf(withId(parentResourceId5),
-                                        childAtPosition(
-                                                allOf(withId(parentResourceId6), withContentDescription("parent content description 2")),
-                                                0)),
-                                1),
-                        isDisplayed()));
-        elementClass9.perform(pressImeActionButton());
-
-        ViewInteraction elementClass10 = onView(
                 allOf(withId(resourceId5), withContentDescription("content description 4"),
                         childAtPosition(
                                 allOf(withId(parentResourceId7), withText("parent text")),
                                 0),
                         isDisplayed()));
-        elementClass10.perform(swipeRight());
+        elementClass9.perform(swipeRight());
 
-        DataInteraction elementClass11 = onData(anything())
+        DataInteraction elementClass10 = onData(anything())
                 .inAdapterView(withId(list))
                 .atPosition(3);
-        elementClass11.perform(click());
+        elementClass10.perform(click());
 
     }
 
