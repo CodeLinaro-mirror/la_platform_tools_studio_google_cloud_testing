@@ -25,6 +25,7 @@ import com.google.gct.testing.launcher.CloudAuthenticator;
 import org.jetbrains.android.AndroidTestCase;
 import org.mockito.Mockito;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class CloudConfigurationHelperTest extends AndroidTestCase {
@@ -46,8 +47,8 @@ public class CloudConfigurationHelperTest extends AndroidTestCase {
 
     ImmutableList<CloudTestingType> devices = sampleSparkConfiguration.getDeviceDimension().getEnabledTypes();
     assertEquals("Unexpected number of devices in sample Spark configuration", 2, devices.size());
-    assertEquals("Unexpected device in sample Spark configuration", "Nexus9", devices.get(0).getId());
-    assertEquals("Unexpected device in sample Spark configuration", "shamu", devices.get(1).getId());
+    assertEquals("Unexpected device in sample Spark configuration", "shamu", devices.get(0).getId());
+    assertEquals("Unexpected device in sample Spark configuration", "Nexus6", devices.get(1).getId());
 
     ImmutableList<CloudTestingType> apis = sampleSparkConfiguration.getApiDimension().getEnabledTypes();
     assertEquals("Unexpected number of API levels in sample Spark configuration", 2, apis.size());
@@ -76,11 +77,11 @@ public class CloudConfigurationHelperTest extends AndroidTestCase {
     AndroidDeviceCatalog deviceCatalog = new AndroidDeviceCatalog();
 
     List<AndroidModel> androidModels = Lists.newLinkedList();
-    addAndroidModel(androidModels, "Nexus6", "Nexus 6");
-    addAndroidModel(androidModels, "hammerhead", "Nexus 5");
-    addAndroidModel(androidModels, "mako", "Nexus 4");
-    addAndroidModel(androidModels, "Nexus9", "Nexus 9");
-    addAndroidModel(androidModels, "shamu", "Nexus 6");
+    addAndroidModel(androidModels, "Nexus6", "Nexus 6", "22, 23", true, 1440, 2560);
+    addAndroidModel(androidModels, "hammerhead", "Nexus 5", "22, 23", false, 1080, 1920);
+    addAndroidModel(androidModels, "mako", "Nexus 4", "19, 21, 22", false, 768, 1280);
+    addAndroidModel(androidModels, "Nexus9", "Nexus 9", "21, 22", true, 1536, 2048);
+    addAndroidModel(androidModels, "shamu", "Nexus 6", "22, 23", false, 1440, 2560);
     deviceCatalog.setModels(androidModels);
 
     List<AndroidVersion> androidVersions = Lists.newLinkedList();
@@ -106,10 +107,15 @@ public class CloudConfigurationHelperTest extends AndroidTestCase {
     return deviceCatalog;
   }
 
-  private void addAndroidModel(List<AndroidModel> androidModels, String id, String name) {
+  private void addAndroidModel(List<AndroidModel> androidModels, String id, String name, String commaSeparatedSupportedVersions,
+                               boolean isVirtual, int screenX, int screenY) {
     AndroidModel androidModel = new AndroidModel();
     androidModel.setId(id);
     androidModel.setName(name);
+    androidModel.setSupportedVersionIds(Arrays.asList(commaSeparatedSupportedVersions.split(",")));
+    androidModel.setForm(isVirtual ? "VIRTUAL" : "PHYSICAL");
+    androidModel.setScreenX(screenX);
+    androidModel.setScreenY(screenY);
     androidModels.add(androidModel);
   }
 

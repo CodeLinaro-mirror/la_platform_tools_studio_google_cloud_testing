@@ -168,26 +168,16 @@ public final class CloudConfigurationHelper {
 
     CloudConfigurationImpl defaultConfiguration =
       new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_MATRIX_CONFIGURATION_ID, "Sample configuration", CloudConfiguration.Kind.MATRIX, AndroidIcons.Display, facet);
-    defaultConfiguration.deviceDimension.enable(DeviceDimension.getFullDomain(), Arrays.asList("Nexus6", "hammerhead", "mako"));
-    defaultConfiguration.apiDimension.enable(ApiDimension.getFullDomain(), Arrays.asList("19", "21", "22", "23"));
-    ImmutableList<CloudTestingType> enabledApis = defaultConfiguration.apiDimension.getEnabledTypes();
-    // Make sure we enable at most 3 latest APIs.
-    if (enabledApis.size() > 3) {
-      for (CloudTestingType enabledApi : enabledApis) {
-        if (enabledApi.getId().equals("19")) { // Disable the oldest API.
-          defaultConfiguration.apiDimension.disable(enabledApi);
-          break;
-        }
-      }
-    }
+    defaultConfiguration.apiDimension.enableTopN(ApiDimension.getFullDomain(), 3);
+    defaultConfiguration.deviceDimension.enableCompatibleTopN(DeviceDimension.getFullDomain(), defaultConfiguration.apiDimension.getEnabledTypes(), 2, 1);
     defaultConfiguration.languageDimension.enableDefault();
     defaultConfiguration.orientationDimension.enableAll();
     defaultConfiguration.setNonEditable();
 
     CloudConfigurationImpl defaultSparkConfiguration =
       new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_FREE_TIER_MATRIX_CONFIGURATION_ID, "Sample Spark configuration", CloudConfiguration.Kind.MATRIX, AndroidIcons.Display, facet);
-    defaultSparkConfiguration.deviceDimension.enable(DeviceDimension.getFullDomain(), Arrays.asList("Nexus9", "shamu"));
-    defaultSparkConfiguration.apiDimension.enable(ApiDimension.getFullDomain(), Arrays.asList("22", "23"));
+    defaultSparkConfiguration.apiDimension.enableTopN(ApiDimension.getFullDomain(), 2);
+    defaultSparkConfiguration.deviceDimension.enableCompatibleTopN(DeviceDimension.getFullDomain(), defaultSparkConfiguration.apiDimension.getEnabledTypes(), 1, 1);
     defaultSparkConfiguration.languageDimension.enableDefault();
     defaultSparkConfiguration.orientationDimension.enableDefault();
     defaultSparkConfiguration.setNonEditable();

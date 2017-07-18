@@ -31,14 +31,13 @@ public abstract class CloudConfigurationDimension {
   /**
    * Map dimension -> last update timestamp.
    */
-  private static Map<String, Long> lastDiscoveryTestApiUpdateTimestampMap = new HashMap<String, Long>();
+  private static final Map<String, Long> lastDiscoveryTestApiUpdateTimestampMap = new HashMap<String, Long>();
 
   /**
    * The list of types that are currently enabled (use List rather than Set for comparison consistency).
    */
-  private List<CloudTestingType> enabledTypes = new LinkedList<CloudTestingType>();
-  private CloudConfigurationImpl myCloudConfiguration;
-  private Icon icon;
+  private final List<CloudTestingType> enabledTypes = new LinkedList<>();
+  private final CloudConfigurationImpl myCloudConfiguration;
 
   public CloudConfigurationDimension(CloudConfigurationImpl cloudConfiguration) {
     myCloudConfiguration = cloudConfiguration;
@@ -65,7 +64,7 @@ public abstract class CloudConfigurationDimension {
    * Returns the list of type groups supported by the app and the backend for this dimension.
    */
   public List<? extends CloudTestingTypeGroup> getSupportedGroups() {
-    List<CloudTestingTypeGroup> result = new LinkedList<CloudTestingTypeGroup>();
+    List<CloudTestingTypeGroup> result = new LinkedList<>();
     for (CloudTestingType type : getSupportedDomain()) {
       CloudTestingTypeGroup groupToAddTo = null;
       for (CloudTestingTypeGroup group : result) {
@@ -109,11 +108,23 @@ public abstract class CloudConfigurationDimension {
     }
   }
 
+  public void enableTopN(List<? extends CloudTestingType> types, int numberOfTypesToEnable) {
+    checkIsEditable();
+    int enabledTypesCount = 0;
+    for (CloudTestingType type : types) {
+      if (enabledTypesCount == numberOfTypesToEnable) {
+        return;
+      }
+      if (getSupportedDomain().contains(type)) {
+        enableType(type);
+        enabledTypesCount++;
+      }
+    }
+  }
+
   public void disable(CloudTestingType... types) {
     checkIsEditable();
-    for (CloudTestingType type : types) {
-      enabledTypes.remove(type);
-    }
+    enabledTypes.removeAll(Arrays.asList(types));
   }
 
   public void setEnabled(CloudTestingType type, boolean isEnabled) {
@@ -185,7 +196,7 @@ public abstract class CloudConfigurationDimension {
 
   public abstract Icon getIcon();
 
-  public void enableAll(Iterable<CloudTestingType> enabledTypes) {
+  public void enableAll(Iterable<? extends CloudTestingType> enabledTypes) {
     for (CloudTestingType enabledType : enabledTypes) {
       enable(enabledType);
     }

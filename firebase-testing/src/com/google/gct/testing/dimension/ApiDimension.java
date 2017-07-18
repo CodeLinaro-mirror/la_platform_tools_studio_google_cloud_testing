@@ -64,10 +64,7 @@ public class ApiDimension extends CloudConfigurationDimension {
 
   @Override
   public List<? extends CloudTestingType> getSupportedDomain() {
-    return Lists.newArrayList(getAppSupportedDomain().stream().filter(type -> {
-      //return BACKEND_SUPPORTED_API_VERSIONS.contains(type);
-      return true;
-    }).collect(Collectors.toList()));
+    return getAppSupportedDomain();
   }
 
   public static List<? extends CloudTestingType> getFullDomain() {
@@ -163,6 +160,10 @@ public class ApiDimension extends CloudConfigurationDimension {
     @Override
     public String getId() {
       return id;
+    }
+
+    public int getApiVersion() {
+      return apiVersion;
     }
   }
 
