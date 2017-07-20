@@ -357,6 +357,14 @@ public class GhostCloudDevice implements IDevice {
 
   }
 
+  @Override
+  public void executeShellCommand(String command, IShellOutputReceiver receiver, long maxTimeout,
+      long maxTimeToOutputResponse, TimeUnit maxTimeUnits)
+    throws TimeoutException, AdbCommandRejectedException, ShellCommandUnresponsiveException,
+           IOException {
+
+  }
+
   @NonNull
   @Override
   public Future<String> getSystemProperty(@NonNull String name) {
