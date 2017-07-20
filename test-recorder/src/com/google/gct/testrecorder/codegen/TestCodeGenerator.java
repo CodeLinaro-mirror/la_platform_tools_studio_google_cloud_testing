@@ -18,7 +18,6 @@ package com.google.gct.testrecorder.codegen;
 import com.android.SdkConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.gradle.dsl.model.GradleBuildModel;
 import com.android.tools.idea.run.ApkProviderUtil;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
@@ -37,12 +36,12 @@ import com.intellij.ide.actions.OpenFileAction;
 import com.intellij.ide.actions.SelectInContextImpl;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.ProjectViewPane;
+import com.intellij.openapi.application.TransactionGuard;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.velocity.VelocityContext;
@@ -55,7 +54,6 @@ import org.jetbrains.android.sdk.AndroidTargetData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.Writer;
@@ -115,13 +113,9 @@ public class TestCodeGenerator {
     // TODO: Figure out why we need to do refresh two times here.
     testVirtualFile.refresh(false, true);
     OpenFileAction.openFile(testFilePath, myProject);
-    final PsiFile testPsiFile = PsiManager.getInstance(myProject).findFile(testVirtualFile);
-    // Reformat the code immediately for non-Gradle (e.g., Blaze) projects since it takes too long to refresh asynchronously.
-    if (GradleBuildModel.get(myTestClassModule) == null) {
-      new ReformatCodeProcessor(myProject, testPsiFile, null, false).run();
-    }
 
-    testVirtualFile.refresh(true, true, new Runnable() {
+    // Do not refresh asynchronously as it might lead to different IDE fatal errors.
+    testVirtualFile.refresh(false, true, new Runnable() {
       @Override
       public void run() {
         // Select the generated test class in the project view hierarchy tree.
@@ -129,7 +123,7 @@ public class TestCodeGenerator {
         String currentViewId = projectView.getCurrentViewId() == null ? ProjectViewPane.ID : projectView.getCurrentViewId();
         for (SelectInTarget target : projectView.getSelectInTargets()) {
           if (currentViewId.equals(target.getMinorViewId())) {
-            target.selectIn(new SelectInContextImpl(testPsiFile) {
+            target.selectIn(new SelectInContextImpl(PsiManager.getInstance(myProject).findFile(testVirtualFile)) {
               @Nullable
               @Override
               public FileEditorProvider getFileEditorProvider() {
@@ -140,28 +134,28 @@ public class TestCodeGenerator {
           }
         }
 
-        if (myHasAddedEspressoDependencies) {
+        // TODO: Find a better solution that would not depend on time.
+        JobScheduler.getScheduler().schedule(new Runnable() {
+          @Override
+          public void run() {
+            TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
+              new OptimizeImportsProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile)).run());
+          }
           // If the test class is generated after some Espresso dependencies were just added (and even after Gradle sync finished),
           // the initial imports optimization attempt might not do its job properly (including dropping some needed dependencies
           // like org.hamcrest.Matchers.allOf), so invoke it after some time (hopefully, after the indexing of the newly generated file
-          // has finished).
-          // TODO: Find a better solution that would not depend on time.
-          JobScheduler.getScheduler().schedule(new Runnable() {
-            @Override
-            public void run() {
-              SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                  new OptimizeImportsProcessor(myProject, testPsiFile).run();
-                }
-              });
-            }
-          }, 10, TimeUnit.SECONDS);
-        } else {
-          new OptimizeImportsProcessor(myProject, testPsiFile).run();
-        }
+          // has finished). Optimizer might need to be delayed after other changes too (e.g., after adding a new test source root),
+          // so give it some time then too.
+        }, myHasAddedEspressoDependencies ? 10 : 2, TimeUnit.SECONDS);
 
-        new ReformatCodeProcessor(myProject, testPsiFile, null, false).run();
+        JobScheduler.getScheduler().schedule(new Runnable() {
+          @Override
+          public void run() {
+            TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
+              new ReformatCodeProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile), null, false).run());
+          }
+          // Delay code reformatting to avoid IDE fatal error of reformatting an invalid file.
+        }, 2, TimeUnit.SECONDS);
       }
     });
   }
