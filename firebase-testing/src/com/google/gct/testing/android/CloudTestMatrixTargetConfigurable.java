@@ -70,8 +70,8 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
       }
     });
 
-    topPanel = new JPanel();
-    topPanel.setLayout(new GridLayoutManager(2, 1));
+    topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    topPanel.setName("Cloud Testing");
     connectToCloudPanel = new JPanel();
     connectToCloudPanel.setLayout(new GridLayoutManager(3, 1));
     cloudDeviceMatrixPanel = new JPanel();
