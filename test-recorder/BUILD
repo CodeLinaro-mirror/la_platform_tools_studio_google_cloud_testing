@@ -3,6 +3,8 @@ load("//tools/base/bazel:bazel.bzl", "iml_module")
 iml_module(
     name = "test-recorder",
     srcs = ["src"],
+    bundle_data = ["//tools/studio/google/cloud/testing/test-recorder/lib:licenses"],
+    iml_files = ["test-recorder.iml"],
     resources = ["resources"],
     tags = ["managed"],
     test_resources = ["test-resources"],

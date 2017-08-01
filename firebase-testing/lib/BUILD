@@ -18,3 +18,9 @@ java_import(
     tags = ["managed"],
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "licenses",
+    srcs = glob(["licenses/**"]),
+    visibility = ["//visibility:public"],
+)
