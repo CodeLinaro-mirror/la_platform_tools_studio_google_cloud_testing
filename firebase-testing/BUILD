@@ -46,5 +46,6 @@ iml_module(
         "//tools/base/testutils:studio.testutils[module, test]",
         "//tools/adt/idea/android-plugin[module, test]",
         "//tools/idea/.idea/libraries:Log4J",
+        "//tools/adt/idea/artwork[module]",
     ],
 )
