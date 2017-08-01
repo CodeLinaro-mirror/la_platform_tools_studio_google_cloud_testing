@@ -16,6 +16,7 @@ iml_module(
         "managed",
         "block-network",
     ],
+    visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
         "//tools/idea/platform/editor-ui-api[module]",
