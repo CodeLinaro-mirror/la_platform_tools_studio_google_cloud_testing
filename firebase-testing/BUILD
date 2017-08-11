@@ -3,6 +3,8 @@ load("//tools/base/bazel:bazel.bzl", "iml_module")
 iml_module(
     name = "firebase-testing",
     srcs = ["src"],
+    bundle_data = ["//tools/studio/google/cloud/testing/firebase-testing/lib:licenses"],
+    iml_files = ["firebase-testing.iml"],
     tags = ["managed"],
     test_class = "com.google.gct.testing.FirebaseTestingTestSuite",
     test_data = [
@@ -16,6 +18,7 @@ iml_module(
         "managed",
         "block-network",
     ],
+    visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
         "//tools/idea/platform/editor-ui-api[module]",
@@ -45,5 +48,6 @@ iml_module(
         "//tools/base/testutils:studio.testutils[module, test]",
         "//tools/adt/idea/android-plugin[module, test]",
         "//tools/idea/.idea/libraries:Log4J",
+        "//tools/adt/idea/artwork[module]",
     ],
 )
