@@ -27,6 +27,12 @@ public class ElementDescriptor {
   // Attribute fields:
 
   /**
+   * Represents the element's position in its RecyclerView (if any).
+   * The default value of -1 signifies that there is no RecyclerView container.
+   */
+  private final int recyclerViewChildPosition;
+
+  /**
    * Position of this element in an adapter's data set.
    * The value of -1 signifies that the child position is unknown (e.g., since its parent is not an {@code AdapterView}).
    */
@@ -44,10 +50,11 @@ public class ElementDescriptor {
   private final String text;
 
 
-  public ElementDescriptor(String className, int adapterViewChildPosition, int groupViewChildPosition, String resourceId,
-                           String contentDescription, String text) {
+  public ElementDescriptor(String className, int recyclerViewChildPosition, int adapterViewChildPosition, int groupViewChildPosition,
+                           String resourceId, String contentDescription, String text) {
 
     this.className = className;
+    this.recyclerViewChildPosition = recyclerViewChildPosition;
     this.adapterViewChildPosition = adapterViewChildPosition;
     this.groupViewChildPosition = groupViewChildPosition;
     this.resourceId = resourceId;
@@ -57,6 +64,10 @@ public class ElementDescriptor {
 
   public String getClassName() {
     return className;
+  }
+
+  public int getRecyclerViewChildPosition() {
+    return recyclerViewChildPosition;
   }
 
   public int getAdapterViewChildPosition() {
@@ -83,7 +94,8 @@ public class ElementDescriptor {
    * Returns {@code true} iff all attribute fields are absent.
    */
   public boolean isEmpty() {
-    return adapterViewChildPosition == -1 && groupViewChildPosition == -1 && isEmptyIgnoringChildPosition();
+    return recyclerViewChildPosition == -1 && adapterViewChildPosition == -1 && groupViewChildPosition == -1
+           && isEmptyIgnoringChildPosition();
   }
 
   /**

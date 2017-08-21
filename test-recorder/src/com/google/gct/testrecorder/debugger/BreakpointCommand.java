@@ -21,9 +21,7 @@ import com.google.gct.testrecorder.event.TestRecorderEventListener;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.debugger.InstanceFilter;
-import com.intellij.debugger.engine.DebugProcessImpl;
-import com.intellij.debugger.engine.JavaStackFrame;
-import com.intellij.debugger.engine.SuspendContextImpl;
+import com.intellij.debugger.engine.*;
 import com.intellij.debugger.engine.evaluation.EvaluationContextImpl;
 import com.intellij.debugger.engine.evaluation.TextWithImports;
 import com.intellij.debugger.engine.evaluation.TextWithImportsImpl;
@@ -113,14 +111,28 @@ public class BreakpointCommand extends DebuggerCommandImpl {
       public boolean processLocatableEvent(SuspendContextCommandImpl action, LocatableEvent event) throws EventProcessingException {
         try {
           SuspendContextImpl suspendContext = action.getSuspendContext();
+          if (suspendContext == null) {
+            return false;
+          }
           suspendContext.initExecutionStacks(suspendContext.getThread());
 
-          JavaStackFrame stackFrame = (JavaStackFrame)suspendContext.getActiveExecutionStack().getTopFrame();
+          JavaExecutionStack activeExecutionStack = suspendContext.getActiveExecutionStack();
+          if (activeExecutionStack == null) {
+            return false;
+          }
+          JavaStackFrame stackFrame = (JavaStackFrame)activeExecutionStack.getTopFrame();
+          if (stackFrame == null) {
+            return false;
+          }
           StackFrameProxyImpl frameProxy = stackFrame.getStackFrameProxy();
           ObjectReference objectReference = frameProxy.thisObject();
           EvaluationContextImpl evalContext = new EvaluationContextImpl(suspendContext, frameProxy, objectReference);
 
-          NodeManagerImpl nodeManager = myDebugProcess.getXdebugProcess().getNodeManager();
+          JavaDebugProcess xdebugProcess = myDebugProcess.getXdebugProcess();
+          if (xdebugProcess == null) {
+            return false;
+          }
+          NodeManagerImpl nodeManager = xdebugProcess.getNodeManager();
 
           if (myBreakpointDescriptor.eventType.equals(TEXT_CHANGE)) {
             if (myBreakpointDescriptor.isPreparatory) {
@@ -344,8 +356,10 @@ public class BreakpointCommand extends DebuggerCommandImpl {
       return;
     }
 
-    // Perform the check only for clicks on the inner most (i.e., first in the hierarchy) element.
-    if (event.isViewClick() && level == 1) {
+    int recyclerViewChildPosition = -1;
+    // Perform the check only for the inner most (i.e., first in the hierarchy) element for efficiency since, similarly to
+    // AdapterViews, we do not support actions on non-intermediate children of RecyclerViews.
+    if (level == 1) {
       String parentReference = objectReference + PARENT_NODE_CALL;
       Value parentElementType = evaluateExpression(parentReference + ".getClass().getCanonicalName()", evalContext, nodeManager);
       if (parentElementType != null && "android.support.v7.widget.RecyclerView".equals(getStringValue(parentElementType))) {
@@ -353,13 +367,12 @@ public class BreakpointCommand extends DebuggerCommandImpl {
         //Value positionIndex = evaluateExpression(parentReference + ".getChildAdapterPosition(" + objectReference + ")", evalContext, nodeManager);
         Value positionIndex = evaluateExpression(objectReference + ".getLayoutParams().mViewHolder.getAdapterPosition()", evalContext, nodeManager);
         if (positionIndex != null) {
-          event.setRecyclerViewPosition(Integer.parseInt(getStringValue(positionIndex)));
-          objectReference = parentReference; // Skip the adapter's child as it will be identified through position index.
+          recyclerViewChildPosition = Integer.parseInt(getStringValue(positionIndex));
         }
       }
     }
 
-    if (evaluateAndAddElementDescriptor(event, evalContext, nodeManager, objectReference, false)) {
+    if (evaluateAndAddElementDescriptor(event, evalContext, nodeManager, objectReference, false, recyclerViewChildPosition)) {
       // TODO: Consider more efficient expressions rather than growing getParent() calls sequence if this improves performance.
       populateElementDescriptors(event, evalContext, nodeManager, objectReference + PARENT_NODE_CALL, level + 1);
     } else if (level == 1) { // The immediately affected element is non-identifiable.
@@ -370,7 +383,7 @@ public class BreakpointCommand extends DebuggerCommandImpl {
       if (childrenCount != null) {
         for (int i = 0; i < Integer.parseInt(getStringValue(childrenCount)); i++) {
           String childReference = objectReference + ".mChildren[" + i + "]";
-          if (evaluateAndAddElementDescriptor(event, evalContext, nodeManager, childReference, true)) {
+          if (evaluateAndAddElementDescriptor(event, evalContext, nodeManager, childReference, true, -1)) {
             // Use the first text-identifiable child (without going up the parent hierarchy as parent is not identifiable anyway).
             return;
           }
@@ -380,7 +393,7 @@ public class BreakpointCommand extends DebuggerCommandImpl {
       Value className = evaluateExpression(objectReference + ".getClass().getCanonicalName()", evalContext, nodeManager);
 
       // An empty element descriptor for the non-identifiable element.
-      event.addElementDescriptor(new ElementDescriptor(className == null ? "" : getStringValue(className), -1, -1, "", "", ""));
+      event.addElementDescriptor(new ElementDescriptor(className == null ? "" : getStringValue(className), -1, -1, -1, "", "", ""));
 
       // In case there is no text-identifiable child, use the parent node as the means of identification.
       populateElementDescriptors(event, evalContext, nodeManager, objectReference + PARENT_NODE_CALL, level + 1);
@@ -392,7 +405,7 @@ public class BreakpointCommand extends DebuggerCommandImpl {
    * or text was present if mandatory).
    */
   private boolean evaluateAndAddElementDescriptor(TestRecorderEvent event, EvaluationContextImpl evalContext, NodeManagerImpl nodeManager,
-                                                  String objectReference, boolean isTextMandatory) {
+                                                  String objectReference, boolean isTextMandatory, int recyclerViewChildPosition) {
 
     Value text = evaluateExpression(objectReference + ".getText().toString()", evalContext, nodeManager);
 
@@ -400,17 +413,21 @@ public class BreakpointCommand extends DebuggerCommandImpl {
       return false;
     }
 
-    Value adapterViewChildPositionValue = evaluateExpression(objectReference + ".getParent().getPositionForView(" + objectReference + ")",
-                                                             evalContext, nodeManager);
-
-    int adapterViewChildPosition = adapterViewChildPositionValue == null ? -1 : Integer.parseInt(getStringValue(adapterViewChildPositionValue));
+    int adapterViewChildPosition = -1;
     int groupViewChildPosition = -1;
 
-    if (adapterViewChildPosition == -1) {
-      Value groupViewChildPositionValue = evaluateExpression(objectReference + ".getParent().indexOfChild(" + objectReference + ")",
-                                                             evalContext, nodeManager);
+    if (recyclerViewChildPosition == -1) {
+      Value adapterViewChildPositionValue = evaluateExpression(objectReference + ".getParent().getPositionForView(" + objectReference + ")",
+                                                               evalContext, nodeManager);
+      adapterViewChildPosition =
+        adapterViewChildPositionValue == null ? -1 : Integer.parseInt(getStringValue(adapterViewChildPositionValue));
 
-      groupViewChildPosition = groupViewChildPositionValue == null ? -1 : Integer.parseInt(getStringValue(groupViewChildPositionValue));
+      if (adapterViewChildPosition == -1) {
+        Value groupViewChildPositionValue = evaluateExpression(objectReference + ".getParent().indexOfChild(" + objectReference + ")",
+                                                               evalContext, nodeManager);
+
+        groupViewChildPosition = groupViewChildPositionValue == null ? -1 : Integer.parseInt(getStringValue(groupViewChildPositionValue));
+      }
     }
 
     Value resourceNumberIdValue = evaluateExpression(objectReference + ".getId()", evalContext, nodeManager);
@@ -422,11 +439,13 @@ public class BreakpointCommand extends DebuggerCommandImpl {
 
     Value contentDescription = evaluateExpression(objectReference + ".getContentDescription()", evalContext, nodeManager);
 
-    if (!TestRecorderSettings.getInstance().CAP_AT_NON_IDENTIFIABLE_ELEMENTS || adapterViewChildPosition != -1
-        || groupViewChildPosition != -1 || resourceId != null || contentDescription != null || text != null) {
+    if (!TestRecorderSettings.getInstance().CAP_AT_NON_IDENTIFIABLE_ELEMENTS || recyclerViewChildPosition != -1
+        || adapterViewChildPosition != -1 || groupViewChildPosition != -1 || resourceId != null || contentDescription != null
+        || text != null) {
       Value className = evaluateExpression(objectReference + ".getClass().getCanonicalName()", evalContext, nodeManager);
 
       event.addElementDescriptor(new ElementDescriptor(className == null ? "" : getStringValue(className),
+                                                       recyclerViewChildPosition,
                                                        adapterViewChildPosition,
                                                        groupViewChildPosition,
                                                        resourceId == null ? "" : getStringValue(resourceId),

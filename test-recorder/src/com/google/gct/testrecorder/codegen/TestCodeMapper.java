@@ -88,27 +88,23 @@ public class TestCodeMapper {
     }
 
     String variableName = addPickingStatement(event, testCodeLines);
+    int recyclerViewChildPosition = event.getElementRecyclerViewChildPosition();
     if (event.isSwipe()) {
-      testCodeLines.add(createActionStatement(variableName, "swipe" + event.getSwipeDirection().name() + "()", false));
+      testCodeLines.add(createActionStatement(variableName, recyclerViewChildPosition, "swipe" + event.getSwipeDirection().name() + "()", false));
     } else if (event.isPressEditorAction()) {
       // TODO: If this is the same element that was just edited, consider reusing the same view interaction (i.e., variable name).
-      testCodeLines.add(createActionStatement(variableName, "pressImeActionButton()", false));
+      testCodeLines.add(createActionStatement(variableName, recyclerViewChildPosition, "pressImeActionButton()", false));
     } else if (event.isClickEvent()) {
-      if (event.getRecyclerViewPosition() != -1) {
-        myIsRecyclerViewActionAdded = true;
-        testCodeLines.add(createActionStatement(variableName, "actionOnItemAtPosition(" + event.getRecyclerViewPosition() + ", click())", false));
-      } else {
-        testCodeLines.add(createActionStatement(variableName, event.isViewLongClick() ? "longClick()" : "click()", event.canScrollTo()));
-      }
+      testCodeLines.add(createActionStatement(variableName, recyclerViewChildPosition, event.isViewLongClick() ? "longClick()" : "click()", event.canScrollTo()));
     } else if (event.isTextChange()) {
       String closeSoftKeyboardAction = doesNeedStandaloneCloseSoftKeyboardAction(event) ? "" : ", closeSoftKeyboard()";
       if (myIsUsingCustomEspresso) {
-        testCodeLines.add(createActionStatement(variableName, "clearText()", event.canScrollTo()));
+        testCodeLines.add(createActionStatement(variableName, recyclerViewChildPosition, "clearText()", event.canScrollTo()));
         testCodeLines.add(createActionStatement(
-          variableName, "typeText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, false));
+          variableName, recyclerViewChildPosition, "typeText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, false));
       } else {
         testCodeLines.add(createActionStatement(
-          variableName, "replaceText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, event.canScrollTo()));
+          variableName, recyclerViewChildPosition, "replaceText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, event.canScrollTo()));
       }
     } else {
       throw new RuntimeException("Unsupported event type: " + event.getEventType());
@@ -124,7 +120,6 @@ public class TestCodeMapper {
   private void addStandaloneCloseSoftKeyboardAction(TestRecorderEvent textChangeEvent, List<String> testCodeLines) {
     // Simulate an artificial close soft keyboard event.
     TestRecorderEvent closeSoftKeyboardEvent = new TestRecorderEvent(textChangeEvent.getEventType(), textChangeEvent.getTimestamp());
-    closeSoftKeyboardEvent.setRecyclerViewPosition(closeSoftKeyboardEvent.getRecyclerViewPosition());
 
     List<ElementDescriptor> originalElementDescriptors = textChangeEvent.getElementDescriptorList();
     assert !originalElementDescriptors.isEmpty();
@@ -132,9 +127,10 @@ public class TestCodeMapper {
     ElementDescriptor originalDescriptor = originalElementDescriptors.get(0);
     // Copy the first descriptor except for the text, which will become the replacement text.
     ElementDescriptor updatedDescriptor =
-      new ElementDescriptor(originalDescriptor.getClassName(), originalDescriptor.getAdapterViewChildPosition(),
-                            originalDescriptor.getGroupViewChildPosition(), originalDescriptor.getResourceId(),
-                            originalDescriptor.getContentDescription(), textChangeEvent.getReplacementText());
+      new ElementDescriptor(originalDescriptor.getClassName(), originalDescriptor.getRecyclerViewChildPosition(),
+                            originalDescriptor.getAdapterViewChildPosition(), originalDescriptor.getGroupViewChildPosition(),
+                            originalDescriptor.getResourceId(), originalDescriptor.getContentDescription(),
+                            textChangeEvent.getReplacementText());
     closeSoftKeyboardEvent.addElementDescriptor(updatedDescriptor);
     // Copy the rest of the descriptors unmodified.
     for (int i = 1; i < originalElementDescriptors.size(); i++) {
@@ -143,12 +139,14 @@ public class TestCodeMapper {
 
     testCodeLines.add("");
     String variableName = addPickingStatement(closeSoftKeyboardEvent, testCodeLines);
-    testCodeLines.add(createActionStatement(variableName, "closeSoftKeyboard()", false));
+    testCodeLines.add(createActionStatement(variableName, closeSoftKeyboardEvent.getElementRecyclerViewChildPosition(), "closeSoftKeyboard()", false));
   }
 
   private boolean doesNeedStandaloneCloseSoftKeyboardAction(TestRecorderEvent event) {
+    // Make text edit in a RecyclerView child always require a standalone close soft keyboard action since actionOnItemAtPosition
+    // accepts only a single action.
     return TestRecorderSettings.getInstance().USE_TEXT_FOR_ELEMENT_MATCHING && event.isTextChange()
-           && !isNullOrEmpty(event.getElementText());
+           && (!isNullOrEmpty(event.getElementText()) || event.getElementRecyclerViewChildPosition() != -1);
   }
 
   private String createSleepStatement(long sleepTime) {
@@ -166,8 +164,16 @@ public class TestCodeMapper {
     return className.startsWith("android.") && className.endsWith(".widget.ActionMenuPresenter.OverflowMenuButton");
   }
 
-  private String createActionStatement(String variableName, String action, boolean addScrollTo) {
-    return variableName + ".perform(" + (addScrollTo ? "scrollTo(), " : "") + action + ");";
+  private String createActionStatement(String variableName, int recyclerViewChildPosition, String action, boolean addScrollTo) {
+    myIsRecyclerViewActionAdded = myIsRecyclerViewActionAdded || recyclerViewChildPosition != -1;
+
+    // No need to explicitly scroll to perform an action on a RecyclerView child.
+    String completeAction = (addScrollTo && recyclerViewChildPosition == -1 ? "scrollTo(), " : "") + action;
+    completeAction = recyclerViewChildPosition == -1
+                     ? completeAction
+                     : "actionOnItemAtPosition(" + recyclerViewChildPosition + ", " + completeAction + ")";
+
+    return variableName + ".perform(" + completeAction + ");";
   }
 
   public List<String> getTestCodeLinesForAssertion(TestRecorderAssertion assertion) {
@@ -198,8 +204,11 @@ public class TestCodeMapper {
   }
 
   private String addViewPickingStatement(ElementAction action, List<String> testCodeLines) {
-    String variableName = generateVariableNameFromElementClassName(action.getElementClassName(), VIEW_VARIABLE_CLASS_NAME);
-    testCodeLines.add(VIEW_VARIABLE_CLASS_NAME + " " + variableName + " = onView(\n" + generateElementHierarchyConditions(action, 0) + ");");
+    // Skip a level for RecyclerView children as they will be identified through their position.
+    int startIndex = action.getElementRecyclerViewChildPosition() != -1 && action.getElementDescriptorsCount() > 1 ? 1 : 0;
+
+    String variableName = generateVariableNameFromElementClassName(action.getElementDescriptor(startIndex).getClassName(), VIEW_VARIABLE_CLASS_NAME);
+    testCodeLines.add(VIEW_VARIABLE_CLASS_NAME + " " + variableName + " = onView(\n" + generateElementHierarchyConditions(action, startIndex) + ");");
     return variableName;
   }
 
