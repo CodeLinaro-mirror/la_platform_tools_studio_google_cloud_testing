@@ -36,7 +36,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
     TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
 
     TestRecorderEvent textChangeEvent = new TestRecorderEvent(TestRecorderEvent.TEXT_CHANGE, System.currentTimeMillis());
-    textChangeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, "", "content description", ""));
+    textChangeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, -1, "", "content description", ""));
     textChangeEvent.setReplacementText("my text\n");
 
     String espressoActionStatement = testCodeMapper.getTestCodeLinesForEvent(textChangeEvent).get(1);
@@ -48,7 +48,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
     TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
 
     TestRecorderEvent swipeEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_SWIPE, System.currentTimeMillis());
-    swipeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, "", "content description", ""));
+    swipeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, -1, "", "content description", ""));
     swipeEvent.setSwipeDirection(Right);
 
     String espressoActionStatement = testCodeMapper.getTestCodeLinesForEvent(swipeEvent).get(1);
@@ -70,8 +70,8 @@ public class TestCodeMapperTest extends AndroidTestCase {
     TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
 
     TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
-    clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", 2, -1, "", "", ""));
-    clickEvent.addElementDescriptor(new ElementDescriptor("ParentClass", -1, -1, "list", "", ""));
+    clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, 2, -1, "", "", ""));
+    clickEvent.addElementDescriptor(new ElementDescriptor("ParentClass", -1, -1, -1, "list", "", ""));
 
     String espressoPickingStatement = testCodeMapper.getTestCodeLinesForEvent(clickEvent).get(0);
     assertTrue(espressoPickingStatement.equals("DataInteraction someClass = onData(anything())\n" +
@@ -85,7 +85,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
     TestCodeMapper testCodeMapper = new TestCodeMapper("12345", false, myModule.getProject(), null);
 
     TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
-    clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, "myId", "my content description", ""));
+    clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, -1, "myId", "my content description", ""));
 
     String espressoPickingStatement = testCodeMapper.getTestCodeLinesForEvent(clickEvent).get(0);
     assertFalse(espressoPickingStatement.contains("my content description"));
