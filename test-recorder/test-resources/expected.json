@@ -2,13 +2,13 @@
   {
     "eventType": "VIEW_CLICKED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
         "className": "ElementClass$ElementInnerClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "resourceId1",
@@ -17,7 +17,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 1,
         "resourceId": "parentResourceId1",
@@ -26,7 +25,6 @@
       },
       {
         "className": "ParentClass2",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 2,
         "resourceId": "parentResourceId2",
@@ -38,13 +36,13 @@
   {
     "eventType": "VIEW_CLICKED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
         "className": "ElementClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 1,
         "resourceId": "",
@@ -53,7 +51,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "",
@@ -65,22 +62,13 @@
   {
     "eventType": "VIEW_CLICKED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": 5,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
-        "className": "ElementClass",
-        "recyclerViewChildPosition": 5,
-        "adapterViewChildPosition": -1,
-        "groupViewChildPosition": 0,
-        "resourceId": "elementResourceId",
-        "contentDescription": "",
-        "text": ""
-      },
-      {
         "className": "GridClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "gridResourceId",
@@ -89,7 +77,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "gridParentResourceId",
@@ -101,13 +88,13 @@
   {
     "eventType": "VIEW_LONG_CLICKED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
         "className": "ElementClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": -1,
         "resourceId": "resourceId2",
@@ -119,13 +106,13 @@
   {
     "eventType": "LIST_ITEM_CLICKED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
         "className": "ElementClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 2,
         "resourceId": "resourceId3",
@@ -134,7 +121,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "parentResourceId3",
@@ -143,7 +129,6 @@
       },
       {
         "className": "ParentClass2",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 1,
         "resourceId": "parentResourceId4",
@@ -155,6 +140,7 @@
   {
     "eventType": "PRESSED_BACK",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
@@ -163,6 +149,7 @@
   {
     "eventType": "DELAYED_MESSAGE_POSTED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 1500,
     "canScrollTo": false,
@@ -172,13 +159,13 @@
     "eventType": "VIEW_TEXT_CHANGED",
     "timestamp": 1484950638081,
     "replacementText": "replacement \n\ntext\n",
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
         "className": "ElementClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 1,
         "resourceId": "resourceId4",
@@ -187,7 +174,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "parentResourceId5",
@@ -196,7 +182,6 @@
       },
       {
         "className": "ParentClass2",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 2,
         "resourceId": "parentResourceId6",
@@ -208,13 +193,13 @@
   {
     "eventType": "PRESSED_EDITOR_ACTION",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
         "className": "ElementClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 1,
         "resourceId": "resourceId4",
@@ -223,7 +208,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "parentResourceId5",
@@ -232,7 +216,6 @@
       },
       {
         "className": "ParentClass2",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 2,
         "resourceId": "parentResourceId6",
@@ -244,6 +227,7 @@
   {
     "eventType": "VIEW_SWIPED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "swipeDirection": "Right",
     "delayTime": 0,
@@ -251,7 +235,6 @@
     "elementDescriptors": [
       {
         "className": "ElementClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 0,
         "resourceId": "resourceId5",
@@ -260,7 +243,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": 1,
         "resourceId": "parentResourceId7",
@@ -272,13 +254,13 @@
   {
     "eventType": "VIEW_CLICKED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 0,
     "canScrollTo": false,
     "elementDescriptors": [
       {
         "className": "ElementClass",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": 3,
         "groupViewChildPosition": -1,
         "resourceId": "",
@@ -287,7 +269,6 @@
       },
       {
         "className": "ParentClass1",
-        "recyclerViewChildPosition": -1,
         "adapterViewChildPosition": -1,
         "groupViewChildPosition": -1,
         "resourceId": "list",
@@ -299,6 +280,7 @@
   {
     "eventType": "DELAYED_MESSAGE_POSTED",
     "timestamp": 1484950638081,
+    "recyclerViewPosition": -1,
     "actionCode": -1,
     "delayTime": 2500,
     "canScrollTo": false,

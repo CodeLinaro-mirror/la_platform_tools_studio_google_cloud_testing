@@ -388,7 +388,6 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     public JsonElement serialize(ElementDescriptor elementDescriptor, Type typeOfSrc, JsonSerializationContext context) {
       JsonObject jsonObject = new JsonObject();
       jsonObject.addProperty("className", getInternalName(myProject, elementDescriptor.getClassName()));
-      jsonObject.addProperty("recyclerViewChildPosition", elementDescriptor.getRecyclerViewChildPosition());
       jsonObject.addProperty("adapterViewChildPosition", elementDescriptor.getAdapterViewChildPosition());
       jsonObject.addProperty("groupViewChildPosition", elementDescriptor.getGroupViewChildPosition());
       jsonObject.addProperty("resourceId", elementDescriptor.getResourceId());
@@ -603,7 +602,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private boolean needsEspressoContribDependency() {
     for (int i = 0; i < myEventListModel.size(); i++) {
       Object event = myEventListModel.get(i);
-      if (event instanceof TestRecorderEvent && ((TestRecorderEvent)event).getElementRecyclerViewChildPosition() != -1) {
+      if (event instanceof TestRecorderEvent && ((TestRecorderEvent)event).getRecyclerViewPosition() != -1) {
         return true;
       }
     }
@@ -705,10 +704,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     String contentDescription = getContentDescription(node);
     int viewGroupChildPosition = getViewGroupChildPosition(node);
 
-    // TODO: Not sure how to properly handle RecyclerView and AdapterView child positions given that assertions are added for the visible
-    // node hierarchy.
+    // TODO: Not sure how to properly handle AdapterView child positions given that assertions are added for the visible node hierarchy.
     if (!className.isEmpty() || !resourceId.isEmpty() || !text.isEmpty() || !contentDescription.isEmpty() || viewGroupChildPosition != -1) {
-      assertion.addElementDescriptor(new ElementDescriptor(className, -1, -1, viewGroupChildPosition, resourceId, contentDescription, text));
+      assertion.addElementDescriptor(new ElementDescriptor(className, -1, viewGroupChildPosition, resourceId, contentDescription, text));
       if (node.getParent() instanceof UiNode) {
         addElementDescriptors(assertion, (UiNode)node.getParent());
       }

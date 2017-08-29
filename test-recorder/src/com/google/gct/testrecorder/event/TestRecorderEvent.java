@@ -52,6 +52,12 @@ public class TestRecorderEvent extends ElementAction {
   private String replacementText;
 
   /**
+   * Represents the element's position in its RecyclerView (if any).
+   * The default value of -1 signifies that there is no RecyclerView container.
+   */
+  private int recyclerViewPosition = -1;
+
+  /**
    * Represents the action kind for pressing editor action (return) key.
    */
   private int actionCode = -1;
@@ -84,6 +90,10 @@ public class TestRecorderEvent extends ElementAction {
     return replacementText;
   }
 
+  public int getRecyclerViewPosition() {
+    return recyclerViewPosition;
+  }
+
   public int getActionCode() {
     return actionCode;
   }
@@ -98,6 +108,10 @@ public class TestRecorderEvent extends ElementAction {
 
   public void setReplacementText(String replacementText) {
     this.replacementText = replacementText;
+  }
+
+  public void setRecyclerViewPosition(int recyclerViewPosition) {
+    this.recyclerViewPosition = recyclerViewPosition;
   }
 
   public void setActionCode(int actionCode) {
@@ -164,6 +178,10 @@ public class TestRecorderEvent extends ElementAction {
 
     if (isPressEvent()) {
       return getIdAttributeDisplayPresentation("", isPressBack() ? "Back" : getRendererActionCode());
+    }
+
+    if (recyclerViewPosition != -1) {
+      return getRendererString(getIdAttributeDisplayPresentation("element position", String.valueOf(recyclerViewPosition)));
     }
 
     return super.getRendererString();

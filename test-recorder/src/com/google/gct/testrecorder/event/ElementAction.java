@@ -83,10 +83,7 @@ public abstract class ElementAction {
       return getRendererString(displayResourceId);
     }
 
-    int childPosition = getElementRecyclerViewChildPosition();
-    if (childPosition == -1) {
-      childPosition = getElementAdapterViewChildPosition();
-    }
+    int childPosition = getElementAdapterViewChildPosition();
     if (childPosition == -1) {
       childPosition = getElementGroupViewChildPosition();
     }
@@ -147,16 +144,6 @@ public abstract class ElementAction {
       return elementDescriptors.get(0).getClassName();
     }
     return "";
-  }
-
-  /**
-   * Returns top-level element {@code RecyclerView} child position.
-   */
-  public int getElementRecyclerViewChildPosition() {
-    if (!elementDescriptors.isEmpty()) {
-      return elementDescriptors.get(0).getRecyclerViewChildPosition();
-    }
-    return -1;
   }
 
   /**
