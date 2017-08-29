@@ -56,8 +56,7 @@ public class MyTest {
                 allOf(withId(gridResourceId),
                         childAtPosition(
                                 withId(gridParentResourceId),
-                                0),
-                        isDisplayed()));
+                                0)));
         gridClass.perform(actionOnItemAtPosition(5, click()));
 
         ViewInteraction elementClass2 = onView(
