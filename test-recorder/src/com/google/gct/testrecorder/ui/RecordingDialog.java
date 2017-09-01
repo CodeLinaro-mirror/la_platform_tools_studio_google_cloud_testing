@@ -458,7 +458,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
                               hasAddedEspressoDependencies, myWasEverPaused).generate();
       }
     } else {
-      FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "txt");
+      FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");
       FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
       VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
 
