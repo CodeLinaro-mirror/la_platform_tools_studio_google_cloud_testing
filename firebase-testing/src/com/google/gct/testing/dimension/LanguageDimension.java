@@ -67,6 +67,10 @@ public class LanguageDimension extends CloudConfigurationDimension {
   private void addLocalDefaultLocale() {
     //TODO: Make sure we do not "guess" incorrectly the user's language.
     Language userLanguage = getLanguage(System.getProperty("user.language"));
+    if (userLanguage == null && supportedLanguages.isEmpty()) {
+      // If no user language is set and no other locales are present, use English by default to have at least one valid locale.
+      userLanguage = getLanguage("en");
+    }
     if (userLanguage != null) {
       Language localDefaultLanguage = new Language(userLanguage, true);
       supportedLanguages.remove(localDefaultLanguage);
@@ -147,7 +151,7 @@ public class LanguageDimension extends CloudConfigurationDimension {
     return FULL_DOMAIN == null || FULL_DOMAIN.isEmpty();
   }
 
-  public static Language getDefaultLanguage() {
+  private static Language getDefaultLanguage() {
     if (defaultLanguage == null) {
       getFullDomain();
     }
