@@ -34,7 +34,7 @@
 
   <actions>
     <action id="GoogleCloudTesting.TestRecorder" class="com.google.gct.testrecorder.ui.TestRecorderAction" text="Record Espresso Test" description="Record Espresso test for selected configuration">
-      <add-to-group group-id="RunMenu" anchor="after" relative-to-action="ChooseDebugConfiguration"/>
+      <add-to-group group-id="RunMenu" anchor="after" relative-to-action="Android.ChooseProfileConfiguration"/>
     </action>
     <action id="GoogleCloudTesting.RoboScriptRecorder" class="com.google.gct.testrecorder.ui.TestRecorderAction" text="Record Robo Script" description="Record Robo script for selected configuration">
       <add-to-group group-id="RunMenu" anchor="after" relative-to-action="GoogleCloudTesting.TestRecorder"/>
