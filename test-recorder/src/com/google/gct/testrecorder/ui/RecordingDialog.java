@@ -24,6 +24,7 @@ import com.android.tools.idea.gradle.dsl.model.dependencies.ArtifactDependencySp
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.util.GradleUtil;
+import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.UiNode;
@@ -78,7 +79,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import static com.android.tools.idea.gradle.dsl.model.dependencies.CommonConfigurationNames.ANDROID_TEST_COMPILE;
-import static com.android.tools.idea.templates.SupportLibrary.*;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
 import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
@@ -104,13 +104,13 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   public static final String ESPRESSO_VERSION = "2.2.2";
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_EXCLUDES =
-    ImmutableList.of(new ArtifactDependencySpec(SUPPORT_ANNOTATIONS.getArtifactId(), SUPPORT_ANNOTATIONS.getGroupId(), null));
+    ImmutableList.of(new ArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CONTRIB_EXCLUDES =
-    ImmutableList.of(new ArtifactDependencySpec(SUPPORT_ANNOTATIONS.getArtifactId(), SUPPORT_ANNOTATIONS.getGroupId(), null),
-                     new ArtifactDependencySpec(SUPPORT_V4.getArtifactId(), SUPPORT_V4.getGroupId(), null),
-                     new ArtifactDependencySpec(DESIGN.getArtifactId(), DESIGN.getGroupId(), null),
-                     new ArtifactDependencySpec(RECYCLERVIEW_V7.getArtifactId(), RECYCLERVIEW_V7.getGroupId(), null));
+    ImmutableList.of(new ArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null),
+                     new ArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_V4, null),
+                     new ArtifactDependencySpec(GoogleMavenArtifactId.DESIGN, null),
+                     new ArtifactDependencySpec(GoogleMavenArtifactId.RECYCLERVIEW_V7, null));
 
   private static final String TEST_RECORDING_DIALOG_TITLE = "Record Your Test";
   private static final String SCRIPT_RECORDING_DIALOG_TITLE = "Record Your Robo Script";
@@ -212,7 +212,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             // Add a default element for drop down menu
             myElementComboBoxModel.insertElementAt(DEFAULT_MESSAGE, 0);
             // Show assertion panel
-            CardLayout cardLayout = (CardLayout) myAssertionPanel.getLayout();
+            CardLayout cardLayout = (CardLayout)myAssertionPanel.getLayout();
             cardLayout.show(myAssertionPanel, "myEditAssertionPanel");
             // Set up assertion panel
             setUpEmptyAssertionPanel();
@@ -267,12 +267,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         Object element = myAssertionElementComboBox.getSelectedItem();
         if (element instanceof BasicTreeNode) {
           // selected element is UI element
-          BasicTreeNode node = (BasicTreeNode) element;
+          BasicTreeNode node = (BasicTreeNode)element;
           // Update selected element in screenshot panel
           myScreenshotPanel.setSelectedNodeAndRepaint(node);
           // Update edit assertion panel
           if (isTextView(node)) {
-            CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
+            CardLayout cardLayout = (CardLayout)myTextFieldWrapper.getLayout();
             cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
             myAssertionTextField.setText(getText(node));
             myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITH_TEXT));
@@ -616,12 +616,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   private boolean hasEspressoCoreDependency(@NotNull AndroidModuleModel androidModuleModel) {
-    String artifact = ESPRESSO_CORE.getGroupId() + ":" + ESPRESSO_CORE.getArtifactId();
+    String artifact = GoogleMavenArtifactId.ESPRESSO_CORE.toString();
     return GradleUtil.dependsOnAndroidTest(androidModuleModel, artifact) || GradleUtil.dependsOn(androidModuleModel, artifact);
   }
 
   private boolean hasEspressoContribDependency(@NotNull AndroidModuleModel androidModuleModel) {
-    String artifact = ESPRESSO_CONTRIB.getGroupId() + ":" + ESPRESSO_CONTRIB.getArtifactId();
+    String artifact = GoogleMavenArtifactId.ESPRESSO_CONTRIB.toString();
     return GradleUtil.dependsOnAndroidTest(androidModuleModel, artifact) || GradleUtil.dependsOn(androidModuleModel, artifact);
   }
 
@@ -648,18 +648,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         WriteCommandAction.runWriteCommandAction(myProject, () -> {
           if (!hasEspressoCoreDependency(androidModuleModel) && !hasCustomEspressoDependency(androidModuleModel)) {
             gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_COMPILE,
-                                                          new ArtifactDependencySpec(ESPRESSO_CORE.getArtifactId(),
-                                                                                     ESPRESSO_CORE.getGroupId(),
-                                                                                     ESPRESSO_VERSION),
-                                                          ESPRESSO_EXCLUDES);
+                                                        new ArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_VERSION),
+                                                        ESPRESSO_EXCLUDES);
           }
 
           if (needsEspressoContribDependency() && !hasEspressoContribDependency(androidModuleModel)) {
             gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_COMPILE,
-                                                          new ArtifactDependencySpec(ESPRESSO_CONTRIB.getArtifactId(),
-                                                                                     ESPRESSO_CONTRIB.getGroupId(),
-                                                                                     ESPRESSO_VERSION),
-                                                          ESPRESSO_CONTRIB_EXCLUDES);
+                                                        new ArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_VERSION),
+                                                        ESPRESSO_CONTRIB_EXCLUDES);
           }
 
           AndroidModel androidModel = gradleBuildModel.android();
@@ -708,7 +704,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     // TODO: Not sure how to properly handle RecyclerView and AdapterView child positions given that assertions are added for the visible
     // node hierarchy.
     if (!className.isEmpty() || !resourceId.isEmpty() || !text.isEmpty() || !contentDescription.isEmpty() || viewGroupChildPosition != -1) {
-      assertion.addElementDescriptor(new ElementDescriptor(className, -1, -1, viewGroupChildPosition, resourceId, contentDescription, text));
+      assertion
+        .addElementDescriptor(new ElementDescriptor(className, -1, -1, viewGroupChildPosition, resourceId, contentDescription, text));
       if (node.getParent() instanceof UiNode) {
         addElementDescriptors(assertion, (UiNode)node.getParent());
       }
@@ -785,5 +782,4 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
     });
   }
-
 }

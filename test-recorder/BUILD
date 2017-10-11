@@ -27,5 +27,6 @@ iml_module(
         "//tools/analytics-library/tracker:analytics-tracker[module]",
         "//tools/analytics-library/protos:analytics-protos[module]",
         "//tools/adt/idea/android-plugin[module, test]",
+        "//tools/adt/idea/project-system[module]",
     ],
 )
