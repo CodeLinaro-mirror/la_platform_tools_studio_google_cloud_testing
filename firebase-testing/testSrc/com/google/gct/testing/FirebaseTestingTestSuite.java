@@ -16,55 +16,21 @@
 package com.google.gct.testing;
 
 import com.android.testutils.JarTestSuiteRunner;
-import com.android.testutils.TestUtils;
-import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess;
-import org.junit.AfterClass;
+import com.android.tools.tests.IdeaTestSuiteBase;
+import com.android.tools.tests.LeakCheckerRule;
+import org.junit.ClassRule;
 import org.junit.runner.RunWith;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 @RunWith(JarTestSuiteRunner.class)
 @JarTestSuiteRunner.ExcludeClasses(FirebaseTestingTestSuite.class) // A test suite should not contain itself.
-public class FirebaseTestingTestSuite {
+public class FirebaseTestingTestSuite extends IdeaTestSuiteBase {
 
-  private static final String TMP_DIR = System.getProperty("java.io.tmpdir");
+  @ClassRule public static LeakCheckerRule checker = new LeakCheckerRule();
 
   static {
-    System.setProperty("idea.home", createTmpDir("tools/idea").toString());
-    VfsRootAccess.allowRootAccess("/");
-
-    symbolicLinkInTmpDir("tools/adt/idea/android/annotations");
-    symbolicLinkInTmpDir("tools/adt/idea/android/testData");
-    symbolicLinkInTmpDir("tools/base/templates");
-  }
-
-  private static Path createTmpDir(String p) {
-    Path path = Paths.get(TMP_DIR, p);
-    try {
-      Files.createDirectories(path);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return path;
-  }
-
-  private static void symbolicLinkInTmpDir(String target) {
-    Path linkName = Paths.get(TMP_DIR, target);
-    Path targetPath = TestUtils.getWorkspaceFile(target).toPath();
-    try {
-      Files.createDirectories(linkName.getParent());
-      Files.createSymbolicLink(linkName, targetPath);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @AfterClass
-  public static void leakChecker() throws Exception {
-    Class<?> leakTestClass = Class.forName("_LastInSuiteTest");
-    leakTestClass.getMethod("testProjectLeak").invoke(leakTestClass.newInstance());
+    symlinkToIdeaHome(
+        "tools/adt/idea/android/annotations",
+        "tools/adt/idea/android/testData",
+        "tools/base/templates");
   }
 }
