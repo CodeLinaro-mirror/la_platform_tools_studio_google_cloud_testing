@@ -62,5 +62,6 @@
     <orderEntry type="module" module-name="android-plugin" scope="TEST" />
     <orderEntry type="library" name="Log4J" level="project" />
     <orderEntry type="module" module-name="artwork" />
+    <orderEntry type="module" module-name="adt-testutils" scope="TEST" />
   </component>
 </module>
