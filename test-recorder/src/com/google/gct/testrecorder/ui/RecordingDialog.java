@@ -538,6 +538,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
         myScreenshotPanel.clearSelectionAndRepaint();
         getWindow().pack();
+        myAssertionElementComboBox.requestFocusInWindow();
       }
     });
 
