@@ -18,7 +18,6 @@ package com.google.gct.testrecorder.codegen;
 import com.android.SdkConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.run.ApkProviderUtil;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.ui.RecordingDialog;
@@ -47,8 +46,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
-import org.jetbrains.android.dom.manifest.Manifest;
-import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidPlatform;
 import org.jetbrains.android.sdk.AndroidTargetData;
 import org.jetbrains.annotations.NotNull;
@@ -75,7 +72,8 @@ public class TestCodeGenerator {
   private static final String ESPRESSO_CUSTOM_PACKAGE = "com.google.android.apps.common.testing.ui";
   private static final String ESPRESSO_STANDARD_PACKAGE = "android.support.test";
 
-  private final AndroidFacet myFacet;
+  private final String myResourcePackageName;
+  private final String myApplicationId;
   private final PsiClass myTestClass;
   private final Module myTestClassModule;
   private final List<Object> myEvents;
@@ -86,9 +84,10 @@ public class TestCodeGenerator {
   private final boolean myWasEverPaused;
 
 
-  public TestCodeGenerator(AndroidFacet facet, Module testClassModule, PsiClass testClass, List<Object> events, String launchedActivityName,
-                           boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies, boolean wasEverPaused) {
-    myFacet = facet;
+  public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass, List<Object> events,
+                           String launchedActivityName, boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies, boolean wasEverPaused) {
+    myResourcePackageName = resourcePackageName;
+    myApplicationId = applicationId;
     myTestClass = testClass;
     myTestClassModule = testClassModule;
     myEvents = events;
@@ -205,20 +204,10 @@ public class TestCodeGenerator {
     velocityContext.put("PackageName", computePackageName(myTestClassModule, testCodeVirtualFile));
     velocityContext.put("EspressoPackageName", myHasCustomEspressoDependency ? ESPRESSO_CUSTOM_PACKAGE : ESPRESSO_STANDARD_PACKAGE);
     velocityContext.put("WasEverPaused", myWasEverPaused);
-
-    String resourcePackageName = "unknown";
-    AndroidFacet testClassFacet = AndroidFacet.getInstance(myTestClassModule);
-    if (testClassFacet !=  null) {
-      Manifest manifest = testClassFacet.getManifest();
-      if (manifest != null) {
-        resourcePackageName = manifest.getPackage().getStringValue();
-      }
-    }
-    velocityContext.put("ResourcePackageName", resourcePackageName);
+    velocityContext.put("ResourcePackageName", myResourcePackageName);
 
     // Generate test code.
-    TestCodeMapper codeMapper =
-      new TestCodeMapper(getApplicationId(resourcePackageName), myHasCustomEspressoDependency, myProject, getAndroidTargetData());
+    TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myHasCustomEspressoDependency, myProject, getAndroidTargetData());
     ArrayList<String> testCodeLines = new ArrayList<String>();
     int eventCount = 0;
     int assertionCount = 0;
@@ -253,14 +242,6 @@ public class TestCodeGenerator {
                                                            .setAssertionCount(assertionCount)
                                                            .setEventCount(eventCount)));
     return velocityContext;
-  }
-
-  private String getApplicationId(String defaultId) {
-    try {
-      return ApkProviderUtil.computePackageName(myFacet);
-    } catch (Exception e) {
-      return defaultId;
-    }
   }
 
   @Nullable
