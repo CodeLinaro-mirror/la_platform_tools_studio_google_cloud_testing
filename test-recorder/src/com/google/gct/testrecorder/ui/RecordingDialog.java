@@ -25,6 +25,7 @@ import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.util.GradleUtil;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
+import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.UiNode;
@@ -62,6 +63,7 @@ import com.intellij.util.ui.JBUI;
 import com.sun.jdi.request.BreakpointRequest;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -420,6 +422,17 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       chooser.show();
       Module testClassModule = chooser.getTestClassModule();
 
+      //Similarly, compute resource package name and application id before the potential Gradle confusion.
+      String resourcePackageName = "unknown";
+      AndroidFacet testClassFacet = AndroidFacet.getInstance(testClassModule);
+      if (testClassFacet !=  null) {
+        Manifest manifest = testClassFacet.getManifest();
+        if (manifest != null) {
+          resourcePackageName = manifest.getPackage().getStringValue();
+        }
+      }
+      String applicationId = getApplicationId(resourcePackageName);
+
       boolean hasAddedEspressoDependencies = false;
       boolean hasCustomEspressoDependency = false;
 
@@ -454,8 +467,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
       if (testClass != null) {
         super.doOKAction();
-        new TestCodeGenerator(myFacet, testClassModule, testClass, getAllModelEvents(), myLaunchedActivityName, hasCustomEspressoDependency,
-                              hasAddedEspressoDependencies, myWasEverPaused).generate();
+        new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelEvents(), myLaunchedActivityName,
+                              hasCustomEspressoDependency, hasAddedEspressoDependencies, myWasEverPaused).generate();
       }
     } else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");
@@ -477,6 +490,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
                                          .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT));
         super.doOKAction();
       }
+    }
+  }
+
+  private String getApplicationId(String defaultId) {
+    try {
+      return ApkProviderUtil.computePackageName(myFacet);
+    } catch (Exception e) {
+      return defaultId;
     }
   }
 
@@ -538,6 +559,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
         myScreenshotPanel.clearSelectionAndRepaint();
         getWindow().pack();
+        myAssertionElementComboBox.requestFocusInWindow();
       }
     });
 

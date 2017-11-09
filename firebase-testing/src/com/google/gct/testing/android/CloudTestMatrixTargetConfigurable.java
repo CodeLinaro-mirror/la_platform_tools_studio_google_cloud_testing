@@ -100,8 +100,10 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     myCloudProjectIdLabel = new CloudProjectIdLabel(MATRIX);
     cloudProjectPanel.add(myCloudProjectIdLabel);
     AnAction cloudMatrixProjectAction = new SelectCloudProjectAction(project, myCloudProjectIdLabel, myCloudConfigurationComboBox);
-    cloudProjectPanel.add(new ActionButton(
-      cloudMatrixProjectAction, new PresentationFactory().getPresentation(cloudMatrixProjectAction), "MyPlace", JBUI.size(25, 25)));
+    ActionButton cloudMatrixProjectActionButton = new ActionButton(
+      cloudMatrixProjectAction, new PresentationFactory().getPresentation(cloudMatrixProjectAction), "MyPlace", JBUI.size(25, 25));
+    cloudMatrixProjectActionButton.setFocusable(true);
+    cloudProjectPanel.add(cloudMatrixProjectActionButton);
     cloudDeviceMatrixPanel.add(cloudProjectPanel, prepareElementGridConstraints(1, 1));
     cloudDeviceMatrixPanel.add(createPricingLinkPane(topPanel.getBackground()), prepareElementGridConstraints(2, 0));
 
