@@ -122,6 +122,8 @@ public class TestCodeGenerator {
         String currentViewId = projectView.getCurrentViewId() == null ? ProjectViewPane.ID : projectView.getCurrentViewId();
         for (SelectInTarget target : projectView.getSelectInTargets()) {
           if (currentViewId.equals(target.getMinorViewId())) {
+            /*
+            TODO(snegara): use createContext(AnActionEvent event)?
             target.selectIn(new SelectInContextImpl(PsiManager.getInstance(myProject).findFile(testVirtualFile)) {
               @Nullable
               @Override
@@ -129,6 +131,7 @@ public class TestCodeGenerator {
                 return null;
               }
             }, false);
+            */
             break;
           }
         }
