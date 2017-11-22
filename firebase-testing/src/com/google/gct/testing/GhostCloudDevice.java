@@ -19,10 +19,7 @@ import com.android.annotations.NonNull;
 import com.android.annotations.Nullable;
 import com.android.ddmlib.*;
 import com.android.ddmlib.log.LogReceiver;
-import com.android.repository.api.ProgressIndicator;
 import com.android.sdklib.AndroidVersion;
-import com.android.sdklib.repository.AndroidSdkHandler;
-import com.android.utils.ILogger;
 import com.google.api.services.testing.model.AndroidDevice;
 import com.google.api.services.testing.model.Device;
 
@@ -115,14 +112,6 @@ public class GhostCloudDevice implements IDevice {
   }
 
   @Override
-  public boolean hasEmulatorAdvancedFeature(@NonNull EmulatorFeature feature,
-                                            @NonNull AndroidSdkHandler androidSdkHandler,
-                                            @NonNull ProgressIndicator progressIndicator,
-                                            @NonNull ILogger log) {
-    return false;
-  }
-
-  @Override
   public String getMountPoint(String name) {
     return null;
   }
@@ -187,11 +176,6 @@ public class GhostCloudDevice implements IDevice {
                                   @NonNull ScreenRecorderOptions options,
                                   @NonNull IShellOutputReceiver receiver)
     throws TimeoutException, AdbCommandRejectedException, IOException, ShellCommandUnresponsiveException {
-
-  }
-
-  @Override
-  public void stopEmulatorScreenRecorder() {
 
   }
 
