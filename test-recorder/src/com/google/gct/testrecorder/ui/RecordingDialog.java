@@ -18,9 +18,9 @@ package com.google.gct.testrecorder.ui;
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.gradle.dsl.model.GradleBuildModel;
-import com.android.tools.idea.gradle.dsl.model.android.AndroidModel;
-import com.android.tools.idea.gradle.dsl.model.dependencies.ArtifactDependencySpec;
+import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
+import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
+import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.util.GradleUtil;
@@ -80,7 +80,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import static com.android.tools.idea.gradle.dsl.model.dependencies.CommonConfigurationNames.ANDROID_TEST_COMPILE;
+import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_COMPILE;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
 import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
@@ -106,13 +106,13 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   public static final String ESPRESSO_VERSION = "2.2.2";
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_EXCLUDES =
-    ImmutableList.of(new ArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
+    ImmutableList.of(ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CONTRIB_EXCLUDES =
-    ImmutableList.of(new ArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null),
-                     new ArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_V4, null),
-                     new ArtifactDependencySpec(GoogleMavenArtifactId.DESIGN, null),
-                     new ArtifactDependencySpec(GoogleMavenArtifactId.RECYCLERVIEW_V7, null));
+    ImmutableList.of(ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null),
+                     ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_V4, null),
+                     ArtifactDependencySpec.create(GoogleMavenArtifactId.DESIGN, null),
+                     ArtifactDependencySpec.create(GoogleMavenArtifactId.RECYCLERVIEW_V7, null));
 
   private static final String TEST_RECORDING_DIALOG_TITLE = "Record Your Test";
   private static final String SCRIPT_RECORDING_DIALOG_TITLE = "Record Your Robo Script";
@@ -670,13 +670,13 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         WriteCommandAction.runWriteCommandAction(myProject, () -> {
           if (!hasEspressoCoreDependency(androidModuleModel) && !hasCustomEspressoDependency(androidModuleModel)) {
             gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_COMPILE,
-                                                        new ArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_VERSION),
+                                                        ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_VERSION),
                                                         ESPRESSO_EXCLUDES);
           }
 
           if (needsEspressoContribDependency() && !hasEspressoContribDependency(androidModuleModel)) {
             gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_COMPILE,
-                                                        new ArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_VERSION),
+                                                        ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_VERSION),
                                                         ESPRESSO_CONTRIB_EXCLUDES);
           }
 
