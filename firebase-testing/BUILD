@@ -5,7 +5,11 @@ iml_module(
     srcs = ["src"],
     bundle_data = ["//tools/studio/google/cloud/testing/firebase-testing/lib:licenses"],
     iml_files = ["firebase-testing.iml"],
-    tags = ["managed"],
+    tags = [
+        "ij2017.3",
+        "managed",
+        "manual",
+    ],
     test_class = "com.google.gct.testing.FirebaseTestingTestSuite",
     test_data = [
         "//prebuilts/studio/sdk:platforms/latest",
