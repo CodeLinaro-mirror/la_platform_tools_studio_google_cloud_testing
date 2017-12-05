@@ -32,7 +32,7 @@ public class GoogleCloudTestStartedEvent extends BaseStartedNodeEvent {
           TreeNodeEvent.getNodeId(testStarted),
           BaseStartedNodeEvent.getParentNodeId(testStarted),
           locationUrl,
-          null,
+          BaseStartedNodeEvent.getMetainfo(testStarted),
           BaseStartedNodeEvent.getNodeType(testStarted),
           BaseStartedNodeEvent.getNodeArgs(testStarted),
           BaseStartedNodeEvent.isRunning(testStarted));
