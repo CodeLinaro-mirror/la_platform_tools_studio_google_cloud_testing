@@ -30,12 +30,16 @@ import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.ide.FileEditorProvider;
+import com.intellij.ide.SelectInContext;
 import com.intellij.ide.SelectInTarget;
 import com.intellij.ide.actions.OpenFileAction;
 import com.intellij.ide.actions.SelectInContextImpl;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.ProjectViewPane;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.TransactionGuard;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
@@ -122,13 +126,24 @@ public class TestCodeGenerator {
         String currentViewId = projectView.getCurrentViewId() == null ? ProjectViewPane.ID : projectView.getCurrentViewId();
         for (SelectInTarget target : projectView.getSelectInTargets()) {
           if (currentViewId.equals(target.getMinorViewId())) {
-            target.selectIn(new SelectInContextImpl(PsiManager.getInstance(myProject).findFile(testVirtualFile)) {
+            AnActionEvent event = AnActionEvent.createFromDataContext(ActionPlaces.UNKNOWN, null, new DataContext() {
               @Nullable
               @Override
-              public FileEditorProvider getFileEditorProvider() {
+              public Object getData(String dataId) {
+                if (CommonDataKeys.PROJECT.getName().equals(dataId)) {
+                  return myProject;
+                }
+                else if (PlatformDataKeys.FILE_EDITOR.getName().equals(dataId)) {
+                  return FileEditorManagerEx.getInstanceEx(myProject).getSelectedEditor(testVirtualFile);
+                }
+                else if (CommonDataKeys.VIRTUAL_FILE.getName().equals(dataId)) {
+                  return testVirtualFile;
+                }
                 return null;
               }
-            }, false);
+            });
+            SelectInContext context = SelectInContextImpl.createContext(event);
+            target.selectIn(context, false);
             break;
           }
         }

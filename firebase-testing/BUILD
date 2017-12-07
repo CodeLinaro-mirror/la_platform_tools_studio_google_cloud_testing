@@ -5,7 +5,9 @@ iml_module(
     srcs = ["src"],
     bundle_data = ["//tools/studio/google/cloud/testing/firebase-testing/lib:licenses"],
     iml_files = ["firebase-testing.iml"],
-    tags = ["managed"],
+    tags = [
+        "managed",
+    ],
     test_class = "com.google.gct.testing.FirebaseTestingTestSuite",
     test_data = [
         "//prebuilts/studio/sdk:platforms/latest",
@@ -13,6 +15,7 @@ iml_module(
         "//tools/adt/idea/android/testData",
         "//tools/base/templates",
     ],
+    test_runtime_deps = ["//tools/vendor/intellij/cidr:doxygen"],
     test_srcs = ["testSrc"],
     test_tags = [
         "managed",
@@ -22,9 +25,9 @@ iml_module(
     # do not sort: must match IML order
     runtime_deps = [
         "//tools/idea:credential-store",
-        "//tools/idea:configuration-store-impl",
         "//tools/idea:json",
         "//tools/idea:relaxng",
+        "//tools/idea/java/compiler/instrumentation-util-8",
         "//tools/idea/plugins/maven:maven2-server-impl",
     ],
     # do not sort: must match IML order
@@ -52,7 +55,7 @@ iml_module(
         "//tools/idea/java/execution/openapi:execution-openapi[module]",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
         "//tools/analytics-library/protos:analytics-protos[module]",
-        "//tools/idea:compiler-impl_and_others[module, test]",
+        "//tools/idea:jps-builders_and_others[module, test]",
         "//tools/adt/idea/android-test-framework[module, test]",
         "//tools/idea/.idea/libraries:mockito[test]",
         "//tools/base/testutils:studio.testutils[module, test]",

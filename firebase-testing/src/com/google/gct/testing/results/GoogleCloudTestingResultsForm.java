@@ -41,6 +41,7 @@ import javax.swing.*;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.LinkedHashSet;
@@ -121,14 +122,14 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     super.initUI();
 
     final KeyStroke shiftEnterKey = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_MASK);
-    SMRunnerUtil.registerAsAction(shiftEnterKey, "show-statistics-for-test-proxy",
-                                  new Runnable() {
-                                    @Override
-                                    public void run() {
-                                      showStatisticsForSelectedProxy();
-                                    }
-                                  },
-                                  myTreeView);
+
+    final InputMap inputMap = myTreeView.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+    inputMap.put(shiftEnterKey, "show-statistics-for-test-proxy");
+    myTreeView.getActionMap().put(inputMap.get(shiftEnterKey), new AbstractAction() {
+      public void actionPerformed(final ActionEvent ignored) {
+        showStatisticsForSelectedProxy();
+      }
+    });
   }
 
   @Override
@@ -146,7 +147,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
 
     final GoogleCloudTestTreeStructure structure = new GoogleCloudTestTreeStructure(myProject, myTestsRootNode);
     myTreeBuilder = new GoogleCloudTestTreeBuilder(myTreeView, structure);
-    myTreeBuilder.setTestsComparator(myProperties);
+    myTreeBuilder.setTestsComparator(this);
     Disposer.register(this, myTreeBuilder);
 
     myTestAnimator = new MyAnimator(myTreeBuilder);
