@@ -326,7 +326,7 @@ public class TestCodeMapper {
     int groupViewChildPosition = elementDescriptor.getGroupViewChildPosition();
 
     // Do not use child position for ViewPager children as it changes dynamically and non-deterministically.
-    if (SdkConstants.CLASS_VIEW_PAGER.equals(elementDescriptors.get(index + 1).getClassName())) {
+    if (SdkConstants.CLASS_VIEW_PAGER.isEquals(elementDescriptors.get(index + 1).getClassName())) {
       groupViewChildPosition = -1;
     }
 
