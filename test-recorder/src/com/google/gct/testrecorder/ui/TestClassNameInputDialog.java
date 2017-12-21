@@ -27,6 +27,7 @@ import com.intellij.ide.fileTemplates.JavaTemplateUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileTypes.StdFileTypes;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.GeneratedSourcesFilter;
 import com.intellij.openapi.roots.ModuleRootManager;
@@ -340,8 +341,14 @@ public class TestClassNameInputDialog extends DialogWrapper {
       @Override
       public String compute() {
         try {
-          myTestClass = JavaDirectoryService.getInstance().createClass(
-            myTestClassParent, myClassName, JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME, false);
+          DumbService service = DumbService.getInstance(myProject);
+          service.setAlternativeResolveEnabled(true);
+          try {
+            myTestClass = JavaDirectoryService.getInstance().createClass(
+              myTestClassParent, myClassName, JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME, false);
+          } finally {
+            service.setAlternativeResolveEnabled(false);
+          }
 
           // To avoid a potential concurrent modification warning.
           PsiManager.getInstance(myProject).reloadFromDisk(myTestClass.getContainingFile());
