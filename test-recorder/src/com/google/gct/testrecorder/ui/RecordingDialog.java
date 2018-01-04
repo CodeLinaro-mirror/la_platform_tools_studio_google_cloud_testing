@@ -81,6 +81,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_COMPILE;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
 import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
@@ -648,7 +649,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   private boolean hasSetInstrumentationRunner(@NotNull AndroidModel androidModel) {
-    String testInstrumentationRunner = androidModel.defaultConfig().testInstrumentationRunner().value();
+    String testInstrumentationRunner = androidModel.defaultConfig().testInstrumentationRunner().getValue(STRING_TYPE);
     return testInstrumentationRunner != null && !testInstrumentationRunner.isEmpty();
   }
 
@@ -682,7 +683,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
           AndroidModel androidModel = gradleBuildModel.android();
           if (androidModel != null && !hasSetInstrumentationRunner(androidModel)) {
-            androidModel.defaultConfig().setTestInstrumentationRunner(TEST_INSTRUMENTATION_RUNNER);
+            androidModel.defaultConfig().testInstrumentationRunner().setValue(TEST_INSTRUMENTATION_RUNNER);
           }
 
           gradleBuildModel.applyChanges();
