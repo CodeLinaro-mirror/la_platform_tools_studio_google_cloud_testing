@@ -93,7 +93,7 @@ public class LanguageDimension extends CloudConfigurationDimension {
   private List<String> getLocales(AndroidFacet facet) {
     List<String> locales = new LinkedList<String>();
     Pattern pattern = Pattern.compile("\\Avalues-([a-z]+)(-r[a-zA-Z0-9]+)?(-[a-zA-Z0-9]+)?\\z");
-    for (VirtualFile resourceDirectory : facet.getAllResourceDirectories()) {
+    for (VirtualFile resourceDirectory : facet.getResourceFolderManager().getFolders()) {
       for (VirtualFile subfolder : resourceDirectory.getChildren()) {
         String subfolderName = subfolder.getName();
         Matcher matcher = pattern.matcher(subfolderName);
