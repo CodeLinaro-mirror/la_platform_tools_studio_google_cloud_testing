@@ -15,6 +15,7 @@
  */
 package com.google.gct.testrecorder.ui;
 
+import com.android.SdkConstants;
 import com.android.builder.model.SourceProvider;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
@@ -25,7 +26,6 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.ide.fileTemplates.JavaTemplateUtil;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.fileTypes.StdFileTypes;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
@@ -51,16 +51,21 @@ import java.util.List;
 import static com.android.builder.model.AndroidProject.ARTIFACT_ANDROID_TEST;
 
 public class TestClassNameInputDialog extends DialogWrapper {
+  private static final String JAVA_LANGUAGE_NAME = "Java";
+  private static final String KOTLIN_LANGUAGE_NAME = "Kotlin";
+
   private final Project myProject;
   private final String myLaunchedActivityName;
   private Module myTestClassModule;
   private PsiDirectory myTestClassParent;
   private PsiClass myTestClass;
   private String myClassName;
+  private String mySelectedLanguage;
 
   private JPanel myRootPanel;
   private JTextField myClassNameField;
   private JLabel myErrorMessageLabel;
+  private JComboBox<String> myClassLanguageComboBox;
 
 
   protected TestClassNameInputDialog(Module launchedModule, String launchedActivityName) {
@@ -72,7 +77,10 @@ public class TestClassNameInputDialog extends DialogWrapper {
     // Initialize dialog
     init();
 
-    setTitle("Pick a test class name for your test");
+    setTitle("Specify a test class for your test");
+
+    myClassLanguageComboBox.addItem(JAVA_LANGUAGE_NAME);
+    myClassLanguageComboBox.addItem(KOTLIN_LANGUAGE_NAME);
 
     prepareEnvironment();
 
@@ -85,7 +93,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
   }
 
   private void prepareEnvironment() {
-    final VirtualFile testSourceDirectory = detectOrCreateTestSourceDirectory();
+    final VirtualFile testSourceDirectory = detectOrCreateTestSourceDirectoryAndDefaultOutputLanguage();
 
     if (testSourceDirectory == null) {
       throw new RuntimeException("Could not detect or create the test source directory!");
@@ -97,19 +105,26 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
     // Generate a unique test class name based on the name of the launched activity.
     String activityTestNameBase = activityNameFragments[activityNameFragments.length - 1] + "Test";
-    String activityTestName = activityTestNameBase;
+    myTestClassParent = PsiManager.getInstance(myProject).findDirectory(testFileParent);
+    myClassName = activityTestNameBase;
     int counter = 2;
-    while (testFileParent.findChild(appendJavaExtension(activityTestName)) != null) {
-      activityTestName = activityTestNameBase + counter++;
+    while (doesClassExist()) {
+      myClassName = activityTestNameBase + counter++;
     }
 
-    myTestClassParent = PsiManager.getInstance(myProject).findDirectory(testFileParent);
-    myClassName = activityTestName;
     myClassNameField.setText(myClassName);
   }
 
-  private VirtualFile detectOrCreateTestSourceDirectory() {
-    VirtualFile launchedActivitySourceRoot = getContainingSourceRoot(appendJavaExtension(myLaunchedActivityName.replace('.', '/')));
+  private VirtualFile detectOrCreateTestSourceDirectoryAndDefaultOutputLanguage() {
+    String launchedActivityPath = myLaunchedActivityName.replace('.', '/');
+    VirtualFile launchedActivitySourceRoot = getContainingSourceRoot(appendJavaExtension(launchedActivityPath));
+    if (launchedActivitySourceRoot == null) {
+      launchedActivitySourceRoot = getContainingSourceRoot(appendKotlinExtension(launchedActivityPath));
+      if (launchedActivitySourceRoot != null) {
+        // If the launched activity is a Kotlin class, select Kotlin as the default output language for the test class.
+        myClassLanguageComboBox.setSelectedIndex(1);
+      }
+    }
 
     List<VirtualFile> existingAndroidTestSourceRoots = getExistingAndroidTestSourceRoots();
 
@@ -168,7 +183,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return androidTestSourceRoots;
   }
 
-  private List<String> getCanonicalPaths(List<VirtualFile> virtualFiles) {
+  private static List<String> getCanonicalPaths(List<VirtualFile> virtualFiles) {
     List<String> canonicalPaths = Lists.newArrayList();
     for (VirtualFile virtualFile : virtualFiles) {
       canonicalPaths.add(virtualFile.getCanonicalPath());
@@ -201,7 +216,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     });
   }
 
-  private int findClosestAndroidTestSourceRootIndex(@Nullable VirtualFile sourceRoot, List<String> androidTestSourceRootPaths) {
+  private static int findClosestAndroidTestSourceRootIndex(@Nullable VirtualFile sourceRoot, List<String> androidTestSourceRootPaths) {
     if (sourceRoot == null) {
       return 0;
     }
@@ -225,7 +240,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return closestAndroidTestSourceIndex;
   }
 
-  private int computeOverlapSize(String path1, String path2) {
+  private static int computeOverlapSize(String path1, String path2) {
     char[] pathChars1 = path1.toCharArray();
     char[] pathChars2 = path2.toCharArray();
     int overlapSize = 0;
@@ -321,16 +336,22 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return myTestClass;
   }
 
+  public boolean isKotlinTestClass() {
+    return KOTLIN_LANGUAGE_NAME.equals(mySelectedLanguage);
+  }
+
   public Module getTestClassModule() {
     return myTestClassModule;
   }
 
   @Override
   protected void doOKAction() {
+    mySelectedLanguage = (String)myClassLanguageComboBox.getSelectedItem();
+
     if (ApplicationManager.getApplication().runReadAction(new Computable<Boolean>() {
       @Override
       public Boolean compute() {
-        return myTestClassParent.findFile(appendJavaExtension(myClassName)) != null;
+        return doesClassExist();
       }
     })) {
       myErrorMessageLabel.setText("File already exists.");
@@ -346,6 +367,9 @@ public class TestClassNameInputDialog extends DialogWrapper {
           try {
             myTestClass = JavaDirectoryService.getInstance().createClass(
               myTestClassParent, myClassName, JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME, false);
+            if (isKotlinTestClass()) {
+              myTestClass.getContainingFile().setName(appendKotlinExtension(myClassName));
+            }
           } finally {
             service.setAlternativeResolveEnabled(false);
           }
@@ -367,9 +391,19 @@ public class TestClassNameInputDialog extends DialogWrapper {
     }
   }
 
+  private boolean doesClassExist() {
+    return myTestClassParent.findFile(appendJavaExtension(myClassName)) != null
+           || myTestClassParent.findFile(appendKotlinExtension(myClassName)) != null;
+  }
+
   @NotNull
-  private String appendJavaExtension(String appendToString) {
-    return appendToString + "." + StdFileTypes.JAVA.getDefaultExtension();
+  private static String appendJavaExtension(String appendToString) {
+    return appendToString + SdkConstants.DOT_JAVA;
+  }
+
+  @NotNull
+  private static String appendKotlinExtension(String appendToString) {
+    return appendToString + SdkConstants.DOT_KT;
   }
 
   @Override
