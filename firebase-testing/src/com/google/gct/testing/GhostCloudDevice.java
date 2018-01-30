@@ -244,6 +244,17 @@ public class GhostCloudDevice implements IDevice {
   }
 
   @Override
+  public void installPackage(String packageFilePath, boolean reinstall, InstallReceiver receiver, String... extraArgs) throws InstallException {
+
+  }
+
+  @Override
+  public void installPackage(String packageFilePath, boolean reinstall, InstallReceiver receiver, long maxTimeout,
+    long maxTimeToOutputResponse, TimeUnit maxTimeUnits, String... extraArgs) throws InstallException {
+
+  }
+
+  @Override
   public void installPackages(@NonNull List<File> apks,
                               boolean reinstall,
                               @NonNull List<String> installOptions,
@@ -259,6 +270,17 @@ public class GhostCloudDevice implements IDevice {
 
   @Override
   public void installRemotePackage(String remoteFilePath, boolean reinstall, String... extraArgs) throws InstallException {
+
+  }
+
+  @Override
+  public void installRemotePackage(String remoteFilePath, boolean reinstall, InstallReceiver receiver, String... extraArgs) throws InstallException {
+
+  }
+
+  @Override
+  public void installRemotePackage(String remoteFilePath, boolean reinstall, InstallReceiver receiver, long maxTimeout,
+    long maxTimeToOutputResponse, TimeUnit maxTimeUnits, String... extraArgs) throws InstallException {
 
   }
 
