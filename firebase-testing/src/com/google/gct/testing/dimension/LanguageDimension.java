@@ -28,6 +28,7 @@ import com.google.gct.testing.launcher.CloudAuthenticator;
 import com.intellij.openapi.vfs.VirtualFile;
 import icons.AndroidIcons;
 import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.android.facet.ResourceFolderManager;
 
 import javax.swing.*;
 import java.util.*;
@@ -93,7 +94,7 @@ public class LanguageDimension extends CloudConfigurationDimension {
   private List<String> getLocales(AndroidFacet facet) {
     List<String> locales = new LinkedList<String>();
     Pattern pattern = Pattern.compile("\\Avalues-([a-z]+)(-r[a-zA-Z0-9]+)?(-[a-zA-Z0-9]+)?\\z");
-    for (VirtualFile resourceDirectory : facet.getResourceFolderManager().getFolders()) {
+    for (VirtualFile resourceDirectory : ResourceFolderManager.getInstance(facet).getFolders()) {
       for (VirtualFile subfolder : resourceDirectory.getChildren()) {
         String subfolderName = subfolder.getName();
         Matcher matcher = pattern.matcher(subfolderName);

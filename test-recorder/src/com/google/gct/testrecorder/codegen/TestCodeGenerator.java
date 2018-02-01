@@ -29,7 +29,6 @@ import com.google.wireless.android.sdk.stats.TestRecorderDetails;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
 import com.intellij.concurrency.JobScheduler;
-import com.intellij.ide.FileEditorProvider;
 import com.intellij.ide.SelectInContext;
 import com.intellij.ide.SelectInTarget;
 import com.intellij.ide.actions.OpenFileAction;
@@ -38,7 +37,6 @@ import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.ProjectViewPane;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.TransactionGuard;
-import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
@@ -71,7 +69,8 @@ import static org.jetbrains.android.util.AndroidUtils.computePackageName;
  * test class name, the destination directory, and the list of recorded events.
  */
 public class TestCodeGenerator {
-  private static final String TEST_CODE_TEMPLATE_FILE_NAME = "TestCodeTemplate.vm";
+  private static final String JAVA_TEST_CODE_TEMPLATE_FILE_NAME = "JavaTestCodeTemplate.vm";
+  private static final String KOTLIN_TEST_CODE_TEMPLATE_FILE_NAME = "KotlinTestCodeTemplate.vm";
 
   private static final String ESPRESSO_CUSTOM_PACKAGE = "com.google.android.apps.common.testing.ui";
   private static final String ESPRESSO_STANDARD_PACKAGE = "android.support.test";
@@ -86,10 +85,12 @@ public class TestCodeGenerator {
   private final boolean myHasCustomEspressoDependency;
   private final boolean myHasAddedEspressoDependencies;
   private final boolean myWasEverPaused;
+  private final boolean myIsKotlinTestClass;
 
 
   public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass, List<Object> events,
-                           String launchedActivityName, boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies, boolean wasEverPaused) {
+                           String launchedActivityName, boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies,
+                           boolean wasEverPaused, boolean isKotlinTestClass) {
     myResourcePackageName = resourcePackageName;
     myApplicationId = applicationId;
     myTestClass = testClass;
@@ -100,6 +101,7 @@ public class TestCodeGenerator {
     myHasCustomEspressoDependency = hasCustomEspressoDependency;
     myHasAddedEspressoDependencies = hasAddedEspressoDependencies;
     myWasEverPaused = wasEverPaused;
+    myIsKotlinTestClass = isKotlinTestClass;
   }
 
   public void generate() {
@@ -202,7 +204,8 @@ public class TestCodeGenerator {
   }
 
   private String readTemplateFileContent() {
-    File testTemplateFile = ResourceHelper.getFileForResource(this, TEST_CODE_TEMPLATE_FILE_NAME, "test_code_template_", "vm");
+    File testTemplateFile = ResourceHelper.getFileForResource(
+      this, myIsKotlinTestClass ? KOTLIN_TEST_CODE_TEMPLATE_FILE_NAME : JAVA_TEST_CODE_TEMPLATE_FILE_NAME, "test_code_template_", "vm");
     try {
       return FileUtils.readFileToString(testTemplateFile);
     } catch (Exception e) {
@@ -222,7 +225,7 @@ public class TestCodeGenerator {
     velocityContext.put("ResourcePackageName", myResourcePackageName);
 
     // Generate test code.
-    TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myHasCustomEspressoDependency, myProject, getAndroidTargetData());
+    TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myHasCustomEspressoDependency, myProject, getAndroidTargetData(), myIsKotlinTestClass);
     ArrayList<String> testCodeLines = new ArrayList<String>();
     int eventCount = 0;
     int assertionCount = 0;

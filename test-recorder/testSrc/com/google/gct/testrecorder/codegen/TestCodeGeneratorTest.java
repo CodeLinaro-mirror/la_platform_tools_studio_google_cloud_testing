@@ -35,12 +35,12 @@ import static com.google.gct.testrecorder.util.EventsCreator.createEvents;
 
 public class TestCodeGeneratorTest extends AndroidTestCase {
 
-  public void testCodeGeneration() throws Exception {
-    PsiClass testClass = createTestClass();
+  public void testJavaCodeGeneration() throws Exception {
+    PsiClass testClass = createTestClass(false);
 
     TestCodeGenerator testCodeGenerator =
       new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createEvents(System.currentTimeMillis()),
-                            "p1.p2.MyActivity", false, false, false);
+                            "p1.p2.MyActivity", false, false, false, false);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
@@ -55,11 +55,34 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
       new ReformatCodeProcessor(project, testClass.getContainingFile(), null, false).run();
 
       String actualTestClassContent = FileDocumentManager.getInstance().getDocument(testVirtualFile).getText();
-      assertEquals(getExpectedTestClassContent(), actualTestClassContent);
+      assertEquals(getExpectedTestClassContent(false), actualTestClassContent);
     });
   }
 
-  private PsiClass createTestClass() {
+  public void testKotlinCodeGeneration() throws Exception {
+    PsiClass testClass = createTestClass(true);
+
+    TestCodeGenerator testCodeGenerator =
+      new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createEvents(System.currentTimeMillis()),
+                            "p1.p2.MyActivity", false, false, false, true);
+
+    String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
+    VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
+
+    testCodeGenerator.writeCode(testFilePath, testVirtualFile);
+    Project project = myModule.getProject();
+
+    testVirtualFile.refresh(false, true, () -> {
+      PsiDocumentManager.getInstance(project).commitAllDocuments();
+
+      // Do not apply import optimizer and code reformatter as they do not handle Kotlin code in test mode.
+
+      String actualTestClassContent = FileDocumentManager.getInstance().getDocument(testVirtualFile).getText();
+      assertEquals(getExpectedTestClassContent(true).replaceAll("\\s", ""), actualTestClassContent.replaceAll("\\s", ""));
+    });
+  }
+
+  private PsiClass createTestClass(boolean isKotlinTestClass) {
     PsiDirectory containingDirectory = PsiManager.getInstance(myModule.getProject()).findDirectory(myModule.getProject().getBaseDir());
 
     PsiClass testClass = ApplicationManager.getApplication().runWriteAction(new Computable<PsiClass>() {
@@ -67,6 +90,10 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
       public PsiClass compute() {
         PsiClass testClass = JavaDirectoryService.getInstance()
           .createClass(containingDirectory, "MyTest", JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME, false);
+
+        if (isKotlinTestClass) {
+          testClass.getContainingFile().setName("MyTest.kt");
+        }
 
         // To avoid concurrent modification warning which will break the test with a NullPointerException.
         PsiManager.getInstance(myModule.getProject()).reloadFromDisk(testClass.getContainingFile());
@@ -82,8 +109,9 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     return testClass;
   }
 
-  private String getExpectedTestClassContent() {
-    File expectedTestClass = ResourceHelper.getFileForResource(this, "ExpectedTestClass.txt", "expected_test_class_", "txt");
+  private String getExpectedTestClassContent(boolean isKotlinTestClass) {
+    String expectedFileName = isKotlinTestClass ? "ExpectedKotlinTestClass.txt" : "ExpectedJavaTestClass.txt";
+    File expectedTestClass = ResourceHelper.getFileForResource(this, expectedFileName, "expected_test_class_", "txt");
     try {
       return FileUtils.readFileToString(expectedTestClass).replace("\r", ""); // Fix Windows line terminators
     } catch (Exception e) {

@@ -16,6 +16,7 @@
 package com.google.gct.testrecorder.codegen;
 
 import com.intellij.openapi.project.Project;
+import org.jetbrains.annotations.NotNull;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.ClassName;
@@ -26,12 +27,14 @@ public class MatcherBuilder {
   public enum Kind {Id, Text, ContentDescription, ClassName}
 
   private final Project myProject;
+  private final boolean myIsKotlinTestClass;
 
   private int myMatcherCount = 0;
   private final StringBuilder myMatchers = new StringBuilder();
 
-  public MatcherBuilder(Project project) {
+  public MatcherBuilder(Project project, boolean isKotlinTestClass) {
     myProject = project;
+    myIsKotlinTestClass = isKotlinTestClass;
   }
 
   public void addMatcher(Kind kind, String matchedString, boolean shouldBox, boolean isAssertionMatcher) {
@@ -47,12 +50,17 @@ public class MatcherBuilder {
       if (kind == ClassName && isAssertionMatcher) {
        myMatchers.append("IsInstanceOf.<View>instanceOf(").append(matchedString).append(".class)");
       } else {
-        myMatchers.append("with").append(kind.name()).append(kind == ClassName ? "(is(" : "(")
+        myMatchers.append("with").append(kind.name()).append(kind == ClassName ? getClassNameMatcher() : "(")
           .append(shouldBox ? boxString(matchedString) : matchedString).append(kind == ClassName ? "))" : ")");
       }
 
       myMatcherCount++;
     }
+  }
+
+  @NotNull
+  private String getClassNameMatcher() {
+    return myIsKotlinTestClass ? "(`is`(" : "(is(";
   }
 
   public int getMatcherCount() {

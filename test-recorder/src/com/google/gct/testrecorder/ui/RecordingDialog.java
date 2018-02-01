@@ -469,7 +469,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       if (testClass != null) {
         super.doOKAction();
         new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelEvents(), myLaunchedActivityName,
-                              hasCustomEspressoDependency, hasAddedEspressoDependencies, myWasEverPaused).generate();
+                              hasCustomEspressoDependency, hasAddedEspressoDependencies, myWasEverPaused, chooser.isKotlinTestClass()).generate();
       }
     } else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");

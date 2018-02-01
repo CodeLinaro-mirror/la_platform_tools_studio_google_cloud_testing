@@ -51,6 +51,7 @@ public class TestCodeMapper {
   private final boolean myIsUsingCustomEspresso;
   private final Project myProject;
   @Nullable private final AndroidTargetData myAndroidTargetData;
+  private final boolean myIsKotlinTestClass;
   private boolean myIsChildAtPositionAdded;
   private boolean myIsRecyclerViewActionAdded;
 
@@ -61,24 +62,24 @@ public class TestCodeMapper {
 
 
   public TestCodeMapper(
-    String applicationId, boolean isUsingCustomEspresso, Project project, @Nullable AndroidTargetData androidTargetData) {
-
+    String applicationId, boolean isUsingCustomEspresso, Project project, @Nullable AndroidTargetData androidTargetData, boolean isKotlinTestClass) {
     myApplicationId = applicationId;
     myIsUsingCustomEspresso = isUsingCustomEspresso;
     myProject = project;
     myAndroidTargetData = androidTargetData;
+    myIsKotlinTestClass = isKotlinTestClass;
   }
 
   public List<String> getTestCodeLinesForEvent(TestRecorderEvent event) {
     List<String> testCodeLines = new LinkedList<String>();
 
     if (event.isPressBack()) {
-      testCodeLines.add("pressBack();");
+      testCodeLines.add("pressBack()" + getStatementTerminator());
       return testCodeLines;
     }
 
     if (event.isViewClick() && isOverflowMenuButton(event.getElementClassName())) {
-      testCodeLines.add("openActionBarOverflowOrOptionsMenu(getInstrumentation().getTargetContext());");
+      testCodeLines.add("openActionBarOverflowOrOptionsMenu(getInstrumentation().getTargetContext())" + getStatementTerminator());
       return testCodeLines;
     }
 
@@ -153,7 +154,9 @@ public class TestCodeMapper {
     return String.format(" // Added a sleep statement to match the app's execution delay.\n"
                          + " // The recommended way to handle such scenarios is to use Espresso idling resources:\n "
                          + " // https://google.github.io/android-testing-support-library/docs/espresso/idling-resource/index.html\n"
-                         + "try {\n Thread.sleep(%s);\n } catch (InterruptedException e) {\n e.printStackTrace();\n }", sleepTime);
+                         + "try {\n Thread.sleep(%s)" + getStatementTerminator() + "\n } catch (" +
+                         (myIsKotlinTestClass ? "e: InterruptedException" : "InterruptedException e") +
+                         ") {\n e.printStackTrace()" + getStatementTerminator() + "\n }", sleepTime);
   }
 
   @VisibleForTesting
@@ -173,7 +176,7 @@ public class TestCodeMapper {
                      ? completeAction
                      : "actionOnItemAtPosition(" + recyclerViewChildPosition + ", " + completeAction + ")";
 
-    return variableName + ".perform(" + completeAction + ");";
+    return variableName + ".perform(" + completeAction + ")" + getStatementTerminator();
   }
 
   public List<String> getTestCodeLinesForAssertion(TestRecorderAssertion assertion) {
@@ -183,12 +186,12 @@ public class TestCodeMapper {
     String variableName = addPickingStatement(assertion, testCodeLines);
 
     if (NOT_EXISTS.equals(rule)) {
-      testCodeLines.add(variableName + ".check(doesNotExist());");
+      testCodeLines.add(variableName + ".check(doesNotExist())" + getStatementTerminator());
     } else if (EXISTS.equals(rule)) {
-      testCodeLines.add(variableName + ".check(matches(isDisplayed()));");
+      testCodeLines.add(variableName + ".check(matches(isDisplayed()))" + getStatementTerminator());
     } else if (TEXT_IS.equals(rule)) {
       String text = assertion.getText();
-      testCodeLines.add(variableName + ".check(matches(withText(" + boxString(text) + ")));");
+      testCodeLines.add(variableName + ".check(matches(withText(" + boxString(text) + ")))" + getStatementTerminator());
     } else {
       throw new RuntimeException("Unsupported assertion rule: " + rule);
     }
@@ -208,16 +211,29 @@ public class TestCodeMapper {
     int startIndex = action.getElementRecyclerViewChildPosition() != -1 && action.getElementDescriptorsCount() > 1 ? 1 : 0;
 
     String variableName = generateVariableNameFromElementClassName(action.getElementDescriptor(startIndex).getClassName(), VIEW_VARIABLE_CLASS_NAME);
-    testCodeLines.add(VIEW_VARIABLE_CLASS_NAME + " " + variableName + " = onView(\n" + generateElementHierarchyConditions(action, startIndex) + ");");
+    testCodeLines.add(getVariableTypeDeclaration(true) + " " + variableName + " = onView(\n" +
+                      generateElementHierarchyConditions(action, startIndex) + ")" + getStatementTerminator());
     return variableName;
   }
 
   private String addDataPickingStatement(ElementAction action, List<String> testCodeLines) {
     String variableName = generateVariableNameFromElementClassName(action.getElementClassName(), DATA_VARIABLE_CLASS_NAME);
     // TODO: Add '.onChildView(...)' when we support AdapterView beyond the immediate parent of the affected element.
-    testCodeLines.add(DATA_VARIABLE_CLASS_NAME + " " + variableName + " = onData(anything())\n.inAdapterView(" +
-                      generateElementHierarchyConditions(action, 1) + ")\n.atPosition(" + action.getElementAdapterViewChildPosition() + ");");
+    testCodeLines.add(getVariableTypeDeclaration(false) + " " + variableName + " = onData(anything())\n.inAdapterView(" +
+                      generateElementHierarchyConditions(action, 1) + ")\n.atPosition(" + action.getElementAdapterViewChildPosition() +
+                      ")" + getStatementTerminator());
     return variableName;
+  }
+
+  private String getVariableTypeDeclaration(boolean isOnViewInteraction) {
+    if (myIsKotlinTestClass) {
+      return "val";
+    }
+    return isOnViewInteraction ? VIEW_VARIABLE_CLASS_NAME : DATA_VARIABLE_CLASS_NAME;
+  }
+
+  private String getStatementTerminator() {
+    return myIsKotlinTestClass ? "" : ";";
   }
 
   // TODO: This will not detect an adapter view action if the affected element's immediate parent is not an AdapterView
@@ -265,7 +281,7 @@ public class TestCodeMapper {
     boolean addIsDisplayed = checkIsDisplayed && index == 0;
 
     ElementDescriptor elementDescriptor = elementDescriptors.get(index);
-    MatcherBuilder matcherBuilder = new MatcherBuilder(myProject);
+    MatcherBuilder matcherBuilder = new MatcherBuilder(myProject, myIsKotlinTestClass);
 
     int lastIndex = elementDescriptors.size() - 1;
 
