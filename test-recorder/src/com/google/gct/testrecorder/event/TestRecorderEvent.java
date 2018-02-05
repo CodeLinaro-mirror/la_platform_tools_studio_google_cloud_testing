@@ -203,7 +203,6 @@ public class TestRecorderEvent extends ElementAction {
     if (isTextChange()) {
       setReplacementText(eventToMergeWith.getReplacementText());
     } else { // delayed message post
-      // TODO: Maybe sum instead of max?
       setDelayTime(Math.max(getDelayTime(), eventToMergeWith.getDelayTime()));
     }
   }
