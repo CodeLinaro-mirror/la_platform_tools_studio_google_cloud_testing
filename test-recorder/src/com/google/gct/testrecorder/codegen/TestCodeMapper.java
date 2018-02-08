@@ -174,9 +174,13 @@ public class TestCodeMapper {
     String completeAction = (addScrollTo && recyclerViewChildPosition == -1 ? "scrollTo(), " : "") + action;
     completeAction = recyclerViewChildPosition == -1
                      ? completeAction
-                     : "actionOnItemAtPosition(" + recyclerViewChildPosition + ", " + completeAction + ")";
+                     : getActionOnItemAtPositionMethodCallPrefix() + recyclerViewChildPosition + ", " + completeAction + ")";
 
     return variableName + ".perform(" + completeAction + ")" + getStatementTerminator();
+  }
+
+  private String getActionOnItemAtPositionMethodCallPrefix() {
+    return myIsKotlinTestClass ? "actionOnItemAtPosition<ViewHolder>(" : "actionOnItemAtPosition(";
   }
 
   public List<String> getTestCodeLinesForAssertion(TestRecorderAssertion assertion) {
@@ -238,7 +242,7 @@ public class TestCodeMapper {
 
   // TODO: This will not detect an adapter view action if the affected element's immediate parent is not an AdapterView
   // (e.g., clicking on a button, whose parent's parent is AdapterView will not be detected as an AdapterView action).
-  private boolean isAdapterViewAction(ElementAction action) {
+  private static boolean isAdapterViewAction(ElementAction action) {
     return action.getElementAdapterViewChildPosition() != -1 && action.getElementDescriptorsCount() > 1;
   }
 
@@ -322,7 +326,7 @@ public class TestCodeMapper {
     int groupViewChildPosition = elementDescriptor.getGroupViewChildPosition();
 
     // Do not use child position for ViewPager children as it changes dynamically and non-deterministically.
-    if (SdkConstants.CLASS_VIEW_PAGER.equals(elementDescriptors.get(index + 1).getClassName())) {
+    if (SdkConstants.CLASS_VIEW_PAGER.isEquals(elementDescriptors.get(index + 1).getClassName())) {
       groupViewChildPosition = -1;
     }
 

@@ -1,42 +1,43 @@
 #if (${PackageName} && ${PackageName} != "")
-package ${PackageName};
+package ${PackageName}
 
 #end
 
-import ${EspressoPackageName}.espresso.DataInteraction;
-import ${EspressoPackageName}.espresso.ViewInteraction;
-import android.support.test.rule.ActivityTestRule;
-import android.support.test.runner.AndroidJUnit4;
-import android.test.suitebuilder.annotation.LargeTest;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewParent;
+import ${EspressoPackageName}.espresso.DataInteraction
+import ${EspressoPackageName}.espresso.ViewInteraction
+import android.support.test.rule.ActivityTestRule
+import android.support.test.runner.AndroidJUnit4
+import android.test.suitebuilder.annotation.LargeTest
+import android.view.View
+import android.view.ViewGroup
+import android.view.ViewParent
 
-import ${EspressoPackageName}.InstrumentationRegistry.getInstrumentation;
-import ${EspressoPackageName}.espresso.Espresso.onData;
-import ${EspressoPackageName}.espresso.Espresso.onView;
-import ${EspressoPackageName}.espresso.Espresso.pressBack;
-import ${EspressoPackageName}.espresso.Espresso.openActionBarOverflowOrOptionsMenu;
+import ${EspressoPackageName}.InstrumentationRegistry.getInstrumentation
+import ${EspressoPackageName}.espresso.Espresso.onData
+import ${EspressoPackageName}.espresso.Espresso.onView
+import ${EspressoPackageName}.espresso.Espresso.pressBack
+import ${EspressoPackageName}.espresso.Espresso.openActionBarOverflowOrOptionsMenu
 #if (${AddContribImport})
-import ${EspressoPackageName}.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition;
+import ${EspressoPackageName}.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition
+import android.support.v7.widget.RecyclerView.ViewHolder
 #end
-import ${EspressoPackageName}.espresso.action.ViewActions.*;
-import ${EspressoPackageName}.espresso.assertion.ViewAssertions.*;
-import ${EspressoPackageName}.espresso.matcher.ViewMatchers.*;
+import ${EspressoPackageName}.espresso.action.ViewActions.*
+import ${EspressoPackageName}.espresso.assertion.ViewAssertions.*
+import ${EspressoPackageName}.espresso.matcher.ViewMatchers.*
 
-import ${ResourcePackageName}.R;
+import ${ResourcePackageName}.R
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-import org.hamcrest.core.IsInstanceOf;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.hamcrest.Description
+import org.hamcrest.Matcher
+import org.hamcrest.TypeSafeMatcher
+import org.hamcrest.core.IsInstanceOf
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
 
-import org.hamcrest.Matchers.allOf;
-import org.hamcrest.Matchers.anything;
-import org.hamcrest.Matchers.`is`;
+import org.hamcrest.Matchers.allOf
+import org.hamcrest.Matchers.anything
+import org.hamcrest.Matchers.`is`
 
 @LargeTest
 @RunWith(AndroidJUnit4::class)

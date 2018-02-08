@@ -59,6 +59,7 @@ public class BreakpointCommand extends DebuggerCommandImpl {
   private static final int MAX_SCHEDULE_ATTEMPTS = 20;
   private static final long INTER_ATTEMPTS_WAIT = 500; // milliseconds
   private static final int ESPRESSO_IDLE_DELAY = 15; // milliseconds
+  private static final int MAX_DELAY_TIME = 7000; // 7 seconds in milliseconds
 
   private final DebugProcessImpl myDebugProcess;
   private final BreakpointDescriptor myBreakpointDescriptor;
@@ -264,7 +265,7 @@ public class BreakpointCommand extends DebuggerCommandImpl {
         // Do not use getCanonicalName() as it will return null for local and anonymous classes (as well as arrays).
         Value runnableClassNameValue = evaluateExpression("r.getClass().getName()", evalContext, nodeManager);
         if (runnableClassNameValue != null && !isFrameworkClass(getStringValue(runnableClassNameValue))) {
-          event.setDelayTime(delayMillis);
+          event.setDelayTime(delayMillis > MAX_DELAY_TIME ? MAX_DELAY_TIME : delayMillis);
           return event;
         }
       }
