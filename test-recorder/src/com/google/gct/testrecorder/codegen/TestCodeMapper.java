@@ -143,7 +143,7 @@ public class TestCodeMapper {
     testCodeLines.add(createActionStatement(variableName, closeSoftKeyboardEvent.getElementRecyclerViewChildPosition(), "closeSoftKeyboard()", false));
   }
 
-  private boolean doesNeedStandaloneCloseSoftKeyboardAction(TestRecorderEvent event) {
+  private static boolean doesNeedStandaloneCloseSoftKeyboardAction(TestRecorderEvent event) {
     // Make text edit in a RecyclerView child always require a standalone close soft keyboard action since actionOnItemAtPosition
     // accepts only a single action.
     return TestRecorderSettings.getInstance().USE_TEXT_FOR_ELEMENT_MATCHING && event.isTextChange()
@@ -154,9 +154,9 @@ public class TestCodeMapper {
     return String.format(" // Added a sleep statement to match the app's execution delay.\n"
                          + " // The recommended way to handle such scenarios is to use Espresso idling resources:\n "
                          + " // https://google.github.io/android-testing-support-library/docs/espresso/idling-resource/index.html\n"
-                         + "try {\n Thread.sleep(%s)" + getStatementTerminator() + "\n } catch (" +
-                         (myIsKotlinTestClass ? "e: InterruptedException" : "InterruptedException e") +
-                         ") {\n e.printStackTrace()" + getStatementTerminator() + "\n }", sleepTime);
+                         + (myIsKotlinTestClass
+                            ? "Thread.sleep(%s)"
+                            : "try {\n Thread.sleep(%s);\n } catch (InterruptedException e) {\n e.printStackTrace();\n }"), sleepTime);
   }
 
   @VisibleForTesting
