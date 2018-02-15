@@ -91,11 +91,7 @@ class MyTest {
         // Added a sleep statement to match the app's execution delay.
         // The recommended way to handle such scenarios is to use Espresso idling resources:
         // https://google.github.io/android-testing-support-library/docs/espresso/idling-resource/index.html
-        try {
-            Thread.sleep(1500)
-        } catch (e: InterruptedException) {
-            e.printStackTrace()
-        }
+        Thread.sleep(1500)
 
         val elementClass5 = onView(
                 allOf(withId(resourceId4), withText("original text"), withContentDescription("content description 3"),
