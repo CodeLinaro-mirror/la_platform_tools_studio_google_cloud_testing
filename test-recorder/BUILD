@@ -32,7 +32,7 @@ iml_module(
         "//tools/idea/java/openapi[module]",
         "//tools/idea:jps-builders_and_others[module]",
         "//tools/idea/platform/xdebugger-impl[module]",
-        "//tools/idea/.idea/libraries:commons-io-2.4",
+        "//tools/idea/.idea/libraries:commons-io",
         "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",
         "//tools/studio/google/cloud/testing/test-recorder/lib:swt",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
