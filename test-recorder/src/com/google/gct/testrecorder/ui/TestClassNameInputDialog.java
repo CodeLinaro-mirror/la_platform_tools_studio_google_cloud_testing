@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static com.android.builder.model.AndroidProject.ARTIFACT_ANDROID_TEST;
+import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 
 public class TestClassNameInputDialog extends DialogWrapper {
   private final Project myProject;
@@ -118,11 +119,10 @@ public class TestClassNameInputDialog extends DialogWrapper {
                                        .setCategory(EventCategory.TEST_RECORDER)
                                        .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER));
 
-      final VirtualFile moduleFile = myTestClassModule.getModuleFile();
-      if (moduleFile == null) {
-        throw new RuntimeException("Could not find module file for module " + myTestClassModule.getName());
+      VirtualFile moduleRoot = findFileByIoFile(new File(myTestClassModule.getModuleFilePath()).getParentFile(), true);
+      if (moduleRoot == null) {
+        throw new RuntimeException("Could not find module root for module " + myTestClassModule.getName());
       }
-      VirtualFile moduleDirectory = moduleFile.getParent();
 
       List<String> androidTestSourceRoots = getAndroidTestSourceRoots();
 
@@ -131,17 +131,17 @@ public class TestClassNameInputDialog extends DialogWrapper {
         // create a test source root following naming convention, i.e., $MODULE_DIR$/src/androidTest/java.
         // TODO: If there are examples when naming convention fails, consider updating .iml as well,
         // e.g., using contentEntry.addSourceFolder(VfsUtilCore.pathToUrl(parentSourceRoot.getCanonicalPath() + "/androidTest/java"), true);
-        return getOrCreateSubdirectory(moduleDirectory, new String[]{"src", "androidTest", "java"}, true);
+        return getOrCreateSubdirectory(moduleRoot, new String[]{"src", "androidTest", "java"}, true);
       } else {
         String closestAndroidTestSourcePath =
           androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
-        String moduleDirectoryCanonicalPath = moduleDirectory.getCanonicalPath();
-        if (moduleDirectoryCanonicalPath == null || !closestAndroidTestSourcePath.startsWith(moduleDirectoryCanonicalPath)) {
+        String moduleRootCanonicalPath = moduleRoot.getCanonicalPath();
+        if (moduleRootCanonicalPath == null || !closestAndroidTestSourcePath.startsWith(moduleRootCanonicalPath)) {
           // Why this should ever be the case?
           throw new RuntimeException("Android test source path is not inside the module: " + closestAndroidTestSourcePath);
         }
         return getOrCreateSubdirectory(
-          moduleDirectory, closestAndroidTestSourcePath.substring(moduleDirectoryCanonicalPath.length() + 1).split("/"), true);
+          moduleRoot, closestAndroidTestSourcePath.substring(moduleRootCanonicalPath.length() + 1).split("/"), true);
       }
     } else {
       return existingAndroidTestSourceRoots.get(
