@@ -40,7 +40,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
 
     TestCodeGenerator testCodeGenerator =
       new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createEvents(System.currentTimeMillis()),
-                            "p1.p2.MyActivity", false, false, false, false);
+                            "p1.p2.MyActivity", false, false, false);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
@@ -64,7 +64,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
 
     TestCodeGenerator testCodeGenerator =
       new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createEvents(System.currentTimeMillis()),
-                            "p1.p2.MyActivity", false, false, false, true);
+                            "p1.p2.MyActivity", false, false, true);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
