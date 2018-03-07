@@ -48,7 +48,6 @@ public class TestCodeMapper {
   private static final String DATA_VARIABLE_CLASS_NAME = "DataInteraction";
 
   private final String myApplicationId;
-  private final boolean myIsUsingCustomEspresso;
   private final Project myProject;
   @Nullable private final AndroidTargetData myAndroidTargetData;
   private final boolean myIsKotlinTestClass;
@@ -61,10 +60,8 @@ public class TestCodeMapper {
   private final Map<String, Integer> myVariableNameIndexes = Maps.newHashMap();
 
 
-  public TestCodeMapper(
-    String applicationId, boolean isUsingCustomEspresso, Project project, @Nullable AndroidTargetData androidTargetData, boolean isKotlinTestClass) {
+  public TestCodeMapper(String applicationId, Project project, @Nullable AndroidTargetData androidTargetData, boolean isKotlinTestClass) {
     myApplicationId = applicationId;
-    myIsUsingCustomEspresso = isUsingCustomEspresso;
     myProject = project;
     myAndroidTargetData = androidTargetData;
     myIsKotlinTestClass = isKotlinTestClass;
@@ -99,14 +96,8 @@ public class TestCodeMapper {
       testCodeLines.add(createActionStatement(variableName, recyclerViewChildPosition, event.isViewLongClick() ? "longClick()" : "click()", event.canScrollTo()));
     } else if (event.isTextChange()) {
       String closeSoftKeyboardAction = doesNeedStandaloneCloseSoftKeyboardAction(event) ? "" : ", closeSoftKeyboard()";
-      if (myIsUsingCustomEspresso) {
-        testCodeLines.add(createActionStatement(variableName, recyclerViewChildPosition, "clearText()", event.canScrollTo()));
-        testCodeLines.add(createActionStatement(
-          variableName, recyclerViewChildPosition, "typeText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, false));
-      } else {
-        testCodeLines.add(createActionStatement(
-          variableName, recyclerViewChildPosition, "replaceText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, event.canScrollTo()));
-      }
+      testCodeLines.add(createActionStatement(
+        variableName, recyclerViewChildPosition, "replaceText(" + boxString(event.getReplacementText()) + ")" + closeSoftKeyboardAction, event.canScrollTo()));
     } else {
       throw new RuntimeException("Unsupported event type: " + event.getEventType());
     }
