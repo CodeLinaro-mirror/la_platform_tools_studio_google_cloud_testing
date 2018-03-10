@@ -168,7 +168,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
     myConfigurationTree.setCellRenderer(new ColoredTreeCellRenderer() {
 
       @Override
-      public void customizeCellRenderer(JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row,
+      public void customizeCellRenderer(@NotNull JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row,
                                         boolean hasFocus) {
         if (value instanceof DefaultMutableTreeNode) {
           final DefaultMutableTreeNode node = (DefaultMutableTreeNode)value;
@@ -299,7 +299,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
   private JPanel createLeftPanel() {
     myToolbarDecorator = ToolbarDecorator.createDecorator(myConfigurationTree).setAsUsualTopToolbar()
       .setAddAction(myAddAction).setAddActionUpdater(myAddAction).setAddActionName(
-        ExecutionBundle.message("add.new.run.configuration.acrtion.name"))
+        ExecutionBundle.message("add.new.run.configuration.action2.name"))
       .setRemoveAction(myRemoveAction).setRemoveActionUpdater(myRemoveAction).setRemoveActionName(
         ExecutionBundle.message("remove.run.configuration.action.name"))
       .setMoveUpAction(myMoveUpAction).setMoveUpActionUpdater(myMoveUpAction).setMoveUpActionName(
@@ -308,7 +308,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
         ExecutionBundle.message("move.down.action.name"))
       .addExtraAction(myCopyActionButton)
       //.addExtraAction(AnActionButton.fromAction(new MySaveAction()))
-      .setButtonComparator(ExecutionBundle.message("add.new.run.configuration.acrtion.name"),
+      .setButtonComparator(ExecutionBundle.message("add.new.run.configuration.action2.name"),
                            ExecutionBundle.message("remove.run.configuration.action.name"),
                            ExecutionBundle.message("copy.configuration.action.name"),
                            ExecutionBundle.message("action.name.save.configuration"),
@@ -388,6 +388,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
     }
   }
 
+  @Nullable
   public CloudConfigurationImpl getSelectedConfiguration() {
     return selectedConfiguration;
   }
