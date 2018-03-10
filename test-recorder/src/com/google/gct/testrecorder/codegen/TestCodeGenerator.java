@@ -72,9 +72,6 @@ public class TestCodeGenerator {
   private static final String JAVA_TEST_CODE_TEMPLATE_FILE_NAME = "JavaTestCodeTemplate.vm";
   private static final String KOTLIN_TEST_CODE_TEMPLATE_FILE_NAME = "KotlinTestCodeTemplate.vm";
 
-  private static final String ESPRESSO_CUSTOM_PACKAGE = "com.google.android.apps.common.testing.ui";
-  private static final String ESPRESSO_STANDARD_PACKAGE = "android.support.test";
-
   private final String myResourcePackageName;
   private final String myApplicationId;
   private final PsiClass myTestClass;
@@ -82,15 +79,13 @@ public class TestCodeGenerator {
   private final List<Object> myEvents;
   private final Project myProject;
   private final String myLaunchedActivityName;
-  private final boolean myHasCustomEspressoDependency;
   private final boolean myHasAddedEspressoDependencies;
   private final boolean myWasEverPaused;
   private final boolean myIsKotlinTestClass;
 
 
   public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass, List<Object> events,
-                           String launchedActivityName, boolean hasCustomEspressoDependency, boolean hasAddedEspressoDependencies,
-                           boolean wasEverPaused, boolean isKotlinTestClass) {
+                           String launchedActivityName,boolean hasAddedEspressoDependencies, boolean wasEverPaused, boolean isKotlinTestClass) {
     myResourcePackageName = resourcePackageName;
     myApplicationId = applicationId;
     myTestClass = testClass;
@@ -98,7 +93,6 @@ public class TestCodeGenerator {
     myEvents = events;
     myProject = myTestClassModule.getProject();
     myLaunchedActivityName = launchedActivityName;
-    myHasCustomEspressoDependency = hasCustomEspressoDependency;
     myHasAddedEspressoDependencies = hasAddedEspressoDependencies;
     myWasEverPaused = wasEverPaused;
     myIsKotlinTestClass = isKotlinTestClass;
@@ -220,12 +214,11 @@ public class TestCodeGenerator {
     velocityContext.put("ClassName", myTestClass.getName());
     velocityContext.put("TestMethodName", lowerCaseFirstCharacter(myTestClass.getName()));
     velocityContext.put("PackageName", computePackageName(myTestClassModule, testCodeVirtualFile));
-    velocityContext.put("EspressoPackageName", myHasCustomEspressoDependency ? ESPRESSO_CUSTOM_PACKAGE : ESPRESSO_STANDARD_PACKAGE);
     velocityContext.put("WasEverPaused", myWasEverPaused);
     velocityContext.put("ResourcePackageName", myResourcePackageName);
 
     // Generate test code.
-    TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myHasCustomEspressoDependency, myProject, getAndroidTargetData(), myIsKotlinTestClass);
+    TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myProject, getAndroidTargetData(), myIsKotlinTestClass);
     ArrayList<String> testCodeLines = new ArrayList<String>();
     int eventCount = 0;
     int assertionCount = 0;
