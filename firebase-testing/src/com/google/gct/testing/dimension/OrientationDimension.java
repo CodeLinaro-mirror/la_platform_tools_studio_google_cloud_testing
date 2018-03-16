@@ -53,7 +53,13 @@ public class OrientationDimension extends CloudConfigurationDimension {
         List<com.google.api.services.testing.model.Orientation> modelOrientations =
           androidDeviceCatalog.getRuntimeConfiguration().getOrientations();
         for (com.google.api.services.testing.model.Orientation modelOrientation : modelOrientations) {
-          Orientation orientation = new Orientation(modelOrientation.getId(), modelOrientation.getName());
+          String orientationName = modelOrientation.getName();
+          // Disregard the Default orientation in Android Studio client.
+          if ("default".equalsIgnoreCase(orientationName)) {
+            continue;
+          }
+
+          Orientation orientation = new Orientation(modelOrientation.getId(), orientationName);
           fullDomainBuilder.add(orientation);
           List<String> tags = modelOrientation.getTags();
           if (tags != null && tags.contains("default")) {
