@@ -54,6 +54,12 @@ public class DeviceDimension extends CloudConfigurationDimension {
       AndroidDeviceCatalog androidDeviceCatalog = CloudAuthenticator.getInstance().getAndroidDeviceCatalog();
       if (androidDeviceCatalog != null) {
         for (AndroidModel model : androidDeviceCatalog.getModels()) {
+          List<String> supportedVersionIds = model.getSupportedVersionIds();
+          // Disregard devices with no supported APIs.
+          if (supportedVersionIds == null || supportedVersionIds.isEmpty()) {
+            continue;
+          }
+
           Map<String, String> details = new HashMap<>();
           int numberOfPixels = 0;
           if (model.getScreenX() != null && model.getScreenY() != null) {
@@ -61,7 +67,7 @@ public class DeviceDimension extends CloudConfigurationDimension {
             numberOfPixels = model.getScreenX() * model.getScreenY();
           }
           Device device = new Device(model.getId(), model.getName(), model.getManufacturer(), model.getForm(), details,
-                                     model.getSupportedVersionIds(), numberOfPixels);
+                                     supportedVersionIds, numberOfPixels);
           fullDomainBuilder.add(device);
           List<String> tags = model.getTags();
           if (tags != null && tags.contains("default")) {
