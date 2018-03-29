@@ -32,7 +32,6 @@ import com.google.gct.testrecorder.ui.RecordingDialog;
 import com.intellij.debugger.DebuggerManagerEx;
 import com.intellij.debugger.DefaultDebugEnvironment;
 import com.intellij.debugger.engine.*;
-import com.intellij.debugger.impl.DebuggerManagerAdapter;
 import com.intellij.debugger.impl.DebuggerManagerListener;
 import com.intellij.debugger.impl.DebuggerSession;
 import com.intellij.execution.DefaultExecutionResult;
@@ -60,7 +59,6 @@ import org.jetbrains.android.dom.manifest.Application;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.util.List;
@@ -121,7 +119,7 @@ public class SessionInitializer implements Runnable {
 
   @Override
   public void run() {
-    myDebuggerManagerListener = new DebuggerManagerAdapter() {
+    myDebuggerManagerListener = new DebuggerManagerListener() {
       @Override
       public void sessionCreated(DebuggerSession session) {
         myDebuggerSession = session;
@@ -155,7 +153,7 @@ public class SessionInitializer implements Runnable {
 
   @NotNull
   private DebugProcessListener createDebugProcessListener() {
-    return new DebugProcessAdapter() {
+    return new DebugProcessListener() {
       @Override
       public void processAttached(DebugProcess process) {
         if (myFailedToStart) {
@@ -173,16 +171,15 @@ public class SessionInitializer implements Runnable {
         // Mute any user-defined breakpoints to avoid Test Recorder hanging the app when such a breakpoint gets hit.
         // This event arrives before initBreakpoints is called in DebugProcessEvents,
         // but after XDebugSession is supposed to be initialized, so looks like a perfect time to mute breakpoints.
-        final XDebugSession xDebugSession = myDebuggerSession.getXDebugSession();
-        if (xDebugSession != null) {
-          // Apparently, muting breakpoints requires read access.
-          ApplicationManager.getApplication().runReadAction(new Runnable() {
-            @Override
-            public void run() {
-              xDebugSession.setBreakpointMuted(true);
+        // Muting breakpoints requires read access.
+        ApplicationManager.getApplication().runReadAction(new Runnable() {
+          @Override
+          public void run() {
+            for (XDebugSession debugSession : XDebuggerManager.getInstance(myProject).getDebugSessions()) {
+              debugSession.setBreakpointMuted(true);
             }
-          });
-        }
+          }
+        });
 
         scheduleBreakpointCommands();
         if (myRecordingDialog == null) { // The initial debug process, open Test Recorder dialog.
