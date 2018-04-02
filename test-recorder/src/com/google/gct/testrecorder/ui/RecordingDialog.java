@@ -441,8 +441,6 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
       String applicationId = getApplicationId(resourcePackageName);
 
-      boolean hasAddedEspressoDependencies = false;
-
       // Automatically check/setup Espresso dependencies for Gradle projects only.
       GradleBuildModel gradleBuildModel = GradleBuildModel.get(testClassModule);
       AndroidModuleModel androidModuleModel = AndroidModuleModel.get(testClassModule);
@@ -463,7 +461,6 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
                                   "Please click on the corresponding link(s) to install them.",
                                   "Missing or obsolete Espresso dependencies",
                                   new String[]{Messages.NO_BUTTON, Messages.YES_BUTTON}, 1, null) != 0) {
-            hasAddedEspressoDependencies = true;
             setupEspresso(gradleBuildModel, androidModuleModel);
           }
         }
@@ -474,7 +471,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       if (testClass != null) {
         super.doOKAction();
         new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelEvents(), myLaunchedActivityName,
-                              hasAddedEspressoDependencies, myWasEverPaused, chooser.isKotlinTestClass()).generate();
+                              myWasEverPaused, chooser.isKotlinTestClass()).generate();
       }
     } else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");

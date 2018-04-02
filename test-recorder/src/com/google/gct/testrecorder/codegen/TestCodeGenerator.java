@@ -18,6 +18,8 @@ package com.google.gct.testrecorder.codegen;
 import com.android.SdkConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.idea.gradle.project.build.GradleBuildState;
+import com.android.tools.idea.gradle.project.sync.GradleSyncState;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.ui.RecordingDialog;
@@ -39,11 +41,14 @@ import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.TransactionGuard;
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.progress.impl.CoreProgressManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiManager;
+import com.intellij.util.ThreeState;
+import com.intellij.util.containers.ConcurrentLongObjectMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
@@ -56,6 +61,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +77,7 @@ import static org.jetbrains.android.util.AndroidUtils.computePackageName;
 public class TestCodeGenerator {
   private static final String JAVA_TEST_CODE_TEMPLATE_FILE_NAME = "JavaTestCodeTemplate.vm";
   private static final String KOTLIN_TEST_CODE_TEMPLATE_FILE_NAME = "KotlinTestCodeTemplate.vm";
+  private static final int BACKGROUND_TASKS_WAIT_LIMIT = 60; // 60 seconds
 
   private final String myResourcePackageName;
   private final String myApplicationId;
@@ -79,13 +86,12 @@ public class TestCodeGenerator {
   private final List<Object> myEvents;
   private final Project myProject;
   private final String myLaunchedActivityName;
-  private final boolean myHasAddedEspressoDependencies;
   private final boolean myWasEverPaused;
   private final boolean myIsKotlinTestClass;
 
 
   public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass, List<Object> events,
-                           String launchedActivityName,boolean hasAddedEspressoDependencies, boolean wasEverPaused, boolean isKotlinTestClass) {
+                           String launchedActivityName, boolean wasEverPaused, boolean isKotlinTestClass) {
     myResourcePackageName = resourcePackageName;
     myApplicationId = applicationId;
     myTestClass = testClass;
@@ -93,7 +99,6 @@ public class TestCodeGenerator {
     myEvents = events;
     myProject = myTestClassModule.getProject();
     myLaunchedActivityName = launchedActivityName;
-    myHasAddedEspressoDependencies = hasAddedEspressoDependencies;
     myWasEverPaused = wasEverPaused;
     myIsKotlinTestClass = isKotlinTestClass;
   }
@@ -144,30 +149,55 @@ public class TestCodeGenerator {
           }
         }
 
-        // TODO: Find a better solution that would not depend on time.
-        JobScheduler.getScheduler().schedule(new Runnable() {
-          @Override
-          public void run() {
-            TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
-              new OptimizeImportsProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile)).run());
-          }
-          // If the test class is generated after some Espresso dependencies were just added (and even after Gradle sync finished),
-          // the initial imports optimization attempt might not do its job properly (including dropping some needed dependencies
-          // like org.hamcrest.Matchers.allOf), so invoke it after some time (hopefully, after the indexing of the newly generated file
-          // has finished). Optimizer might need to be delayed after other changes too (e.g., after adding a new test source root),
-          // so give it some time then too.
-        }, myHasAddedEspressoDependencies ? 10 : 2, TimeUnit.SECONDS);
+        JobScheduler.getScheduler().schedule(() -> {
+          waitForBackgroundTasksToFinish();
 
-        JobScheduler.getScheduler().schedule(new Runnable() {
-          @Override
-          public void run() {
-            TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
-              new ReformatCodeProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile), null, false).run());
-          }
-          // Delay code reformatting to avoid IDE fatal error of reformatting an invalid file.
-        }, 2, TimeUnit.SECONDS);
+          TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
+            new OptimizeImportsProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile)).run());
+
+          TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
+            new ReformatCodeProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile), null, false).run());
+        }, 10, TimeUnit.MILLISECONDS);
       }
     });
+  }
+
+  private void waitForBackgroundTasksToFinish() {
+    int secondsWaited = 0;
+    GradleSyncState syncState = GradleSyncState.getInstance(myProject);
+    GradleBuildState buildState = GradleBuildState.getInstance(myProject);
+    while (secondsWaited < BACKGROUND_TASKS_WAIT_LIMIT) {
+      if (!syncState.isSyncInProgress() && syncState.isSyncNeeded() != ThreeState.YES && !buildState.isBuildInProgress()) {
+        break;
+      }
+      try {
+        Thread.sleep(1000);
+        secondsWaited++;
+      } catch (InterruptedException ignored) {
+      }
+    }
+
+    // Wait for other background tasks to complete, e.g., refreshing, indexing, etc.
+    try {
+      Field field = CoreProgressManager.class.getDeclaredField("currentIndicators");
+      field.setAccessible(true);
+      while (secondsWaited < BACKGROUND_TASKS_WAIT_LIMIT) {
+        if (((ConcurrentLongObjectMap)field.get(null)).isEmpty()) {
+          break;
+        }
+        try {
+          Thread.sleep(1000);
+          secondsWaited++;
+        } catch (InterruptedException ignored) {
+        }
+      }
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      // Give it some time just in case there are any tasks running in the background.
+      try {
+        Thread.sleep(3000);
+      }catch (InterruptedException ignored) {
+      }
+    }
   }
 
   @VisibleForTesting
