@@ -10,15 +10,15 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="android" />
-    <orderEntry type="module" module-name="android-test-framework" scope="TEST" />
-    <orderEntry type="module" module-name="dom-openapi" />
-    <orderEntry type="module" module-name="execution-openapi" />
+    <orderEntry type="module" module-name="intellij.android" />
+    <orderEntry type="module" module-name="intellij.android.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.dom" />
+    <orderEntry type="module" module-name="intellij.java.execution" />
     <orderEntry type="library" name="Velocity" level="project" />
-    <orderEntry type="module" module-name="java-impl" />
-    <orderEntry type="module" module-name="openapi" />
-    <orderEntry type="module" module-name="debugger-impl" />
-    <orderEntry type="module" module-name="xdebugger-impl" />
+    <orderEntry type="module" module-name="intellij.java.impl" />
+    <orderEntry type="module" module-name="intellij.java" />
+    <orderEntry type="module" module-name="intellij.java.debugger.impl" />
+    <orderEntry type="module" module-name="intellij.platform.debugger.impl" />
     <orderEntry type="library" name="commons-io" level="project" />
     <orderEntry type="module-library">
       <library>
@@ -40,9 +40,9 @@
     </orderEntry>
     <orderEntry type="module" module-name="analytics-tracker" />
     <orderEntry type="module" module-name="analytics-protos" />
-    <orderEntry type="module" module-name="testFramework" scope="TEST" />
-    <orderEntry type="module" module-name="android-plugin" scope="TEST" />
-    <orderEntry type="module" module-name="testFramework-java" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.android.plugin" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="project-system" />
   </component>
 </module>
