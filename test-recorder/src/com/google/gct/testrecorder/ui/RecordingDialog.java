@@ -712,16 +712,16 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       private void addOrUpdateEspressoCoreDependency() {
         boolean hasUpdatedEspressoCoreVersion = false;
         for (ArtifactDependencyModel artifact : gradleBuildModel.dependencies().artifacts()) {
-          if (ESPRESSO_CORE_CUSTOM_GROUP_NAME.equals(artifact.group().toString())
-              && ESPRESSO_CORE_CUSTOM_ARTIFACT_NAME.equals(artifact.name().forceString())) {
+          if (ESPRESSO_CORE_CUSTOM_GROUP_NAME.equals(artifact.group().value())
+              && ESPRESSO_CORE_CUSTOM_ARTIFACT_NAME.equals(artifact.name().value())) {
             // Remove the obsolete custom Espresso dependency.
             gradleBuildModel.dependencies().remove(artifact);
           } else if (isMatchingArtifact(artifact, GoogleMavenArtifactId.ESPRESSO_CORE)) {
-            artifact.version().setValue(ESPRESSO_VERSION);
+            artifact.setVersion(ESPRESSO_VERSION);
             hasUpdatedEspressoCoreVersion = true;
           } else if (isMatchingArtifact(artifact, GoogleMavenArtifactId.ESPRESSO_CONTRIB)) {
             // Update Espresso contrib dependency, if present, to match Espresso core dependency version.
-            artifact.version().setValue(ESPRESSO_VERSION);
+            artifact.setVersion(ESPRESSO_VERSION);
           }
         }
         if (!hasUpdatedEspressoCoreVersion) {
@@ -734,7 +734,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       private void addOrUpdateEspressoContribDependency() {
         for (ArtifactDependencyModel artifact : gradleBuildModel.dependencies().artifacts()) {
           if (isMatchingArtifact(artifact, GoogleMavenArtifactId.ESPRESSO_CONTRIB)) {
-            artifact.version().setValue(ESPRESSO_VERSION);
+            artifact.setVersion(ESPRESSO_VERSION);
             return;
           }
         }
@@ -744,8 +744,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
 
       private boolean isMatchingArtifact(ArtifactDependencyModel artifact, GoogleMavenArtifactId artifactId) {
-        return artifactId.getMavenGroupId().equals(artifact.group().toString())
-               && artifactId.getMavenArtifactId().equals(artifact.name().forceString());
+        return artifactId.getMavenGroupId().equals(artifact.group().value())
+               && artifactId.getMavenArtifactId().equals(artifact.name().value());
       }
     }.queue();
   }
