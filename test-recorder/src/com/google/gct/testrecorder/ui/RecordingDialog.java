@@ -261,7 +261,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       myRecordPauseButton.setVisible(TestRecorderSettings.getInstance().ENABLE_TEST_FRAGMENT_RECORDING);
     }
 
-    myRecordPauseButton.setIcon(AllIcons.Debugger.ThreadStates.Paused);
+    myRecordPauseButton.setIcon(AllIcons.Actions.Pause);
 
     myRecordPauseButton.addActionListener(e -> {
       myWasEverPaused = true;
@@ -421,7 +421,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private void updateRecordPauseButton() {
     if (myIsRecording) {
       myRecordPauseButton.setText("Pause");
-      myRecordPauseButton.setIcon(AllIcons.Debugger.ThreadStates.Paused);
+      myRecordPauseButton.setIcon(AllIcons.Actions.Pause);
     } else {
       myRecordPauseButton.setText("Resume");
       myRecordPauseButton.setIcon(TEST_RECORDER_ICON);
