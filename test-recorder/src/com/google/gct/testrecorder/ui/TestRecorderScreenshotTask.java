@@ -30,6 +30,7 @@ import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 public class TestRecorderScreenshotTask extends ScreenshotTask {
+  public static volatile boolean IS_UI_HIERARCHY_DUMPING = false;
   private static final String UI_HIERARCHY_FAILURE_DIALOG_TITLE = "Failed to get UI hierarchy";
 
   private final Project myProject;
@@ -76,7 +77,9 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
     String uiHierarchyRemotePath = uiHierarchyRemoteContainerPath + "/ui_hierarchy.xml";
     try {
       myDevice.executeShellCommand("mkdir -p " + uiHierarchyRemoteContainerPath, new CollectingOutputReceiver(), 3, TimeUnit.SECONDS);
-      myDevice.executeShellCommand("uiautomator dump " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 5, TimeUnit.SECONDS);
+      IS_UI_HIERARCHY_DUMPING = true;
+      myDevice.executeShellCommand("uiautomator dump " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 10, TimeUnit.SECONDS);
+      IS_UI_HIERARCHY_DUMPING = false;
     } catch (Exception e) {
       showErrorMessage("Could not dump UI hierarchy on the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
       return;

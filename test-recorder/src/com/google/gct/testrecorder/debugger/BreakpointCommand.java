@@ -15,10 +15,12 @@
  */
 package com.google.gct.testrecorder.debugger;
 
+import com.google.common.collect.ImmutableList;
 import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.event.TestRecorderEventListener;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
+import com.google.gct.testrecorder.ui.TestRecorderScreenshotTask;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.debugger.InstanceFilter;
 import com.intellij.debugger.engine.*;
@@ -52,10 +54,11 @@ public class BreakpointCommand extends DebuggerCommandImpl {
   private static final Logger LOGGER = Logger.getInstance(BreakpointCommand.class);
 
   private static final String PARENT_NODE_CALL = ".getParent()";
+  private static final List<String> LAZILY_LOADED_CLASSES =
+    ImmutableList.of("android.support.v4.view.ViewPager", "android.view.ViewRootImpl$SendWindowContentChangedAccessibilityEvent");
 
-  // Some classes are loaded lazily, e.g., those that come from libraries like android.support.v4.view.ViewPager, so try several
-  // times before giving up on scheduling a breakpoint in them (10 seconds).
-  // TODO: Find a way to detect that the app is fully launched rather than estimating that it should start running in at most 10 seconds.
+  // Some classes are loaded lazily (those in LAZILY_LOADED_CLASSES), so try several times before giving up on scheduling
+  // a breakpoint in them (10 seconds).
   private static final int MAX_SCHEDULE_ATTEMPTS = 20;
   private static final long INTER_ATTEMPTS_WAIT = 500; // milliseconds
   private static final int ESPRESSO_IDLE_DELAY = 15; // milliseconds
@@ -135,7 +138,25 @@ public class BreakpointCommand extends DebuggerCommandImpl {
           }
           NodeManagerImpl nodeManager = xdebugProcess.getNodeManager();
 
-          if (myBreakpointDescriptor.eventType.equals(TEXT_CHANGE)) {
+          if (myBreakpointDescriptor.eventType.equals(LAZY_CLASSES_LOADER)) {
+            // Force-load lazily loaded classes, if present, since they are needed for setting breakpoints.
+            for (String className : LAZILY_LOADED_CLASSES) {
+              try {
+                myDebugProcess.loadClass(evalContext, className, null);
+              } catch (Exception ignored) {
+              }
+            }
+            // Class loading is needed just once, so disable this breakpoint.
+            disable();
+          } else if (myBreakpointDescriptor.eventType.equals(WINDOW_CONTENT_CHANGED)
+                     && TestRecorderScreenshotTask.IS_UI_HIERARCHY_DUMPING) {
+            try {
+              // Delay the accessibility message that the window content has changed to trick uiautomator dump
+              // into believing that the app is idle (one second delay is enough).
+              Thread.sleep(1000);
+            } catch (InterruptedException ignored) {
+            }
+          } else if (myBreakpointDescriptor.eventType.equals(TEXT_CHANGE)) {
             if (myBreakpointDescriptor.isPreparatory) {
               preparatoryTextChangeEvent = prepareEvent(evalContext, nodeManager);
             } else {
