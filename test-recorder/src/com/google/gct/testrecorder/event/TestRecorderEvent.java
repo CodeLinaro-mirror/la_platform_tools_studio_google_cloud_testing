@@ -31,6 +31,8 @@ public class TestRecorderEvent extends ElementAction {
   public static final String PRESS_EDITOR_ACTION = "PRESSED_EDITOR_ACTION"; // RETURN key on the soft keyboard.
   public static final String VIEW_SWIPE = "VIEW_SWIPED";
   public static final String DELAYED_MESSAGE_POST = "DELAYED_MESSAGE_POSTED";
+  public static final String WINDOW_CONTENT_CHANGED = "WINDOW_CONTENT_CHANGED";
+  public static final String LAZY_CLASSES_LOADER = "LAZY_CLASSES_LOADER";
 
   public static final HashSet<String> SUPPORTED_EVENTS =
     Sets.newHashSet(VIEW_CLICK, VIEW_LONG_CLICK, LIST_ITEM_CLICK, TEXT_CHANGE, PRESS_BACK, PRESS_EDITOR_ACTION, VIEW_SWIPE,

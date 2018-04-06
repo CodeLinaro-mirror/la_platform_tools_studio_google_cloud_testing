@@ -115,6 +115,10 @@ public class SessionInitializer implements Runnable {
     myBreakpointDescriptors.add(new BreakpointDescriptor(VIEW_SWIPE, "android.support.v4.view.ViewPager", "smoothScrollTo", "(III)V", false));
     myBreakpointDescriptors.add(new BreakpointDescriptor(DELAYED_MESSAGE_POST, "android.os.Handler", "postDelayed",
                                                          "(Ljava/lang/Runnable;J)Z", false));
+    myBreakpointDescriptors.add(new BreakpointDescriptor(WINDOW_CONTENT_CHANGED, "android.view.ViewRootImpl$SendWindowContentChangedAccessibilityEvent",
+                                                         "run", "()V", false));
+    myBreakpointDescriptors.add(new BreakpointDescriptor(LAZY_CLASSES_LOADER, "android.os.Handler", "dispatchMessage",
+                                                         "(Landroid/os/Message;)V", false));
   }
 
   @Override
