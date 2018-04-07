@@ -8,6 +8,7 @@ iml_module(
     resources = ["resources"],
     tags = ["managed"],
     test_resources = ["test-resources"],
+    test_runtime_deps = ["//tools/vendor/intellij/cidr:intellij.c.doxygen"],
     test_srcs = ["testSrc"],
     test_tags = ["manual"],
     visibility = ["//visibility:public"],
