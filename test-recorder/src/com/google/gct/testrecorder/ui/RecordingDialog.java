@@ -87,7 +87,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_COMPILE;
+import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_IMPLEMENTATION;
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
@@ -725,7 +725,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           }
         }
         if (!hasUpdatedEspressoCoreVersion) {
-          gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_COMPILE,
+          gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
                                                       ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_VERSION),
                                                       ESPRESSO_EXCLUDES);
         }
@@ -738,7 +738,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             return;
           }
         }
-        gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_COMPILE,
+        gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
                                                     ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_VERSION),
                                                     ESPRESSO_CONTRIB_EXCLUDES);
       }
