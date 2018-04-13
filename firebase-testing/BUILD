@@ -18,6 +18,7 @@ iml_module(
     test_tags = [
         "managed",
         "block-network",
+        "slow",
     ],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
