@@ -36,7 +36,7 @@ iml_module(
         "//tools/idea/platform/platform-api:intellij.platform.ide[module]",
         "//tools/idea/platform/platform-impl:intellij.platform.ide.impl[module]",
         "//tools/idea/.idea/libraries:Guava",
-        "//tools/adt/idea/android:intellij.android[module]",
+        "//tools/adt/idea/android:intellij.android.core[module]",
         "//tools/idea/platform/smRunner:intellij.platform.smRunner[module]",
         "//tools/idea/platform/lang-api:intellij.platform.lang[module]",
         "//tools/idea/platform/lang-impl:intellij.platform.lang.impl[module]",
