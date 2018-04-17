@@ -16,7 +16,6 @@ iml_module(
     test_runtime_deps = ["//tools/vendor/intellij/cidr:intellij.c.doxygen"],
     test_srcs = ["testSrc"],
     test_tags = [
-        "managed",
         "block-network",
         "slow",
     ],
