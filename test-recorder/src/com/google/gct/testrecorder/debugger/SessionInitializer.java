@@ -119,6 +119,8 @@ public class SessionInitializer implements Runnable {
                                                          "run", "()V", false));
     myBreakpointDescriptors.add(new BreakpointDescriptor(LAZY_CLASSES_LOADER, "android.os.Handler", "dispatchMessage",
                                                          "(Landroid/os/Message;)V", false));
+    myBreakpointDescriptors.add(new BreakpointDescriptor(PERMISSIONS_REQUEST, "android.app.Activity", "requestPermissions",
+                                                         "([Ljava/lang/String;I)V", false));
   }
 
   @Override

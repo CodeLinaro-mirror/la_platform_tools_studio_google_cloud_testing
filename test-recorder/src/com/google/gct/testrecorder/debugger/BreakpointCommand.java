@@ -16,6 +16,7 @@
 package com.google.gct.testrecorder.debugger;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.event.TestRecorderEventListener;
@@ -42,6 +43,7 @@ import com.intellij.xdebugger.impl.breakpoints.XExpressionImpl;
 import com.sun.jdi.*;
 import com.sun.jdi.event.LocatableEvent;
 import com.sun.jdi.request.BreakpointRequest;
+import com.sun.tools.jdi.ArrayReferenceImpl;
 import com.sun.tools.jdi.StringReferenceImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -51,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.*;
+import static com.google.gct.testrecorder.util.StringHelper.boxString;
 
 public class BreakpointCommand extends DebuggerCommandImpl {
   private static final Logger LOGGER = Logger.getInstance(BreakpointCommand.class);
@@ -256,6 +259,10 @@ public class BreakpointCommand extends DebuggerCommandImpl {
   private TestRecorderEvent prepareEvent(EvaluationContextImpl evalContext, NodeManagerImpl nodeManager) {
     TestRecorderEvent event = new TestRecorderEvent(myBreakpointDescriptor.eventType, System.currentTimeMillis());
 
+    if (event.isPermissionsRequest()) {
+      return preparePermissionsRequestEvent(event, evalContext, nodeManager);
+    }
+
     if (event.isDelayedMessagePost()) {
       return prepareDelayedMessagePostEvent(event, evalContext, nodeManager);
     }
@@ -298,6 +305,22 @@ public class BreakpointCommand extends DebuggerCommandImpl {
     setScrollableState(event, evalContext, nodeManager, receiverReference + PARENT_NODE_CALL, 2);
 
     return event;
+  }
+
+  private TestRecorderEvent preparePermissionsRequestEvent(TestRecorderEvent event, EvaluationContextImpl evalContext,
+                                                           NodeManagerImpl nodeManager) {
+
+    Value permissionsValue = evaluateExpression("permissions", evalContext, nodeManager);
+    if (permissionsValue instanceof ArrayReferenceImpl) {
+      List<String> permissions = Lists.newArrayList();
+      for (Value permission : ((ArrayReferenceImpl)permissionsValue).getValues()) {
+        permissions.add(boxString(getStringValue(permission)));
+      }
+      event.setRequestedPermissions(permissions);
+      return event;
+    }
+
+    return null;
   }
 
   @Nullable
