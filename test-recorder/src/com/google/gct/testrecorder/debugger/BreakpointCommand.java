@@ -24,12 +24,14 @@ import com.google.gct.testrecorder.ui.TestRecorderScreenshotTask;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.debugger.InstanceFilter;
 import com.intellij.debugger.engine.*;
+import com.intellij.debugger.engine.evaluation.EvaluateException;
 import com.intellij.debugger.engine.evaluation.EvaluationContextImpl;
 import com.intellij.debugger.engine.evaluation.TextWithImports;
 import com.intellij.debugger.engine.evaluation.TextWithImportsImpl;
 import com.intellij.debugger.engine.events.DebuggerCommandImpl;
 import com.intellij.debugger.engine.events.SuspendContextCommandImpl;
 import com.intellij.debugger.jdi.StackFrameProxyImpl;
+import com.intellij.debugger.jdi.ThreadReferenceProxyImpl;
 import com.intellij.debugger.settings.DebuggerSettings;
 import com.intellij.debugger.ui.breakpoints.FilteredRequestor;
 import com.intellij.debugger.ui.impl.watch.NodeManagerImpl;
@@ -118,7 +120,11 @@ public class BreakpointCommand extends DebuggerCommandImpl {
           if (suspendContext == null) {
             return false;
           }
-          suspendContext.initExecutionStacks(suspendContext.getThread());
+          ThreadReferenceProxyImpl activeThread = suspendContext.getThread();
+          if (activeThread == null) {
+            return false;
+          }
+          suspendContext.initExecutionStacks(activeThread);
 
           JavaExecutionStack activeExecutionStack = suspendContext.getActiveExecutionStack();
           if (activeExecutionStack == null) {
@@ -157,6 +163,11 @@ public class BreakpointCommand extends DebuggerCommandImpl {
             } catch (InterruptedException ignored) {
             }
           } else if (myBreakpointDescriptor.eventType.equals(TEXT_CHANGE)) {
+            // Ignore text changes produced by the app itself.
+            if (!isUserInputTextChange(activeThread)) {
+              return false;
+            }
+
             if (myBreakpointDescriptor.isPreparatory) {
               preparatoryTextChangeEvent = prepareEvent(evalContext, nodeManager);
             } else {
@@ -183,6 +194,20 @@ public class BreakpointCommand extends DebuggerCommandImpl {
     }, location);
 
     myDebugProcess.getRequestsManager().enableRequest(myRequest);
+  }
+
+  private static boolean isUserInputTextChange(ThreadReferenceProxyImpl activeThread) throws EvaluateException {
+    for (StackFrameProxyImpl frame : activeThread.frames()) {
+      Location location = frame.location();
+      String callerClassName = location.declaringType().name();
+      String callerMethodName = location.method().name();
+      if ("android.view.inputmethod.BaseInputConnection".equals(callerClassName)
+          || "android.view.KeyEvent".equals(callerClassName)
+          || "android.widget.TextView".equals(callerClassName) && "paste".equals(callerMethodName)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void notifyEventListener(TestRecorderEvent event) {
