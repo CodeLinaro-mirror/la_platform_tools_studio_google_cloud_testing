@@ -270,6 +270,18 @@
     ]
   },
   {
+    "eventType": "PERMISSIONS_REQUEST",
+    "timestamp": 1484950638081,
+    "actionCode": -1,
+    "delayTime": 0,
+    "requestedPermissions": [
+      "\"permission1\"",
+      "\"permission2\""
+    ],
+    "canScrollTo": false,
+    "elementDescriptors": []
+  },
+  {
     "eventType": "VIEW_CLICKED",
     "timestamp": 1484950638081,
     "actionCode": -1,

@@ -37,10 +37,7 @@ import com.android.uiautomator.tree.UiNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.codegen.TestCodeGenerator;
-import com.google.gct.testrecorder.event.ElementDescriptor;
-import com.google.gct.testrecorder.event.TestRecorderAssertion;
-import com.google.gct.testrecorder.event.TestRecorderEvent;
-import com.google.gct.testrecorder.event.TestRecorderEventListener;
+import com.google.gct.testrecorder.event.*;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.util.StringHelper;
 import com.google.gson.*;
@@ -75,6 +72,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -82,9 +80,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.List;
 
 import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_IMPLEMENTATION;
@@ -141,7 +137,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private int myAssertionIndex;
   private LinkedHashMap<BasicTreeNode, Integer> myNodeIndentMap;
   private DefaultComboBoxModel myElementComboBoxModel;
-  private final DefaultListModel myEventListModel;
+  private final DefaultListModel<ElementAction> myActionListModel;
   /** Shows whether recording is in progress. */
   private boolean myIsRecording = true;
   private boolean myWasEverPaused = false;
@@ -150,9 +146,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private JPanel myRootPanel;
   private ScreenshotPanel myScreenshotPanel;
-  private JPanel myEventListPanel;
+  private JPanel myActionListPanel;
   private JBScrollPane myScrollPane;
-  private JBList myEventList;
+  private JBList<ElementAction> myActionList;
   private JPanel myAssertionPanel;
   private JPanel myButtonsPanel;
   private JButton myAddAssertionButton;
@@ -187,10 +183,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     // TODO: Make it visible when we add the required functionality.
     myTakeScreenshotButton.setVisible(false);
 
-    myEventList.setEmptyText("No events recorded yet.");
-    myEventListModel = new DefaultListModel();
-    myEventList.setModel(myEventListModel);
-    myEventList.setCellRenderer(new TestRecorderListRenderer());
+    myActionList.setEmptyText("No actions recorded yet.");
+    myActionListModel = new DefaultListModel<>();
+    myActionList.setModel(myActionListModel);
+    myActionList.setCellRenderer(new TestRecorderListRenderer());
 
     if (!myIsRecordingTest) {
       // No need for adding assertions and screenshots while recording a Robo script.
@@ -232,7 +228,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             // Set up assertion panel
             setUpEmptyAssertionPanel();
             // Remember the index of to-be-added assertion.
-            myAssertionIndex = myEventListModel.size();
+            myAssertionIndex = myActionListModel.size();
 
             revealScreenshotPanel(preparedImage.getWidth(), preparedImage.getHeight());
           }
@@ -260,9 +256,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       @Override
       public void actionPerformed(ActionEvent actionEvent) {
         // Add the new assertion at its remembered index.
-        myEventListModel.add(myAssertionIndex, buildAssertionForCurrentSelection());
-        // Scroll event list so that assertion is visible
-        myEventList.ensureIndexIsVisible(myAssertionIndex);
+        myActionListModel.add(myAssertionIndex, buildAssertionForCurrentSelection());
+        // Scroll action list so that assertion is visible.
+        myActionList.ensureIndexIsVisible(myAssertionIndex);
         myAssertionIndex++;
       }
     });
@@ -378,12 +374,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   @VisibleForTesting
-  static String getJsonForEvents(Project project, List<Object> events) {
+  static String getJsonForActions(Project project, List<ElementAction> actions) {
     // Consider only TestRecorderEvents.
     List<TestRecorderEvent> testRecorderEvents = new ArrayList<>();
-    for (Object event : events) {
-      if (event instanceof TestRecorderEvent) {
-        testRecorderEvents.add((TestRecorderEvent)event);
+    for (ElementAction action : actions) {
+      if (action instanceof TestRecorderEvent) {
+        testRecorderEvents.add((TestRecorderEvent)action);
       }
     }
 
@@ -475,7 +471,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
       if (testClass != null) {
         super.doOKAction();
-        new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelEvents(), myLaunchedActivityName,
+        new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelActions(), myLaunchedActivityName,
                               myWasEverPaused, chooser.isKotlinTestClass()).generate();
       }
     } else {
@@ -485,7 +481,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
       if (fileWrapper != null) {
         try {
-          FileUtils.write(fileWrapper.getFile(), getJsonForEvents(myProject, getAllModelEvents()));
+          FileUtils.write(fileWrapper.getFile(), getJsonForActions(myProject, getAllModelActions()));
         } catch (Exception ex) {
           String message = isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
           Messages.showDialog(myProject, message, "Could not save Robo script to a file", new String[]{"OK"}, 0, null);
@@ -509,12 +505,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     }
   }
 
-  private List<Object> getAllModelEvents() {
-    List<Object> events = new ArrayList<>();
-    for (int i = 0; i < myEventListModel.size(); i++) {
-      events.add(myEventListModel.get(i));
-    }
-    return events;
+  private List<ElementAction> getAllModelActions() {
+    return Collections.list(myActionListModel.elements());
   }
 
   private void exitAssertionMode(boolean shouldAddAssertion) {
@@ -526,12 +518,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     if (shouldAddAssertion) {
       // Add the new assertion at its remembered index.
-      myEventListModel.add(myAssertionIndex, buildAssertionForCurrentSelection());
-      // Scroll event list so that assertion is visible.
-      myEventList.ensureIndexIsVisible(myAssertionIndex);
+      myActionListModel.add(myAssertionIndex, buildAssertionForCurrentSelection());
+      // Scroll action list so that assertion is visible.
+      myActionList.ensureIndexIsVisible(myAssertionIndex);
     } else {
-      // Scroll event list so that the last event is visible.
-      myEventList.ensureIndexIsVisible(myEventListModel.size() - 1);
+      // Scroll action list so that the last action is visible.
+      myActionList.ensureIndexIsVisible(myActionListModel.size() - 1);
     }
   }
 
@@ -635,10 +627,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     myNeedsContribDependency = false;
     myMinEspressoVersion = MIN_ESPRESSO_VERSION_FOR_LARGE_TEST;
 
-    for (int i = 0; i < myEventListModel.size(); i++) {
-      Object event = myEventListModel.get(i);
-      if (event instanceof TestRecorderEvent) {
-        TestRecorderEvent testRecorderEvent = (TestRecorderEvent)event;
+    for (ElementAction action : getAllModelActions()) {
+      if (action instanceof TestRecorderEvent) {
+        TestRecorderEvent testRecorderEvent = (TestRecorderEvent)action;
         if (testRecorderEvent.getElementRecyclerViewChildPosition() != -1) {
           myNeedsContribDependency = true;
         } else if (testRecorderEvent.isPermissionsRequest()) {
@@ -845,32 +836,32 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   @Override
-  // Listen to debugger event and update event list.
+  // Listen to debugger events and update action list.
   public void onEvent(final TestRecorderEvent event) {
     // Ignore not supported events.
     if (!SUPPORTED_EVENTS.contains(event.getEventType())) {
       return;
     }
-    // Add event to list
+    // Add event to action list.
     SwingUtilities.invokeLater(new Runnable() {
       @Override
       public void run() {
         // It it is first element, add it anyway
-        if (myEventListModel.isEmpty()) {
-          myEventListModel.addElement(event);
+        if (myActionListModel.isEmpty()) {
+          myActionListModel.addElement(event);
         } else {
-          Object lastEvent = myEventListModel.lastElement();
-          // If can merge with last event, replace last event with the merged one.
-          if (lastEvent instanceof TestRecorderEvent && ((TestRecorderEvent)lastEvent).canMerge(event)) {
-            ((TestRecorderEvent)lastEvent).merge(event);
+          ElementAction lastAction = myActionListModel.lastElement();
+          // If can merge with the last action, replace last action with the merged one.
+          if (lastAction instanceof TestRecorderEvent && ((TestRecorderEvent)lastAction).canMerge(event)) {
+            ((TestRecorderEvent)lastAction).merge(event);
             // Repaint is needed since otherwise the change would not be picked up by the renderer.
-            myEventList.repaint();
+            myActionList.repaint();
           } else {
-            myEventListModel.addElement(event);
+            myActionListModel.addElement(event);
           }
         }
-        // Scroll event list so that the last event is visible
-        myEventList.ensureIndexIsVisible(myEventList.getItemsCount() - 1);
+        // Scroll action list so that the last action is visible.
+        myActionList.ensureIndexIsVisible(myActionList.getItemsCount() - 1);
       }
     });
   }

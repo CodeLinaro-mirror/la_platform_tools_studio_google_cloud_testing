@@ -75,7 +75,7 @@ public class TestRecorderEvent extends ElementAction {
   /**
    * Represents a list of permissions requested by the app-under-test.
    */
-  private ImmutableList<String> requestedPermissions = null;
+  private List<String> requestedPermissions = null;
 
   public TestRecorderEvent(String eventType, long timestamp) {
     this.eventType = eventType;
