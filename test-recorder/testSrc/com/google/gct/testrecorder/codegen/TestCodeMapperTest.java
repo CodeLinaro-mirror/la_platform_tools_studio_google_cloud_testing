@@ -15,6 +15,8 @@
  */
 package com.google.gct.testrecorder.codegen;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
@@ -126,5 +128,19 @@ public class TestCodeMapperTest extends AndroidTestCase {
     assertFalse(espressoPickingStatement.contains("my content description"));
 
     TestRecorderSettings.getInstance().USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING = true;
+  }
+
+  public void testRequestedPermissionsHandling() {
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
+
+    TestRecorderEvent permissionsRequestEvent1 = new TestRecorderEvent(TestRecorderEvent.PERMISSIONS_REQUEST, System.currentTimeMillis());
+    permissionsRequestEvent1.setRequestedPermissions(Lists.newArrayList("a", "b"));
+    TestRecorderEvent permissionsRequestEvent2 = new TestRecorderEvent(TestRecorderEvent.PERMISSIONS_REQUEST, System.currentTimeMillis());
+    permissionsRequestEvent2.setRequestedPermissions(Lists.newArrayList("b", "c"));
+
+    testCodeMapper.getTestCodeLinesForEvent(permissionsRequestEvent1);
+    testCodeMapper.getTestCodeLinesForEvent(permissionsRequestEvent2);
+
+    assertTrue(testCodeMapper.getRequestedPermissions().equals(ImmutableSet.of("a", "b", "c")));
   }
 }

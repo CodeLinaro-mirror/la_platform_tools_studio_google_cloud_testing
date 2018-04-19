@@ -95,6 +95,10 @@ public class EventsCreator {
     swipeEvent.setSwipeDirection(Right);
     events.add(swipeEvent);
 
+    TestRecorderEvent permissionsRequestEvent = new TestRecorderEvent(TestRecorderEvent.PERMISSIONS_REQUEST, timestamp);
+    permissionsRequestEvent.setRequestedPermissions(Lists.newArrayList("\"permission1\"", "\"permission2\""));
+    events.add(permissionsRequestEvent);
+
     TestRecorderEvent viewAdapterItemClickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, timestamp);
     viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("ElementClass", -1, 3, -1, "", "", ""));
     viewAdapterItemClickEvent.addElementDescriptor(new ElementDescriptor("ParentClass1", -1, -1, -1, "list", "", ""));

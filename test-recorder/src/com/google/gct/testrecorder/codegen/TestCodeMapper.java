@@ -19,7 +19,10 @@ import com.android.SdkConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.resources.ResourceType;
 import com.android.utils.Pair;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
@@ -36,6 +39,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.*;
@@ -53,6 +57,7 @@ public class TestCodeMapper {
   private final boolean myIsKotlinTestClass;
   private boolean myIsChildAtPositionAdded;
   private boolean myIsRecyclerViewActionAdded;
+  private Set<String> myRequestedPermissions = Sets.newHashSet();
 
   /**
    * Map of variable_name -> first_unused_index. This map is used to ensure that variable names are unique.
@@ -68,7 +73,12 @@ public class TestCodeMapper {
   }
 
   public List<String> getTestCodeLinesForEvent(TestRecorderEvent event) {
-    List<String> testCodeLines = new LinkedList<String>();
+    List<String> testCodeLines = Lists.newArrayList();
+
+    if (event.isPermissionsRequest()) {
+      myRequestedPermissions.addAll(event.getRequestedPermissions());
+      return testCodeLines;
+    }
 
     if (event.isPressBack()) {
       testCodeLines.add("pressBack()" + getStatementTerminator());
@@ -373,5 +383,9 @@ public class TestCodeMapper {
 
   public boolean isRecyclerViewActionAdded() {
     return myIsRecyclerViewActionAdded;
+  }
+
+  public Set<String> getRequestedPermissions() {
+    return ImmutableSet.copyOf(myRequestedPermissions);
   }
 }

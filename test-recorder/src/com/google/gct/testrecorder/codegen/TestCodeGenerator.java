@@ -50,6 +50,7 @@ import com.intellij.psi.PsiManager;
 import com.intellij.util.ThreeState;
 import com.intellij.util.containers.ConcurrentLongObjectMap;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
@@ -64,6 +65,7 @@ import java.io.Writer;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.gct.testrecorder.util.StringHelper.getClassName;
@@ -262,14 +264,28 @@ public class TestCodeGenerator {
     }
 
     for (Object event : myEvents) {
+      List<String> eventCodeLines;
       if (event instanceof TestRecorderEvent) {
-        testCodeLines.addAll(codeMapper.getTestCodeLinesForEvent((TestRecorderEvent)event));
+        eventCodeLines = codeMapper.getTestCodeLinesForEvent((TestRecorderEvent)event);
         eventCount++;
       } else {
-        testCodeLines.addAll(codeMapper.getTestCodeLinesForAssertion((TestRecorderAssertion)event));
+        eventCodeLines = codeMapper.getTestCodeLinesForAssertion((TestRecorderAssertion)event);
         assertionCount++;
       }
-      testCodeLines.add("");
+      if (!eventCodeLines.isEmpty()) {
+        testCodeLines.addAll(eventCodeLines);
+        testCodeLines.add("");
+      }
+    }
+    if (!testCodeLines.isEmpty()) {
+      // Remove the trailing empty line.
+      testCodeLines.remove(testCodeLines.size() - 1);
+    }
+
+    Set<String> requestedPermissions = codeMapper.getRequestedPermissions();
+    if (!requestedPermissions.isEmpty()) {
+      velocityContext.put("HasRequestedPermissions", true);
+      velocityContext.put("RequestedPermissions", StringUtils.join(requestedPermissions, ",\n"));
     }
 
     velocityContext.put("AddContribImport", codeMapper.isRecyclerViewActionAdded());

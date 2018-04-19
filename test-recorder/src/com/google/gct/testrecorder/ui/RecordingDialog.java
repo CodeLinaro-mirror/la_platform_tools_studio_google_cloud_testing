@@ -107,8 +107,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   public static final String TEST_INSTRUMENTATION_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
 
-  /** The minimal version of Espresso in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ESPRESSO_VERSION = GradleVersion.parse("2.2.2");
+  /** The minimal version of Espresso in build.gradle that does not require updating for importing LargeTest. */
+  private static final GradleVersion MIN_ESPRESSO_VERSION_FOR_LARGE_TEST = GradleVersion.parse("2.2.2");
+
+  /** The minimal version of Espresso in build.gradle that does not require updating for using GrantPermissionRule. */
+  private static final GradleVersion MIN_ESPRESSO_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("3.0.0");
 
   /** Version of Espresso added/updated in build.gradle, when missing or obsolete. */
   public static final String ESPRESSO_VERSION = "3.0.1";
@@ -142,6 +145,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   /** Shows whether recording is in progress. */
   private boolean myIsRecording = true;
   private boolean myWasEverPaused = false;
+  private boolean myNeedsContribDependency = false;
+  private GradleVersion myMinEspressoVersion = MIN_ESPRESSO_VERSION_FOR_LARGE_TEST;
 
   private JPanel myRootPanel;
   private ScreenshotPanel myScreenshotPanel;
@@ -619,28 +624,36 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   private boolean hasAllRequiredEspressoDependencies(@NotNull AndroidModel androidModel, @NotNull AndroidModuleModel androidModuleModel) {
+    initializeDependencyRequirements();
     // TODO: To improve performance, consider doing these checks in a single pass.
     return hasUptodateEspressoCoreDependency(androidModuleModel)
-           && (!needsEspressoContribDependency() || hasUptodateEspressoContribDependency(androidModuleModel))
+           && (!myNeedsContribDependency || hasUptodateEspressoContribDependency(androidModuleModel))
            && hasSetInstrumentationRunner(androidModel);
   }
 
-  private boolean needsEspressoContribDependency() {
+  private void initializeDependencyRequirements() {
+    myNeedsContribDependency = false;
+    myMinEspressoVersion = MIN_ESPRESSO_VERSION_FOR_LARGE_TEST;
+
     for (int i = 0; i < myEventListModel.size(); i++) {
       Object event = myEventListModel.get(i);
-      if (event instanceof TestRecorderEvent && ((TestRecorderEvent)event).getElementRecyclerViewChildPosition() != -1) {
-        return true;
+      if (event instanceof TestRecorderEvent) {
+        TestRecorderEvent testRecorderEvent = (TestRecorderEvent)event;
+        if (testRecorderEvent.getElementRecyclerViewChildPosition() != -1) {
+          myNeedsContribDependency = true;
+        } else if (testRecorderEvent.isPermissionsRequest()) {
+          myMinEspressoVersion = MIN_ESPRESSO_VERSION_FOR_GRANT_PERMISSION_RULE;
+        }
       }
     }
-    return false;
   }
 
-  private static boolean hasUptodateEspressoCoreDependency(@NotNull AndroidModuleModel androidModuleModel) {
+  private boolean hasUptodateEspressoCoreDependency(@NotNull AndroidModuleModel androidModuleModel) {
     String artifact = GoogleMavenArtifactId.ESPRESSO_CORE.toString();
     return hasUptodateEspressoDependency(androidModuleModel, artifact);
   }
 
-  private static boolean hasUptodateEspressoContribDependency(@NotNull AndroidModuleModel androidModuleModel) {
+  private boolean hasUptodateEspressoContribDependency(@NotNull AndroidModuleModel androidModuleModel) {
     String artifact = GoogleMavenArtifactId.ESPRESSO_CONTRIB.toString();
     return hasUptodateEspressoDependency(androidModuleModel, artifact);
   }
@@ -650,9 +663,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     return testInstrumentationRunner != null && !testInstrumentationRunner.isEmpty();
   }
 
-  private static boolean hasUptodateEspressoDependency(@NotNull AndroidModuleModel androidModuleModel, String artifact) {
+  private boolean hasUptodateEspressoDependency(@NotNull AndroidModuleModel androidModuleModel, String artifact) {
     GradleVersion dependencyVersion = getDependencyVersion(androidModuleModel, artifact);
-    return dependencyVersion != null && dependencyVersion.compareTo(MIN_ESPRESSO_VERSION) >= 0;
+    return dependencyVersion != null && dependencyVersion.compareTo(myMinEspressoVersion) >= 0;
   }
 
   @Nullable
@@ -694,7 +707,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             addOrUpdateEspressoCoreDependency();
           }
 
-          if (needsEspressoContribDependency() && !hasUptodateEspressoContribDependency(androidModuleModel)) {
+          if (myNeedsContribDependency && !hasUptodateEspressoContribDependency(androidModuleModel)) {
             addOrUpdateEspressoContribDependency();
           }
 
