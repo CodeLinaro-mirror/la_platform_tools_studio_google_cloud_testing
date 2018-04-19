@@ -20,6 +20,7 @@ import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.build.GradleBuildState;
 import com.android.tools.idea.gradle.project.sync.GradleSyncState;
+import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.ui.RecordingDialog;
@@ -74,7 +75,7 @@ import static org.jetbrains.android.util.AndroidUtils.computePackageName;
 
 /**
  * This class generates instrumentation test and saves it to target location given the
- * test class name, the destination directory, and the list of recorded events.
+ * test class name, the destination directory, and the list of recorded actions.
  */
 public class TestCodeGenerator {
   private static final String JAVA_TEST_CODE_TEMPLATE_FILE_NAME = "JavaTestCodeTemplate.vm";
@@ -85,20 +86,20 @@ public class TestCodeGenerator {
   private final String myApplicationId;
   private final PsiClass myTestClass;
   private final Module myTestClassModule;
-  private final List<Object> myEvents;
+  private final List<ElementAction> myActions;
   private final Project myProject;
   private final String myLaunchedActivityName;
   private final boolean myWasEverPaused;
   private final boolean myIsKotlinTestClass;
 
 
-  public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass, List<Object> events,
-                           String launchedActivityName, boolean wasEverPaused, boolean isKotlinTestClass) {
+  public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass,
+                           List<ElementAction> actions, String launchedActivityName, boolean wasEverPaused, boolean isKotlinTestClass) {
     myResourcePackageName = resourcePackageName;
     myApplicationId = applicationId;
     myTestClass = testClass;
     myTestClassModule = testClassModule;
-    myEvents = events;
+    myActions = actions;
     myProject = myTestClassModule.getProject();
     myLaunchedActivityName = launchedActivityName;
     myWasEverPaused = wasEverPaused;
@@ -256,24 +257,24 @@ public class TestCodeGenerator {
     int assertionCount = 0;
 
     // Remove the last sleep since it would unnecessary prolong the test execution.
-    if (!myEvents.isEmpty()) {
-      Object lastEvent = myEvents.get(myEvents.size() - 1);
-      if (lastEvent instanceof TestRecorderEvent && ((TestRecorderEvent)lastEvent).isDelayedMessagePost()) {
-        myEvents.remove(myEvents.size() - 1);
+    if (!myActions.isEmpty()) {
+      Object lastAction = myActions.get(myActions.size() - 1);
+      if (lastAction instanceof TestRecorderEvent && ((TestRecorderEvent)lastAction).isDelayedMessagePost()) {
+        myActions.remove(myActions.size() - 1);
       }
     }
 
-    for (Object event : myEvents) {
-      List<String> eventCodeLines;
-      if (event instanceof TestRecorderEvent) {
-        eventCodeLines = codeMapper.getTestCodeLinesForEvent((TestRecorderEvent)event);
+    for (ElementAction action : myActions) {
+      List<String> actionCodeLines;
+      if (action instanceof TestRecorderEvent) {
+        actionCodeLines = codeMapper.getTestCodeLinesForEvent((TestRecorderEvent)action);
         eventCount++;
       } else {
-        eventCodeLines = codeMapper.getTestCodeLinesForAssertion((TestRecorderAssertion)event);
+        actionCodeLines = codeMapper.getTestCodeLinesForAssertion((TestRecorderAssertion)action);
         assertionCount++;
       }
-      if (!eventCodeLines.isEmpty()) {
-        testCodeLines.addAll(eventCodeLines);
+      if (!actionCodeLines.isEmpty()) {
+        testCodeLines.addAll(actionCodeLines);
         testCodeLines.add("");
       }
     }

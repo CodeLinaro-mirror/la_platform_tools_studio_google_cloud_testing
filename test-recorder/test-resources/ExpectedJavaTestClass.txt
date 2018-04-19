@@ -152,7 +152,6 @@ public class MyTest {
                 .inAdapterView(withId(list))
                 .atPosition(3);
         elementClass10.perform(click());
-
     }
 
     private static Matcher<View> childAtPosition(

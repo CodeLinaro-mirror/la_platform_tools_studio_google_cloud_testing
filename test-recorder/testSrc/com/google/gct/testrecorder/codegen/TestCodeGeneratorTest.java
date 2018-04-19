@@ -31,7 +31,7 @@ import org.jetbrains.android.AndroidTestCase;
 
 import java.io.File;
 
-import static com.google.gct.testrecorder.util.EventsCreator.createEvents;
+import static com.google.gct.testrecorder.util.ActionsCreator.createActions;
 
 public class TestCodeGeneratorTest extends AndroidTestCase {
 
@@ -39,7 +39,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     PsiClass testClass = createTestClass(false);
 
     TestCodeGenerator testCodeGenerator =
-      new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createEvents(System.currentTimeMillis()),
+      new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createActions(System.currentTimeMillis()),
                             "p1.p2.MyActivity", false, false);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
@@ -63,7 +63,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     PsiClass testClass = createTestClass(true);
 
     TestCodeGenerator testCodeGenerator =
-      new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createEvents(System.currentTimeMillis()),
+      new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createActions(System.currentTimeMillis()),
                             "p1.p2.MyActivity", false, true);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
