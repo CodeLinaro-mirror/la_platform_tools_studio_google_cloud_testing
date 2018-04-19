@@ -31,6 +31,7 @@ import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.util.GradleUtil;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.run.ApkProviderUtil;
+import com.android.tools.idea.templates.RepositoryUrlManager;
 import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.UiNode;
@@ -110,7 +111,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private static final GradleVersion MIN_ESPRESSO_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("3.0.0");
 
   /** Version of Espresso added/updated in build.gradle, when missing or obsolete. */
-  public static final String ESPRESSO_VERSION = "3.0.1";
+  private static final String ESPRESSO_VERSION = getLatestEspressoVersion();
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_EXCLUDES =
     ImmutableList.of(ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
@@ -371,6 +372,19 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         request.setEnabled(myIsRecording);
       }
     }
+  }
+
+  private static String getLatestEspressoVersion() {
+    String latestEspressoCoordinate = RepositoryUrlManager.get().getArtifactStringCoordinate(GoogleMavenArtifactId.ESPRESSO_CORE, false);
+    if (latestEspressoCoordinate != null) {
+      GradleCoordinate gradleCoordinate = GradleCoordinate.parseCoordinateString(latestEspressoCoordinate);
+      if (gradleCoordinate != null) {
+        return gradleCoordinate.getRevision();
+      }
+    }
+
+    //Fallback to some default version.
+    return "3.0.1";
   }
 
   @VisibleForTesting
