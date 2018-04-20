@@ -48,7 +48,11 @@ public class MatcherBuilder {
       }
 
       if (kind == ClassName && isAssertionMatcher) {
-       myMatchers.append("IsInstanceOf.<View>instanceOf(").append(matchedString).append(".class)");
+        if (myIsKotlinTestClass) {
+          myMatchers.append("IsInstanceOf.instanceOf(").append(matchedString).append("::class.java)");
+        } else {
+          myMatchers.append("IsInstanceOf.<View>instanceOf(").append(matchedString).append(".class)");
+        }
       } else {
         myMatchers.append("with").append(kind.name()).append(kind == ClassName ? getClassNameMatcher() : "(")
           .append(shouldBox ? boxString(matchedString) : matchedString).append(kind == ClassName ? "))" : ")");
