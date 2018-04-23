@@ -53,7 +53,6 @@ import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.*;
-import static com.google.gct.testrecorder.util.StringHelper.boxString;
 
 public class BreakpointCommand extends DebuggerCommandImpl {
   private static final Logger LOGGER = Logger.getInstance(BreakpointCommand.class);
@@ -314,7 +313,7 @@ public class BreakpointCommand extends DebuggerCommandImpl {
     if (permissionsValue instanceof ArrayReferenceImpl) {
       List<String> permissions = Lists.newArrayList();
       for (Value permission : ((ArrayReferenceImpl)permissionsValue).getValues()) {
-        permissions.add(boxString(getStringValue(permission)));
+        permissions.add(getStringValue(permission));
       }
       event.setRequestedPermissions(permissions);
       return event;

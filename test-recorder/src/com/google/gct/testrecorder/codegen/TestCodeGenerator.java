@@ -20,6 +20,8 @@ import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.build.GradleBuildState;
 import com.android.tools.idea.gradle.project.sync.GradleSyncState;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
@@ -69,8 +71,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.gct.testrecorder.util.StringHelper.getClassName;
-import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharacter;
+import static com.google.gct.testrecorder.util.StringHelper.*;
 import static org.jetbrains.android.util.AndroidUtils.computePackageName;
 
 /**
@@ -286,7 +287,8 @@ public class TestCodeGenerator {
     Set<String> requestedPermissions = codeMapper.getRequestedPermissions();
     if (!requestedPermissions.isEmpty()) {
       velocityContext.put("HasRequestedPermissions", true);
-      velocityContext.put("RequestedPermissions", StringUtils.join(requestedPermissions, ",\n"));
+      velocityContext.put("RequestedPermissions",
+                          StringUtils.join(Collections2.transform(requestedPermissions, permission -> boxString(permission)), ",\n"));
     }
 
     velocityContext.put("AddContribImport", codeMapper.isRecyclerViewActionAdded());

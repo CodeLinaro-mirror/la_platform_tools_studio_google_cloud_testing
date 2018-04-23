@@ -58,7 +58,8 @@ public class TestRecorderListRenderer extends DefaultListCellRenderer {
       } else if (event.isDelayedMessagePost()) {
         renderString = String.format(DELAYED_MESSAGE_POST_EVENT_FORMAT, outerDivTextColor, event.getRendererString());
       } else if (event.isPermissionsRequest()) {
-        renderString = String.format(PERMISSIONS_REQUEST_EVENT_FORMAT, outerDivTextColor, event.getRendererString());
+        renderString = String.format(PERMISSIONS_REQUEST_EVENT_FORMAT, outerDivTextColor,
+                                     StringUtil.escapeStringCharacters(event.getRendererString()));
       } else {
         // Click event.
         renderString = String.format(CLICK_EVENT_FORMAT, outerDivTextColor, event.getRendererString());
