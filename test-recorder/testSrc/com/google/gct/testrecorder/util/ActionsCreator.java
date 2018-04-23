@@ -97,7 +97,7 @@ public class ActionsCreator {
     actions.add(swipeEvent);
 
     TestRecorderEvent permissionsRequestEvent = new TestRecorderEvent(TestRecorderEvent.PERMISSIONS_REQUEST, timestamp);
-    permissionsRequestEvent.setRequestedPermissions(Lists.newArrayList("\"permission1\"", "\"permission2\""));
+    permissionsRequestEvent.setRequestedPermissions(Lists.newArrayList("permission1", "permission2"));
     actions.add(permissionsRequestEvent);
 
     TestRecorderEvent viewAdapterItemClickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, timestamp);

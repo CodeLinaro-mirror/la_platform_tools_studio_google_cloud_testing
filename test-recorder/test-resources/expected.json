@@ -275,8 +275,8 @@
     "actionCode": -1,
     "delayTime": 0,
     "requestedPermissions": [
-      "\"permission1\"",
-      "\"permission2\""
+      "permission1",
+      "permission2"
     ],
     "canScrollTo": false,
     "elementDescriptors": []
