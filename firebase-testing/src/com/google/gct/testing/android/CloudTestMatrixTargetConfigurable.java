@@ -169,7 +169,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     return new GridConstraints(row, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
                                GridConstraints.SIZEPOLICY_CAN_GROW | GridConstraints.SIZEPOLICY_WANT_GROW,
                                GridConstraints.SIZEPOLICY_CAN_GROW | GridConstraints.SIZEPOLICY_WANT_GROW,
-                               new Dimension(-1, -1), new Dimension(150, 30), new Dimension(-1, -1));
+                               new Dimension(-1, -1), new Dimension(490, 30), new Dimension(-1, -1));
   }
 
   private GridConstraints prepareElementGridConstraints(int row, int column) {
