@@ -428,13 +428,13 @@ public class OutputToGoogleCloudTestEventsConverter implements GoogleCloudTestin
 
     @Override
     public void visitTestStdOut(@NotNull final TestStdOut testStdOut) {
-      fireOnTestOutput(new GoogleCloudTestOutputEvent(testStdOut, testStdOut.getStdOut(), true, testStdOut.getAttributes().get("configuration"),
+      fireOnTestOutput(new GoogleCloudTestOutputEvent(testStdOut, testStdOut.getStdOut(), ProcessOutputTypes.STDOUT, testStdOut.getAttributes().get("configuration"),
                                                 testStdOut.getAttributes().get("className")));
     }
 
     @Override
     public void visitTestStdErr(@NotNull final TestStdErr testStdErr) {
-      fireOnTestOutput(new GoogleCloudTestOutputEvent(testStdErr, testStdErr.getStdErr(), false, testStdErr.getAttributes().get("configuration"),
+      fireOnTestOutput(new GoogleCloudTestOutputEvent(testStdErr, testStdErr.getStdErr(), ProcessOutputTypes.STDERR, testStdErr.getAttributes().get("configuration"),
                                                 testStdErr.getAttributes().get("className")));
     }
 
