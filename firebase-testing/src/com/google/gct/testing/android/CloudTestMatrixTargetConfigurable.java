@@ -80,7 +80,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     topPanel.add(cloudDeviceMatrixPanel, preparePanelGridConstraints(1));
 
     connectToCloudPanel.add(createRunTestsInCloudPane(topPanel.getBackground(), 6, 4), prepareEditorPaneGridConstraints(0));
-    JButton connectToCloudButton = new JButton("Connect to Firebase");
+    JButton connectToCloudButton = new JButton("Sign in with Google");
     connectToCloudButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
