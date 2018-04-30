@@ -104,16 +104,25 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   public static final String TEST_INSTRUMENTATION_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
 
-  /** The minimal version of Espresso in build.gradle that does not require updating for importing LargeTest. */
-  private static final GradleVersion MIN_ESPRESSO_VERSION_FOR_LARGE_TEST = GradleVersion.parse("2.2.2");
+  /** The minimal version of espresso-core in build.gradle that does not require updating for importing LargeTest. */
+  private static final GradleVersion MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST = GradleVersion.parse("2.2.2");
 
-  /** The minimal version of Espresso in build.gradle that does not require updating for using GrantPermissionRule. */
-  private static final GradleVersion MIN_ESPRESSO_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("3.0.0");
+  /** The minimal version of rules in build.gradle that does not require updating for importing LargeTest. */
+  private static final GradleVersion MIN_RULES_VERSION_FOR_LARGE_TEST = GradleVersion.parse("0.5");
 
-  /** Version of Espresso added/updated in build.gradle, when missing or obsolete. */
-  private static final String ESPRESSO_VERSION = getLatestEspressoVersion();
+  /** The minimal version of espresso-core in build.gradle that does not require updating for using GrantPermissionRule. */
+  private static final GradleVersion MIN_ESPRESSO_CORE_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("3.0.0");
 
-  public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_EXCLUDES =
+  /** The minimal version of rules in build.gradle that does not require updating for using GrantPermissionRule. */
+  private static final GradleVersion MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("1.0.0");
+
+  /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. */
+  private static final String ESPRESSO_CORE_VERSION = getLatestDependencyVersion(GoogleMavenArtifactId.ESPRESSO_CORE, "3.0.2");
+
+  /** Version of rules added/updated in build.gradle, when missing or obsolete. */
+  private static final String RULES_VERSION = getLatestDependencyVersion(GoogleMavenArtifactId.TEST_RULES, "1.0.2");
+
+  public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CORE_EXCLUDES =
     ImmutableList.of(ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CONTRIB_EXCLUDES =
@@ -143,7 +152,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private boolean myIsRecording = true;
   private boolean myWasEverPaused = false;
   private boolean myNeedsContribDependency = false;
-  private GradleVersion myMinEspressoVersion = MIN_ESPRESSO_VERSION_FOR_LARGE_TEST;
+  private GradleVersion myMinEspressoCoreVersion = MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST;
+  private GradleVersion myMinRulesVersion = MIN_RULES_VERSION_FOR_LARGE_TEST;
 
   private JPanel myRootPanel;
   private ScreenshotPanel myScreenshotPanel;
@@ -374,17 +384,17 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     }
   }
 
-  private static String getLatestEspressoVersion() {
-    String latestEspressoCoordinate = RepositoryUrlManager.get().getArtifactStringCoordinate(GoogleMavenArtifactId.ESPRESSO_CORE, false);
-    if (latestEspressoCoordinate != null) {
-      GradleCoordinate gradleCoordinate = GradleCoordinate.parseCoordinateString(latestEspressoCoordinate);
+  private static String getLatestDependencyVersion(GoogleMavenArtifactId artifactId, String fallbackVersion) {
+    String latestDependencyCoordinate = RepositoryUrlManager.get().getArtifactStringCoordinate(artifactId, false);
+    if (latestDependencyCoordinate != null) {
+      GradleCoordinate gradleCoordinate = GradleCoordinate.parseCoordinateString(latestDependencyCoordinate);
       if (gradleCoordinate != null) {
         return gradleCoordinate.getRevision();
       }
     }
 
     //Fallback to some default version.
-    return "3.0.1";
+    return fallbackVersion;
   }
 
   @VisibleForTesting
@@ -633,13 +643,15 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     initializeDependencyRequirements();
     // TODO: To improve performance, consider doing these checks in a single pass.
     return hasUptodateEspressoCoreDependency(androidModuleModel)
+           && hasUptodateRulesDependency(androidModuleModel)
            && (!myNeedsContribDependency || hasUptodateEspressoContribDependency(androidModuleModel))
            && hasSetInstrumentationRunner(androidModel);
   }
 
   private void initializeDependencyRequirements() {
     myNeedsContribDependency = false;
-    myMinEspressoVersion = MIN_ESPRESSO_VERSION_FOR_LARGE_TEST;
+    myMinEspressoCoreVersion = MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST;
+    myMinRulesVersion = MIN_RULES_VERSION_FOR_LARGE_TEST;
 
     for (ElementAction action : getAllModelActions()) {
       if (action instanceof TestRecorderEvent) {
@@ -647,7 +659,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         if (testRecorderEvent.getElementRecyclerViewChildPosition() != -1) {
           myNeedsContribDependency = true;
         } else if (testRecorderEvent.isPermissionsRequest()) {
-          myMinEspressoVersion = MIN_ESPRESSO_VERSION_FOR_GRANT_PERMISSION_RULE;
+          myMinEspressoCoreVersion = MIN_ESPRESSO_CORE_VERSION_FOR_GRANT_PERMISSION_RULE;
+          myMinRulesVersion = MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE;
         }
       }
     }
@@ -655,12 +668,17 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private boolean hasUptodateEspressoCoreDependency(@NotNull AndroidModuleModel androidModuleModel) {
     String artifact = GoogleMavenArtifactId.ESPRESSO_CORE.toString();
-    return hasUptodateEspressoDependency(androidModuleModel, artifact);
+    return hasUptodateDependency(androidModuleModel, artifact, myMinEspressoCoreVersion);
+  }
+
+  private boolean hasUptodateRulesDependency(@NotNull AndroidModuleModel androidModuleModel) {
+    String artifact = GoogleMavenArtifactId.TEST_RULES.toString();
+    return hasUptodateDependency(androidModuleModel, artifact, myMinRulesVersion);
   }
 
   private boolean hasUptodateEspressoContribDependency(@NotNull AndroidModuleModel androidModuleModel) {
     String artifact = GoogleMavenArtifactId.ESPRESSO_CONTRIB.toString();
-    return hasUptodateEspressoDependency(androidModuleModel, artifact);
+    return hasUptodateDependency(androidModuleModel, artifact, myMinEspressoCoreVersion);
   }
 
   private static boolean hasSetInstrumentationRunner(@NotNull AndroidModel androidModel) {
@@ -668,9 +686,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     return testInstrumentationRunner != null && !testInstrumentationRunner.isEmpty();
   }
 
-  private boolean hasUptodateEspressoDependency(@NotNull AndroidModuleModel androidModuleModel, String artifact) {
+  private static boolean hasUptodateDependency(@NotNull AndroidModuleModel androidModuleModel, String artifact, GradleVersion minVersion) {
     GradleVersion dependencyVersion = getDependencyVersion(androidModuleModel, artifact);
-    return dependencyVersion != null && dependencyVersion.compareTo(myMinEspressoVersion) >= 0;
+    return dependencyVersion != null && dependencyVersion.compareTo(minVersion) >= 0;
   }
 
   @Nullable
@@ -712,6 +730,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             addOrUpdateEspressoCoreDependency();
           }
 
+          if (!hasUptodateRulesDependency(androidModuleModel)) {
+            addOrUpdateRulesDependency();
+          }
+
           if (myNeedsContribDependency && !hasUptodateEspressoContribDependency(androidModuleModel)) {
             addOrUpdateEspressoContribDependency();
           }
@@ -735,29 +757,43 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             // Remove the obsolete custom Espresso dependency.
             gradleBuildModel.dependencies().remove(artifact);
           } else if (isMatchingArtifact(artifact, GoogleMavenArtifactId.ESPRESSO_CORE)) {
-            artifact.version().setValue(ESPRESSO_VERSION);
+            artifact.version().setValue(ESPRESSO_CORE_VERSION);
             hasUpdatedEspressoCoreVersion = true;
           } else if (isMatchingArtifact(artifact, GoogleMavenArtifactId.ESPRESSO_CONTRIB)) {
-            // Update Espresso contrib dependency, if present, to match Espresso core dependency version.
-            artifact.version().setValue(ESPRESSO_VERSION);
+            // Update espresso-contrib dependency, if present, to match espresso-core dependency version.
+            artifact.version().setValue(ESPRESSO_CORE_VERSION);
+          } else if (isMatchingArtifact(artifact, GoogleMavenArtifactId.TEST_RULES)) {
+            // Update rules dependency, if present, to match espresso-core dependency version.
+            artifact.version().setValue(RULES_VERSION);
           }
         }
         if (!hasUpdatedEspressoCoreVersion) {
           gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
-                                                      ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_VERSION),
-                                                      ESPRESSO_EXCLUDES);
+                                                      ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_CORE_VERSION),
+                                                      ESPRESSO_CORE_EXCLUDES);
         }
+      }
+
+      private void addOrUpdateRulesDependency() {
+        for (ArtifactDependencyModel artifact : gradleBuildModel.dependencies().artifacts()) {
+          if (isMatchingArtifact(artifact, GoogleMavenArtifactId.TEST_RULES)) {
+            artifact.version().setValue(RULES_VERSION);
+            return;
+          }
+        }
+        gradleBuildModel.dependencies().addArtifact(
+          ANDROID_TEST_IMPLEMENTATION, ArtifactDependencySpec.create(GoogleMavenArtifactId.TEST_RULES, RULES_VERSION));
       }
 
       private void addOrUpdateEspressoContribDependency() {
         for (ArtifactDependencyModel artifact : gradleBuildModel.dependencies().artifacts()) {
           if (isMatchingArtifact(artifact, GoogleMavenArtifactId.ESPRESSO_CONTRIB)) {
-            artifact.version().setValue(ESPRESSO_VERSION);
+            artifact.version().setValue(ESPRESSO_CORE_VERSION);
             return;
           }
         }
         gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
-                                                    ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_VERSION),
+                                                    ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_CORE_VERSION),
                                                     ESPRESSO_CONTRIB_EXCLUDES);
       }
 
