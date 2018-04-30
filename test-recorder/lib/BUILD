@@ -1,14 +1,14 @@
+# managed by go/iml_to_build
 java_import(
     name = "uiautomatorviewer",
     jars = ["uiautomatorviewer.jar"],
-    tags = ["managed"],
     visibility = ["//visibility:public"],
 )
 
+# managed by go/iml_to_build
 java_import(
     name = "swt",
     jars = ["swt.jar"],
-    tags = ["managed"],
     visibility = ["//visibility:public"],
 )
 

@@ -1,12 +1,12 @@
 load("//tools/base/bazel:bazel.bzl", "iml_module")
 
+# managed by go/iml_to_build
 iml_module(
     name = "test-recorder",
     srcs = ["src"],
     bundle_data = ["//tools/studio/google/cloud/testing/test-recorder/lib:licenses"],
     iml_files = ["test-recorder.iml"],
     resources = ["resources"],
-    tags = ["managed"],
     test_resources = ["test-resources"],
     test_runtime_deps = ["//tools/vendor/intellij/cidr:intellij.c.doxygen"],
     test_srcs = ["testSrc"],

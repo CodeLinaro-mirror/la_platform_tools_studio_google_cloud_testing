@@ -15,10 +15,13 @@
  */
 package com.google.gct.testrecorder.event;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
+import java.util.List;
 
 public class TestRecorderEvent extends ElementAction {
   public enum SwipeDirection {Left, Right, Up, Down}
@@ -33,10 +36,11 @@ public class TestRecorderEvent extends ElementAction {
   public static final String DELAYED_MESSAGE_POST = "DELAYED_MESSAGE_POSTED";
   public static final String WINDOW_CONTENT_CHANGED = "WINDOW_CONTENT_CHANGED";
   public static final String LAZY_CLASSES_LOADER = "LAZY_CLASSES_LOADER";
+  public static final String PERMISSIONS_REQUEST = "PERMISSIONS_REQUEST";
 
   public static final HashSet<String> SUPPORTED_EVENTS =
     Sets.newHashSet(VIEW_CLICK, VIEW_LONG_CLICK, LIST_ITEM_CLICK, TEXT_CHANGE, PRESS_BACK, PRESS_EDITOR_ACTION, VIEW_SWIPE,
-                    DELAYED_MESSAGE_POST);
+                    DELAYED_MESSAGE_POST, PERMISSIONS_REQUEST);
 
   /**
    * View click, menu item click, text change, etc.
@@ -68,6 +72,10 @@ public class TestRecorderEvent extends ElementAction {
    */
   private long delayTime;
 
+  /**
+   * Represents a list of permissions requested by the app-under-test.
+   */
+  private List<String> requestedPermissions = null;
 
   public TestRecorderEvent(String eventType, long timestamp) {
     this.eventType = eventType;
@@ -98,6 +106,10 @@ public class TestRecorderEvent extends ElementAction {
     return delayTime;
   }
 
+  public List<String> getRequestedPermissions() {
+    return requestedPermissions;
+  }
+
   public void setReplacementText(String replacementText) {
     this.replacementText = replacementText;
   }
@@ -112,6 +124,10 @@ public class TestRecorderEvent extends ElementAction {
 
   public void setDelayTime(long delayTime) {
     this.delayTime = delayTime;
+  }
+
+  public void setRequestedPermissions(List<String> requestedPermissions) {
+    this.requestedPermissions = ImmutableList.copyOf(requestedPermissions);
   }
 
   public boolean isViewClick() {
@@ -154,8 +170,16 @@ public class TestRecorderEvent extends ElementAction {
     return DELAYED_MESSAGE_POST.equals(eventType);
   }
 
+  public boolean isPermissionsRequest() {
+    return PERMISSIONS_REQUEST.equals(eventType);
+  }
+
   @Override
   public String getRendererString() {
+    if (isPermissionsRequest()) {
+      return getIdAttributeDisplayPresentation("", StringUtils.join(requestedPermissions, "<br>"));
+    }
+
     if (isDelayedMessagePost()) {
       return getIdAttributeDisplayPresentation("", String.valueOf(getDelayTime()));
     }

@@ -27,17 +27,17 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.google.gct.testrecorder.util.EventsCreator.createEvents;
+import static com.google.gct.testrecorder.util.ActionsCreator.createActions;
 
 public class RecordingDialogTest extends AndroidTestCase {
 
   public void testJsonGeneration() {
-    String jsonForEvents = RecordingDialog.getJsonForEvents(myModule.getProject(), createEvents(1484950638081l));
-    assertEquals(getExpectedJsonText(), jsonForEvents);
+    String jsonForActions = RecordingDialog.getJsonForActions(myModule.getProject(), createActions(1484950638081l));
+    assertEquals(getExpectedJsonText(), jsonForActions);
 
     Type dataType = new TypeToken<ArrayList<TestRecorderEvent>>() {}.getType();
-    List<TestRecorderEvent> fromJson = (ArrayList<TestRecorderEvent>) new Gson().fromJson(jsonForEvents, dataType);
-    assertEquals(12, fromJson.size());
+    List<TestRecorderEvent> fromJson = (ArrayList<TestRecorderEvent>) new Gson().fromJson(jsonForActions, dataType);
+    assertEquals(13, fromJson.size());
   }
 
   private String getExpectedJsonText() {

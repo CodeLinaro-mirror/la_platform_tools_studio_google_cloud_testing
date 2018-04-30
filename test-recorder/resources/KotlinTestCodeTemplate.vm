@@ -7,6 +7,9 @@ import android.support.test.espresso.DataInteraction
 import android.support.test.espresso.ViewInteraction
 import android.support.test.filters.LargeTest
 import android.support.test.rule.ActivityTestRule
+#if (${HasRequestedPermissions})
+import android.support.test.rule.GrantPermissionRule
+#end
 import android.support.test.runner.AndroidJUnit4
 import android.view.View
 import android.view.ViewGroup
@@ -51,14 +54,22 @@ class ${ClassName} {
     @JvmField
     var mActivityTestRule = ActivityTestRule(${TestActivityName}::class.java)
 
+#if (${HasRequestedPermissions})
+    @Rule
+    @JvmField
+    var mGrantPermissionRule =
+            GrantPermissionRule.grant(
+                    ${RequestedPermissions})
+
+#end
     @Test
     fun ${TestMethodName}() {
     #foreach (${line} in ${TestCode})
     ${line}
     #end
     }
-
     #if (${AddChildAtPositionMethod})
+
     private fun childAtPosition(
             parentMatcher: Matcher<View>, position: Int): Matcher<View> {
 

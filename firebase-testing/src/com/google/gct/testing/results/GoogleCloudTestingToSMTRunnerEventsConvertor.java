@@ -613,7 +613,7 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
         final String className = testOutputEvent.getClassName();
         final String testName = testOutputEvent.getName();
         final String text = testOutputEvent.getText();
-        final boolean stdOut = testOutputEvent.isStdOut();
+        final boolean stdOut = (testOutputEvent.getOutputType() == ProcessOutputTypes.STDOUT);
         final String fullTestName = getFullTestName(configuration, className, testName);
         final GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
         if (testProxy == null) {

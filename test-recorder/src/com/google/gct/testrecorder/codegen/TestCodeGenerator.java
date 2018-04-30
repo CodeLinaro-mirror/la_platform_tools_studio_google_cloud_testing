@@ -20,6 +20,9 @@ import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.build.GradleBuildState;
 import com.android.tools.idea.gradle.project.sync.GradleSyncState;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
+import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.ui.RecordingDialog;
@@ -50,6 +53,7 @@ import com.intellij.psi.PsiManager;
 import com.intellij.util.ThreeState;
 import com.intellij.util.containers.ConcurrentLongObjectMap;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
@@ -64,15 +68,15 @@ import java.io.Writer;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.gct.testrecorder.util.StringHelper.getClassName;
-import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharacter;
+import static com.google.gct.testrecorder.util.StringHelper.*;
 import static org.jetbrains.android.util.AndroidUtils.computePackageName;
 
 /**
  * This class generates instrumentation test and saves it to target location given the
- * test class name, the destination directory, and the list of recorded events.
+ * test class name, the destination directory, and the list of recorded actions.
  */
 public class TestCodeGenerator {
   private static final String JAVA_TEST_CODE_TEMPLATE_FILE_NAME = "JavaTestCodeTemplate.vm";
@@ -83,20 +87,20 @@ public class TestCodeGenerator {
   private final String myApplicationId;
   private final PsiClass myTestClass;
   private final Module myTestClassModule;
-  private final List<Object> myEvents;
+  private final List<ElementAction> myActions;
   private final Project myProject;
   private final String myLaunchedActivityName;
   private final boolean myWasEverPaused;
   private final boolean myIsKotlinTestClass;
 
 
-  public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass, List<Object> events,
-                           String launchedActivityName, boolean wasEverPaused, boolean isKotlinTestClass) {
+  public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass,
+                           List<ElementAction> actions, String launchedActivityName, boolean wasEverPaused, boolean isKotlinTestClass) {
     myResourcePackageName = resourcePackageName;
     myApplicationId = applicationId;
     myTestClass = testClass;
     myTestClassModule = testClassModule;
-    myEvents = events;
+    myActions = actions;
     myProject = myTestClassModule.getProject();
     myLaunchedActivityName = launchedActivityName;
     myWasEverPaused = wasEverPaused;
@@ -254,22 +258,37 @@ public class TestCodeGenerator {
     int assertionCount = 0;
 
     // Remove the last sleep since it would unnecessary prolong the test execution.
-    if (!myEvents.isEmpty()) {
-      Object lastEvent = myEvents.get(myEvents.size() - 1);
-      if (lastEvent instanceof TestRecorderEvent && ((TestRecorderEvent)lastEvent).isDelayedMessagePost()) {
-        myEvents.remove(myEvents.size() - 1);
+    if (!myActions.isEmpty()) {
+      Object lastAction = myActions.get(myActions.size() - 1);
+      if (lastAction instanceof TestRecorderEvent && ((TestRecorderEvent)lastAction).isDelayedMessagePost()) {
+        myActions.remove(myActions.size() - 1);
       }
     }
 
-    for (Object event : myEvents) {
-      if (event instanceof TestRecorderEvent) {
-        testCodeLines.addAll(codeMapper.getTestCodeLinesForEvent((TestRecorderEvent)event));
+    for (ElementAction action : myActions) {
+      List<String> actionCodeLines;
+      if (action instanceof TestRecorderEvent) {
+        actionCodeLines = codeMapper.getTestCodeLinesForEvent((TestRecorderEvent)action);
         eventCount++;
       } else {
-        testCodeLines.addAll(codeMapper.getTestCodeLinesForAssertion((TestRecorderAssertion)event));
+        actionCodeLines = codeMapper.getTestCodeLinesForAssertion((TestRecorderAssertion)action);
         assertionCount++;
       }
-      testCodeLines.add("");
+      if (!actionCodeLines.isEmpty()) {
+        testCodeLines.addAll(actionCodeLines);
+        testCodeLines.add("");
+      }
+    }
+    if (!testCodeLines.isEmpty()) {
+      // Remove the trailing empty line.
+      testCodeLines.remove(testCodeLines.size() - 1);
+    }
+
+    Set<String> requestedPermissions = codeMapper.getRequestedPermissions();
+    if (!requestedPermissions.isEmpty()) {
+      velocityContext.put("HasRequestedPermissions", true);
+      velocityContext.put("RequestedPermissions",
+                          StringUtils.join(Collections2.transform(requestedPermissions, permission -> boxString(permission)), ",\n"));
     }
 
     velocityContext.put("AddContribImport", codeMapper.isRecyclerViewActionAdded());

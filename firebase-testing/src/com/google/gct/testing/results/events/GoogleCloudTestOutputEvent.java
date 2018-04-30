@@ -17,6 +17,7 @@ package com.google.gct.testing.results.events;
 
 import com.intellij.execution.testframework.sm.runner.events.TestOutputEvent;
 import com.intellij.execution.testframework.sm.runner.events.TreeNodeEvent;
+import com.intellij.openapi.util.Key;
 import jetbrains.buildServer.messages.serviceMessages.BaseTestMessage;
 import org.jetbrains.annotations.NotNull;
 
@@ -28,10 +29,10 @@ public class GoogleCloudTestOutputEvent extends TestOutputEvent {
 
   public GoogleCloudTestOutputEvent(@NotNull BaseTestMessage message,
                                     @NotNull String text,
-                                    boolean stdOut,
+                                    @NotNull Key outputType,
                                     @NotNull String configuration,
                                     @NotNull String className) {
-    super(message, text, stdOut);
+    super(message, text, outputType);
     this.configuration = configuration;
     this.className = className;
   }
