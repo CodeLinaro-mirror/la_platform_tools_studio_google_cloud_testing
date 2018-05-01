@@ -36,7 +36,7 @@ public final class CloudTargetUtil {
                                                @NotNull String cloudProjectId, int cloudConfigurationId) {
     List<ValidationError> errors = Lists.newArrayList();
     if (!isUserLoggedIn()) {
-      errors.add(ValidationError.fatal("Not connected to Firebase."));
+      errors.add(ValidationError.fatal("Not signed in with Google."));
       // Can't continue.
       return errors;
     }
