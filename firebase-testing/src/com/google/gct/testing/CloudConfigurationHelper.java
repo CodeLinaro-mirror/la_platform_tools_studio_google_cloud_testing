@@ -25,6 +25,7 @@ import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.api.client.util.Maps;
 import com.google.api.client.util.Sets;
+import com.google.api.services.cloudresourcemanager.model.ListProjectsResponse;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.api.services.testing.model.AndroidDevice;
@@ -32,6 +33,7 @@ import com.google.api.services.testing.model.Device;
 import com.google.api.services.testing.model.TestMatrix;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -80,7 +82,6 @@ import static com.google.gct.testing.CloudTestingUtils.checkJavaVersion;
 import static com.jcraft.jsch.KeyPair.RSA;
 
 public final class CloudConfigurationHelper {
-
   private static final String TEST_RUN_ID_PREFIX = "GoogleCloudTest:";
   private static final Map<String, CloudConfigurationImpl> testRunIdToCloudConfiguration = new HashMap<String, CloudConfigurationImpl>();
   private static final Map<String, CloudResultsAdapter> testRunIdToCloudResultsAdapter = new HashMap<String, CloudResultsAdapter>();
@@ -119,6 +120,29 @@ public final class CloudConfigurationHelper {
     dimensionTypes.put(LanguageDimension.DISPLAY_NAME, LanguageDimension.getFullDomain());
     dimensionTypes.put(OrientationDimension.DISPLAY_NAME, OrientationDimension.getFullDomain());
     return dimensionTypes;
+  }
+
+  @NotNull
+  public static List<String> getCloudProjects() {
+    List<String> cloudProjects = Lists.newArrayList();
+
+    try {
+      ListProjectsResponse response = CloudAuthenticator.getInstance().getCloudResourceManager().projects().list().setPageSize(1000).execute();
+      if (response != null && response.getProjects() != null) {
+        for (com.google.api.services.cloudresourcemanager.model.Project pantheonProject : response.getProjects()) {
+          if (!Strings.isNullOrEmpty(pantheonProject.getProjectId())
+              // Ignore any projects scheduled for deletion.
+              && !"DELETE_REQUESTED".equals(pantheonProject.getLifecycleState())) {
+            cloudProjects.add(pantheonProject.getProjectId());
+          }
+        }
+      }
+    } catch(Exception ignored) {
+    }
+
+    Collections.sort(cloudProjects);
+
+    return cloudProjects;
   }
 
   @NotNull
