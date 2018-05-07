@@ -47,6 +47,7 @@ import java.awt.*;
 public class CloudTestingUtils {
 
   public static final String PRICING_LINK = "https://firebase.google.com/pricing";
+  public static final String CREATE_FIREBASE_PROJECT_LINK = "https://console.firebase.google.com";
 
   public static final String ANDROID_STUDIO_URL_FLAG = "?source=android-studio";
 
@@ -236,6 +237,10 @@ public class CloudTestingUtils {
 
   public static String preparePricingAnchor(String linkText) {
     return "<a href='" + PRICING_LINK + "'>" + linkText + "</a>";
+  }
+
+  public static String prepareCreateFirebaseProjectAnchor(String linkText) {
+    return "<a href='" + CREATE_FIREBASE_PROJECT_LINK + "'>" + linkText + "</a>";
   }
 
   public static void linkifyEditorPane(@NotNull JEditorPane editorPane, @NotNull Color backgroundColor) {

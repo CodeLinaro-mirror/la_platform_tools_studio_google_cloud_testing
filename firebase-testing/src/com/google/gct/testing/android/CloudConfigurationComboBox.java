@@ -75,18 +75,7 @@ public class CloudConfigurationComboBox extends ComboboxWithBrowseButton {
       public void actionPerformed(ActionEvent e) {
         Object item = getComboBox().getSelectedItem();
         if (item instanceof CloudConfiguration) {
-          CloudConfiguration cloudConfiguration = (CloudConfiguration)item;
-          myLastChosenCloudConfigurationPerKind.put(myConfigurationKind, cloudConfiguration);
-          if (myCurrentAndroidConfigurationId != -1 && myCurrentModule != null) {
-            Map<Pair<Kind, Module>, CloudConfiguration> matrixConfigurationByModuleCache =
-              myMatrixConfigurationByAndroidConfigurationIdAndModuleCache.get(myCurrentAndroidConfigurationId);
-            if (matrixConfigurationByModuleCache == null) {
-              matrixConfigurationByModuleCache = Maps.newHashMapWithExpectedSize(5);
-              myMatrixConfigurationByAndroidConfigurationIdAndModuleCache.put(myCurrentAndroidConfigurationId,
-                                                                            matrixConfigurationByModuleCache);
-            }
-            matrixConfigurationByModuleCache.put(Pair.create(myConfigurationKind, myCurrentModule), cloudConfiguration);
-          }
+          rememberCloudConfiguration((CloudConfiguration)item);
         }
       }
     });
@@ -159,9 +148,24 @@ public class CloudConfigurationComboBox extends ComboboxWithBrowseButton {
       for (CloudConfiguration configuration : myTestingConfigurations) {
         if (configuration.getId() == cloudConfigurationId) {
           getComboBox().setSelectedItem(configuration);
+          rememberCloudConfiguration(configuration);
           return;
         }
       }
+    }
+  }
+
+  private void rememberCloudConfiguration(CloudConfiguration cloudConfiguration) {
+    myLastChosenCloudConfigurationPerKind.put(myConfigurationKind, cloudConfiguration);
+    if (myCurrentAndroidConfigurationId != -1 && myCurrentModule != null) {
+      Map<Pair<Kind, Module>, CloudConfiguration> matrixConfigurationByModuleCache =
+        myMatrixConfigurationByAndroidConfigurationIdAndModuleCache.get(myCurrentAndroidConfigurationId);
+      if (matrixConfigurationByModuleCache == null) {
+        matrixConfigurationByModuleCache = Maps.newHashMapWithExpectedSize(5);
+        myMatrixConfigurationByAndroidConfigurationIdAndModuleCache.put(myCurrentAndroidConfigurationId,
+                                                                        matrixConfigurationByModuleCache);
+      }
+      matrixConfigurationByModuleCache.put(Pair.create(myConfigurationKind, myCurrentModule), cloudConfiguration);
     }
   }
 
