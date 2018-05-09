@@ -78,9 +78,7 @@ public class CloudProjectSelector extends ComboBox<String> {
       setDefaultPreferredSize();
     }
 
-    if (myCloudProjects == null) {
-      refreshCloudProjects();
-    } else {
+    if (myCloudProjects != null) {
       setModel(new ListComboBoxModel(myCloudProjects));
     }
   }
@@ -140,7 +138,12 @@ public class CloudProjectSelector extends ComboBox<String> {
     }
 
     myCurrentModule = facet.getModule();
-    restoreChosenProjectId();
+
+    if (myCloudProjects == null) {
+      refreshCloudProjects();
+    } else {
+      restoreChosenProjectId();
+    }
   }
 
   public void setRunConfigurationId(int configurationId) {
