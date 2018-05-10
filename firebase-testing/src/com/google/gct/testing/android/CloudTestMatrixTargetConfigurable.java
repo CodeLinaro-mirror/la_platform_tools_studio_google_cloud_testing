@@ -17,8 +17,6 @@ package com.google.gct.testing.android;
 
 import com.android.tools.idea.run.editor.DeployTargetConfigurable;
 import com.android.tools.idea.run.editor.DeployTargetConfigurableContext;
-import com.google.gct.testing.CloudProjectChooserDialog;
-import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -31,19 +29,16 @@ import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
+import icons.GoogleCloudToolsIcons;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
+import java.awt.event.*;
 
-import static com.google.gct.testing.CloudTestingUtils.linkifyEditorPane;
-import static com.google.gct.testing.CloudTestingUtils.preparePricingAnchor;
+import static com.google.gct.testing.CloudTestingUtils.*;
 import static com.google.gct.testing.android.CloudConfiguration.Kind.MATRIX;
 import static com.google.gct.testing.launcher.CloudAuthenticator.authorize;
 import static com.google.gct.testing.launcher.CloudAuthenticator.isUserLoggedIn;
@@ -54,7 +49,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
   private final JPanel connectToCloudPanel;
   private final JPanel cloudDeviceMatrixPanel;
   private final CloudConfigurationComboBox myCloudConfigurationComboBox;
-  private final CloudProjectIdLabel myCloudProjectIdLabel;
+  private final CloudProjectSelector myCloudProjectSelector;
 
   public CloudTestMatrixTargetConfigurable(@NotNull Project project, Disposable parentDisposable,
                                            @NotNull final DeployTargetConfigurableContext context) {
@@ -65,7 +60,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
         myFacet = context.getModule() == null ? null : AndroidFacet.getInstance(context.getModule());
         if (isUserLoggedIn()) {
           myCloudConfigurationComboBox.setFacet(myFacet);
-          myCloudProjectIdLabel.setFacet(myFacet);
+          myCloudProjectSelector.setFacet(myFacet);
         }
       }
     });
@@ -75,12 +70,12 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     connectToCloudPanel = new JPanel();
     connectToCloudPanel.setLayout(new GridLayoutManager(3, 1));
     cloudDeviceMatrixPanel = new JPanel();
-    cloudDeviceMatrixPanel.setLayout(new GridLayoutManager(3, 3));
+    cloudDeviceMatrixPanel.setLayout(new GridLayoutManager(4, 3));
     topPanel.add(connectToCloudPanel, preparePanelGridConstraints(0));
     topPanel.add(cloudDeviceMatrixPanel, preparePanelGridConstraints(1));
 
     connectToCloudPanel.add(createRunTestsInCloudPane(topPanel.getBackground(), 6, 4), prepareEditorPaneGridConstraints(0));
-    JButton connectToCloudButton = new JButton("Connect to Firebase");
+    JButton connectToCloudButton = new JButton("Sign in with Google");
     connectToCloudButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
@@ -97,15 +92,30 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     cloudDeviceMatrixPanel.add(new JPanel(), prepareHorizontalSpacerGridConstraints(0, 2));
     cloudDeviceMatrixPanel.add(new JLabel("Cloud project:"), prepareElementGridConstraints(1, 0));
     JPanel cloudProjectPanel = new JPanel();
-    myCloudProjectIdLabel = new CloudProjectIdLabel(MATRIX);
-    cloudProjectPanel.add(myCloudProjectIdLabel);
-    AnAction cloudMatrixProjectAction = new SelectCloudProjectAction(project, myCloudProjectIdLabel, myCloudConfigurationComboBox);
+    cloudProjectPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 5));
+    myCloudProjectSelector = new CloudProjectSelector(MATRIX);
+    cloudProjectPanel.add(myCloudProjectSelector);
+    JPanel gapPanel = new JPanel();
+    gapPanel.setPreferredSize(new Dimension(5, 5));
+    cloudProjectPanel.add(gapPanel);
+    AnAction cloudMatrixProjectAction = new RefreshCloudProjectsAction(myCloudProjectSelector);
     ActionButton cloudMatrixProjectActionButton = new ActionButton(
       cloudMatrixProjectAction, new PresentationFactory().getPresentation(cloudMatrixProjectAction), "MyPlace", JBUI.size(25, 25));
     cloudMatrixProjectActionButton.setFocusable(true);
     cloudProjectPanel.add(cloudMatrixProjectActionButton);
     cloudDeviceMatrixPanel.add(cloudProjectPanel, prepareElementGridConstraints(1, 1));
-    cloudDeviceMatrixPanel.add(createPricingLinkPane(topPanel.getBackground()), prepareElementGridConstraints(2, 0));
+    cloudDeviceMatrixPanel.add(createLinkPane(topPanel.getBackground(), prepareCreateFirebaseProjectAnchor("Create new Firebase project")),
+                               prepareElementGridConstraints(2, 0));
+    cloudDeviceMatrixPanel.add(createLinkPane(topPanel.getBackground(), preparePricingAnchor("Pricing information")),
+                               prepareElementGridConstraints(3, 0));
+
+    topPanel.addComponentListener(new ComponentAdapter() {
+      @Override
+      public void componentShown(ComponentEvent e) {
+        // Update UI such that combobox adjusts its size depending on its content.
+        myCloudProjectSelector.updateUI();
+      }
+    });
 
     updateVisibility();
 
@@ -121,17 +131,17 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
   @Override
   public void resetFrom(@NotNull CloudTestMatrixTargetProvider.State state, int configurationId) {
     myCloudConfigurationComboBox.setRunConfigurationId(configurationId);
-    myCloudProjectIdLabel.setRunConfigurationId(configurationId);
+    myCloudProjectSelector.setRunConfigurationId(configurationId);
 
     // Update the relevant UI components only if they have meaning (are shown).
     if (isUserLoggedIn()) {
       // Set facet (potentially, again) after run configuration id such that we remember user choices properly
       // (i.e., per configuration per module).
       myCloudConfigurationComboBox.setFacet(myFacet);
-      myCloudProjectIdLabel.setFacet(myFacet);
+      myCloudProjectSelector.setFacet(myFacet);
 
       myCloudConfigurationComboBox.selectCloudConfiguration(state.SELECTED_CLOUD_MATRIX_CONFIGURATION_ID);
-      myCloudProjectIdLabel.updateCloudProjectId(state.SELECTED_CLOUD_MATRIX_PROJECT_ID);
+      myCloudProjectSelector.updateCloudProjectId(state.SELECTED_CLOUD_MATRIX_PROJECT_ID);
     }
   }
 
@@ -141,14 +151,14 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     if (isUserLoggedIn() && myCloudConfigurationComboBox.getComboBox().getSelectedItem() instanceof CloudConfiguration) {
       CloudConfiguration selectedConfiguration = (CloudConfiguration)myCloudConfigurationComboBox.getComboBox().getSelectedItem();
       state.SELECTED_CLOUD_MATRIX_CONFIGURATION_ID = selectedConfiguration == null ? -1 : selectedConfiguration.getId();
-      state.SELECTED_CLOUD_MATRIX_PROJECT_ID = myCloudProjectIdLabel.getProjectId();
+      state.SELECTED_CLOUD_MATRIX_PROJECT_ID = myCloudProjectSelector.getProjectId();
     }
   }
 
   private void updateVisibility() {
     if (isUserLoggedIn()) {
       myCloudConfigurationComboBox.setFacet(myFacet);
-      myCloudProjectIdLabel.setFacet(myFacet);
+      myCloudProjectSelector.setFacet(myFacet);
       cloudDeviceMatrixPanel.setVisible(true);
       connectToCloudPanel.setVisible(false);
       simulateChangeEvent(myCloudConfigurationComboBox);
@@ -206,12 +216,11 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     return signupForCloudPane;
   }
 
-  private JEditorPane createPricingLinkPane(@NotNull Color backgroundColor) {
-    JEditorPane pricingLinkPane =
-      new JEditorPane(UIUtil.HTML_MIME, "<html>" + preparePricingAnchor("Pricing information") + "</html>");
-    pricingLinkPane.setMargin(new Insets(0, 1, 0, 0));
-    linkifyEditorPane(pricingLinkPane, backgroundColor);
-    return pricingLinkPane;
+  private JEditorPane createLinkPane(@NotNull Color backgroundColor, String anchor) {
+    JEditorPane linkPane = new JEditorPane(UIUtil.HTML_MIME, "<html>" + anchor + "</html>");
+    linkPane.setMargin(new Insets(0, 1, 0, 0));
+    linkifyEditorPane(linkPane, backgroundColor);
+    return linkPane;
   }
 
   /**
@@ -224,38 +233,23 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     }
   }
 
-  private static class SelectCloudProjectAction extends AnAction {
+  private static class RefreshCloudProjectsAction extends AnAction {
+    private final CloudProjectSelector myCloudProjectSelector;
 
-    private final Project myProject;
-    private final CloudProjectIdLabel myLabel;
-    private final CloudConfigurationComboBox myComboBox;
-
-
-    public SelectCloudProjectAction(Project project, CloudProjectIdLabel label, CloudConfigurationComboBox comboBox) {
-      myProject = project;
-      myLabel = label;
-      myComboBox = comboBox;
+    public RefreshCloudProjectsAction(CloudProjectSelector cloudProjectSelector) {
+      myCloudProjectSelector = cloudProjectSelector;
     }
 
     @Override
     public void actionPerformed(AnActionEvent e) {
-      CloudProjectChooserDialog dialog = new CloudProjectChooserDialog(myProject, myLabel.getText());
-
-      dialog.show();
-
-      if (dialog.isOK()) {
-        String selectedProjectId = dialog.getSelectedProject();
-        if (selectedProjectId != null) {
-          myLabel.updateCloudProjectId(selectedProjectId);
-          simulateChangeEvent(myComboBox);
-        }
-      }
+      myCloudProjectSelector.refreshCloudProjects();
     }
 
     @Override
     public void update(AnActionEvent event) {
       Presentation presentation = event.getPresentation();
-      presentation.setIcon(AllIcons.General.Settings);
+      presentation.setIcon(GoogleCloudToolsIcons.REFRESH);
+      presentation.setText("Refresh cloud projects");
     }
   }
 }

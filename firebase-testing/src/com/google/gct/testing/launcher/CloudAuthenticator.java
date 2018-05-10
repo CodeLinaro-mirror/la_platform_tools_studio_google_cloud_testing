@@ -20,6 +20,7 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.repackaged.com.google.common.annotations.VisibleForTesting;
+import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.testing.Testing;
 import com.google.api.services.testing.model.AndroidDeviceCatalog;
@@ -38,6 +39,7 @@ public class CloudAuthenticator {
   private HttpTransport myHttpTransport;
   private Credential myCredential;
   private Storage myStorage;
+  private CloudResourceManager myCloudResourceManager;
   private Testing myTest;
   private Toolresults myToolresults;
   private long myLastDiscoveryServiceInvocationTimestamp = -1;
@@ -84,6 +86,16 @@ public class CloudAuthenticator {
     myToolresults =
       new Toolresults.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
         .setRootUrl(toolResultsBackendUrl).build();
+  }
+
+  public CloudResourceManager getCloudResourceManager() {
+    prepareCredential();
+    if (myCloudResourceManager == null) {
+      myCloudResourceManager =
+        new CloudResourceManager.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential)
+          .setApplicationName(APPLICATION_NAME).build();
+    }
+    return myCloudResourceManager;
   }
 
   public Testing getTest() {
