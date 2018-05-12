@@ -53,7 +53,6 @@ iml_module(
         "//tools/idea/.idea/libraries:swingx",
         "//tools/idea/java/execution/openapi:intellij.java.execution[module]",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
-        "//tools/analytics-library/protos:analytics-protos[module]",
         "//tools/idea:intellij.platform.jps.build_and_others[module, test]",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
         "//tools/idea/.idea/libraries:mockito[test]",
@@ -62,5 +61,7 @@ iml_module(
         "//tools/idea/.idea/libraries:Log4J",
         "//tools/adt/idea/artwork:intellij.android.artwork[module]",
         "//tools/adt/idea/adt-testutils[module, test]",
+        "//tools/idea/.idea/libraries:studio-analytics-proto",
+        "//tools/idea/.idea/libraries:protobuf",
     ],
 )
