@@ -54,7 +54,6 @@
     <orderEntry type="library" name="swingx" level="project" />
     <orderEntry type="module" module-name="intellij.java.execution" />
     <orderEntry type="module" module-name="analytics-tracker" />
-    <orderEntry type="module" module-name="analytics-protos" />
     <orderEntry type="module" module-name="intellij.java.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.testFramework" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="mockito" level="project" />
@@ -63,5 +62,7 @@
     <orderEntry type="library" name="Log4J" level="project" />
     <orderEntry type="module" module-name="intellij.android.artwork" />
     <orderEntry type="module" module-name="adt-testutils" scope="TEST" />
+    <orderEntry type="library" name="studio-analytics-proto" level="project" />
+    <orderEntry type="library" name="protobuf" level="project" />
   </component>
 </module>

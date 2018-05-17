@@ -37,9 +37,10 @@ iml_module(
         "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",
         "//tools/studio/google/cloud/testing/test-recorder/lib:swt",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
-        "//tools/analytics-library/protos:analytics-protos[module]",
         "//tools/idea/platform/testFramework:intellij.platform.testFramework[module, test]",
         "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
         "//tools/adt/idea/project-system[module]",
+        "//tools/idea/.idea/libraries:protobuf",
+        "//tools/idea/.idea/libraries:studio-analytics-proto",
     ],
 )
