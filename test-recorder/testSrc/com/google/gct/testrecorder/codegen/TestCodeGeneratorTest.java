@@ -35,12 +35,20 @@ import static com.google.gct.testrecorder.util.ActionsCreator.createActions;
 
 public class TestCodeGeneratorTest extends AndroidTestCase {
 
-  public void testJavaCodeGeneration() throws Exception {
+  public void testJavaCodeGeneration() {
+    performJavaCodeGenerationTest(false);
+  }
+
+  public void testJavaAndroidxCodeGeneration() {
+    performJavaCodeGenerationTest(true);
+  }
+
+  public void performJavaCodeGenerationTest(boolean isAndroidx) {
     PsiClass testClass = createTestClass(false);
 
     TestCodeGenerator testCodeGenerator =
       new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createActions(System.currentTimeMillis()),
-                            "p1.p2.MyActivity", false, false);
+                            "p1.p2.MyActivity", false, false, isAndroidx);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
@@ -55,16 +63,24 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
       new ReformatCodeProcessor(project, testClass.getContainingFile(), null, false).run();
 
       String actualTestClassContent = FileDocumentManager.getInstance().getDocument(testVirtualFile).getText();
-      assertEquals(getExpectedTestClassContent(false), actualTestClassContent);
+      assertEquals(getExpectedTestClassContent(false, isAndroidx), actualTestClassContent);
     });
   }
 
-  public void testKotlinCodeGeneration() throws Exception {
+  public void testKotlinCodeGeneration() {
+    performKotlinCodeGenerationTest(false);
+  }
+
+  public void testKotlinAndroidxCodeGeneration() {
+    performKotlinCodeGenerationTest(true);
+  }
+
+  public void performKotlinCodeGenerationTest(boolean isAndroidx) {
     PsiClass testClass = createTestClass(true);
 
     TestCodeGenerator testCodeGenerator =
       new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createActions(System.currentTimeMillis()),
-                            "p1.p2.MyActivity", false, true);
+                            "p1.p2.MyActivity", false, true, isAndroidx);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
@@ -78,7 +94,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
       // Do not apply import optimizer and code reformatter as they do not handle Kotlin code in test mode.
 
       String actualTestClassContent = FileDocumentManager.getInstance().getDocument(testVirtualFile).getText();
-      assertEquals(getExpectedTestClassContent(true).replaceAll("\\s", ""), actualTestClassContent.replaceAll("\\s", ""));
+      assertEquals(getExpectedTestClassContent(true, isAndroidx).replaceAll("\\s", ""), actualTestClassContent.replaceAll("\\s", ""));
     });
   }
 
@@ -109,8 +125,10 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     return testClass;
   }
 
-  private String getExpectedTestClassContent(boolean isKotlinTestClass) {
-    String expectedFileName = isKotlinTestClass ? "ExpectedKotlinTestClass.txt" : "ExpectedJavaTestClass.txt";
+  private String getExpectedTestClassContent(boolean isKotlinTestClass, boolean isAndroidx) {
+    String expectedFileName = isKotlinTestClass
+                              ? isAndroidx ? "ExpectedKotlinAndroidxTestClass.txt" : "ExpectedKotlinTestClass.txt"
+                              : isAndroidx ? "ExpectedJavaAndroidxTestClass.txt" : "ExpectedJavaTestClass.txt";
     File expectedTestClass = ResourceHelper.getFileForResource(this, expectedFileName, "expected_test_class_", "txt");
     try {
       return FileUtils.readFileToString(expectedTestClass).replace("\r", ""); // Fix Windows line terminators

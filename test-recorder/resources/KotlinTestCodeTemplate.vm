@@ -3,30 +3,30 @@ package ${PackageName}
 
 #end
 
-import android.support.test.espresso.DataInteraction
-import android.support.test.espresso.ViewInteraction
-import android.support.test.filters.LargeTest
-import android.support.test.rule.ActivityTestRule
+import ${EspressoPackageNamePrefix}.test.espresso.DataInteraction
+import ${EspressoPackageNamePrefix}.test.espresso.ViewInteraction
+import ${EspressoPackageNamePrefix}.test.filters.LargeTest
+import ${EspressoPackageNamePrefix}.test.rule.ActivityTestRule
 #if (${HasRequestedPermissions})
-import android.support.test.rule.GrantPermissionRule
+import ${EspressoPackageNamePrefix}.test.rule.GrantPermissionRule
 #end
-import android.support.test.runner.AndroidJUnit4
+import ${EspressoPackageNamePrefix}.test.runner.AndroidJUnit4
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewParent
 
-import android.support.test.InstrumentationRegistry.getInstrumentation
-import android.support.test.espresso.Espresso.onData
-import android.support.test.espresso.Espresso.onView
-import android.support.test.espresso.Espresso.pressBack
-import android.support.test.espresso.Espresso.openActionBarOverflowOrOptionsMenu
+import ${EspressoPackageNamePrefix}.test.InstrumentationRegistry.getInstrumentation
+import ${EspressoPackageNamePrefix}.test.espresso.Espresso.onData
+import ${EspressoPackageNamePrefix}.test.espresso.Espresso.onView
+import ${EspressoPackageNamePrefix}.test.espresso.Espresso.pressBack
+import ${EspressoPackageNamePrefix}.test.espresso.Espresso.openActionBarOverflowOrOptionsMenu
 #if (${AddContribImport})
-import android.support.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition
-import android.support.v7.widget.RecyclerView.ViewHolder
+import ${EspressoPackageNamePrefix}.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition
+import ${RecyclerViewPackageNamePrefix}.RecyclerView.ViewHolder
 #end
-import android.support.test.espresso.action.ViewActions.*
-import android.support.test.espresso.assertion.ViewAssertions.*
-import android.support.test.espresso.matcher.ViewMatchers.*
+import ${EspressoPackageNamePrefix}.test.espresso.action.ViewActions.*
+import ${EspressoPackageNamePrefix}.test.espresso.assertion.ViewAssertions.*
+import ${EspressoPackageNamePrefix}.test.espresso.matcher.ViewMatchers.*
 
 import ${ResourcePackageName}.R
 

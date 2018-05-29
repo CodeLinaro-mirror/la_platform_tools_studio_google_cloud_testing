@@ -21,7 +21,6 @@ import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.build.GradleBuildState;
 import com.android.tools.idea.gradle.project.sync.GradleSyncState;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
@@ -92,10 +91,12 @@ public class TestCodeGenerator {
   private final String myLaunchedActivityName;
   private final boolean myWasEverPaused;
   private final boolean myIsKotlinTestClass;
+  private final boolean myUsesAndroidxDependency;
 
 
   public TestCodeGenerator(String resourcePackageName, String applicationId, Module testClassModule, PsiClass testClass,
-                           List<ElementAction> actions, String launchedActivityName, boolean wasEverPaused, boolean isKotlinTestClass) {
+                           List<ElementAction> actions, String launchedActivityName, boolean wasEverPaused, boolean isKotlinTestClass,
+                           boolean usesAndroidxDependency) {
     myResourcePackageName = resourcePackageName;
     myApplicationId = applicationId;
     myTestClass = testClass;
@@ -105,6 +106,7 @@ public class TestCodeGenerator {
     myLaunchedActivityName = launchedActivityName;
     myWasEverPaused = wasEverPaused;
     myIsKotlinTestClass = isKotlinTestClass;
+    myUsesAndroidxDependency = usesAndroidxDependency;
   }
 
   public void generate() {
@@ -250,6 +252,8 @@ public class TestCodeGenerator {
     velocityContext.put("PackageName", computePackageName(myTestClassModule, testCodeVirtualFile));
     velocityContext.put("WasEverPaused", myWasEverPaused);
     velocityContext.put("ResourcePackageName", myResourcePackageName);
+    velocityContext.put("EspressoPackageNamePrefix", myUsesAndroidxDependency ? "androidx" : "android.support");
+    velocityContext.put("RecyclerViewPackageNamePrefix", myUsesAndroidxDependency ? "androidx.recyclerview.widget" : "android.support.v7.widget");
 
     // Generate test code.
     TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myProject, getAndroidTargetData(), myIsKotlinTestClass);
