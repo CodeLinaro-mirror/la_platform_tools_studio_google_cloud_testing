@@ -158,7 +158,7 @@ public class CloudTestingUtils {
                                     + ">Report this issue</a> (please copy/paste the text below into the form)<br><br>"
                                     + getDetailedErrorMessage(errorMessage.substring(newLineIndex + 1)) + "</html>"
                                   : "No details...";
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                    .setCategory(AndroidStudioEvent.EventCategory.CLOUD_TESTING)
                                    .setKind(AndroidStudioEvent.EventKind.CLOUD_TESTING_BACKEND_ERROR)
                                    .setCloudTestingErrorMessage(userErrorMessage));

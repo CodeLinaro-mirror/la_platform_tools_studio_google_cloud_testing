@@ -114,13 +114,13 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
     if (configurationKind == CloudConfiguration.Kind.SINGLE_DEVICE) {
       setTitle("Single Device Configurations");
 
-      UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+      UsageTracker.log(AndroidStudioEvent.newBuilder()
                                      .setCategory(EventCategory.CLOUD_TESTING)
                                      .setKind(EventKind.CLOUD_TESTING_CONFIGURE_CLOUD_DEVICE));
 
     } else {
       setTitle("Matrix Configurations");
-      UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+      UsageTracker.log(AndroidStudioEvent.newBuilder()
                                        .setCategory(EventCategory.CLOUD_TESTING)
                                        .setKind(EventKind.CLOUD_TESTING_CONFIGURE_MATRIX));
     }

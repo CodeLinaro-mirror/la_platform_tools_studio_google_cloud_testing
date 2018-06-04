@@ -130,7 +130,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     List<VirtualFile> existingAndroidTestSourceRoots = getExistingAndroidTestSourceRoots();
 
     if (existingAndroidTestSourceRoots.isEmpty()) {
-      UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+      UsageTracker.log(AndroidStudioEvent.newBuilder()
                                        .setCategory(EventCategory.TEST_RECORDER)
                                        .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER));
 

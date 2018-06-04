@@ -91,7 +91,7 @@ public class DebugConfigurationAction extends AnAction {
 
     assert !isRootNode(selectedNode); // The action should have been disabled for the root node.
 
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                      .setCategory(EventCategory.CLOUD_TESTING)
                                      .setKind(EventKind.CLOUD_TESTING_DEBUG_FROM_RESULTS));
 

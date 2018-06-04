@@ -299,7 +299,7 @@ public class TestCodeGenerator {
     velocityContext.put("AddChildAtPositionMethod", codeMapper.isChildAtPositionAdded());
     velocityContext.put("TestCode", testCodeLines);
 
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                    .setCategory(EventCategory.TEST_RECORDER)
                                    .setKind(EventKind.TEST_RECORDER_GENERATE_TEST_CLASS)
                                    .setTestRecorderDetails(TestRecorderDetails.newBuilder()

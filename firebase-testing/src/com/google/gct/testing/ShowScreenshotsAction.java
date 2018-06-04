@@ -60,7 +60,7 @@ public class ShowScreenshotsAction extends AnAction {
 
   @Override
   public void actionPerformed(final AnActionEvent e) {
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                      .setCategory(EventCategory.CLOUD_TESTING)
                                      .setKind(EventKind.CLOUD_TESTING_COMPARE_SCREENSHOTS_OPENED));
 

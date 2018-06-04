@@ -84,7 +84,7 @@ public class TestRecorderAction extends AnAction {
 
   @Override
   public void actionPerformed(AnActionEvent event) {
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                    .setCategory(EventCategory.TEST_RECORDER)
                                    .setKind(EventKind.TEST_RECORDER_LAUNCH));
 

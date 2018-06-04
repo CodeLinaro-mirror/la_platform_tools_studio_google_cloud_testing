@@ -156,7 +156,7 @@ public class ScreenshotComparisonDialog {
     updateScreenshotName();
     builder.show();
 
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                      .setCategory(EventCategory.CLOUD_TESTING)
                                      .setKind(EventKind.CLOUD_TESTING_COMPARE_SCREENSHOTS_OPENED)
                                      .setCloudTestingLoadedScreenshotsCount(loadedScreenshotsCount));

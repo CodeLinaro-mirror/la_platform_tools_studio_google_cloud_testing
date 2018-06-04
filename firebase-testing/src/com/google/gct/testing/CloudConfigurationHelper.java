@@ -313,7 +313,7 @@ public final class CloudConfigurationHelper {
   }
 
   public static void launchCloudDevice(int selectedConfigurationId, @NotNull String cloudProjectId, @NotNull AndroidFacet facet) {
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                      .setCategory(EventCategory.CLOUD_TESTING)
                                      .setKind(EventKind.CLOUD_TESTING_LAUNCH_CLOUD_DEVICE));
 
@@ -536,7 +536,7 @@ public final class CloudConfigurationHelper {
 
   public static ExecutionResult executeCloudMatrixTests(
     int selectedConfigurationId, String cloudProjectId, CloudMatrixTestRunningState runningState, Executor executor) {
-    UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(AndroidStudioEvent.newBuilder()
                                      .setCategory(EventCategory.CLOUD_TESTING)
                                      .setKind(EventKind.CLOUD_TESTING_RUN_TEST_MATRIX));
 

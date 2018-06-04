@@ -493,7 +493,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         // TODO: Provide an appropriate error message or some alternative way to update instrumentation runner when the Gradle experimental
         // plugin is used.
         if (androidModel != null && !hasAllRequiredEspressoDependencies(androidModel, androidModuleModel)) {
-          UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+          UsageTracker.log(AndroidStudioEvent.newBuilder()
                                            .setCategory(EventCategory.TEST_RECORDER)
                                            .setKind(EventKind.TEST_RECORDER_MISSING_ESPRESSO_DEPENDENCIES));
 
@@ -531,7 +531,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
 
       if (fileSaverDialog.isOK()) {
-        UsageTracker.getInstance().log(AndroidStudioEvent.newBuilder()
+        UsageTracker.log(AndroidStudioEvent.newBuilder()
                                          .setCategory(EventCategory.TEST_RECORDER)
                                          .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT));
         super.doOKAction();
