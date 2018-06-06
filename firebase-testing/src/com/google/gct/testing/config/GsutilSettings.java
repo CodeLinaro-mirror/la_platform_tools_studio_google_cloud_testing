@@ -22,10 +22,7 @@ import org.jetbrains.plugins.groovy.util.SdkHomeSettings;
 
 @State(
     name = "GsutilSettings",
-    storages = {
-      @Storage(file = StoragePathMacros.PROJECT_FILE),
-      @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/gsutil_config.xml", scheme = StorageScheme.DIRECTORY_BASED)
-    }
+    storages = @Storage("gsutil_config.xml")
 )
 public class GsutilSettings extends SdkHomeSettings {
   public GsutilSettings(Project project) {

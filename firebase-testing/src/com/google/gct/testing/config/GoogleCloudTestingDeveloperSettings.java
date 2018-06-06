@@ -23,10 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 @State(
     name = "GoogleCloudTestingDeveloperSettings",
-    storages = {
-      @Storage(file = StoragePathMacros.PROJECT_FILE),
-      @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/gct_developer_settings.xml", scheme = StorageScheme.DIRECTORY_BASED)
-    }
+    storages = @Storage("gct_developer_settings.xml")
 )
 public class GoogleCloudTestingDeveloperSettings implements PersistentStateComponent<GoogleCloudTestingDeveloperConfigurable.GoogleCloudTestingDeveloperState> {
 
