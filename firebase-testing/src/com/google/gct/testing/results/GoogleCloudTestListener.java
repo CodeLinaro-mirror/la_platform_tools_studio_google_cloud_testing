@@ -156,16 +156,14 @@ public class GoogleCloudTestListener implements IGoogleCloudTestRunListener {
   //}
 
   @Override
-  public void testFailed(TestFailure status, GoogleCloudTestIdentifier test, String stackTrace) {
+  public void testFailed(GoogleCloudTestIdentifier test, String stackTrace) {
     ServiceMessageBuilder builder = new ServiceMessageBuilder("testFailed");
     builder.addAttribute("configuration", test.getConfiguration());
     builder.addAttribute("className", test.getClassName());
     builder.addAttribute("name", test.getTestName());
     builder.addAttribute("message", "");
     builder.addAttribute("details", stackTrace);
-    if (status == TestFailure.ERROR) {
-      builder.addAttribute("error", "true");
-    }
+    builder.addAttribute("error", "true");
     getProcessHandler().notifyTextAvailable(builder.toString() + '\n', ProcessOutputTypes.STDOUT);
   }
 

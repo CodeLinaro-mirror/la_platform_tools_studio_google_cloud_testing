@@ -15,6 +15,7 @@
  */
 package com.google.gct.testing.results;
 
+import com.android.annotations.NonNull;
 import com.android.ddmlib.Log;
 import com.android.ddmlib.MultiLineReceiver;
 
@@ -234,7 +235,7 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
    * @see com.android.ddmlib.MultiLineReceiver#processNewLines
    */
   @Override
-  public void processNewLines(String[] lines) {
+  public void processNewLines(@NonNull String[] lines) {
     for (String line : lines) {
       parse(line);
       // in verbose mode, dump all adb output to log
@@ -449,14 +450,9 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
         testRunListener.testStarted(testId);
         break;
       case StatusCodes.FAILURE:
-        metrics = getAndResetTestMetrics();
-        testRunListener.testFailed(IGoogleCloudTestRunListener.TestFailure.FAILURE, testId, getTrace(testInfo));
-        testRunListener.testEnded(testId, metrics);
-        mNumTestsRun++;
-        break;
       case StatusCodes.ERROR:
         metrics = getAndResetTestMetrics();
-        testRunListener.testFailed(IGoogleCloudTestRunListener.TestFailure.ERROR, testId, getTrace(testInfo));
+        testRunListener.testFailed(testId, getTrace(testInfo));
         testRunListener.testEnded(testId, metrics);
         mNumTestsRun++;
         break;
@@ -537,9 +533,8 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
       // assume test caused this, report as test failure
       GoogleCloudTestIdentifier testId = new GoogleCloudTestIdentifier(mLastTestResult.mConfiguration, mLastTestResult.mTestClass,
                                                  mLastTestResult.mTestName);
-      testRunListener.testFailed(IGoogleCloudTestRunListener.TestFailure.ERROR, testId,
-                            String.format("%1$s. Reason: '%2$s'. %3$s", INCOMPLETE_TEST_ERR_MSG_PREFIX,
-                                          errorMsg, INCOMPLETE_TEST_ERR_MSG_POSTFIX));
+      testRunListener.testFailed(testId, String.format("%1$s. Reason: '%2$s'. %3$s", INCOMPLETE_TEST_ERR_MSG_PREFIX,
+                                                       errorMsg, INCOMPLETE_TEST_ERR_MSG_POSTFIX));
       testRunListener.testEnded(testId, getAndResetTestMetrics());
     }
     if (!mTestStartReported) {

@@ -36,17 +36,6 @@ import static com.google.gct.testing.CloudTestingUtils.ConfigurationStopReason;
  * </ul>
  */
 public interface IGoogleCloudTestRunListener {
-
-  /**
-   *  Types of test failures.
-   */
-  enum TestFailure {
-    /** Test failed due to unanticipated uncaught exception. */
-    ERROR,
-    /** Test failed due to a false assertion. */
-    FAILURE
-  }
-
   /**
    * Reports the start of a test run.
    *
@@ -71,7 +60,7 @@ public interface IGoogleCloudTestRunListener {
    * @param test identifies the test
    * @param trace stack trace of failure
    */
-  public void testFailed(TestFailure status, GoogleCloudTestIdentifier test, String trace);
+  public void testFailed(GoogleCloudTestIdentifier test, String trace);
 
   /**
    * Reports the execution end of an individual test case.
