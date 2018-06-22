@@ -148,7 +148,9 @@ public class CloudResultsAdapter {
     String configurationName = "\nINSTRUMENTATION_STATUS: configuration="
                                + result.getConfigurationInstance().getResultsViewerDisplayString() + "\r\n";
     String classNamePrefix = "INSTRUMENTATION_STATUS: class=";
-    return resultString.replaceAll("\\n" + classNamePrefix, configurationName + classNamePrefix).getBytes();
+    // Prepend and then remove the leading new line in case classNamePrefix is the first line in the resultString.
+    return ("\n" + resultString).replaceAll("\\n" + classNamePrefix, configurationName + classNamePrefix)
+                                .substring(1).getBytes();
   }
 
   class PollingTicker implements Runnable {
