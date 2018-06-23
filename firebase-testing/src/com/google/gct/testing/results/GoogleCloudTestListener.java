@@ -168,6 +168,26 @@ public class GoogleCloudTestListener implements IGoogleCloudTestRunListener {
   }
 
   @Override
+  public void testAssumptionFailure(GoogleCloudTestIdentifier test, String stackTrace) {
+    ServiceMessageBuilder builder = new ServiceMessageBuilder("testIgnored");
+    builder.addAttribute("configuration", test.getConfiguration());
+    builder.addAttribute("className", test.getClassName());
+    builder.addAttribute("name", test.getTestName());
+    builder.addAttribute("message", "Test ignored. Assumption Failed:");
+    builder.addAttribute("details", stackTrace);
+    getProcessHandler().notifyTextAvailable(builder.toString() + '\n', ProcessOutputTypes.STDOUT);
+  }
+
+  @Override
+  public void testIgnored(GoogleCloudTestIdentifier test) {
+    ServiceMessageBuilder builder = new ServiceMessageBuilder("testIgnored");
+    builder.addAttribute("configuration", test.getConfiguration());
+    builder.addAttribute("className", test.getClassName());
+    builder.addAttribute("name", test.getTestName());
+    getProcessHandler().notifyTextAvailable(builder.toString() + '\n', ProcessOutputTypes.STDOUT);
+  }
+
+  @Override
   public void testEnded(GoogleCloudTestIdentifier test, Map<String, String> testMetrics) {
     ServiceMessageBuilder builder = new ServiceMessageBuilder("testFinished");
     builder.addAttribute("configuration", test.getConfiguration());

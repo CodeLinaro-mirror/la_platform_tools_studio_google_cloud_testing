@@ -63,6 +63,22 @@ public interface IGoogleCloudTestRunListener {
   public void testFailed(GoogleCloudTestIdentifier test, String trace);
 
   /**
+   * Called when an atomic test flags that it assumes a condition that is false.
+   *
+   * @param test identifies the test
+   * @param trace stack trace of failure
+   */
+  void testAssumptionFailure(GoogleCloudTestIdentifier test, String trace);
+
+  /**
+   * Called when a test will not be run, generally because a test method is annotated
+   * with org.junit.Ignore.
+   *
+   * @param test identifies the test
+   */
+  void testIgnored(GoogleCloudTestIdentifier test);
+
+  /**
    * Reports the execution end of an individual test case.
    * <p/>
    * If {@link #testFailed} was not invoked, this test passed.  Also returns any key/value

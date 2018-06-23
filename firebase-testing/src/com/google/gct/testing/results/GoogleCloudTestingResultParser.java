@@ -93,11 +93,15 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
 
   /** Test result status codes. */
   private static class StatusCodes {
-    private static final int FAILURE = -2;
     private static final int START = 1;
+    private static final int IN_PROGRESS = 2;
+
+    // codes used for test completed
+    private static final int ASSUMPTION_FAILURE = -4;
+    private static final int IGNORED = -3;
+    private static final int FAILURE = -2;
     private static final int ERROR = -1;
     private static final int OK = 0;
-    private static final int IN_PROGRESS = 2;
   }
 
   /** Prefixes used to identify output. */
@@ -453,6 +457,18 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
       case StatusCodes.ERROR:
         metrics = getAndResetTestMetrics();
         testRunListener.testFailed(testId, getTrace(testInfo));
+        testRunListener.testEnded(testId, metrics);
+        mNumTestsRun++;
+        break;
+      case StatusCodes.IGNORED:
+        metrics = getAndResetTestMetrics();
+        testRunListener.testIgnored(testId);
+        testRunListener.testEnded(testId, metrics);
+        mNumTestsRun++;
+        break;
+      case StatusCodes.ASSUMPTION_FAILURE:
+        metrics = getAndResetTestMetrics();
+        testRunListener.testAssumptionFailure(testId, getTrace(testInfo));
         testRunListener.testEnded(testId, metrics);
         mNumTestsRun++;
         break;

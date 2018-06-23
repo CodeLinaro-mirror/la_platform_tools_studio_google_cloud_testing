@@ -288,7 +288,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
 
   @Override
   @Nullable
-  public Location getLocation(final Project project, GlobalSearchScope searchScope) {
+  public Location getLocation(@NotNull final Project project, @NotNull GlobalSearchScope searchScope) {
     //determines location of test proxy
 
     //TODO multiresolve support
@@ -312,7 +312,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
 
   @Override
   @Nullable
-  public Navigatable getDescriptor(final Location location, final TestConsoleProperties testConsoleProperties) {
+  public Navigatable getDescriptor(@Nullable final Location location, @NotNull final TestConsoleProperties testConsoleProperties) {
     // by location gets navigatable element.
     // It can be file or place in file (e.g. when OPEN_FAILURE_LINE is enabled)
     if (location == null) return null;
@@ -339,7 +339,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
 
   @Override
   public List<? extends GoogleCloudTestProxy> getChildren() {
-    return myChildren != null ? myChildren : Collections.<GoogleCloudTestProxy>emptyList();
+    return myChildren != null ? myChildren : Collections.emptyList();
   }
 
   @Override
@@ -493,6 +493,8 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
 
   public void setTestIgnored(@Nullable String ignoreComment, @Nullable String stackTrace) {
     setStacktraceIfNotSet(stackTrace);
+    //TODO: In future, we might not want to show the name of the enclosing configuration unless the root node is selected.
+    ignoreComment = getParent().getParent().getName() + "\n\t" + ignoreComment;
     myState = new TestIgnoredState(ignoreComment, stackTrace);
     fireOnNewPrintable(myState);
   }
@@ -539,7 +541,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
     }
 
     if ((selectedChildren.isEmpty())) {
-      return Collections.<GoogleCloudTestProxy>emptyList();
+      return Collections.emptyList();
     }
     return selectedChildren;
   }
