@@ -46,6 +46,9 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
     } catch (Exception e) {
       LOGGER.error(e);
     }
+
+    // Set before run tasks explicitly as they are not written out externally.
+    this.setBeforeRunTasks(baseConfiguration.getBeforeRunTasks());
   }
 
   @Override
