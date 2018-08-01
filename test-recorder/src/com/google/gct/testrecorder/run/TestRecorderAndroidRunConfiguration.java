@@ -69,6 +69,8 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
   }
 
   private static class TestRecorderLaunchTask implements LaunchTask {
+    private static final String ID = "TEST_RECORDER";
+
     private final LaunchTask myDefaultLaunchTask;
     private final AndroidFacet myFacet;
 
@@ -103,6 +105,12 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
       }
 
       return myDefaultLaunchTask.perform(device, launchStatus, printer);
+    }
+
+    @NotNull
+    @Override
+    public String getId() {
+      return ID;
     }
   }
 }
