@@ -20,6 +20,7 @@ import com.android.ddmlib.IDevice;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.run.TargetSelectionMode;
 import com.android.tools.idea.run.editor.DeployTargetProvider;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.gct.testing.android.CloudDebuggingTargetProvider;
 import com.google.gct.testing.results.GoogleCloudTestProxy.GoogleCloudRootTestProxy;
@@ -91,9 +92,11 @@ public class DebugConfigurationAction extends AnAction {
 
     assert !isRootNode(selectedNode); // The action should have been disabled for the root node.
 
-    UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                     .setCategory(EventCategory.CLOUD_TESTING)
-                                     .setKind(EventKind.CLOUD_TESTING_DEBUG_FROM_RESULTS));
+    UsageTracker.log(UsageTrackerUtils.withProjectId(
+      AndroidStudioEvent.newBuilder()
+        .setCategory(EventCategory.CLOUD_TESTING)
+        .setKind(EventKind.CLOUD_TESTING_DEBUG_FROM_RESULTS),
+      project));
 
 
     String configurationName;

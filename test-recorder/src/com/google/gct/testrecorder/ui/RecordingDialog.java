@@ -33,6 +33,7 @@ import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.ApkProviderUtil;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.android.tools.idea.templates.RepositoryUrlManager;
 import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
@@ -493,9 +494,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         // TODO: Provide an appropriate error message or some alternative way to update instrumentation runner when the Gradle experimental
         // plugin is used.
         if (androidModel != null && !hasAllRequiredEspressoDependencies(androidModel, androidModuleModel)) {
-          UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                           .setCategory(EventCategory.TEST_RECORDER)
-                                           .setKind(EventKind.TEST_RECORDER_MISSING_ESPRESSO_DEPENDENCIES));
+          UsageTracker.log(UsageTrackerUtils.withProjectId(
+            AndroidStudioEvent.newBuilder()
+             .setCategory(EventCategory.TEST_RECORDER)
+             .setKind(EventKind.TEST_RECORDER_MISSING_ESPRESSO_DEPENDENCIES),
+            myProject));
 
           if (Messages.showDialog(myProject,
                                   "Some dependencies for running Espresso tests are missing or obsolete.\n" +
@@ -531,9 +534,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
 
       if (fileSaverDialog.isOK()) {
-        UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                         .setCategory(EventCategory.TEST_RECORDER)
-                                         .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT));
+        UsageTracker.log(UsageTrackerUtils.withProjectId(
+          AndroidStudioEvent.newBuilder()
+           .setCategory(EventCategory.TEST_RECORDER)
+           .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT),
+          myProject));
         super.doOKAction();
       }
     }

@@ -18,6 +18,7 @@ package com.google.gct.testrecorder.ui;
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.run.AndroidSessionInfo;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.debugger.SessionInitializer;
 import com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxy;
@@ -84,14 +85,16 @@ public class TestRecorderAction extends AnAction {
 
   @Override
   public void actionPerformed(AnActionEvent event) {
-    UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                   .setCategory(EventCategory.TEST_RECORDER)
-                                   .setKind(EventKind.TEST_RECORDER_LAUNCH));
 
     final Project project = event.getProject();
     if (project == null || project.isDisposed()) {
       return;
     }
+    UsageTracker.log(UsageTrackerUtils.withProjectId(
+      AndroidStudioEvent.newBuilder()
+       .setCategory(EventCategory.TEST_RECORDER)
+       .setKind(EventKind.TEST_RECORDER_LAUNCH),
+      project));
 
     launchTestRecorder(project, isRecordingTestAction(event.getPresentation()));
   }

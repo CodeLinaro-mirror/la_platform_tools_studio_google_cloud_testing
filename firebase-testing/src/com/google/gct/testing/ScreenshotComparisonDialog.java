@@ -16,6 +16,7 @@
 package com.google.gct.testing;
 
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
@@ -156,10 +157,12 @@ public class ScreenshotComparisonDialog {
     updateScreenshotName();
     builder.show();
 
-    UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                     .setCategory(EventCategory.CLOUD_TESTING)
-                                     .setKind(EventKind.CLOUD_TESTING_COMPARE_SCREENSHOTS_OPENED)
-                                     .setCloudTestingLoadedScreenshotsCount(loadedScreenshotsCount));
+    UsageTracker.log(UsageTrackerUtils.withProjectId(
+      AndroidStudioEvent.newBuilder()
+       .setCategory(EventCategory.CLOUD_TESTING)
+       .setKind(EventKind.CLOUD_TESTING_COMPARE_SCREENSHOTS_OPENED)
+       .setCloudTestingLoadedScreenshotsCount(loadedScreenshotsCount),
+      myProject));
   }
 
   public Window getWindow() {

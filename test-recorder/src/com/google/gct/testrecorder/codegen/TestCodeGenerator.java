@@ -20,6 +20,7 @@ import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.build.GradleBuildState;
 import com.android.tools.idea.gradle.project.sync.GradleSyncState;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.collect.Collections2;
 import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
@@ -299,12 +300,13 @@ public class TestCodeGenerator {
     velocityContext.put("AddChildAtPositionMethod", codeMapper.isChildAtPositionAdded());
     velocityContext.put("TestCode", testCodeLines);
 
-    UsageTracker.log(AndroidStudioEvent.newBuilder()
+    UsageTracker.log(UsageTrackerUtils.withProjectId(
+                     AndroidStudioEvent.newBuilder()
                                    .setCategory(EventCategory.TEST_RECORDER)
                                    .setKind(EventKind.TEST_RECORDER_GENERATE_TEST_CLASS)
                                    .setTestRecorderDetails(TestRecorderDetails.newBuilder()
                                                            .setAssertionCount(assertionCount)
-                                                           .setEventCount(eventCount)));
+                                                           .setEventCount(eventCount)), myProject));
     return velocityContext;
   }
 

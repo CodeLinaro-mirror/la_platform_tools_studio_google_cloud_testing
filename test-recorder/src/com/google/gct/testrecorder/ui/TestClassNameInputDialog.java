@@ -19,6 +19,7 @@ import com.android.SdkConstants;
 import com.android.builder.model.SourceProvider;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.android.tools.idea.testartifacts.scopes.TestArtifactSearchScopes;
 import com.google.common.collect.Lists;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
@@ -130,9 +131,11 @@ public class TestClassNameInputDialog extends DialogWrapper {
     List<VirtualFile> existingAndroidTestSourceRoots = getExistingAndroidTestSourceRoots();
 
     if (existingAndroidTestSourceRoots.isEmpty()) {
-      UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                       .setCategory(EventCategory.TEST_RECORDER)
-                                       .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER));
+      UsageTracker.log(UsageTrackerUtils.withProjectId(
+                       AndroidStudioEvent.newBuilder()
+          .setCategory(EventCategory.TEST_RECORDER)
+          .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER),
+       myProject));
 
       VirtualFile moduleRoot = findFileByIoFile(new File(myTestClassModule.getModuleFilePath()).getParentFile(), true);
       if (moduleRoot == null) {

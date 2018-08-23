@@ -17,6 +17,7 @@ package com.google.gct.testing;
 
 import com.android.annotations.Nullable;
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -114,15 +115,19 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
     if (configurationKind == CloudConfiguration.Kind.SINGLE_DEVICE) {
       setTitle("Single Device Configurations");
 
-      UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                     .setCategory(EventCategory.CLOUD_TESTING)
-                                     .setKind(EventKind.CLOUD_TESTING_CONFIGURE_CLOUD_DEVICE));
+      UsageTracker.log(UsageTrackerUtils.withProjectId(
+        AndroidStudioEvent.newBuilder()
+         .setCategory(EventCategory.CLOUD_TESTING)
+         .setKind(EventKind.CLOUD_TESTING_CONFIGURE_CLOUD_DEVICE),
+        module.getProject()));
 
     } else {
       setTitle("Matrix Configurations");
-      UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                       .setCategory(EventCategory.CLOUD_TESTING)
-                                       .setKind(EventKind.CLOUD_TESTING_CONFIGURE_MATRIX));
+      UsageTracker.log(UsageTrackerUtils.withProjectId(
+        AndroidStudioEvent.newBuilder()
+         .setCategory(EventCategory.CLOUD_TESTING)
+         .setKind(EventKind.CLOUD_TESTING_CONFIGURE_MATRIX),
+        module.getProject()));
     }
 
     getOKAction().setEnabled(true);
