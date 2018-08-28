@@ -40,7 +40,7 @@ iml_module(
         "//tools/analytics-library/tracker:analytics-tracker[module]",
         "//tools/idea/platform/testFramework:intellij.platform.testFramework[module, test]",
         "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
-        "//tools/adt/idea/project-system[module]",
+        "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
         "//tools/idea/.idea/libraries:protobuf",
         "//tools/idea/.idea/libraries:studio-analytics-proto",
         "//tools/adt/idea/deploy:intellij.android.deploy[module]",
