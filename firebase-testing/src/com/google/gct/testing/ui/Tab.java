@@ -98,7 +98,7 @@ public class Tab extends GradientJPanel {
     // Add close label
     if (closeable) {
       JLabel closeLabel = new JLabel(closeIcon);
-      JLabel dropMenuLabel = new JLabel(AllIcons.Actions.Down);
+      JLabel dropMenuLabel = new JLabel(AllIcons.General.ArrowDown);
       dropMenuLabel.addMouseListener(new MouseAdapter() {
         @Override
         public void mousePressed(MouseEvent e) {
