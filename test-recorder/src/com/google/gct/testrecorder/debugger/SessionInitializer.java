@@ -15,6 +15,18 @@
  */
 package com.google.gct.testrecorder.debugger;
 
+import static com.google.gct.testrecorder.event.TestRecorderEvent.DELAYED_MESSAGE_POST;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.LAZY_CLASSES_LOADER;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.LIST_ITEM_CLICK;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.PERMISSIONS_REQUEST;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.PRESS_BACK;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.PRESS_EDITOR_ACTION;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.TEXT_CHANGE;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_CLICK;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_LONG_CLICK;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_SWIPE;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.WINDOW_CONTENT_CHANGED;
+
 import com.android.SdkConstants;
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.CollectingOutputReceiver;
@@ -31,7 +43,11 @@ import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.ui.RecordingDialog;
 import com.intellij.debugger.DebuggerManagerEx;
 import com.intellij.debugger.DefaultDebugEnvironment;
-import com.intellij.debugger.engine.*;
+import com.intellij.debugger.engine.DebugProcess;
+import com.intellij.debugger.engine.DebugProcessImpl;
+import com.intellij.debugger.engine.DebugProcessListener;
+import com.intellij.debugger.engine.JavaDebugProcess;
+import com.intellij.debugger.engine.RemoteDebugProcessHandler;
 import com.intellij.debugger.impl.DebuggerManagerListener;
 import com.intellij.debugger.impl.DebuggerSession;
 import com.intellij.execution.DefaultExecutionResult;
@@ -53,19 +69,16 @@ import com.intellij.xdebugger.XDebugProcess;
 import com.intellij.xdebugger.XDebugProcessStarter;
 import com.intellij.xdebugger.XDebugSession;
 import com.intellij.xdebugger.XDebuggerManager;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import javax.swing.SwingUtilities;
 import org.jetbrains.android.dom.manifest.Activity;
 import org.jetbrains.android.dom.manifest.ActivityAlias;
 import org.jetbrains.android.dom.manifest.Application;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import static com.google.gct.testrecorder.event.TestRecorderEvent.*;
 
 public class SessionInitializer implements Runnable {
   private static final Logger LOGGER = Logger.getInstance(SessionInitializer.class);
@@ -187,7 +200,7 @@ public class SessionInitializer implements Runnable {
           }
         });
 
-        scheduleBreakpointCommands();
+        scheduleBreakpointCommands(myDevice.getVersion().getApiLevel());
         if (myRecordingDialog == null) { // The initial debug process, open Test Recorder dialog.
           // Detect the launched activity name outside the dispatch thread to avoid pausing it until dumb mode is over.
           String launchedActivityName = detectLaunchedActivityName();
@@ -351,10 +364,14 @@ public class SessionInitializer implements Runnable {
     processHandler.startNotify();
   }
 
-  private void scheduleBreakpointCommands() {
+  private void scheduleBreakpointCommands(int apiLevel) {
     myBreakpointCommands.clear();
     DebugProcessImpl debugProcess = myDebuggerSession.getProcess();
     for (BreakpointDescriptor breakpointDescriptor : myBreakpointDescriptors) {
+      if (apiLevel >= 28 && breakpointDescriptor.eventType == DELAYED_MESSAGE_POST) {
+        // Skip setting the delayed message breakpoint on Android 28+ as it freezes recording in some scenarios.
+        continue;
+      }
       BreakpointCommand breakpointCommand = new BreakpointCommand(debugProcess, breakpointDescriptor);
       myBreakpointCommands.add(breakpointCommand);
       debugProcess.getManagerThread().schedule(breakpointCommand);
