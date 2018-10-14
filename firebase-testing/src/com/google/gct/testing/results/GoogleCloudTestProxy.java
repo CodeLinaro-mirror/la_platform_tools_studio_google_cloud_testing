@@ -18,7 +18,6 @@ package com.google.gct.testing.results;
 import com.intellij.execution.Location;
 import com.intellij.execution.testframework.*;
 import com.intellij.execution.testframework.sm.SMStacktraceParser;
-import com.intellij.execution.testframework.sm.TestsLocationProviderUtil;
 import com.intellij.execution.testframework.sm.runner.SMTestLocator;
 import com.intellij.execution.testframework.sm.runner.states.*;
 import com.intellij.execution.testframework.stacktrace.DiffHyperlink;
@@ -32,6 +31,7 @@ import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.pom.Navigatable;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.containers.ContainerUtilRt;
+import com.intellij.util.io.URLUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -298,7 +298,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
     }
 
     final String protocolId = VirtualFileManager.extractProtocol(myLocationUrl);
-    final String path = TestsLocationProviderUtil.extractPath(myLocationUrl);
+    final String path = extractPath(myLocationUrl);
 
     if (protocolId != null && path != null) {
       List<Location> locations = myLocator.getLocation(protocolId, path, project, searchScope);
@@ -308,6 +308,11 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
     }
 
     return null;
+  }
+
+  private static String extractPath(@NotNull String locationUrl) {
+    int index = locationUrl.indexOf(URLUtil.SCHEME_SEPARATOR);
+    return index >= 0 ? locationUrl.substring(index + URLUtil.SCHEME_SEPARATOR.length()) : null;
   }
 
   @Override
