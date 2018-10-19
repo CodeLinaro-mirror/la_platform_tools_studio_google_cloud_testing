@@ -20,9 +20,11 @@ import com.android.tools.idea.run.editor.*;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
+import com.intellij.execution.RunManager;
 import com.intellij.execution.configurations.RunProfile;
 import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.executors.DefaultDebugExecutor;
+import com.intellij.execution.impl.ModuleRunConfigurationManager;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
@@ -127,7 +129,7 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
             deviceCount,
             deployTargetProviders,
             deployTargetStates,
-            LaunchCompatibilityCheckerImpl.create(facet)
+            LaunchCompatibilityCheckerImpl.create(facet, null, null)
         );
         if (dialog.showAndGet()) {
           return dialog.getSelectedDeployTarget().getDevices(state, facet, deviceCount, debug, runConfigId);
