@@ -35,6 +35,6 @@ public class GsutilSettings extends SdkHomeSettings {
 
   public static String getGsutilExecutable(Project project) {
     SdkHomeBean state = getInstance(project).getState();
-    return state == null || state.SDK_HOME.isEmpty() ? "" : state.SDK_HOME + "/gsutil";
+    return state == null || state.getSdkHome().isEmpty() ? "" : state.getSdkHome() + "/gsutil";
   }
 }
