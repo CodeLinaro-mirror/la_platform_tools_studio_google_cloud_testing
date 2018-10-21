@@ -15,10 +15,10 @@
  */
 package com.google.gct.testing.results;
 
+import com.google.gct.testing.CloudTestingUtils;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RunProfile;
 import com.intellij.execution.testframework.*;
-import com.intellij.execution.testframework.sm.SMRunnerUtil;
 import com.intellij.execution.testframework.sm.runner.ui.TestsPresentationUtil;
 import com.intellij.execution.testframework.ui.AbstractTestTreeBuilder;
 import com.intellij.execution.testframework.ui.TestResultsPanel;
@@ -477,7 +477,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
       return;
     }
 
-    SMRunnerUtil.runInEventDispatchThread(new Runnable() {
+    CloudTestingUtils.runInEventDispatchThread(new Runnable() {
       @Override
       public void run() {
         if (myTreeBuilder.isDisposed()) {
@@ -557,7 +557,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
       @Override
       public void handlePropagateSelectionRequest(@Nullable final GoogleCloudTestProxy selectedTestProxy, @NotNull final Object sender,
                                                   final boolean requestFocus) {
-        SMRunnerUtil.addToInvokeLater(new Runnable() {
+        CloudTestingUtils.addToInvokeLater(new Runnable() {
           @Override
           public void run() {
             selectWithoutNotify(selectedTestProxy, null);

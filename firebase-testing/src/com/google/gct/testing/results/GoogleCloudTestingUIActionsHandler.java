@@ -15,11 +15,11 @@
  */
 package com.google.gct.testing.results;
 
+import com.google.gct.testing.CloudTestingUtils;
 import com.intellij.execution.testframework.AbstractTestProxy;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.TestFrameworkRunningModel;
 import com.intellij.execution.testframework.actions.ScrollToTestSourceAction;
-import com.intellij.execution.testframework.sm.SMRunnerUtil;
 import com.intellij.execution.testframework.sm.runner.ProxyFilters;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.util.OpenSourceUtil;
@@ -79,7 +79,7 @@ public class GoogleCloudTestingUIActionsHandler extends GoogleCloudTestResultsVi
                          @NotNull final GoogleCloudTestResultsViewer viewer,
                          @NotNull final TestFrameworkRunningModel model) {
     //TODO: tests o "onSelected"
-    SMRunnerUtil.runInEventDispatchThread(new Runnable() {
+    CloudTestingUtils.runInEventDispatchThread(new Runnable() {
       @Override
       public void run() {
         if (ScrollToTestSourceAction.isScrollEnabled(model)) {

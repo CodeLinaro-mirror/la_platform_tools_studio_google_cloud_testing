@@ -15,11 +15,11 @@
  */
 package com.google.gct.testing.results;
 
+import com.google.gct.testing.CloudTestingUtils;
 import com.intellij.execution.filters.HyperlinkInfo;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.testframework.*;
-import com.intellij.execution.testframework.sm.SMRunnerUtil;
 import com.intellij.execution.testframework.sm.runner.ui.AttachToProcessListener;
 import com.intellij.execution.testframework.ui.BaseTestsOutputConsoleView;
 import com.intellij.execution.testframework.ui.TestResultsPanel;
@@ -78,7 +78,7 @@ public class GoogleCloudTestingConsoleView extends BaseTestsOutputConsoleView {
         }
 
         // print selected content
-        SMRunnerUtil.runInEventDispatchThread(new Runnable() {
+        CloudTestingUtils.runInEventDispatchThread(new Runnable() {
           @Override
           public void run() {
             getPrinter().updateOnTestSelected(selectedTestProxy);

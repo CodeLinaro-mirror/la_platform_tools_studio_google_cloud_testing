@@ -24,7 +24,10 @@ import com.intellij.icons.AllIcons;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationListener;
 import com.intellij.notification.NotificationType;
+import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ModalityState;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.MessageType;
 import com.intellij.openapi.ui.Messages;
@@ -67,6 +70,8 @@ public class CloudTestingUtils {
 
   public static Icon CLOUD_DEVICE_ICON;
   public static Icon CLOUD_DEBUG_ICON;
+
+  private static final Logger LOG = Logger.getInstance(CloudTestingUtils.class.getName());
 
   static {
     try {
@@ -251,6 +256,24 @@ public class CloudTestingUtils {
     editorPane.setEditable(false);
     editorPane.setBackground(backgroundColor);
     editorPane.addHyperlinkListener(getHyperlinkListener());
+  }
+
+  public static void addToInvokeLater(final Runnable runnable) {
+    final Application application = ApplicationManager.getApplication();
+    if (application.isHeadlessEnvironment() && !application.isUnitTestMode()) {
+      runnable.run();
+    } else {
+      UIUtil.invokeLaterIfNeeded(runnable);
+    }
+  }
+
+  public static void runInEventDispatchThread(final Runnable runnable, final ModalityState state) {
+    try {
+      ApplicationManager.getApplication().invokeAndWait(runnable, state);
+    }
+    catch (Exception e) {
+      LOG.warn(e);
+    }
   }
 
   private static HyperlinkListener getHyperlinkListener() {
