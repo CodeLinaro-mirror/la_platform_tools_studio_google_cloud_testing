@@ -126,6 +126,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     final InputMap inputMap = myTreeView.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
     inputMap.put(shiftEnterKey, "show-statistics-for-test-proxy");
     myTreeView.getActionMap().put(inputMap.get(shiftEnterKey), new AbstractAction() {
+      @Override
       public void actionPerformed(final ActionEvent ignored) {
         showStatisticsForSelectedProxy();
       }
