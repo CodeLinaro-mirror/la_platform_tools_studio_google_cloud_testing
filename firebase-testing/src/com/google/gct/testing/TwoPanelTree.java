@@ -641,7 +641,7 @@ public class TwoPanelTree extends MouseAdapter implements ListSelectionListener,
       myTextRenderer.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus);
 
       if (UIUtil.isUnderGTKLookAndFeel()) {
-        final Color background = selected ? UIUtil.getTreeSelectionBackground() : UIUtil.getTreeBackground();
+        final Color background = selected ? UIUtil.getTreeSelectionBackground(true) : UIUtil.getTreeBackground();
         UIUtil.changeBackGround(this, background);
       }
       else if (UIUtil.isUnderNimbusLookAndFeel()) {
