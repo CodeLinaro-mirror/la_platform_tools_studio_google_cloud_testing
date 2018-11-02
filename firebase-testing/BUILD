@@ -13,7 +13,6 @@ iml_module(
         "//tools/adt/idea/android/testData",
         "//tools/base/templates",
     ],
-    test_runtime_deps = ["//tools/vendor/intellij/cidr:intellij.c.doxygen"],
     test_srcs = ["testSrc"],
     test_tags = [
         "block-network",
