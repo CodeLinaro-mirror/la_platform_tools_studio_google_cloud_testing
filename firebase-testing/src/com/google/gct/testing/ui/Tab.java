@@ -46,7 +46,7 @@ public class Tab extends GradientJPanel {
   private static final Color STUB_TAB_BACKGROUND = new Color(200, 200, 200);
   private static final Color STUB_TAB_FOREGROUND = new Color(114, 114, 114);
 
-  private static final Icon closeIcon = AllIcons.Actions.CloseNew;
+  private static final Icon closeIcon = AllIcons.Actions.Close;
 
   private final JBLabel label;
   private final List<TabEventListener> listeners = new LinkedList<TabEventListener>();
