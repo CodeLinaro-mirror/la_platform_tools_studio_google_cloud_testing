@@ -22,6 +22,7 @@ import com.google.gct.testing.CloudConfigurationImpl;
 import com.google.gct.testing.launcher.CloudAuthenticator;
 import icons.AndroidIcons;
 
+import icons.StudioIcons;
 import javax.swing.*;
 import java.util.List;
 
@@ -105,7 +106,7 @@ public class OrientationDimension extends CloudConfigurationDimension {
 
   @Override
   public Icon getIcon() {
-    return AndroidIcons.Configs.Orientation;
+    return StudioIcons.DeviceConfiguration.ORIENTATION;
   }
 
   public static class Orientation extends CloudTestingType {
