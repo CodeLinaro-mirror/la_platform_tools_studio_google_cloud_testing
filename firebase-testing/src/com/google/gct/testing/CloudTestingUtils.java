@@ -37,7 +37,7 @@ import com.intellij.openapi.wm.StatusBar;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.util.ui.UIUtil;
-import icons.AndroidIcons;
+import icons.StudioIcons;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -83,7 +83,7 @@ public class CloudTestingUtils {
     try {
       CLOUD_DEVICE_ICON = new ImageIcon(ImageIO.read(CloudTestingUtils.class.getResourceAsStream("CloudDevice.png")));
     } catch (Exception e) { // If something goes wrong, just use the default device icon.
-      CLOUD_DEVICE_ICON = AndroidIcons.NeleIcons.DeviceScreen;
+      CLOUD_DEVICE_ICON = StudioIcons.Avd.DEVICE_PHONE;
     }
   }
 
