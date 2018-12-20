@@ -27,6 +27,7 @@ import com.google.gct.testing.CloudConfigurationImpl;
 import com.google.gct.testing.launcher.CloudAuthenticator;
 import com.intellij.openapi.vfs.VirtualFile;
 import icons.AndroidIcons;
+import icons.StudioIcons;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.ResourceFolderManager;
 
@@ -196,7 +197,7 @@ public class LanguageDimension extends CloudConfigurationDimension {
 
   @Override
   public Icon getIcon() {
-    return AndroidIcons.Configs.Language;
+    return StudioIcons.DeviceConfiguration.LOCALE;
   }
 
   public static class Language extends CloudTestingType {
