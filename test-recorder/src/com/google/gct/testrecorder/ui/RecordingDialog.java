@@ -15,6 +15,27 @@
  */
 package com.google.gct.testrecorder.ui;
 
+import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_IMPLEMENTATION;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
+import static com.google.gct.testrecorder.event.TestRecorderAssertion.ASSERTION_RULES_WITHOUT_TEXT;
+import static com.google.gct.testrecorder.event.TestRecorderAssertion.ASSERTION_RULES_WITH_TEXT;
+import static com.google.gct.testrecorder.event.TestRecorderAssertion.EXISTS;
+import static com.google.gct.testrecorder.event.TestRecorderAssertion.TEXT_IS;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
+import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
+import static com.google.gct.testrecorder.util.ClassHelper.getInternalName;
+import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.createElementLevelMap;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getClassName;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getContentDescription;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getResourceId;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getRotation;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getText;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getViewGroupChildPosition;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.isTextView;
+import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_ESPRESSO_SETUP;
+import static org.apache.commons.lang.StringUtils.isEmpty;
+
 import com.android.annotations.VisibleForTesting;
 import com.android.builder.model.level2.Library;
 import com.android.ddmlib.IDevice;
@@ -41,10 +62,18 @@ import com.android.uiautomator.tree.UiNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.codegen.TestCodeGenerator;
-import com.google.gct.testrecorder.event.*;
+import com.google.gct.testrecorder.event.ElementAction;
+import com.google.gct.testrecorder.event.ElementDescriptor;
+import com.google.gct.testrecorder.event.TestRecorderAssertion;
+import com.google.gct.testrecorder.event.TestRecorderEvent;
+import com.google.gct.testrecorder.event.TestRecorderEventListener;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.util.StringHelper;
-import com.google.gson.*;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
@@ -68,35 +97,38 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBDimension;
 import com.intellij.util.ui.JBUI;
 import com.sun.jdi.request.BreakpointRequest;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
-import org.jetbrains.android.dom.manifest.Manifest;
-import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.Timer;
-import java.awt.*;
+import java.awt.CardLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
-
-import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_IMPLEMENTATION;
-import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
-import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
-import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
-import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
-import static com.google.gct.testrecorder.util.ClassHelper.getInternalName;
-import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
-import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.*;
-import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_PROJECT_MODIFIED;
-import static org.apache.commons.lang.StringUtils.isEmpty;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
+import org.jetbrains.android.dom.manifest.Manifest;
+import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class RecordingDialog extends DialogWrapper implements TestRecorderEventListener {
   private static final long ANIMATION_INTERVAL = 400; // milliseconds.
@@ -824,7 +856,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
           gradleBuildModel.applyChanges();
 
-          GradleSyncInvoker.getInstance().requestProjectSyncAndSourceGeneration(myProject, TRIGGER_PROJECT_MODIFIED);
+          GradleSyncInvoker.getInstance().requestProjectSyncAndSourceGeneration(myProject, TRIGGER_ESPRESSO_SETUP);
         });
       }
 
