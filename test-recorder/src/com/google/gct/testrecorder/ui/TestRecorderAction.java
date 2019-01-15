@@ -25,6 +25,7 @@ import com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxy;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
+import com.intellij.execution.ExecutionTargetManager;
 import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.configurations.LocatableConfigurationBase;
@@ -158,7 +159,9 @@ public class TestRecorderAction extends AnAction {
 
     // Terminate any active Run or Debug session of the to-be-recorded run configuration.
     // Even if it is a Run session, it still needs to be terminated, since the app will have to be restarted in debug mode.
-    AndroidSessionInfo oldSessionInfo = AndroidSessionInfo.findOldSession(module.getProject(), null, configurationBase.getUniqueID());
+    AndroidSessionInfo oldSessionInfo = AndroidSessionInfo.findOldSession(
+      module.getProject(), null, configurationBase.getUniqueID(),
+      ExecutionTargetManager.getInstance(module.getProject()).getActiveTarget());
     if (oldSessionInfo != null) {
       oldSessionInfo.getProcessHandler().detachProcess();
     }
