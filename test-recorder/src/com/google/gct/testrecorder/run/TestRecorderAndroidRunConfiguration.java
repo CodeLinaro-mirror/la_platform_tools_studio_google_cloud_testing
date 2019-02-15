@@ -51,11 +51,6 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
     this.setBeforeRunTasks(baseConfiguration.getBeforeRunTasks());
   }
 
-  @Override
-  public boolean supportsInstantRun() {
-    return false;
-  }
-
   @Nullable
   @Override
   protected LaunchTask getApplicationLaunchTask(@NotNull ApplicationIdProvider applicationIdProvider,
