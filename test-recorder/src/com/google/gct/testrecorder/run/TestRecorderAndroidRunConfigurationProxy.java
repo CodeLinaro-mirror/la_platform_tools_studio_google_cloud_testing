@@ -17,7 +17,6 @@ package com.google.gct.testrecorder.run;
 
 import com.android.annotations.Nullable;
 import com.android.ddmlib.IDevice;
-import com.android.tools.idea.run.AndroidRunConfigContext;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.DeviceFutures;
 import com.android.tools.idea.run.editor.DefaultActivityLaunch;
@@ -72,14 +71,7 @@ public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRun
   @Nullable
   @Override
   public List<ListenableFuture<IDevice>> getDeviceFutures(ExecutionEnvironment environment) {
-    AndroidRunConfigContext context = environment.getCopyableUserData(AndroidRunConfigContext.KEY);
-    if (context != null) {
-      DeviceFutures targetDevices = context.getTargetDevices();
-      if (targetDevices != null) {
-        return targetDevices.get();
-      }
-    }
-
-    return null;
+    DeviceFutures deviceFutures = environment.getCopyableUserData(DeviceFutures.KEY);
+    return deviceFutures == null ? null : deviceFutures.get();
   }
 }
