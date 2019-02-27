@@ -35,6 +35,7 @@ import com.intellij.openapi.ui.popup.Balloon;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.wm.StatusBar;
 import com.intellij.openapi.wm.WindowManager;
+import com.intellij.ui.ColorUtil;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
@@ -240,7 +241,7 @@ public class CloudTestingUtils {
     if (shades < 1) {
       return color;
     }
-    return makeDarker(UIUtil.getSlightlyDarkerColor(color), shades - 1);
+    return makeDarker(ColorUtil.darker(color, 1), shades - 1);
   }
 
   public static String preparePricingAnchor(String linkText) {
