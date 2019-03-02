@@ -15,27 +15,34 @@
  */
 package com.google.gct.testing.android;
 
-import com.android.tools.idea.run.*;
-import com.android.tools.idea.run.editor.*;
+import com.android.tools.idea.run.DeviceCount;
+import com.android.tools.idea.run.DeviceFutures;
+import com.android.tools.idea.run.LaunchCompatibilityCheckerImpl;
+import com.android.tools.idea.run.TargetSelectionMode;
+import com.android.tools.idea.run.ValidationError;
+import com.android.tools.idea.run.editor.DeployTarget;
+import com.android.tools.idea.run.editor.DeployTargetConfigurable;
+import com.android.tools.idea.run.editor.DeployTargetConfigurableContext;
+import com.android.tools.idea.run.editor.DeployTargetPickerDialog;
+import com.android.tools.idea.run.editor.DeployTargetProvider;
+import com.android.tools.idea.run.editor.DeployTargetState;
+import com.android.tools.idea.run.editor.ShowChooserTargetProvider;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
-import com.intellij.execution.RunManager;
 import com.intellij.execution.configurations.RunProfile;
 import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.executors.DefaultDebugExecutor;
-import com.intellij.execution.impl.ModuleRunConfigurationManager;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
-import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
   public static final class State extends DeployTargetState {
@@ -80,8 +87,8 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
   }
 
   @Override
-  public boolean isApplicable(boolean isTestConfig) {
-    return isTestConfig;
+  protected boolean isApplicable(boolean testConfiguration, boolean deviceSnapshotComboBoxVisible) {
+    return testConfiguration;
   }
 
   @Override

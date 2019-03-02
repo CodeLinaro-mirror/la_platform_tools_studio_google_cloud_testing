@@ -16,8 +16,17 @@
 package com.google.gct.testing.android;
 
 import com.android.ddmlib.IDevice;
-import com.android.tools.idea.run.*;
-import com.android.tools.idea.run.editor.*;
+import com.android.tools.idea.run.DeviceCount;
+import com.android.tools.idea.run.DeviceFutures;
+import com.android.tools.idea.run.DeviceSelectionUtils;
+import com.android.tools.idea.run.TargetDeviceFilter;
+import com.android.tools.idea.run.TargetSelectionMode;
+import com.android.tools.idea.run.ValidationError;
+import com.android.tools.idea.run.editor.DeployTarget;
+import com.android.tools.idea.run.editor.DeployTargetConfigurable;
+import com.android.tools.idea.run.editor.DeployTargetConfigurableContext;
+import com.android.tools.idea.run.editor.DeployTargetProvider;
+import com.android.tools.idea.run.editor.DeployTargetState;
 import com.google.common.collect.Lists;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
@@ -25,11 +34,10 @@ import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import java.util.List;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class CloudDebuggingTargetProvider extends DeployTargetProvider {
   private String myCloudDeviceSerialNumber;
@@ -104,7 +112,7 @@ public class CloudDebuggingTargetProvider extends DeployTargetProvider {
   }
 
   @Override
-  public boolean isApplicable(boolean isTestConfig) {
+  protected boolean isApplicable(boolean testConfiguration, boolean deviceSnapshotComboBoxVisible) {
     return false;
   }
 
