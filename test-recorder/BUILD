@@ -8,7 +8,11 @@ iml_module(
     iml_files = ["test-recorder.iml"],
     resources = ["resources"],
     test_resources = ["test-resources"],
-    test_runtime_deps = ["//tools/vendor/intellij/cidr:intellij.c.doxygen"],
+    # do not sort: must match IML order
+    test_runtime_deps = [
+        "//tools/vendor/intellij/cidr/cidr-common-testFramework:intellij.cidr.common.testFramework",
+        "//tools/vendor/intellij/cidr:intellij.c.doxygen",
+    ],
     test_srcs = ["testSrc"],
     test_tags = ["manual"],
     visibility = ["//visibility:public"],
@@ -33,7 +37,7 @@ iml_module(
         "//tools/idea:intellij.java.impl[module]",
         "//tools/idea/java/openapi:intellij.java[module]",
         "//tools/idea:intellij.platform.jps.build_and_others[module]",
-        "//tools/idea/platform/xdebugger-impl:intellij.platform.debugger.impl[module]",
+        "//tools/idea:intellij.platform.debugger.impl_and_others[module]",
         "//tools/idea/.idea/libraries:commons-io",
         "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",
         "//tools/studio/google/cloud/testing/test-recorder/lib:swt",
