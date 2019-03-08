@@ -8,11 +8,6 @@ iml_module(
     iml_files = ["test-recorder.iml"],
     resources = ["resources"],
     test_resources = ["test-resources"],
-    # do not sort: must match IML order
-    test_runtime_deps = [
-        "//tools/vendor/intellij/cidr/cidr-common-testFramework:intellij.cidr.common.testFramework",
-        "//tools/vendor/intellij/cidr:intellij.c.doxygen",
-    ],
     test_srcs = ["testSrc"],
     test_tags = ["manual"],
     visibility = ["//visibility:public"],
