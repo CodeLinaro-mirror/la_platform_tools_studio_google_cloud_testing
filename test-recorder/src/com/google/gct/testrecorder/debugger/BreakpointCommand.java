@@ -15,6 +15,14 @@
  */
 package com.google.gct.testrecorder.debugger;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.LAZY_CLASSES_LOADER;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.LIST_ITEM_CLICK;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.SwipeDirection;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.TEXT_CHANGE;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_CLICK;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.WINDOW_CONTENT_CHANGED;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.event.ElementDescriptor;
@@ -24,7 +32,11 @@ import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.ui.TestRecorderScreenshotTask;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.debugger.InstanceFilter;
-import com.intellij.debugger.engine.*;
+import com.intellij.debugger.engine.DebugProcessImpl;
+import com.intellij.debugger.engine.JavaDebugProcess;
+import com.intellij.debugger.engine.JavaExecutionStack;
+import com.intellij.debugger.engine.JavaStackFrame;
+import com.intellij.debugger.engine.SuspendContextImpl;
 import com.intellij.debugger.engine.evaluation.EvaluateException;
 import com.intellij.debugger.engine.evaluation.EvaluationContextImpl;
 import com.intellij.debugger.engine.evaluation.TextWithImports;
@@ -40,19 +52,19 @@ import com.intellij.debugger.ui.impl.watch.WatchItemDescriptor;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.ui.classFilter.ClassFilter;
 import com.intellij.xdebugger.impl.breakpoints.XExpressionImpl;
-import com.sun.jdi.*;
+import com.sun.jdi.Location;
+import com.sun.jdi.Method;
+import com.sun.jdi.ObjectReference;
+import com.sun.jdi.ReferenceType;
+import com.sun.jdi.Value;
 import com.sun.jdi.event.LocatableEvent;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.tools.jdi.ArrayReferenceImpl;
 import com.sun.tools.jdi.StringReferenceImpl;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.google.gct.testrecorder.event.TestRecorderEvent.*;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class BreakpointCommand extends DebuggerCommandImpl {
   private static final Logger LOGGER = Logger.getInstance(BreakpointCommand.class);
@@ -268,9 +280,13 @@ public class BreakpointCommand extends DebuggerCommandImpl {
 
     if (event.isPressEvent()) {
       if (event.isPressBack()) {
+        // Emulator API 28+ press back event always represents an actual press back.
+        if (event.isPressBackEmulator28()) {
+          return event;
+        }
+
         // The press back breakpoint corresponds to a finished input event rather than just pressed back key,
         // so detect if this is indeed a press back event (also, to avoid duplicates, consider only action up).
-
         Value isKeyCodeBackActionUp = evaluateExpression(
           "p.mEvent.mKeyCode == android.view.KeyEvent.KEYCODE_BACK && p.mEvent.mAction == android.view.KeyEvent.ACTION_UP",
           evalContext, nodeManager);

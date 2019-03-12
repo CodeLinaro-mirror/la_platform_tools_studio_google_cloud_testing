@@ -20,6 +20,7 @@ import static com.google.gct.testrecorder.event.TestRecorderEvent.LAZY_CLASSES_L
 import static com.google.gct.testrecorder.event.TestRecorderEvent.LIST_ITEM_CLICK;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.PERMISSIONS_REQUEST;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.PRESS_BACK;
+import static com.google.gct.testrecorder.event.TestRecorderEvent.PRESS_BACK_EMULATOR_28;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.PRESS_EDITOR_ACTION;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.TEXT_CHANGE;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_CLICK;
@@ -82,6 +83,11 @@ import org.jetbrains.annotations.NotNull;
 
 public class SessionInitializer implements Runnable {
   private static final Logger LOGGER = Logger.getInstance(SessionInitializer.class);
+
+  // A replacement press back breakpoint descriptor as a workaround for emulators with API 28+ that cannot reliably handle,
+  // i.e., without occasionally freezing, the regular PRESS_BACK breakpoint.
+  private static final BreakpointDescriptor PRESS_BACK_EMULATOR_28_BREAKPOINT_DESCRIPTOR =
+    new BreakpointDescriptor(PRESS_BACK_EMULATOR_28, "android.app.Activity", "onBackPressed", "()V", false);
 
   private final Set<BreakpointDescriptor> myBreakpointDescriptors = Sets.newHashSet();
   private final Set<BreakpointCommand> myBreakpointCommands = Sets.newHashSet();
@@ -200,7 +206,7 @@ public class SessionInitializer implements Runnable {
           }
         });
 
-        scheduleBreakpointCommands(myDevice.getVersion().getApiLevel());
+        scheduleBreakpointCommands(myDevice);
         if (myRecordingDialog == null) { // The initial debug process, open Test Recorder dialog.
           // Detect the launched activity name outside the dispatch thread to avoid pausing it until dumb mode is over.
           String launchedActivityName = detectLaunchedActivityName();
@@ -364,14 +370,21 @@ public class SessionInitializer implements Runnable {
     processHandler.startNotify();
   }
 
-  private void scheduleBreakpointCommands(int apiLevel) {
+  private void scheduleBreakpointCommands(IDevice device) {
     myBreakpointCommands.clear();
     DebugProcessImpl debugProcess = myDebuggerSession.getProcess();
     for (BreakpointDescriptor breakpointDescriptor : myBreakpointDescriptors) {
-      if (apiLevel >= 28 && breakpointDescriptor.eventType == DELAYED_MESSAGE_POST) {
-        // Skip setting the delayed message breakpoint on Android 28+ as it freezes recording in some scenarios.
-        continue;
+      if (device.getVersion().getApiLevel() >= 28) {
+        if (breakpointDescriptor.eventType == DELAYED_MESSAGE_POST) {
+          // Skip setting the delayed message breakpoint on Android 28+ as it freezes recording in some scenarios.
+          continue;
+        }
+        if (device.isEmulator() && breakpointDescriptor.eventType == PRESS_BACK) {
+          // Use a replacement press back breakpoint descriptor for emulators with API 28+.
+          breakpointDescriptor = PRESS_BACK_EMULATOR_28_BREAKPOINT_DESCRIPTOR;
+        }
       }
+
       BreakpointCommand breakpointCommand = new BreakpointCommand(debugProcess, breakpointDescriptor);
       myBreakpointCommands.add(breakpointCommand);
       debugProcess.getManagerThread().schedule(breakpointCommand);

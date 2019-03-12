@@ -31,6 +31,7 @@ public class TestRecorderEvent extends ElementAction {
   public static final String LIST_ITEM_CLICK = "LIST_ITEM_CLICKED";
   public static final String TEXT_CHANGE = "VIEW_TEXT_CHANGED";
   public static final String PRESS_BACK = "PRESSED_BACK";
+  public static final String PRESS_BACK_EMULATOR_28 = "PRESSED_BACK_EMULATOR_28";
   public static final String PRESS_EDITOR_ACTION = "PRESSED_EDITOR_ACTION"; // RETURN key on the soft keyboard.
   public static final String VIEW_SWIPE = "VIEW_SWIPED";
   public static final String DELAYED_MESSAGE_POST = "DELAYED_MESSAGE_POSTED";
@@ -39,8 +40,8 @@ public class TestRecorderEvent extends ElementAction {
   public static final String PERMISSIONS_REQUEST = "PERMISSIONS_REQUEST";
 
   public static final HashSet<String> SUPPORTED_EVENTS =
-    Sets.newHashSet(VIEW_CLICK, VIEW_LONG_CLICK, LIST_ITEM_CLICK, TEXT_CHANGE, PRESS_BACK, PRESS_EDITOR_ACTION, VIEW_SWIPE,
-                    DELAYED_MESSAGE_POST, PERMISSIONS_REQUEST);
+    Sets.newHashSet(VIEW_CLICK, VIEW_LONG_CLICK, LIST_ITEM_CLICK, TEXT_CHANGE, PRESS_BACK, PRESS_BACK_EMULATOR_28, PRESS_EDITOR_ACTION,
+                    VIEW_SWIPE, DELAYED_MESSAGE_POST, PERMISSIONS_REQUEST);
 
   /**
    * View click, menu item click, text change, etc.
@@ -151,7 +152,11 @@ public class TestRecorderEvent extends ElementAction {
   }
 
   public boolean isPressBack() {
-    return PRESS_BACK.equals(eventType);
+    return PRESS_BACK.equals(eventType) || PRESS_BACK_EMULATOR_28.equals(eventType);
+  }
+
+  public boolean isPressBackEmulator28() {
+    return PRESS_BACK_EMULATOR_28.equals(eventType);
   }
 
   public boolean isPressEditorAction() {
