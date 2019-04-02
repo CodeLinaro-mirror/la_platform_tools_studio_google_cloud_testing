@@ -9,9 +9,11 @@ iml_module(
     test_class = "com.google.gct.testing.FirebaseTestingTestSuite",
     test_data = [
         "//prebuilts/studio/sdk:platforms/latest",
+        "//prebuilts/tools/common/kotlin-plugin:kotlin-plugin-for-studio",
         "//tools/adt/idea/android/annotations",
         "//tools/adt/idea/android/testData",
         "//tools/base/templates",
+        "//tools/idea:platform-build-info",
     ],
     test_srcs = ["testSrc"],
     test_tags = [
