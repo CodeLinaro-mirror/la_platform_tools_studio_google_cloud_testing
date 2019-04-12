@@ -45,6 +45,7 @@ import com.intellij.openapi.ui.popup.PopupStep;
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.ui.popup.list.ListPopupImpl;
+import icons.StudioIcons;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 
@@ -59,7 +60,7 @@ public class TestRecorderAction extends AnAction {
   private static final String ENABLE_ROBO_SCRIPT_RECORDING_FLAG = "enable.robo.script.recording";
 
   private final static String RECORD_TEST_ACTION_TEXT = "Record Espresso Test";
-  public static final Icon TEST_RECORDER_ICON = IconLoader.getIcon("circle_small.png", TestRecorderAction.class);
+  public static final Icon TEST_RECORDER_ICON = StudioIcons.Test.RECORD_ESPRESSO_TEST;
   public static final Icon SCRIPT_RECORDER_ICON = IconLoader.getIcon("robo_dot.png", TestRecorderAction.class);
 
 
