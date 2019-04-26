@@ -56,6 +56,7 @@ import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionResult;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.RemoteConnection;
+import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ProgramRunner;
@@ -96,7 +97,7 @@ public class SessionInitializer implements Runnable {
   private final Project myProject;
   private final ExecutionEnvironment myEnvironment;
   private final TestRecorderRunConfigurationProxy myTestRecorderConfigurationProxy;
-  private final int myConfigurationId;
+  private final RunConfiguration myRunConfiguration;
   private final boolean myIsRecordingTest;
   private IDevice myDevice;
   private String myPackageName;
@@ -106,12 +107,13 @@ public class SessionInitializer implements Runnable {
   private volatile boolean myFailedToStart;
 
   public SessionInitializer(AndroidFacet facet, ExecutionEnvironment environment,
-                            TestRecorderRunConfigurationProxy testRecorderConfigurationProxy, int configurationId, boolean isRecordingTest) {
+                            TestRecorderRunConfigurationProxy testRecorderConfigurationProxy, RunConfiguration runConfiguration,
+                            boolean isRecordingTest) {
     myFacet = facet;
     myProject = myFacet.getModule().getProject();
     myEnvironment = environment;
     myTestRecorderConfigurationProxy = testRecorderConfigurationProxy;
-    myConfigurationId = configurationId;
+    myRunConfiguration = runConfiguration;
     myIsRecordingTest = isRecordingTest;
     // TODO: Although more robust than android.view.View#performClick() breakpoint, this might miss "contrived" clicks,
     // originating from the View object itself (e.g., as a result of processing a touch event).
@@ -187,7 +189,7 @@ public class SessionInitializer implements Runnable {
         }
 
         AndroidSessionInfo sessionInfo = process.getProcessHandler().getUserData(AndroidSessionInfo.KEY);
-        if (sessionInfo != null && sessionInfo.getRunConfigurationId() != myConfigurationId) {
+        if (sessionInfo != null && sessionInfo.getRunConfiguration() != myRunConfiguration) {
           // Not my debugger session (probably, my session failed midway) => stop listening.
           DebuggerManagerEx.getInstanceEx(myProject).removeDebuggerManagerListener(myDebuggerManagerListener);
           return;

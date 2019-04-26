@@ -161,16 +161,14 @@ public class TestRecorderAction extends AnAction {
     // Terminate any active Run or Debug session of the to-be-recorded run configuration.
     // Even if it is a Run session, it still needs to be terminated, since the app will have to be restarted in debug mode.
     AndroidSessionInfo oldSessionInfo = AndroidSessionInfo.findOldSession(
-      module.getProject(), null, configurationBase.getUniqueID(),
-      ExecutionTargetManager.getInstance(module.getProject()).getActiveTarget());
+      module.getProject(), null, configurationBase, ExecutionTargetManager.getInstance(module.getProject()).getActiveTarget());
     if (oldSessionInfo != null) {
       oldSessionInfo.getProcessHandler().detachProcess();
     }
 
     try {
       environment.getRunner().execute(environment, descriptor -> ApplicationManager.getApplication().executeOnPooledThread(
-        new SessionInitializer(
-          facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration.getUniqueID(), isRecordingTest)));
+        new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration, isRecordingTest)));
     } catch (Exception e) {
       String message = isEmpty(e.getMessage()) ? "Unknown error" : e.getMessage();
       Messages.showDialog(project, message, "Could not start debugging of the app", new String[]{"OK"}, 0, null);
