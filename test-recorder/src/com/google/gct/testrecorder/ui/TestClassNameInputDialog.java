@@ -20,7 +20,7 @@ import com.android.builder.model.SourceProvider;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.stats.UsageTrackerUtils;
-import com.android.tools.idea.testartifacts.scopes.TestArtifactSearchScopes;
+import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
 import com.google.common.collect.Lists;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
@@ -289,7 +289,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     List<VirtualFile> existingAndroidTestSourceRoots = Lists.newArrayList();
     for (VirtualFile testSourceRoot : ModuleRootManager.getInstance(myTestClassModule).getSourceRoots(JavaSourceRootType.TEST_SOURCE)) {
       if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(testSourceRoot, myProject)) {
-        TestArtifactSearchScopes searchScopes = TestArtifactSearchScopes.get(myTestClassModule);
+        TestArtifactSearchScopes searchScopes = TestArtifactSearchScopes.getInstance(myTestClassModule);
         if (searchScopes != null && searchScopes.isAndroidTestSource(testSourceRoot)) {
           existingAndroidTestSourceRoots.add(testSourceRoot);
         }
