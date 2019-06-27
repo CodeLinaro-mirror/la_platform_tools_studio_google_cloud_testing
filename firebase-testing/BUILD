@@ -13,6 +13,7 @@ iml_module(
         "//tools/adt/idea/android/testData",
         "//tools/base/templates",
         "//tools/idea:platform-build-info",
+        "//tools/idea/java/jdkAnnotations",
     ],
     test_srcs = ["testSrc"],
     test_tags = [
