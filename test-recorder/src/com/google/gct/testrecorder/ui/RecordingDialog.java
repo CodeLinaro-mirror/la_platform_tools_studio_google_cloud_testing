@@ -510,7 +510,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       String resourcePackageName = "unknown";
       AndroidFacet testClassFacet = AndroidFacet.getInstance(testClassModule);
       if (testClassFacet !=  null) {
-        Manifest manifest = testClassFacet.getManifest();
+        Manifest manifest = Manifest.getMainManifest(testClassFacet);
         if (manifest != null) {
           resourcePackageName = manifest.getPackage().getStringValue();
         }

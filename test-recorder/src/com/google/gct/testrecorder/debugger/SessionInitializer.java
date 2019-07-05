@@ -78,6 +78,7 @@ import javax.swing.SwingUtilities;
 import org.jetbrains.android.dom.manifest.Activity;
 import org.jetbrains.android.dom.manifest.ActivityAlias;
 import org.jetbrains.android.dom.manifest.Application;
+import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
@@ -270,11 +271,11 @@ public class SessionInitializer implements Runnable {
 
         // If alias, replace with the actual activity.
 
-        if (myFacet.getManifest() == null || myFacet.getManifest().getApplication() == null) {
+        if (Manifest.getMainManifest(myFacet) == null || Manifest.getMainManifest(myFacet).getApplication() == null) {
           return activityName;
         }
 
-        Application application = myFacet.getManifest().getApplication();
+        Application application = Manifest.getMainManifest(myFacet).getApplication();
 
         for (Activity activity : application.getActivities()) {
           if (activityName.equals(ActivityLocatorUtils.getQualifiedName(activity))) {
