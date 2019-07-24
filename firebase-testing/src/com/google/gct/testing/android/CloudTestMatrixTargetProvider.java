@@ -17,16 +17,14 @@ package com.google.gct.testing.android;
 
 import com.android.tools.idea.run.DeviceCount;
 import com.android.tools.idea.run.DeviceFutures;
-import com.android.tools.idea.run.LaunchCompatibilityCheckerImpl;
 import com.android.tools.idea.run.TargetSelectionMode;
 import com.android.tools.idea.run.ValidationError;
+import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxTargetProvider;
 import com.android.tools.idea.run.editor.DeployTarget;
 import com.android.tools.idea.run.editor.DeployTargetConfigurable;
 import com.android.tools.idea.run.editor.DeployTargetConfigurableContext;
-import com.android.tools.idea.run.editor.DeployTargetPickerDialog;
 import com.android.tools.idea.run.editor.DeployTargetProvider;
 import com.android.tools.idea.run.editor.DeployTargetState;
-import com.android.tools.idea.run.editor.ShowChooserTargetProvider;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
@@ -36,10 +34,7 @@ import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -121,28 +116,20 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
       @Override
       public DeviceFutures getDevices(@NotNull DeployTargetState state,
                                       @NotNull AndroidFacet facet,
-                                      @NotNull DeviceCount deviceCount,
+                                      @NotNull DeviceCount count,
                                       boolean debug,
-                                      int runConfigId) {
-        // This method will be called only if hasCustomRunProfileState returned false (i.e., the user clicked Debug), so
-        // open the Device Chooser dialog.
-        List<DeployTargetProvider<DeployTargetState>> deployTargetProviders = Collections.emptyList();
-        Map<String, DeployTargetState> deployTargetStates = new HashMap<>();
-        deployTargetStates.put(ShowChooserTargetProvider.ID, new ShowChooserTargetProvider.State());
+                                      int id) {
+        // This runs when a developer debugs (not runs) an Android instrumented test. Use the device selected in the drop down.
+        DeviceAndSnapshotComboBoxTargetProvider provider = new DeviceAndSnapshotComboBoxTargetProvider();
 
-        DeployTargetPickerDialog dialog = new DeployTargetPickerDialog(
-            runConfigId,
-            facet,
-            deviceCount,
-            deployTargetProviders,
-            deployTargetStates,
-            LaunchCompatibilityCheckerImpl.create(facet, null, null)
-        );
-        if (dialog.showAndGet()) {
-          return dialog.getSelectedDeployTarget().getDevices(state, facet, deviceCount, debug, runConfigId);
+        DeployTarget<DeviceAndSnapshotComboBoxTargetProvider.State> target =
+          provider.requiresRuntimePrompt() ? provider.showPrompt(facet) : provider.getDeployTarget(facet.getModule().getProject());
+
+        if (target == null) {
+          return null;
         }
 
-        return null;
+        return target.getDevices(provider.createState(), facet, count, debug, id);
       }
     };
   }
