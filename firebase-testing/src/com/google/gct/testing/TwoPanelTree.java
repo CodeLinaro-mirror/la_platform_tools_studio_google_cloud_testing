@@ -644,9 +644,6 @@ public class TwoPanelTree extends MouseAdapter implements ListSelectionListener,
         final Color background = selected ? UIUtil.getTreeSelectionBackground(true) : UIUtil.getTreeBackground();
         UIUtil.changeBackGround(this, background);
       }
-      else if (UIUtil.isUnderNimbusLookAndFeel()) {
-        UIUtil.changeBackGround(this, UIUtil.TRANSPARENT_COLOR);
-      }
 
       if (!leaf) {
         // Disable group radio buttons.
