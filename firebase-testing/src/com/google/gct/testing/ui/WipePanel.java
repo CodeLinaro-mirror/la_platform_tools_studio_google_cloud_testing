@@ -16,7 +16,7 @@
 package com.google.gct.testing.ui;
 
 import com.android.annotations.Nullable;
-import com.intellij.util.ui.UIUtil;
+import com.intellij.util.ui.ImageUtil;
 
 import javax.swing.*;
 import javax.swing.border.MatteBorder;
@@ -106,7 +106,7 @@ public class WipePanel extends JPanel {
 
     state = revealed;
 
-    buffer = UIUtil.createImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+    buffer = ImageUtil.createImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
     this.print(buffer.getGraphics()); // Draw the current components on the buffer.
     state = revealing;
 
@@ -140,7 +140,7 @@ public class WipePanel extends JPanel {
     start = System.currentTimeMillis();
 
     state = revealed;
-    buffer = UIUtil.createImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+    buffer = ImageUtil.createImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
     this.print(buffer.getGraphics()); // Draw the current components on the buffer.
     state = hiding;
 
