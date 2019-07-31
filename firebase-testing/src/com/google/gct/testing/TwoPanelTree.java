@@ -24,6 +24,7 @@ import com.google.gct.testing.dimension.CloudTestingTypeGroup;
 import com.google.gct.testing.dimension.DeviceDimension;
 import com.google.gct.testing.dimension.DeviceDimension.Device;
 import com.intellij.openapi.ui.Splitter;
+import com.intellij.openapi.util.SystemInfo;
 import com.intellij.ui.CheckboxTree;
 import com.intellij.ui.CheckboxTreeBase.CheckPolicy;
 import com.intellij.ui.CheckboxTreeBase.NodeState;
@@ -640,7 +641,7 @@ public class TwoPanelTree extends MouseAdapter implements ListSelectionListener,
 
       myTextRenderer.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus);
 
-      if (UIUtil.isUnderGTKLookAndFeel()) {
+      if (SystemInfo.isXWindow && UIManager.getLookAndFeel().getName().contains("GTK")) {
         final Color background = selected ? UIUtil.getTreeSelectionBackground(true) : UIUtil.getTreeBackground();
         UIUtil.changeBackGround(this, background);
       }
