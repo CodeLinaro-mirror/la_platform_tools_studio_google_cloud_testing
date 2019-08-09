@@ -121,7 +121,7 @@ public class GoogleCloudTestTreeRenderer extends ColoredTreeCellRenderer {
       g.setColor(getBackground());
       g.fillRect(0, 0, width, height);
     }
-    if (myDurationWidth > 0) {
+    if (myDurationText != null && myDurationWidth > 0) {
       width -= myDurationWidth + myDurationOffset;
       if (width > 0 && height > 0) {
         g.setColor(myDurationColor);
