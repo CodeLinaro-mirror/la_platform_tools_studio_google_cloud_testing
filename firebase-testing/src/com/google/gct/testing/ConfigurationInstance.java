@@ -50,7 +50,8 @@ public class ConfigurationInstance {
     }
   };
   public static final String DISPLAY_NAME_DELIMITER = " | ";
-  public static final String ENCODED_NAME_DELIMITER = "-";
+  // Use a delimiter that is unlikely to appear in a name of a test instance (i.e., device model, API level, locale, orientation).
+  public static final String ENCODED_NAME_DELIMITER = "###";
 
   private final Map<String, CloudTestingType> typesByDimensionName = new LinkedHashMap<String, CloudTestingType>();
   private boolean isVirtual = false;
