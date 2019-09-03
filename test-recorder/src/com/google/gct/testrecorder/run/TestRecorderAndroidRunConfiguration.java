@@ -21,9 +21,11 @@ import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.ConsolePrinter;
+import com.android.tools.idea.run.tasks.LaunchResult;
 import com.android.tools.idea.run.tasks.LaunchTask;
 import com.android.tools.idea.run.util.LaunchStatus;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
+import com.intellij.execution.Executor;
 import com.intellij.openapi.diagnostic.Logger;
 import org.jdom.Element;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -86,7 +88,8 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
     }
 
     @Override
-    public boolean perform(@NotNull IDevice device, @NotNull LaunchStatus launchStatus, @NotNull ConsolePrinter printer) {
+    public LaunchResult run(@NotNull Executor executor, @NotNull IDevice device,
+                            @NotNull LaunchStatus launchStatus, @NotNull ConsolePrinter printer) {
       if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
         try {
           // Clear the app data such that the test recording starts from the initial app state.
@@ -98,8 +101,12 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
           LOGGER.warn("Exception clearing app data", e);
         }
       }
+      return myDefaultLaunchTask.run(executor, device, launchStatus, printer);
+    }
 
-      return myDefaultLaunchTask.perform(device, launchStatus, printer);
+    @Override
+    public boolean perform(@NotNull IDevice device, @NotNull LaunchStatus launchStatus, @NotNull ConsolePrinter printer) {
+      return false;
     }
 
     @NotNull
