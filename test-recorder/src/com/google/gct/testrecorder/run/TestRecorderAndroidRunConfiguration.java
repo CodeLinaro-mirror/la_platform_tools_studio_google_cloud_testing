@@ -104,11 +104,6 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
       return myDefaultLaunchTask.run(executor, device, launchStatus, printer);
     }
 
-    @Override
-    public boolean perform(@NotNull IDevice device, @NotNull LaunchStatus launchStatus, @NotNull ConsolePrinter printer) {
-      return false;
-    }
-
     @NotNull
     @Override
     public String getId() {
