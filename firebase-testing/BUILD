@@ -30,7 +30,6 @@ iml_module(
     test_srcs = ["testSrc"],
     test_tags = [
         "block-network",
-        "slow",
         "no_test_windows",
     ],
     visibility = ["//visibility:public"],
