@@ -36,13 +36,13 @@ iml_module(
     # do not sort: must match IML order
     runtime_deps = [
         "//tools/idea/platform/credential-store:intellij.platform.credentialStore",
+        "//tools/adt/idea/adt-branding:intellij.android.adt.branding",
         "//tools/idea/jvm/jvm-analysis-impl:intellij.jvm.analysis.impl",
         "//tools/idea/java/ide-customization:intellij.java.ide.customization",
         "//tools/idea/java/ide-resources:intellij.java.ide.resources",
         "//tools/idea/java/compiler/instrumentation-util-8:intellij.java.compiler.instrumentationUtil.java8",
         "//tools/idea/plugins/maven/error-prone-compiler:intellij.maven.errorProne.compiler",
         "//tools/idea/plugins/IntelliLang/intellilang-jps-plugin:intellij.java.langInjection.jps",
-        "//tools/adt/idea/adt-branding:intellij.android.adt.branding",
     ],
     # do not sort: must match IML order
     deps = [
@@ -50,6 +50,7 @@ iml_module(
         "//tools/idea/platform/platform-api:intellij.platform.ide[module]",
         "//tools/idea/platform/platform-impl:intellij.platform.ide.impl[module]",
         "//tools/idea/.idea/libraries:Guava",
+        "//tools/adt/idea/android-common:intellij.android.common[module]",
         "//tools/adt/idea/android:intellij.android.core[module]",
         "//tools/idea/platform/smRunner:intellij.platform.smRunner[module]",
         "//tools/idea/platform/lang-api:intellij.platform.lang[module]",
