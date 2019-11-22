@@ -96,9 +96,9 @@ public class TwoPanelTree extends MouseAdapter implements ListSelectionListener,
     myPanel = new JPanel(new BorderLayout());
     myPanel.setPreferredSize(new Dimension(540, 250));
     mySplitterPanel = new JPanel(new BorderLayout());
-    mySplitterPanel.setBorder(BorderFactory.createLineBorder(UIUtil.getBorderColor()));
+    mySplitterPanel.setBorder(BorderFactory.createLineBorder(JBColor.border()));
     mySplitter = new Splitter(false);
-    mySplitter.getDivider().setBorder(BorderFactory.createLineBorder(UIUtil.getBorderColor()));
+    mySplitter.getDivider().setBorder(BorderFactory.createLineBorder(JBColor.border()));
     mySplitter.setProportion(0.3f);
     leftPanel = new JPanel(new BorderLayout());
     rightScrollPane = new JScrollPane();
@@ -150,7 +150,7 @@ public class TwoPanelTree extends MouseAdapter implements ListSelectionListener,
   }
 
   private void populateBottomPanel() {
-    bottomPanel.setBorder(BorderFactory.createLineBorder(UIUtil.getBorderColor(), 1));
+    bottomPanel.setBorder(BorderFactory.createLineBorder(JBColor.border(), 1));
     updateConfigurationCountPane();
   }
 
