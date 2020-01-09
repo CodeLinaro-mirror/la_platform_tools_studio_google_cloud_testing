@@ -15,7 +15,7 @@
  */
 package com.google.gct.testrecorder.util;
 
-import com.android.tools.idea.lint.LintIdeUtils;
+import com.android.tools.lint.helpers.DefaultJavaEvaluator;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
@@ -30,9 +30,10 @@ public class ClassHelper {
   public static String getInternalName(Project project, String className) {
     PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(className, GlobalSearchScope.allScope(project));
     if (psiClass != null) {
-      String intellijInternalName = LintIdeUtils.getInternalName(psiClass);
-      if (intellijInternalName != null) {
-        return intellijInternalName.replace('/', '.');
+      DefaultJavaEvaluator evaluator = new DefaultJavaEvaluator(project, null);
+      String internalName = evaluator.getInternalName(psiClass);
+      if (internalName != null) {
+        return internalName.replace('/', '.');
       }
     }
 

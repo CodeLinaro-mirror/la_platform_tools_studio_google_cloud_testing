@@ -121,9 +121,10 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
                                       int id) {
         // This runs when a developer debugs (not runs) an Android instrumented test. Use the device selected in the drop down.
         DeviceAndSnapshotComboBoxTargetProvider provider = new DeviceAndSnapshotComboBoxTargetProvider();
+        Project project = facet.getModule().getProject();
 
         DeployTarget<DeviceAndSnapshotComboBoxTargetProvider.State> target =
-          provider.requiresRuntimePrompt() ? provider.showPrompt(facet) : provider.getDeployTarget(facet.getModule().getProject());
+          provider.requiresRuntimePrompt(project) ? provider.showPrompt(facet) : provider.getDeployTarget(project);
 
         if (target == null) {
           return null;
