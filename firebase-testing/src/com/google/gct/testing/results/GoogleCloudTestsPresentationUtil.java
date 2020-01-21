@@ -268,7 +268,7 @@ public class GoogleCloudTestsPresentationUtil {
       case INFRASTRUCTURE_FAILURE_INDEX:
         return AllIcons.Debugger.Db_exception_breakpoint;
       case TRIGGERING_ERROR_INDEX:
-        return AllIcons.Debugger.Db_muted_invalid_breakpoint;
+        return AllIcons.Debugger.Db_invalid_breakpoint;
       case RUNNING_INDEX:
         if (consoleProperties.isPaused()) {
           return hasErrors ? SMPoolOfTestIcons.PAUSED_E_ICON : AllIcons.RunConfigurations.TestPaused;
