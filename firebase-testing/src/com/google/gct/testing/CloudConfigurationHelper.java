@@ -16,8 +16,6 @@
 package com.google.gct.testing;
 
 import com.android.annotations.VisibleForTesting;
-import com.android.builder.model.AndroidArtifact;
-import com.android.builder.model.AndroidArtifactOutput;
 import com.android.ddmlib.IDevice;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
@@ -78,6 +76,7 @@ import java.io.File;
 import java.net.InetAddress;
 import java.util.*;
 
+import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getApkForRunConfiguration;
 import static com.google.gct.testing.CloudTestingUtils.checkJavaVersion;
 import static com.jcraft.jsch.KeyPair.RSA;
 
@@ -636,36 +635,26 @@ public final class CloudConfigurationHelper {
 
           // TODO: Resolve direct AndroidGradleModel dep (b/22596984)
           AndroidModuleModel androidModel = AndroidModuleModel.get(runningState.getFacet());
+          Module module = runningState.getFacet().getModule();
           if (androidModel == null) {
-            CloudTestingUtils.showErrorMessage(runningState.getFacet().getModule().getProject(), "Error uploading APKs",
+            CloudTestingUtils.showErrorMessage(module.getProject(), "Error uploading APKs",
                                                "Your project is not an idea android project!\n");
             return;
           }
 
-          AndroidArtifact mainArtifact = androidModel.getSelectedVariant().getMainArtifact();
-          List<AndroidArtifactOutput> mainOutputs = Lists.newArrayList(mainArtifact.getOutputs());
-          if (mainOutputs.isEmpty()) {
-            CloudTestingUtils.showErrorMessage(runningState.getFacet().getModule().getProject(), "Error finding app APK",
+          File appApk = getApkForRunConfiguration(module, testRunConfiguration, false);
+          if (appApk == null) {
+            CloudTestingUtils.showErrorMessage(module.getProject(), "Error finding app APK",
                                                "Could not find your app APK!\n");
             return;
           }
-          File appApk = mainOutputs.get(0).getMainOutputFile().getOutputFile();
 
-          AndroidArtifact testArtifactInfo = androidModel.getSelectedVariant().getAndroidTestArtifact();
-
-          if (testArtifactInfo == null) {
-            CloudTestingUtils.showErrorMessage(runningState.getFacet().getModule().getProject(), "Error uploading APKs",
-                                               "Could not find your Android test artifact!\n");
-            return;
-          }
-
-          List<AndroidArtifactOutput> testOutputs = Lists.newArrayList(testArtifactInfo.getOutputs());
-          if (testOutputs.isEmpty()) {
-            CloudTestingUtils.showErrorMessage(runningState.getFacet().getModule().getProject(), "Error finding test APK",
+          File testApk = getApkForRunConfiguration(module, testRunConfiguration, true);
+          if (testApk == null) {
+            CloudTestingUtils.showErrorMessage(module.getProject(), "Error finding test APK",
                                                "Could not find your test APK!\n");
             return;
           }
-          File testApk = testOutputs.get(0).getMainOutputFile().getOutputFile();
 
           runningState.getProcessHandler().notifyTextAvailable(prepareProgressString("Uploading app APK ...", ""),
                                                                ProcessOutputTypes.STDOUT);
