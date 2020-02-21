@@ -21,7 +21,7 @@ import com.google.gct.testing.CloudTestingUtils;
 import com.google.gct.testing.results.events.*;
 import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.testframework.AbstractTestProxy;
-import com.intellij.execution.testframework.sm.SMTestsRunnerBundle;
+import com.intellij.execution.testframework.sm.SmRunnerBundle;
 import com.intellij.execution.testframework.sm.runner.SMTestLocator;
 import com.intellij.execution.testframework.sm.runner.TestProxyPrinterProvider;
 import com.intellij.execution.testframework.sm.runner.events.TestSuiteFinishedEvent;
@@ -566,7 +566,7 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
         final String testName = ObjectUtils.assertNotNull(testIgnoredEvent.getName());
         String ignoreComment = testIgnoredEvent.getIgnoreComment();
         if (StringUtil.isEmpty(ignoreComment)) {
-          ignoreComment = SMTestsRunnerBundle.message("sm.test.runner.states.test.is.ignored");
+          ignoreComment = SmRunnerBundle.message("sm.test.runner.states.test.is.ignored");
         }
         final String stackTrace = testIgnoredEvent.getStacktrace();
         final String fullTestName = getFullTestName(configuration, className, testName);

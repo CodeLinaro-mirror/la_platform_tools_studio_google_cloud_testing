@@ -18,7 +18,7 @@ package com.google.gct.testing.results;
 import com.intellij.execution.testframework.PoolOfTestIcons;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.TestsUIUtil;
-import com.intellij.execution.testframework.sm.SMTestsRunnerBundle;
+import com.intellij.execution.testframework.sm.SmRunnerBundle;
 import com.intellij.execution.testframework.sm.runner.states.TestStateInfo;
 import com.intellij.execution.testframework.sm.runner.ui.SMPoolOfTestIcons;
 import com.intellij.execution.testframework.ui.TestsProgressAnimator;
@@ -39,26 +39,26 @@ import static com.intellij.execution.testframework.sm.runner.states.TestStateInf
 
 public class GoogleCloudTestsPresentationUtil {
   @NonNls private static final String DOUBLE_SPACE = "  ";
-  @NonNls private static final String SECONDS_SUFFIX = " " + SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.seconds");
-  @NonNls private static final String MILLISECONDS_SUFFIX = " " + SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.milliseconds");
+  @NonNls private static final String SECONDS_SUFFIX = " " + SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.seconds");
+  @NonNls private static final String MILLISECONDS_SUFFIX = " " + SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.milliseconds");
   @NonNls private static final String WORLD_CREATION_TIME = "0" + SECONDS_SUFFIX;
-  @NonNls private static final String DURATION_UNKNOWN = SMTestsRunnerBundle.message(
+  @NonNls private static final String DURATION_UNKNOWN = SmRunnerBundle.message(
       "sm.test.runner.ui.tabs.statistics.columns.duration.unknown");
-  @NonNls private static final String DURATION_NO_TESTS = SMTestsRunnerBundle.message(
+  @NonNls private static final String DURATION_NO_TESTS = SmRunnerBundle.message(
       "sm.test.runner.ui.tabs.statistics.columns.duration.no.tests");
-  @NonNls private static final String DURATION_NOT_RUN = SMTestsRunnerBundle.message(
+  @NonNls private static final String DURATION_NOT_RUN = SmRunnerBundle.message(
       "sm.test.runner.ui.tabs.statistics.columns.duration.not.run");
-  @NonNls private static final String DURATION_RUNNING_PREFIX = SMTestsRunnerBundle.message(
+  @NonNls private static final String DURATION_RUNNING_PREFIX = SmRunnerBundle.message(
       "sm.test.runner.ui.tabs.statistics.columns.duration.prefix.running");
-  @NonNls private static final String DURATION_TERMINATED_PREFIX = SMTestsRunnerBundle.message(
+  @NonNls private static final String DURATION_TERMINATED_PREFIX = SmRunnerBundle.message(
       "sm.test.runner.ui.tabs.statistics.columns.duration.prefix.terminated");
   @NonNls private static final String COLON = ": ";
   public static final SimpleTextAttributes PASSED_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, TestsUIUtil.PASSED_COLOR);
   public static final SimpleTextAttributes DEFFECT_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, Color.RED);
   public static final SimpleTextAttributes TERMINATED_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, Color.ORANGE);
-  @NonNls private static final String RESULTS_NO_TESTS = SMTestsRunnerBundle.message(
+  @NonNls private static final String RESULTS_NO_TESTS = SmRunnerBundle.message(
       "sm.test.runner.ui.tabs.statistics.columns.results.no.tests");
-  @NonNls private static final String NO_NAME_TEST = SMTestsRunnerBundle.message(
+  @NonNls private static final String NO_NAME_TEST = SmRunnerBundle.message(
       "sm.test.runner.ui.tests.tree.presentation.labels.test.noname");
   @NonNls private static final String UNKNOWN_TESTS_COUNT = "<...>";
   @NonNls static final String DEFAULT_TESTS_CATEGORY = "Tests";
@@ -76,9 +76,9 @@ public class GoogleCloudTestsPresentationUtil {
                                               final boolean isFinished) {
     final StringBuilder sb = new StringBuilder();
     if (endTime == 0) {
-      sb.append(SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.running"));
+      sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.running"));
     } else {
-      sb.append(SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.done"));
+      sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.done"));
     }
 
     if (allCategories != null) {
@@ -111,13 +111,13 @@ public class GoogleCloudTestsPresentationUtil {
     }
 
     sb.append(' ').append(testsCount).append(' ');
-    sb.append(SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.of"));
+    sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.of"));
     sb.append(' ').append(testsTotal != 0 ? testsTotal
                                           : !isFinished ? UNKNOWN_TESTS_COUNT : 0);
 
     if (failuresCount > 0) {
       sb.append(DOUBLE_SPACE);
-      sb.append(SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.failed"));
+      sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.failed"));
       sb.append(' ').append(failuresCount);
     }
     if (endTime != 0) {
@@ -138,9 +138,9 @@ public class GoogleCloudTestsPresentationUtil {
 
     final String text;
     if (magnitude == TestStateInfo.Magnitude.RUNNING_INDEX) {
-      text = SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.running.tests");
+      text = SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.running.tests");
     } else if (magnitude == TestStateInfo.Magnitude.TERMINATED_INDEX) {
-      text = SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.was.terminated");
+      text = SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.was.terminated");
     } else if (magnitude == TestStateInfo.Magnitude.TIMEOUT_INDEX) {
       text = "Timed out";
     } else if (magnitude == TestStateInfo.Magnitude.INFRASTRUCTURE_FAILURE_INDEX) {
@@ -148,7 +148,7 @@ public class GoogleCloudTestsPresentationUtil {
     } else if (magnitude == TestStateInfo.Magnitude.TRIGGERING_ERROR_INDEX) {
       text = "Triggering error";
     } else {
-      text = SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.test.results");
+      text = SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.test.results");
     }
     renderer.append(text, SimpleTextAttributes.REGULAR_ATTRIBUTES);
   }
@@ -158,22 +158,22 @@ public class GoogleCloudTestsPresentationUtil {
     final TestStateInfo.Magnitude magnitude = testProxy.getMagnitudeInfo();
     if (magnitude == TestStateInfo.Magnitude.RUNNING_INDEX) {
       renderer.setIcon(getIcon(testProxy, renderer.getConsoleProperties()));
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tests.tree.presentation.labels.instantiating.tests"),
                       SimpleTextAttributes.REGULAR_ATTRIBUTES);
     } else if (magnitude == NOT_RUN_INDEX) {
       renderer.setIcon(PoolOfTestIcons.NOT_RAN);
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tests.tree.presentation.labels.not.test.results"),
                       SimpleTextAttributes.ERROR_ATTRIBUTES);
     } else if (magnitude == TestStateInfo.Magnitude.TERMINATED_INDEX) {
       renderer.setIcon(PoolOfTestIcons.TERMINATED_ICON);
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tests.tree.presentation.labels.was.terminated"),
                       SimpleTextAttributes.REGULAR_ATTRIBUTES);
     } else if (magnitude == TestStateInfo.Magnitude.PASSED_INDEX) {
       renderer.setIcon(PoolOfTestIcons.PASSED_ICON);
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tests.tree.presentation.labels.all.tests.passed"),
                       SimpleTextAttributes.REGULAR_ATTRIBUTES);
     }
@@ -186,8 +186,8 @@ public class GoogleCloudTestsPresentationUtil {
       else {
         renderer.setIcon(PoolOfTestIcons.NOT_RAN);
         renderer.append(testProxy.isTestsReporterAttached()
-                        ? SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.no.tests.were.found")
-                        : SMTestsRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.test.reporter.not.attached"),
+                        ? SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.no.tests.were.found")
+                        : SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.test.reporter.not.attached"),
                         SimpleTextAttributes.ERROR_ATTRIBUTES);
       }
     }
@@ -340,28 +340,28 @@ public class GoogleCloudTestsPresentationUtil {
     final String separator = " ";
 
     if (failedCount > 0) {
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.failed",
                                       failedCount) + separator,
                       DEFFECT_ATTRIBUTES);
     }
 
     if (errorsCount > 0) {
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.errors",
                                       errorsCount) + separator,
                       DEFFECT_ATTRIBUTES);
     }
 
     if (ignoredCount > 0) {
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.ignored",
                                       ignoredCount) + separator,
                       SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES);
     }
 
     if (passedCount > 0) {
-      renderer.append(SMTestsRunnerBundle.message(
+      renderer.append(SmRunnerBundle.message(
           "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.passed",
                                       passedCount),
                       PASSED_ATTRIBUTES);
