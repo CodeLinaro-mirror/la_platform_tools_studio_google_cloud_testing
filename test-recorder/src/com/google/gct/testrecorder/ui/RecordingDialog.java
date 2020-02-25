@@ -170,13 +170,13 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private static final String ANDROIDX_RULES_VERSION = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_RULES, "1.1.0-alpha2");
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CORE_EXCLUDES =
-    ImmutableList.of(ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
+    ImmutableList.of(createArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CONTRIB_EXCLUDES =
-    ImmutableList.of(ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null),
-                     ArtifactDependencySpec.create(GoogleMavenArtifactId.SUPPORT_V4, null),
-                     ArtifactDependencySpec.create(GoogleMavenArtifactId.DESIGN, null),
-                     ArtifactDependencySpec.create(GoogleMavenArtifactId.RECYCLERVIEW_V7, null));
+    ImmutableList.of(createArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null),
+                     createArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_V4, null),
+                     createArtifactDependencySpec(GoogleMavenArtifactId.DESIGN, null),
+                     createArtifactDependencySpec(GoogleMavenArtifactId.RECYCLERVIEW_V7, null));
 
   private static final String TEST_RECORDING_DIALOG_TITLE = "Record Your Test";
   private static final String SCRIPT_RECORDING_DIALOG_TITLE = "Record Your Robo Script";
@@ -461,6 +461,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     GsonBuilder gsonBuilder = new GsonBuilder();
     gsonBuilder.registerTypeAdapter(ElementDescriptor.class, new ElementDescriptorSerializer(project));
     return gsonBuilder.setPrettyPrinting().create().toJson(testRecorderEvents);
+  }
+
+  @NotNull
+  private static ArtifactDependencySpec createArtifactDependencySpec(@NotNull GoogleMavenArtifactId artifactId, @Nullable String version) {
+    return ArtifactDependencySpec.create(artifactId.getMavenArtifactId(), artifactId.getMavenGroupId(), version);
   }
 
   private static class ElementDescriptorSerializer implements JsonSerializer<ElementDescriptor> {
@@ -882,11 +887,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           if (myUsesAndroidxDependency) {
             // No need to add excludes for more recent (e.g., androidx) dependency versions.
             gradleBuildModel.dependencies().addArtifact(
-              ANDROID_TEST_IMPLEMENTATION, ArtifactDependencySpec.create(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE,
-                                                                         ANDROIDX_ESPRESSO_CORE_VERSION));
+              ANDROID_TEST_IMPLEMENTATION, createArtifactDependencySpec(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE,
+                                                                        ANDROIDX_ESPRESSO_CORE_VERSION));
           } else {
             gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
-                                                        ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_CORE_VERSION),
+                                                        createArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_CORE_VERSION),
                                                         ESPRESSO_CORE_EXCLUDES);
           }
         }
@@ -900,7 +905,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           }
         }
         gradleBuildModel.dependencies().addArtifact(
-          ANDROID_TEST_IMPLEMENTATION, ArtifactDependencySpec.create(getTestRulesArtifactId(), getTestRulesArtifactUpdateVersion()));
+          ANDROID_TEST_IMPLEMENTATION, createArtifactDependencySpec(getTestRulesArtifactId(), getTestRulesArtifactUpdateVersion()));
       }
 
       private void addOrUpdateEspressoContribDependency() {
@@ -913,11 +918,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         if (myUsesAndroidxDependency) {
           // No need to add excludes for more recent (e.g., androidx) dependency versions.
           gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
-                                                      ArtifactDependencySpec.create(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CONTRIB,
-                                                                                    ANDROIDX_ESPRESSO_CORE_VERSION));
+                                                      createArtifactDependencySpec(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CONTRIB,
+                                                                                   ANDROIDX_ESPRESSO_CORE_VERSION));
         } else {
           gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
-                                                      ArtifactDependencySpec.create(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_CORE_VERSION),
+                                                      createArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_CORE_VERSION),
                                                       ESPRESSO_CONTRIB_EXCLUDES);
         }
       }
