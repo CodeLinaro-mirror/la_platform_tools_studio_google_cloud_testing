@@ -447,7 +447,9 @@ public class BreakpointCommand extends DebuggerCommandImpl {
     if (level == 1) {
       String parentReference = objectReference + PARENT_NODE_CALL;
       Value parentElementType = evaluateExpression(parentReference + ".getClass().getCanonicalName()", evalContext, nodeManager);
-      if (parentElementType != null && "android.support.v7.widget.RecyclerView".equals(getStringValue(parentElementType))) {
+      if (parentElementType != null &&
+          ("android.support.v7.widget.RecyclerView".equals(getStringValue(parentElementType))
+           || "androidx.recyclerview.widget.RecyclerView".equals(getStringValue(parentElementType)))) {
         // Do not use getChildAdapterPosition as it is more than 20x slower!!!
         //Value positionIndex = evaluateExpression(parentReference + ".getChildAdapterPosition(" + objectReference + ")", evalContext, nodeManager);
         Value positionIndex = evaluateExpression(objectReference + ".getLayoutParams().mViewHolder.getAdapterPosition()", evalContext, nodeManager);
