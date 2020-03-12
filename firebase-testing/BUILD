@@ -11,7 +11,6 @@ iml_module(
         "//prebuilts/studio/sdk:platforms/latest",
         "//tools/adt/idea/android/annotations",
         "//tools/adt/idea/android/testData",
-        "//tools/base/templates",
         "//tools/idea:platform-build-info",
         "//tools/idea/java/jdkAnnotations",
     ],
