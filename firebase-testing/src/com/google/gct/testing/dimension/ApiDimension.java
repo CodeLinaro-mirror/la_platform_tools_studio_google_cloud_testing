@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.gct.testing.CloudConfigurationImpl;
 import com.google.gct.testing.launcher.CloudAuthenticator;
-import icons.AndroidIcons;
+import icons.StudioIcons;
 import org.jetbrains.android.facet.AndroidFacet;
 
 import javax.swing.*;
@@ -134,7 +134,7 @@ public class ApiDimension extends CloudConfigurationDimension {
 
   @Override
   public Icon getIcon() {
-    return AndroidIcons.SdkManager;
+    return StudioIcons.Shell.Toolbar.SDK_MANAGER;
   }
 
   public static class ApiLevel extends CloudTestingType {
