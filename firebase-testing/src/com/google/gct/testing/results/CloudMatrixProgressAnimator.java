@@ -20,8 +20,8 @@ import com.intellij.icons.AllIcons;
 import javax.swing.*;
 
 public abstract class CloudMatrixProgressAnimator {
-  private static final int FRAMES_COUNT = 12;
-  private static final int MOVIE_TIME = 1200;
+  private static final int FRAMES_COUNT = 8;
+  private static final int MOVIE_TIME = 800;
   private static final int FRAME_TIME = MOVIE_TIME / FRAMES_COUNT;
 
   private static final Icon[] FRAMES = new Icon[FRAMES_COUNT];
@@ -35,10 +35,6 @@ public abstract class CloudMatrixProgressAnimator {
     FRAMES[5] = AllIcons.Process.Step_6;
     FRAMES[6] = AllIcons.Process.Step_7;
     FRAMES[7] = AllIcons.Process.Step_8;
-    FRAMES[8] = AllIcons.Process.Step_9;
-    FRAMES[9] = AllIcons.Process.Step_10;
-    FRAMES[10] = AllIcons.Process.Step_11;
-    FRAMES[11] = AllIcons.Process.Step_12;
   }
 
   public static Icon getCurrentFrame() {
