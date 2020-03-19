@@ -65,6 +65,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.Session;
 import icons.AndroidIcons;
+import icons.StudioIcons;
 import org.apache.log4j.helpers.ISO8601DateFormat;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
@@ -87,7 +88,7 @@ public final class CloudConfigurationHelper {
   // Do not use MultiMap to ensure proper reuse of serial numbers (IP:port).
   private static final Map<String, String> serialNumberToConfigurationInstance = Maps.newHashMap();
 
-  public static final Icon DEFAULT_ICON = AndroidIcons.AndroidFile;
+  public static final Icon DEFAULT_ICON = StudioIcons.Shell.Filetree.ANDROID_FILE;
 
   public static final Function<CloudConfiguration, CloudConfigurationImpl> CLONE_CONFIGURATIONS =
     new Function<CloudConfiguration, CloudConfigurationImpl>() {
@@ -168,7 +169,7 @@ public final class CloudConfigurationHelper {
   public static List<? extends CloudConfiguration> getDefaultConfigurations(AndroidFacet facet, CloudConfiguration.Kind kind) {
     if (kind == CloudConfiguration.Kind.SINGLE_DEVICE) {
       CloudConfigurationImpl defaultConfiguration =
-        new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_DEVICE_CONFIGURATION_ID, "", CloudConfiguration.Kind.SINGLE_DEVICE, AndroidIcons.Display, facet);
+        new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_DEVICE_CONFIGURATION_ID, "", CloudConfiguration.Kind.SINGLE_DEVICE, StudioIcons.Avd.DEVICE_MOBILE, facet);
       defaultConfiguration.apiDimension.enableDefault();
       ImmutableList<CloudTestingType> enabledApis = defaultConfiguration.apiDimension.getEnabledTypes();
       if (enabledApis.isEmpty()) {
@@ -190,7 +191,7 @@ public final class CloudConfigurationHelper {
     }
 
     CloudConfigurationImpl defaultConfiguration =
-      new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_MATRIX_CONFIGURATION_ID, "Sample configuration", CloudConfiguration.Kind.MATRIX, AndroidIcons.Display, facet);
+      new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_MATRIX_CONFIGURATION_ID, "Sample configuration", CloudConfiguration.Kind.MATRIX, StudioIcons.Avd.DEVICE_MOBILE, facet);
     defaultConfiguration.apiDimension.enableTopN(ApiDimension.getFullDomain(), 3);
     defaultConfiguration.deviceDimension.enableCompatibleTopN(DeviceDimension.getFullDomain(), defaultConfiguration.apiDimension.getEnabledTypes(), 2, 1);
     defaultConfiguration.languageDimension.enableDefault();
@@ -198,7 +199,7 @@ public final class CloudConfigurationHelper {
     defaultConfiguration.setNonEditable();
 
     CloudConfigurationImpl defaultSparkConfiguration =
-      new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_FREE_TIER_MATRIX_CONFIGURATION_ID, "Sample Spark configuration", CloudConfiguration.Kind.MATRIX, AndroidIcons.Display, facet);
+      new CloudConfigurationImpl(CloudConfigurationImpl.DEFAULT_FREE_TIER_MATRIX_CONFIGURATION_ID, "Sample Spark configuration", CloudConfiguration.Kind.MATRIX, StudioIcons.Avd.DEVICE_MOBILE, facet);
     defaultSparkConfiguration.apiDimension.enableTopN(ApiDimension.getFullDomain(), 2);
     defaultSparkConfiguration.deviceDimension.enableCompatibleTopN(DeviceDimension.getFullDomain(), defaultSparkConfiguration.apiDimension.getEnabledTypes(), 1, 1);
     defaultSparkConfiguration.languageDimension.enableDefault();
@@ -754,12 +755,12 @@ public final class CloudConfigurationHelper {
 
   private static Icon getIcon(String configurationName, boolean isEditable) {
     if (isEditable) {
-      return AndroidIcons.AndroidFile;
+      return StudioIcons.Shell.Filetree.ANDROID_FILE;
     }
     if (configurationName.equals("All Available")) {
-      return AndroidIcons.Display;
+      return StudioIcons.Avd.DEVICE_MOBILE;
     }
-    return AndroidIcons.Portrait;
+    return StudioIcons.Avd.DEVICE_PHONE;
   }
 
   private static String generateSshKeys(JSch jsch) throws JSchException {
