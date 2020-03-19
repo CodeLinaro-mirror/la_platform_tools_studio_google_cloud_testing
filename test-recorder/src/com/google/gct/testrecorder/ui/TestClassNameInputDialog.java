@@ -153,18 +153,27 @@ public class TestClassNameInputDialog extends DialogWrapper {
       } else {
         String closestAndroidTestSourcePath =
           androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
-        String moduleRootCanonicalPath = moduleRoot.getCanonicalPath();
-        if (moduleRootCanonicalPath == null || !closestAndroidTestSourcePath.startsWith(moduleRootCanonicalPath)) {
-          // Why this should ever be the case?
-          throw new RuntimeException("Android test source path is not inside the module: " + closestAndroidTestSourcePath);
+        VirtualFile parentDirectory = moduleRoot;
+        if (moduleRoot.getCanonicalPath() == null || !closestAndroidTestSourcePath.startsWith(moduleRoot.getCanonicalPath())) {
+          parentDirectory = findContainingDirectory(launchedActivitySourceRoot, closestAndroidTestSourcePath);
+          if (parentDirectory == null) {
+            throw new RuntimeException("Failed to find a parent directory for android test source path: " + closestAndroidTestSourcePath);
+          }
         }
         return getOrCreateSubdirectory(
-          moduleRoot, closestAndroidTestSourcePath.substring(moduleRootCanonicalPath.length() + 1).split("/"), true);
+          parentDirectory, closestAndroidTestSourcePath.substring(parentDirectory.getCanonicalPath().length() + 1).split("/"), true);
       }
     } else {
       return existingAndroidTestSourceRoots.get(
         findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, getCanonicalPaths(existingAndroidTestSourceRoots)));
     }
+  }
+
+  private VirtualFile findContainingDirectory(VirtualFile currentDirectory, String path) {
+    if (currentDirectory == null || path.startsWith(currentDirectory.getCanonicalPath())) {
+      return currentDirectory;
+    }
+    return findContainingDirectory(currentDirectory.getParent(), path);
   }
 
   private List<String> getAndroidTestSourceRoots() {
