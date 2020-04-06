@@ -139,6 +139,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   public static final String TEST_INSTRUMENTATION_RUNNER = "android.support.test.runner.AndroidJUnitRunner";
 
+  public static final String ANDROIDX_TEST_INSTRUMENTATION_RUNNER = "androidx.test.runner.AndroidJUnitRunner";
+
   /** The minimal version of espresso-core in build.gradle that does not require updating for importing LargeTest. */
   private static final GradleVersion MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST = GradleVersion.parse("2.2.2");
 
@@ -851,7 +853,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
           AndroidModel androidModel = gradleBuildModel.android();
           if (androidModel != null && !hasSetInstrumentationRunner(androidModel)) {
-            androidModel.defaultConfig().testInstrumentationRunner().setValue(TEST_INSTRUMENTATION_RUNNER);
+            androidModel.defaultConfig().testInstrumentationRunner()
+              .setValue(myUsesAndroidxDependency ? ANDROIDX_TEST_INSTRUMENTATION_RUNNER : TEST_INSTRUMENTATION_RUNNER);
           }
 
           gradleBuildModel.applyChanges();
