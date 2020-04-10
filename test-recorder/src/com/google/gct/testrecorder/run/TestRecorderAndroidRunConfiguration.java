@@ -18,6 +18,7 @@ package com.google.gct.testrecorder.run;
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.NullOutputReceiver;
 import com.android.tools.idea.run.AndroidRunConfiguration;
+import com.android.tools.idea.run.ApkProvider;
 import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.ConsolePrinter;
@@ -59,9 +60,10 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
                                                 @NotNull AndroidFacet facet,
                                                 @NotNull String contributorsAmStartOptions,
                                                 boolean waitForDebugger,
-                                                @NotNull LaunchStatus launchStatus) {
+                                                @NotNull LaunchStatus launchStatus,
+                                                @NotNull ApkProvider apkProvider) {
     LaunchTask launchTask = super.getApplicationLaunchTask(applicationIdProvider, facet, contributorsAmStartOptions,
-                                                           waitForDebugger, launchStatus);
+                                                           waitForDebugger, launchStatus, apkProvider);
     return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
   }
 
