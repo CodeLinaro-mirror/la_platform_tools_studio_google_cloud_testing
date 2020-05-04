@@ -52,15 +52,15 @@ import com.intellij.debugger.ui.impl.watch.WatchItemDescriptor;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.ui.classFilter.ClassFilter;
 import com.intellij.xdebugger.impl.breakpoints.XExpressionImpl;
+import com.sun.jdi.ArrayReference;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;
+import com.sun.jdi.StringReference;
 import com.sun.jdi.Value;
 import com.sun.jdi.event.LocatableEvent;
 import com.sun.jdi.request.BreakpointRequest;
-import com.sun.tools.jdi.ArrayReferenceImpl;
-import com.sun.tools.jdi.StringReferenceImpl;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
@@ -326,9 +326,9 @@ public class BreakpointCommand extends DebuggerCommandImpl {
                                                            NodeManagerImpl nodeManager) {
 
     Value permissionsValue = evaluateExpression("permissions", evalContext, nodeManager);
-    if (permissionsValue instanceof ArrayReferenceImpl) {
+    if (permissionsValue instanceof ArrayReference) {
       List<String> permissions = Lists.newArrayList();
-      for (Value permission : ((ArrayReferenceImpl)permissionsValue).getValues()) {
+      for (Value permission : ((ArrayReference)permissionsValue).getValues()) {
         permissions.add(getStringValue(permission));
       }
       event.setRequestedPermissions(permissions);
@@ -545,8 +545,8 @@ public class BreakpointCommand extends DebuggerCommandImpl {
   }
 
   private String getStringValue(@NotNull Value value) {
-    if (value instanceof StringReferenceImpl) {
-      return ((StringReferenceImpl)value).value();
+    if (value instanceof StringReference) {
+      return ((StringReference)value).value();
     }
     return value.toString();
   }
