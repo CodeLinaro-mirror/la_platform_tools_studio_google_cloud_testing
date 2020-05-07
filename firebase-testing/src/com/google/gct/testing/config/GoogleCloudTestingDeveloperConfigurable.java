@@ -15,25 +15,32 @@
  */
 package com.google.gct.testing.config;
 
+import static com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurable.BackendOption.CUSTOM;
+import static com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurable.BackendOption.PROD;
+import static com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurable.BackendOption.STAGING;
+import static com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurable.BackendOption.TEST;
+
 import com.google.gct.testing.launcher.CloudAuthenticator;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
-import com.intellij.openapi.options.OptionalConfigurable;
 import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
+import java.awt.BorderLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import javax.swing.ButtonGroup;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JTextField;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
-
-import static com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurable.BackendOption.*;
-
-public class GoogleCloudTestingDeveloperConfigurable implements OptionalConfigurable, SearchableConfigurable, Configurable.NoScroll {
-
-  public final static String SHOW_GOOGLE_CLOUD_TESTING_SETTINGS = "show.google.cloud.testing.settings";
-
+public class GoogleCloudTestingDeveloperConfigurable implements SearchableConfigurable, Configurable.NoScroll {
   enum BackendOption {PROD, STAGING, TEST, CUSTOM};
 
   private final Project project;
@@ -247,11 +254,6 @@ public class GoogleCloudTestingDeveloperConfigurable implements OptionalConfigur
   @Override
   public Runnable enableSearch(String option) {
     return null;
-  }
-
-  @Override
-  public boolean needDisplay() {
-    return Boolean.getBoolean(SHOW_GOOGLE_CLOUD_TESTING_SETTINGS);
   }
 
   public static class GoogleCloudTestingDeveloperState {

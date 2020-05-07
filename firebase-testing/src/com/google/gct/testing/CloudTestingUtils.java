@@ -79,7 +79,7 @@ public class CloudTestingUtils {
       CLOUD_DEBUG_ICON = new ImageIcon(ImageIO.read(CloudTestingUtils.class.getResourceAsStream("CloudDebug.png")));
     }
     catch (Exception e) { // If something goes wrong, just use the original debug icon.
-      CLOUD_DEBUG_ICON = AllIcons.General.Debug;
+      CLOUD_DEBUG_ICON = AllIcons.Actions.StartDebugger;
     }
     try {
       CLOUD_DEVICE_ICON = new ImageIcon(ImageIO.read(CloudTestingUtils.class.getResourceAsStream("CloudDevice.png")));

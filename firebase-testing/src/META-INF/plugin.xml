@@ -20,7 +20,7 @@
   <depends>com.google.gct.core</depends>
 
   <extensions defaultExtensionNs="com.intellij">
-    <projectConfigurable instance="com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurable"/>
+    <projectConfigurable provider="com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurableProvider"/>
     <projectService serviceInterface="com.google.gct.testing.config.GoogleCloudTestingDeveloperSettings"
                     serviceImplementation="com.google.gct.testing.config.GoogleCloudTestingDeveloperSettings"/>
 

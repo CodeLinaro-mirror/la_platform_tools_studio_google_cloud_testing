@@ -49,13 +49,13 @@ import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyMode
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
+import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.tools.idea.gradle.util.GradleUtil;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.tools.idea.stats.UsageTrackerUtils;
-import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.UiNode;
@@ -159,17 +159,17 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   /** The minimal version of androidx rules in build.gradle that does not require updating. */
   private static final GradleVersion MIN_ANDROIDX_RULES_VERSION = GradleVersion.parse("1.1.0-alpha1");
 
-  /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. */
-  private static final String ESPRESSO_CORE_VERSION = getLatestDependencyVersion(GoogleMavenArtifactId.ESPRESSO_CORE, "3.0.2");
+  /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
+  private static String espressoCoreVersion = null;
 
-  /** Version of androidx espresso-core added/updated in build.gradle, when missing or obsolete. */
-  private static final String ANDROIDX_ESPRESSO_CORE_VERSION = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE, "3.1.0-alpha2");
+  /** Version of androidx espresso-core added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
+  private static String androidxEspressoCoreVersion = null;
 
-  /** Version of rules added/updated in build.gradle, when missing or obsolete. */
-  private static final String RULES_VERSION = getLatestDependencyVersion(GoogleMavenArtifactId.TEST_RULES, "1.0.2");
+  /** Version of rules added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
+  private static String rulesVersion = null;
 
-  /** Version of androidx rules added/updated in build.gradle, when missing or obsolete. */
-  private static final String ANDROIDX_RULES_VERSION = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_RULES, "1.1.0-alpha2");
+  /** Version of androidx rules added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
+  private static String androidxRulesVersion = null;
 
   public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CORE_EXCLUDES =
     ImmutableList.of(createArtifactDependencySpec(GoogleMavenArtifactId.SUPPORT_ANNOTATIONS, null));
@@ -261,7 +261,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       myRecordPauseButton.setVisible(TestRecorderSettings.getInstance().ENABLE_TEST_FRAGMENT_RECORDING);
     }
 
-    myRecordPauseButton.setIcon(AllIcons.Debugger.ThreadStates.Paused);
+    myRecordPauseButton.setIcon(AllIcons.Actions.Pause);
 
     myRecordPauseButton.addActionListener(e -> {
       myWasEverPaused = true;
@@ -411,6 +411,34 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     });
   }
 
+  private static String getEspressoCoreVersion() {
+    if (espressoCoreVersion == null) {
+      espressoCoreVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ESPRESSO_CORE, "3.0.2");
+    }
+    return espressoCoreVersion;
+  }
+
+  private static String getAndroidxEspressoCoreVersion() {
+    if (androidxEspressoCoreVersion == null) {
+      androidxEspressoCoreVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE, "3.1.0-alpha2");
+    }
+    return androidxEspressoCoreVersion;
+  }
+
+  private static String getRulesVersion() {
+    if (rulesVersion == null) {
+      rulesVersion = getLatestDependencyVersion(GoogleMavenArtifactId.TEST_RULES, "1.0.2");
+    }
+    return rulesVersion;
+  }
+
+  private static String getAndroidxRulesVersion() {
+    if (androidxRulesVersion == null) {
+      androidxRulesVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_RULES, "1.1.0-alpha2");
+    }
+    return androidxRulesVersion;
+  }
+
   public void setDebuggerSession(DebuggerSession debuggerSession) {
     myDebuggerSession = debuggerSession;
     myIsRecording = myDebuggerSession != null;
@@ -421,7 +449,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private void updateRecordPauseButton() {
     if (myIsRecording) {
       myRecordPauseButton.setText("Pause");
-      myRecordPauseButton.setIcon(AllIcons.Debugger.ThreadStates.Paused);
+      myRecordPauseButton.setIcon(AllIcons.Actions.Pause);
     } else {
       myRecordPauseButton.setText("Resume");
       myRecordPauseButton.setIcon(TEST_RECORDER_ICON);
@@ -799,7 +827,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   private String getEspressoArtifactUpdateVersion() {
-    return myUsesAndroidxDependency ? ANDROIDX_ESPRESSO_CORE_VERSION : ESPRESSO_CORE_VERSION;
+    return myUsesAndroidxDependency ? getAndroidxEspressoCoreVersion() : getEspressoCoreVersion();
   }
 
   private GoogleMavenArtifactId getEspressoContribArtifactId() {
@@ -811,7 +839,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   private String getTestRulesArtifactUpdateVersion() {
-    return myUsesAndroidxDependency ? ANDROIDX_RULES_VERSION : RULES_VERSION;
+    return myUsesAndroidxDependency ? getAndroidxRulesVersion() : getRulesVersion();
   }
 
   private void setupEspresso(@NotNull GradleBuildModel gradleBuildModel, @NotNull AndroidModuleModel androidModuleModel) {
@@ -891,10 +919,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             // No need to add excludes for more recent (e.g., androidx) dependency versions.
             gradleBuildModel.dependencies().addArtifact(
               ANDROID_TEST_IMPLEMENTATION, createArtifactDependencySpec(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE,
-                                                                        ANDROIDX_ESPRESSO_CORE_VERSION));
+                                                                        getAndroidxEspressoCoreVersion()));
           } else {
             gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
-                                                        createArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CORE, ESPRESSO_CORE_VERSION),
+                                                        createArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CORE, getEspressoCoreVersion()),
                                                         ESPRESSO_CORE_EXCLUDES);
           }
         }
@@ -922,10 +950,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           // No need to add excludes for more recent (e.g., androidx) dependency versions.
           gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
                                                       createArtifactDependencySpec(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CONTRIB,
-                                                                                   ANDROIDX_ESPRESSO_CORE_VERSION));
+                                                                                   getAndroidxEspressoCoreVersion()));
         } else {
           gradleBuildModel.dependencies().addArtifact(ANDROID_TEST_IMPLEMENTATION,
-                                                      createArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CONTRIB, ESPRESSO_CORE_VERSION),
+                                                      createArtifactDependencySpec(GoogleMavenArtifactId.ESPRESSO_CONTRIB, getEspressoCoreVersion()),
                                                       ESPRESSO_CONTRIB_EXCLUDES);
         }
       }
