@@ -229,7 +229,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private JButton myRecordPauseButton;
 
   public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName, boolean isRecordingTest) {
-    super(facet.getModule().getProject());
+    super(facet.getModule().getProject(), true, IdeModalityType.MODELESS);
     myProject = facet.getModule().getProject();
     myFacet = facet;
     myDevice = device;
