@@ -226,7 +226,18 @@ public class SessionInitializer implements Runnable {
                 breakpointCommand.setEventListener(myRecordingDialog);
               }
               myRecordingDialog.show();
-              stopTestRecorder();
+              // The dialog is no longer modal, so wait till it is closed before stopping the recorder.
+              // TODO: Find a way to achieve this without busy-waiting.
+              new Thread(() -> {
+                while (myRecordingDialog.isShowing()) {
+                  try {
+                    Thread.sleep(1000);
+                  } catch (InterruptedException e) {
+                    // ignore
+                  }
+                }
+                stopTestRecorder();
+              }).start();
             }
           });
         } else {
