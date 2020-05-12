@@ -990,8 +990,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     String className = getClassName(node);
     String resourceId = getResourceId(node);
-    // Use text identification only for text views.
-    String text = isTextView(node) ? getText(node) : "";
+    String text = getText(node);
     String contentDescription = getContentDescription(node);
     int viewGroupChildPosition = getViewGroupChildPosition(node);
 
