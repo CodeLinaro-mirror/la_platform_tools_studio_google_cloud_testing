@@ -22,11 +22,11 @@ import com.android.tools.idea.run.ApkProvider;
 import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.ConsolePrinter;
+import com.android.tools.idea.run.tasks.LaunchContext;
 import com.android.tools.idea.run.tasks.LaunchResult;
 import com.android.tools.idea.run.tasks.LaunchTask;
 import com.android.tools.idea.run.util.LaunchStatus;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
-import com.intellij.execution.Executor;
 import com.intellij.openapi.diagnostic.Logger;
 import org.jdom.Element;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -92,20 +92,19 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
     }
 
     @Override
-    public LaunchResult run(@NotNull Executor executor, @NotNull IDevice device,
-                            @NotNull LaunchStatus launchStatus, @NotNull ConsolePrinter printer) {
+    public LaunchResult run(@NotNull LaunchContext launchContext) {
       if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
         try {
           // Clear the app data such that the test recording starts from the initial app state.
           String command = "pm clear " + ApkProviderUtil.computePackageName(myFacet);
-          printer.stdout("$ adb shell " + command);
-          device.executeShellCommand(command, new NullOutputReceiver(), 5, TimeUnit.SECONDS);
+          launchContext.getConsolePrinter().stdout("$ adb shell " + command);
+          launchContext.getDevice().executeShellCommand(command, new NullOutputReceiver(), 5, TimeUnit.SECONDS);
         } catch (Exception e) {
           // It is unfortunate that the command to clear the app data might have failed, but it is not a blocker, so proceed.
           LOGGER.warn("Exception clearing app data", e);
         }
       }
-      return myDefaultLaunchTask.run(executor, device, launchStatus, printer);
+      return myDefaultLaunchTask.run(launchContext);
     }
 
     @NotNull
