@@ -15,6 +15,19 @@
  */
 package com.google.gct.testrecorder.codegen;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.ClassName;
+import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.ContentDescription;
+import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.Id;
+import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.Text;
+import static com.google.gct.testrecorder.event.TestRecorderAssertion.EXISTS;
+import static com.google.gct.testrecorder.event.TestRecorderAssertion.NOT_EXISTS;
+import static com.google.gct.testrecorder.event.TestRecorderAssertion.TEXT_IS;
+import static com.google.gct.testrecorder.util.StringHelper.boxString;
+import static com.google.gct.testrecorder.util.StringHelper.getClassName;
+import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharacter;
+import static com.google.gct.testrecorder.util.StringHelper.parseId;
+
 import com.android.SdkConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.resources.ResourceType;
@@ -31,20 +44,14 @@ import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.openapi.project.Project;
 import com.intellij.pom.java.LanguageLevel;
-import org.apache.commons.lang.StringUtils;
-import org.jetbrains.android.sdk.AndroidTargetData;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.google.gct.testrecorder.codegen.MatcherBuilder.Kind.*;
-import static com.google.gct.testrecorder.event.TestRecorderAssertion.*;
-import static com.google.gct.testrecorder.util.StringHelper.*;
+import org.apache.commons.lang.StringUtils;
+import org.jetbrains.android.sdk.AndroidTargetData;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class TestCodeMapper {
 
@@ -327,7 +334,10 @@ public class TestCodeMapper {
     int groupViewChildPosition = elementDescriptor.getGroupViewChildPosition();
 
     // Do not use child position for ViewPager children as it changes dynamically and non-deterministically.
-    if (SdkConstants.CLASS_VIEW_PAGER.isEquals(elementDescriptors.get(index + 1).getClassName())) {
+    if (SdkConstants.CLASS_VIEW_PAGER.isEquals(elementDescriptors.get(index + 1).getClassName())
+        // Do not use child position for assertions due to potential child position mismatches between UIAutomator (when assertion is
+        // recorded) and Espresso (when assertion is replayed/verified).
+        || isAssertionConditions) {
       groupViewChildPosition = -1;
     }
 
