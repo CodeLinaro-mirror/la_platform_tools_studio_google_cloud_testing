@@ -40,6 +40,7 @@ import com.android.annotations.VisibleForTesting;
 import com.android.builder.model.level2.Library;
 import com.android.ddmlib.IDevice;
 import com.android.ide.common.gradle.model.level2.IdeDependencies;
+import com.android.ide.common.gradle.model.level2.IdeLibrary;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.analytics.UsageTracker;
@@ -805,14 +806,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   @Nullable
   private static GradleVersion getDependencyVersion(@NotNull AndroidModuleModel androidModuleModel, String artifact) {
-    Collection<Library> libraries = Lists.newArrayList();
+    Collection<IdeLibrary> libraries = Lists.newArrayList();
     IdeDependencies androidTestCompileDependencies = androidModuleModel.getSelectedAndroidTestCompileDependencies();
     if (androidTestCompileDependencies != null) {
       libraries.addAll(androidTestCompileDependencies.getAndroidLibraries());
     }
     libraries.addAll(androidModuleModel.getSelectedMainCompileLevel2Dependencies().getAndroidLibraries());
 
-    for (Library library : libraries) {
+    for (IdeLibrary library : libraries) {
       if (GradleUtil.dependsOn(library, artifact)) {
         GradleCoordinate coordinate = GradleCoordinate.parseCoordinateString(library.getArtifactAddress());
         return coordinate != null ? coordinate.getVersion() : null;
