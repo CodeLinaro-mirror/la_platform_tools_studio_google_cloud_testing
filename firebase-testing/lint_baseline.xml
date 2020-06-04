@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="5" by="lint 4.2.0-dev">
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="src/com/google/gct/testing/dimension/ApiDimension.java"
+            line="79"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="src/com/google/gct/testing/dimension/ApiDimension.java"
+            line="157"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="src/com/google/gct/testing/CloudConfigurationHelper.java"
+            line="454"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="src/com/google/gct/testing/CloudResultsLoader.java"
+            line="137"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="src/com/google/gct/testing/DebugConfigurationAction.java"
+            line="249"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
+        <location
+            file="src/com/google/gct/testing/results/GoogleCloudTestingResultParser.java"
+            line="586"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="src/com/google/gct/testing/vnc/VncKeepAliveThreadImpl.java"
+            line="93"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
+            line="86"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
+            line="86"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
+            line="87"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
+            line="87"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ui/AddCompareScreenshotPanel.java"
+            line="147"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/vnc/BlankVncViewer.java"
+            line="72"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/CloudConfigurationChooserDialog.java"
+            line="287"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/android/CloudConfigurationComboBox.java"
+            line="125"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/android/CloudProjectSelector.java"
+            line="93"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/CloudTestingUtils.java"
+            line="137"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/CloudTestingUtils.java"
+            line="150"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/launcher/CloudTestsLauncher.java"
+            line="168"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ConfigurationResult.java"
+            line="119"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/DebugConfigurationAction.java"
+            line="177"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/DebugConfigurationAction.java"
+            line="190"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/DebugConfigurationAction.java"
+            line="200"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ScreenshotComparisonPanel.java"
+            line="332"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ui/Tab.java"
+            line="208"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/vnc/VncKeepAliveThreadImpl.java"
+            line="61"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/vnc/VncKeepAliveThreadImpl.java"
+            line="75"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ui/WipePanel.java"
+            line="78"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ui/WipePanel.java"
+            line="87"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ui/WipePanel.java"
+            line="96"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testing/ui/WipePanel.java"
+            line="177"/>
+    </issue>
+
+</issues>
