@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="5" by="lint 4.2.0-dev">
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toLowerCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`.">
+        <location
+            file="src/com/google/gct/testrecorder/util/StringHelper.java"
+            line="53"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testrecorder/ui/RecordingDialog.java"
+            line="1057"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testrecorder/debugger/SessionInitializer.java"
+            line="321"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testrecorder/ui/TestClassNameInputDialog.java"
+            line="89"/>
+    </issue>
+
+    <issue
+        id="WrongInvokeLater"
+        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
+        <location
+            file="src/com/google/gct/testrecorder/ui/TestRecorderScreenshotTask.java"
+            line="106"/>
+    </issue>
+
+</issues>

@@ -6,6 +6,7 @@ iml_module(
     srcs = ["src"],
     bundle_data = ["//tools/studio/google/cloud/testing/test-recorder/lib:licenses"],
     iml_files = ["test-recorder.iml"],
+    lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
     test_resources = ["test-resources"],
     # do not sort: must match IML order
