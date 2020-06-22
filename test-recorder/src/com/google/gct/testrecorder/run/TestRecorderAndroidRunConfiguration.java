@@ -61,9 +61,11 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
                                                 @NotNull String contributorsAmStartOptions,
                                                 boolean waitForDebugger,
                                                 @NotNull LaunchStatus launchStatus,
-                                                @NotNull ApkProvider apkProvider) {
+                                                @NotNull ApkProvider apkProvider,
+                                                @NotNull ConsolePrinter consolePrinter,
+                                                @NotNull IDevice device) {
     LaunchTask launchTask = super.getApplicationLaunchTask(applicationIdProvider, facet, contributorsAmStartOptions,
-                                                           waitForDebugger, launchStatus, apkProvider);
+                                                           waitForDebugger, launchStatus, apkProvider, consolePrinter, device);
     return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
   }
 
