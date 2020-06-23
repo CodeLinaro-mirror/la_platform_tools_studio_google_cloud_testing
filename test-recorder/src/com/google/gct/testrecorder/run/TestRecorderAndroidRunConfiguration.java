@@ -20,6 +20,7 @@ import com.android.ddmlib.NullOutputReceiver;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProvider;
 import com.android.tools.idea.run.ApkProviderUtil;
+import com.android.tools.idea.run.tasks.AppLaunchTask;
 import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.ConsolePrinter;
 import com.android.tools.idea.run.tasks.LaunchContext;
@@ -56,20 +57,20 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
 
   @Nullable
   @Override
-  protected LaunchTask getApplicationLaunchTask(@NotNull ApplicationIdProvider applicationIdProvider,
-                                                @NotNull AndroidFacet facet,
-                                                @NotNull String contributorsAmStartOptions,
-                                                boolean waitForDebugger,
-                                                @NotNull LaunchStatus launchStatus,
-                                                @NotNull ApkProvider apkProvider,
-                                                @NotNull ConsolePrinter consolePrinter,
-                                                @NotNull IDevice device) {
+  protected AppLaunchTask getApplicationLaunchTask(@NotNull ApplicationIdProvider applicationIdProvider,
+                                                   @NotNull AndroidFacet facet,
+                                                   @NotNull String contributorsAmStartOptions,
+                                                   boolean waitForDebugger,
+                                                   @NotNull LaunchStatus launchStatus,
+                                                   @NotNull ApkProvider apkProvider,
+                                                   @NotNull ConsolePrinter consolePrinter,
+                                                   @NotNull IDevice device) {
     LaunchTask launchTask = super.getApplicationLaunchTask(applicationIdProvider, facet, contributorsAmStartOptions,
                                                            waitForDebugger, launchStatus, apkProvider, consolePrinter, device);
     return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
   }
 
-  private static class TestRecorderLaunchTask implements LaunchTask {
+  private static class TestRecorderLaunchTask extends AppLaunchTask {
     private static final String ID = "TEST_RECORDER";
 
     private final LaunchTask myDefaultLaunchTask;
