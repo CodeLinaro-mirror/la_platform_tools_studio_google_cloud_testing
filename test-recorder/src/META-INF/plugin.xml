@@ -42,7 +42,7 @@
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
-    <projectConfigurable groupId="build" instance="com.google.gct.testrecorder.settings.TestRecorderSettingsConfigurable"
+    <projectConfigurable groupId="testing.instrumented.configuration" instance="com.google.gct.testrecorder.settings.TestRecorderSettingsConfigurable"
                          id ="test.recorder" displayName="Espresso Test Recorder"/>
     <applicationService serviceInterface="com.google.gct.testrecorder.settings.TestRecorderSettings"
                         serviceImplementation="com.google.gct.testrecorder.settings.TestRecorderSettings"/>
