@@ -77,6 +77,10 @@ iml_module(
     name = "unb.test-recorder",
     srcs = ["src"],
     bundle_data = ["//tools/studio/google/cloud/testing/test-recorder/lib:licenses"],
+    bundled_deps = [
+        "//tools/studio/google/cloud/testing/test-recorder/lib:unb.uiautomatorviewer",
+        "//tools/studio/google/cloud/testing/test-recorder/lib:unb.swt",
+    ],
     iml_files = ["test-recorder.iml"],
     lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
