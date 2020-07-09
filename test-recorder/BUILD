@@ -71,3 +71,39 @@ iml_module(
         "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
     ],
 )
+
+# managed by go/iml_to_build [unb]
+iml_module(
+    name = "unb.test-recorder",
+    srcs = ["src"],
+    bundle_data = ["//tools/studio/google/cloud/testing/test-recorder/lib:licenses"],
+    iml_files = ["test-recorder.iml"],
+    lint_baseline = "lint_baseline.xml",
+    resources = ["resources"],
+    tags = [
+        "manual",
+        "unb",
+    ],
+    test_resources = ["test-resources"],
+    test_srcs = ["testSrc"],
+    test_tags = ["manual"],
+    visibility = ["//visibility:public"],
+    # do not sort: must match IML order
+    deps = [
+        "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "//tools/adt/idea/android-common:unb.intellij.android.common[module]",
+        "//tools/adt/idea/android:unb.intellij.android.core[module]",
+        "//tools/adt/idea/android-test-framework:unb.intellij.android.testFramework[module, test]",
+        "//tools/studio/google/cloud/testing/test-recorder/lib:unb.uiautomatorviewer",
+        "//tools/studio/google/cloud/testing/test-recorder/lib:unb.swt",
+        "//tools/analytics-library/tracker:unb.analytics-tracker[module]",
+        "//tools/adt/idea/android-plugin:unb.intellij.android.plugin[module, test]",
+        "//tools/adt/idea/project-system:unb.intellij.android.projectSystem[module]",
+        "//tools/adt/idea/.idea/libraries:unb.protobuf",
+        "//tools/adt/idea/.idea/libraries:unb.studio-analytics-proto",
+        "//tools/adt/idea/deploy:unb.intellij.android.deploy[module]",
+        "//tools/adt/idea/artwork:unb.intellij.android.artwork[module]",
+        "//tools/adt/idea/lint:unb.intellij.lint[module]",
+        "//tools/adt/idea/gradle-dsl:unb.intellij.android.gradle.dsl[module]",
+    ],
+)
