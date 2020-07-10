@@ -57,6 +57,12 @@ public class GhostCloudDevice implements IDevice {
     return null;
   }
 
+  @Nullable
+  @Override
+  public String getAvdPath() {
+    return null;
+  }
+
   @Override
   public DeviceState getState() {
     return DeviceState.OFFLINE;
