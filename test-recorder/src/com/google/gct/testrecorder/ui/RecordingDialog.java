@@ -89,6 +89,7 @@ import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.psi.PsiClass;
 import com.intellij.ui.JBColor;
@@ -589,7 +590,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     } else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");
       FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
-      VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
+      VirtualFileWrapper fileWrapper = fileSaverDialog.save((VirtualFile)null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
 
       if (fileWrapper != null) {
         try {
