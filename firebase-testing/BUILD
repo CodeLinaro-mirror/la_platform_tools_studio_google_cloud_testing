@@ -96,6 +96,11 @@ iml_module(
     name = "unb.firebase-testing",
     srcs = ["src"],
     bundle_data = ["//tools/studio/google/cloud/testing/firebase-testing/lib:licenses"],
+    bundled_deps = [
+        "//tools/studio/google/cloud/testing/firebase-testing/lib:unb.google-api-services-storage-v1-rev1-1.18.0-rc",
+        "//tools/studio/google/cloud/testing/firebase-testing/lib:unb.google-api-services-testing-v1-revsnapshot-1.20.0",
+        "//tools/studio/google/cloud/testing/firebase-testing/lib:unb.google-api-services-toolresults-v1beta3-rev20151013-1.20.0",
+    ],
     iml_files = ["firebase-testing.iml"],
     lint_baseline = "lint_baseline.xml",
     tags = [
