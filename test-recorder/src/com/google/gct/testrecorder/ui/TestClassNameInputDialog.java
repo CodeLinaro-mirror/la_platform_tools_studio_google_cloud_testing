@@ -49,7 +49,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import static com.android.builder.model.AndroidProject.ARTIFACT_ANDROID_TEST;
+import static com.android.ide.common.gradle.model.IdeAndroidProject.ARTIFACT_ANDROID_TEST;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 
 public class TestClassNameInputDialog extends DialogWrapper {
