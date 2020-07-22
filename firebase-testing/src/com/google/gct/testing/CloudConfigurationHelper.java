@@ -591,25 +591,6 @@ public final class CloudConfigurationHelper {
     return new DefaultExecutionResult(console, runningState.getProcessHandler());
   }
 
-  static boolean isCloudOptionEnabledRemotely(boolean isDebugging) {
-    final String publicBucketName = "cloud-testing-plugin-enablement";
-    final String triggerFileName = isDebugging ? "DEBUGGING_ENABLED" : "TESTING_ENABLED";
-    try {
-      Storage.Objects.List objects = CloudAuthenticator.getInstance().getPublicStorage().objects().list(publicBucketName);
-      List<StorageObject> storageObjects = objects.execute().getItems();
-      if (storageObjects != null) {
-        for (StorageObject storageObject : storageObjects) {
-          if (triggerFileName.equals(storageObject.getName())) {
-            return true;
-          }
-        }
-      }
-    } catch (Exception e) {
-      // ignore
-    }
-    return false;
-  }
-
   private static void performTestsInCloud(final CloudConfigurationImpl cloudTestingConfiguration, final String cloudProjectId,
                                           final String bucketName, final String uniquePrefix,
                                           final CloudMatrixTestRunningState runningState,
