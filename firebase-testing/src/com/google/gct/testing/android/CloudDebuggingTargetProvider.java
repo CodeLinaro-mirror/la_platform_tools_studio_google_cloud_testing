@@ -16,7 +16,6 @@
 package com.google.gct.testing.android;
 
 import com.android.ddmlib.IDevice;
-import com.android.tools.idea.run.DeviceCount;
 import com.android.tools.idea.run.DeviceFutures;
 import com.android.tools.idea.run.DeviceSelectionUtils;
 import com.android.tools.idea.run.TargetDeviceFilter;
@@ -73,11 +72,11 @@ public class CloudDebuggingTargetProvider extends DeployTargetProvider {
   @Override
   public DeployTargetConfigurable createConfigurable(@NotNull Project project, @NotNull Disposable parentDisposable,
                                                      @NotNull DeployTargetConfigurableContext context) {
-    return new CloudDebuggingTargetConfigurable();
+    return DeployTargetConfigurable.DEFAULT_CONFIGURABLE;
   }
 
   @Override
-  public DeployTarget getDeployTarget() {
+  public @NotNull DeployTarget getDeployTarget(@NotNull Project project) {
     return new DeployTarget() {
       @Override
       public boolean hasCustomRunProfileState(@NotNull Executor executor) {
@@ -93,11 +92,7 @@ public class CloudDebuggingTargetProvider extends DeployTargetProvider {
 
       @Nullable
       @Override
-      public DeviceFutures getDevices(@NotNull DeployTargetState state,
-                                      @NotNull AndroidFacet facet,
-                                      @NotNull DeviceCount deviceCount,
-                                      boolean debug,
-                                      int runConfigId) {
+      public DeviceFutures getDevices(@NotNull AndroidFacet facet) {
         return DeviceFutures.forDevices(DeviceSelectionUtils.getAllCompatibleDevices(new TargetDeviceFilter() {
           @Override
           public boolean matchesDevice(@NotNull IDevice device) {
@@ -119,5 +114,4 @@ public class CloudDebuggingTargetProvider extends DeployTargetProvider {
   public void setCloudDeviceSerialNumber(String cloudDeviceSerialNumber) {
     myCloudDeviceSerialNumber = cloudDeviceSerialNumber;
   }
-
 }
