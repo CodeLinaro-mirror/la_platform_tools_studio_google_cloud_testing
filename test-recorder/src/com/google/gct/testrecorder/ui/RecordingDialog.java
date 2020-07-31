@@ -37,10 +37,9 @@ import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIG
 import static org.apache.commons.lang.StringUtils.isEmpty;
 
 import com.android.annotations.VisibleForTesting;
-import com.android.builder.model.level2.Library;
 import com.android.ddmlib.IDevice;
-import com.android.ide.common.gradle.model.level2.IdeDependencies;
-import com.android.ide.common.gradle.model.level2.IdeLibrary;
+import com.android.ide.common.gradle.model.IdeDependencies;
+import com.android.ide.common.gradle.model.IdeLibrary;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.analytics.UsageTracker;
