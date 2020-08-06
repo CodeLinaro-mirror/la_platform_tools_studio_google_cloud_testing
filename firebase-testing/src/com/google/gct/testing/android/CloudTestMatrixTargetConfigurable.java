@@ -15,8 +15,16 @@
  */
 package com.google.gct.testing.android;
 
+import static com.google.gct.testing.CloudTestingUtils.linkifyEditorPane;
+import static com.google.gct.testing.CloudTestingUtils.prepareCreateFirebaseProjectAnchor;
+import static com.google.gct.testing.CloudTestingUtils.preparePricingAnchor;
+import static com.google.gct.testing.android.CloudConfiguration.Kind.MATRIX;
+import static com.google.gct.testing.launcher.CloudAuthenticator.authorize;
+import static com.google.gct.testing.launcher.CloudAuthenticator.isUserLoggedIn;
+
 import com.android.tools.idea.run.editor.DeployTargetConfigurable;
 import com.android.tools.idea.run.editor.DeployTargetConfigurableContext;
+import com.android.tools.idea.run.editor.DeployTargetState;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -30,20 +38,26 @@ import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import icons.GoogleCloudToolsIcons;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JEditorPane;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
-
-import static com.google.gct.testing.CloudTestingUtils.*;
-import static com.google.gct.testing.android.CloudConfiguration.Kind.MATRIX;
-import static com.google.gct.testing.launcher.CloudAuthenticator.authorize;
-import static com.google.gct.testing.launcher.CloudAuthenticator.isUserLoggedIn;
-
-public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurable<CloudTestMatrixTargetProvider.State> {
+public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurable {
   @Nullable private AndroidFacet myFacet;
   private final JPanel topPanel;
   private final JPanel connectToCloudPanel;
@@ -129,7 +143,8 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
   }
 
   @Override
-  public void resetFrom(@NotNull CloudTestMatrixTargetProvider.State state, int configurationId) {
+  public void resetFrom(@NotNull DeployTargetState genericState, int configurationId) {
+    CloudTestMatrixTargetProvider.State state = (CloudTestMatrixTargetProvider.State) genericState;
     myCloudConfigurationComboBox.setRunConfigurationId(configurationId);
     myCloudProjectSelector.setRunConfigurationId(configurationId);
 
@@ -146,7 +161,8 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
   }
 
   @Override
-  public void applyTo(@NotNull CloudTestMatrixTargetProvider.State state, int configurationId) {
+  public void applyTo(@NotNull DeployTargetState genericState, int configurationId) {
+    CloudTestMatrixTargetProvider.State state = (CloudTestMatrixTargetProvider.State) genericState;
     // Store the state only if there is some, i.e., the user is logged in and a proper configuration is selected.
     if (isUserLoggedIn() && myCloudConfigurationComboBox.getComboBox().getSelectedItem() instanceof CloudConfiguration) {
       CloudConfiguration selectedConfiguration = (CloudConfiguration)myCloudConfigurationComboBox.getComboBox().getSelectedItem();

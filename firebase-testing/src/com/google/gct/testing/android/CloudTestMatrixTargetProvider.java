@@ -15,7 +15,6 @@
  */
 package com.google.gct.testing.android;
 
-import com.android.tools.idea.run.DeviceCount;
 import com.android.tools.idea.run.DeviceFutures;
 import com.android.tools.idea.run.TargetSelectionMode;
 import com.android.tools.idea.run.ValidationError;
@@ -77,17 +76,12 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
   }
 
   @Override
-  public boolean showInDevicePicker(@NotNull Executor executor) {
-    return !(executor instanceof DefaultDebugExecutor);
-  }
-
-  @Override
   protected boolean isApplicable(boolean testConfiguration) {
     return testConfiguration;
   }
 
   @Override
-  public DeployTarget getDeployTarget() {
+  public @NotNull DeployTarget getDeployTarget(@NotNull Project project) {
     return new DeployTarget() {
       @Override
       public boolean hasCustomRunProfileState(@NotNull Executor executor) {
@@ -104,9 +98,9 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
           return null;
         }
 
-        AndroidTestRunConfiguration runConfiguration = (AndroidTestRunConfiguration) runProfile;
+        AndroidTestRunConfiguration runConfiguration = (AndroidTestRunConfiguration)runProfile;
         AndroidFacet facet = AndroidFacet.getInstance(runConfiguration.getConfigurationModule().getModule());
-        CloudTestMatrixTargetProvider.State cloudTargetState = (CloudTestMatrixTargetProvider.State) state;
+        CloudTestMatrixTargetProvider.State cloudTargetState = (CloudTestMatrixTargetProvider.State)state;
 
         return new CloudMatrixTestRunningState(env, facet, runConfiguration, cloudTargetState.SELECTED_CLOUD_MATRIX_CONFIGURATION_ID,
                                                cloudTargetState.SELECTED_CLOUD_MATRIX_PROJECT_ID);
@@ -114,14 +108,10 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
 
       @Nullable
       @Override
-      public DeviceFutures getDevices(@NotNull DeployTargetState state,
-                                      @NotNull AndroidFacet facet,
-                                      @NotNull DeviceCount count,
-                                      boolean debug,
-                                      int id) {
+      public DeviceFutures getDevices(@NotNull AndroidFacet facet) {
         // This runs when a developer debugs (not runs) an Android instrumented test. Use the device selected in the drop down.
         DeviceAndSnapshotComboBoxTargetProvider provider = new DeviceAndSnapshotComboBoxTargetProvider();
-        return provider.getDeployTarget(facet.getModule().getProject()).getDevices(provider.createState(), facet, count, debug, id);
+        return provider.getDeployTarget(facet.getModule().getProject()).getDevices(facet);
       }
     };
   }

@@ -15,12 +15,15 @@
  */
 package com.google.gct.testrecorder.ui;
 
+import static com.android.ide.common.gradle.model.IdeAndroidProject.ARTIFACT_ANDROID_TEST;
+import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
+
 import com.android.SdkConstants;
-import com.android.builder.model.SourceProvider;
+import com.android.ide.common.gradle.model.IdeSourceProvider;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
-import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
+import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.collect.Lists;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
@@ -36,21 +39,26 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.*;
+import com.intellij.psi.JavaDirectoryService;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiDirectory;
+import com.intellij.psi.PsiManager;
+import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jps.model.java.JavaSourceRootType;
-
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-
-import static com.android.ide.common.gradle.model.IdeAndroidProject.ARTIFACT_ANDROID_TEST;
-import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jps.model.java.JavaSourceRootType;
 
 public class TestClassNameInputDialog extends DialogWrapper {
   private static final String JAVA_LANGUAGE_NAME = "Java";
@@ -181,7 +189,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
     AndroidModuleModel androidModel = AndroidModuleModel.get(myTestClassModule);
     if (androidModel != null) {
-      for (SourceProvider sourceProvider : androidModel.getTestSourceProviders(ARTIFACT_ANDROID_TEST)) {
+      for (IdeSourceProvider sourceProvider : androidModel.getTestSourceProviders(ARTIFACT_ANDROID_TEST)) {
         for (File javaDirectory : sourceProvider.getJavaDirectories()) {
           try {
             androidTestSourceRoots.add(FileUtil.toSystemIndependentName(javaDirectory.getCanonicalPath()));
