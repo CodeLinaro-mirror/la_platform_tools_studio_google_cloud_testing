@@ -77,7 +77,7 @@ iml_module(
 
 # managed by go/iml_to_build [unb]
 iml_module(
-    name = "unb.test-recorder",
+    name = "test-recorder",
     srcs = ["src"],
     bundle_data = ["//tools/studio/google/cloud/testing/test-recorder/lib:licenses"],
     bundled_deps = [
@@ -86,11 +86,8 @@ iml_module(
     ],
     iml_files = ["test-recorder.iml"],
     lint_baseline = "lint_baseline.xml",
+    project = "unb",
     resources = ["resources"],
-    tags = [
-        "manual",
-        "unb",
-    ],
     test_resources = ["test-resources"],
     test_srcs = ["testSrc"],
     test_tags = ["manual"],
@@ -99,19 +96,19 @@ iml_module(
     deps = [
         "//prebuilts/studio/intellij-sdk:studio-sdk",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-java",
-        "//tools/adt/idea/android-common:unb.intellij.android.common[module]",
-        "//tools/adt/idea/android:unb.intellij.android.core[module]",
-        "//tools/adt/idea/android-test-framework:unb.intellij.android.testFramework[module, test]",
+        "//tools/adt/idea/android-common:intellij.android.common[module]",
+        "//tools/adt/idea/android:intellij.android.core[module]",
+        "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
         "//tools/studio/google/cloud/testing/test-recorder/lib:unb.uiautomatorviewer",
         "//tools/studio/google/cloud/testing/test-recorder/lib:unb.swt",
-        "//tools/analytics-library/tracker:unb.analytics-tracker[module]",
-        "//tools/adt/idea/android-plugin:unb.intellij.android.plugin[module, test]",
-        "//tools/adt/idea/project-system:unb.intellij.android.projectSystem[module]",
+        "//tools/analytics-library/tracker:analytics-tracker[module]",
+        "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
+        "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
         "//tools/adt/idea/.idea/libraries:unb.protobuf",
         "//tools/adt/idea/.idea/libraries:unb.studio-analytics-proto",
-        "//tools/adt/idea/deploy:unb.intellij.android.deploy[module]",
-        "//tools/adt/idea/artwork:unb.intellij.android.artwork[module]",
-        "//tools/adt/idea/lint:unb.intellij.lint[module]",
-        "//tools/adt/idea/gradle-dsl:unb.intellij.android.gradle.dsl[module]",
+        "//tools/adt/idea/deploy:intellij.android.deploy[module]",
+        "//tools/adt/idea/artwork:intellij.android.artwork[module]",
+        "//tools/adt/idea/lint:intellij.lint[module]",
+        "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
     ],
 )
