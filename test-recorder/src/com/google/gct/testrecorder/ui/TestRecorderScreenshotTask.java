@@ -73,7 +73,7 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
       return;
     }
     indicator.setText("Dumping UI hierarchy on the device...");
-    String uiHierarchyRemoteContainerPath = String.format("/sdcard/Android/data/%s/files/testrecorder", myPackageName);
+    String uiHierarchyRemoteContainerPath = String.format("/sdcard/%s/files/testrecorder", myPackageName);
     String uiHierarchyRemotePath = uiHierarchyRemoteContainerPath + "/ui_hierarchy.xml";
     try {
       myDevice.executeShellCommand("mkdir -p " + uiHierarchyRemoteContainerPath, new CollectingOutputReceiver(), 3, TimeUnit.SECONDS);
