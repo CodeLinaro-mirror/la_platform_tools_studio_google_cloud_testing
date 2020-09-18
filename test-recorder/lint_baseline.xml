@@ -9,36 +9,4 @@
             line="53"/>
     </issue>
 
-    <issue
-        id="WrongInvokeLater"
-        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
-        <location
-            file="src/com/google/gct/testrecorder/ui/RecordingDialog.java"
-            line="1057"/>
-    </issue>
-
-    <issue
-        id="WrongInvokeLater"
-        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
-        <location
-            file="src/com/google/gct/testrecorder/debugger/SessionInitializer.java"
-            line="321"/>
-    </issue>
-
-    <issue
-        id="WrongInvokeLater"
-        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
-        <location
-            file="src/com/google/gct/testrecorder/ui/TestClassNameInputDialog.java"
-            line="89"/>
-    </issue>
-
-    <issue
-        id="WrongInvokeLater"
-        message="Do not use `SwingUtilities.invokeLater`; use `Application.invokeLater` instead. See `go/do-not-freeze`.">
-        <location
-            file="src/com/google/gct/testrecorder/ui/TestRecorderScreenshotTask.java"
-            line="106"/>
-    </issue>
-
 </issues>
