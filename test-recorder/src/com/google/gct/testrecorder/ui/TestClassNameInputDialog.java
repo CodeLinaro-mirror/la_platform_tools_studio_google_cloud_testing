@@ -21,6 +21,8 @@ import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 import com.android.SdkConstants;
 import com.android.ide.common.gradle.model.IdeSourceProvider;
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
+import com.android.tools.idea.gradle.dsl.api.PluginModel;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
 import com.android.tools.idea.stats.UsageTrackerUtils;
@@ -93,6 +95,15 @@ public class TestClassNameInputDialog extends DialogWrapper {
     myClassLanguageComboBox.addItem(KOTLIN_LANGUAGE_NAME);
 
     prepareEnvironment();
+
+    // Remove the Kotlin language option if the launched activity is not a Kotlin class
+    // and Kotlin plugin is not enabled.
+    if (myClassLanguageComboBox.getSelectedIndex() < 1) {
+      GradleBuildModel gradleBuildModel = GradleBuildModel.get(myTestClassModule);
+      if (gradleBuildModel == null || !PluginModel.extractNames(gradleBuildModel.plugins()).contains("kotlin-android")) {
+        myClassLanguageComboBox.removeItemAt(1);
+      }
+    }
 
     SwingUtilities.invokeLater(new Runnable(){
       @Override
