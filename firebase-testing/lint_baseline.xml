@@ -70,22 +70,6 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/google/gct/testing/CloudConfigurationImpl.java"
-            line="86"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope">
-        <location
-            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
-            line="87"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope">
-        <location
-            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
             line="87"/>
     </issue>
 
