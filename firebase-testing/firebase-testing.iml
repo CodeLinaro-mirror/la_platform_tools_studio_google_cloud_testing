@@ -10,19 +10,9 @@
     <orderEntry type="library" name="studio-sdk" level="project" />
     <orderEntry type="library" name="studio-plugin-Groovy" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="intellij.platform.editor" />
-    <orderEntry type="module" module-name="intellij.platform.ide" />
-    <orderEntry type="module" module-name="intellij.platform.ide.impl" />
     <orderEntry type="library" name="Guava" level="project" />
     <orderEntry type="module" module-name="intellij.android.common" />
     <orderEntry type="module" module-name="intellij.android.core" />
-    <orderEntry type="module" module-name="intellij.platform.smRunner" />
-    <orderEntry type="module" module-name="intellij.platform.lang" />
-    <orderEntry type="module" module-name="intellij.platform.lang.impl" />
-    <orderEntry type="library" name="JUnit4" level="project" />
-    <orderEntry type="module" module-name="intellij.groovy" />
-    <orderEntry type="module" module-name="intellij.platform.debugger" />
-    <orderEntry type="module" module-name="intellij.xml.dom" />
     <orderEntry type="module-library">
       <library>
         <CLASSES>
@@ -44,7 +34,6 @@
     <orderEntry type="module" module-name="google-cloud-tools-core-as" />
     <orderEntry type="module" module-name="google-login-as" />
     <orderEntry type="library" name="tightvnc" level="project" />
-    <orderEntry type="library" name="JSch" level="project" />
     <orderEntry type="module-library">
       <library>
         <CLASSES>
@@ -54,15 +43,11 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="swingx" level="project" />
-    <orderEntry type="module" module-name="intellij.java.execution" />
     <orderEntry type="module" module-name="analytics-tracker" />
-    <orderEntry type="module" module-name="intellij.java.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.testFramework" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="mockito" level="project" />
     <orderEntry type="module" module-name="android.sdktools.testutils" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.plugin" scope="TEST" />
-    <orderEntry type="library" name="Log4J" level="project" />
     <orderEntry type="module" module-name="intellij.android.artwork" />
     <orderEntry type="module" module-name="intellij.android.adt.testutils" scope="TEST" />
     <orderEntry type="library" name="studio-analytics-proto" level="project" />
