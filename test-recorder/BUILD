@@ -4,7 +4,6 @@ load("//tools/base/bazel:bazel.bzl", "iml_module")
 iml_module(
     name = "test-recorder",
     srcs = ["src"],
-    bundle_data = ["//tools/studio/google/cloud/testing/test-recorder/lib:licenses"],
     bundled_deps = [
         "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",
         "//tools/studio/google/cloud/testing/test-recorder/lib:swt",

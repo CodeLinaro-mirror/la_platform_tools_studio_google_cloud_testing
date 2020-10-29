@@ -4,7 +4,6 @@ load("//tools/base/bazel:bazel.bzl", "iml_module")
 iml_module(
     name = "firebase-testing",
     srcs = ["src"],
-    bundle_data = ["//tools/studio/google/cloud/testing/firebase-testing/lib:licenses"],
     bundled_deps = [
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-storage-v1-rev1-1.18.0-rc",
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-testing-v1-revsnapshot-1.20.0",
