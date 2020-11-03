@@ -16,6 +16,7 @@
   </project-components>
 
   <depends>org.jetbrains.android</depends>
+  <depends>org.intellij.groovy</depends>
   <depends>com.google.gct.login</depends>
   <depends>com.google.gct.core</depends>
 
