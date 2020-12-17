@@ -85,6 +85,14 @@ public class UiAutomatorNodeHelper {
     }
   }
 
+  public static String getAppPackageName(BasicTreeNode root) {
+    // Root is not a UiNode, so use a child to get 'package'.
+    if (root.getChildCount() > 0) {
+      return getAttribute(root.getChildren()[0], "package");
+    }
+    return "";
+  }
+
   private static String getAttribute(BasicTreeNode node, String attributeName) {
     if (node instanceof UiNode) {
       return ((UiNode) node).getAttribute(attributeName);

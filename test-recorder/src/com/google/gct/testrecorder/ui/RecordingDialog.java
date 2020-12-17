@@ -26,6 +26,7 @@ import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_IC
 import static com.google.gct.testrecorder.util.ClassHelper.getInternalName;
 import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.createElementLevelMap;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getAppPackageName;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getClassName;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getContentDescription;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getResourceId;
@@ -280,6 +281,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             myAssertionMode = true;
             getRootPane().setDefaultButton(mySaveAssertionAndAddAnotherButton);
             BasicTreeNode root = model.getXmlRootNode();
+            String applicationId = getApplicationId("");
+            if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
+              Messages.showDialog(myProject, "Out-of-app assertions are not supported and will break the generated Espresso test.",
+                                  "Warning: adding an out-of-app assertion", new String[]{"OK"}, 0, null);
+            }
             BufferedImage preparedImage = rotateImage(initialImage, getRotation(root));
             myScreenshotPanel.updateScreenShot(preparedImage, model);
             // Populate drop down menu
