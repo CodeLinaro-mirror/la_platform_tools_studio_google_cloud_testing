@@ -546,6 +546,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       // which might confuse Gradle about the location of android tests.
       TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet.getModule(), myLaunchedActivityName);
       chooser.show();
+      PsiClass testClass = chooser.getTestClass();
+      if (testClass == null) {
+        // Test class generation was cancelled or resulted in an error.
+        return;
+      }
       Module testClassModule = chooser.getTestClassModule();
 
       //Similarly, compute resource package name and application id before the potential Gradle confusion.
@@ -585,14 +590,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           }
         }
       }
-
-      PsiClass testClass = chooser.getTestClass();
-
-      if (testClass != null) {
-        super.doOKAction();
-        new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelActions(), myLaunchedActivityName,
-                              myWasEverPaused, chooser.isKotlinTestClass(), myUsesAndroidxDependency).generate();
-      }
+      super.doOKAction();
+      new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelActions(), myLaunchedActivityName,
+                            myWasEverPaused, chooser.isKotlinTestClass(), myUsesAndroidxDependency).generate();
     } else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");
       FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
