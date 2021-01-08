@@ -31,6 +31,7 @@ import com.intellij.execution.testframework.AbstractTestProxy;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
 import com.intellij.openapi.fileChooser.ex.FileSaverDialogImpl;
 import com.intellij.openapi.util.Pair;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.util.ui.UIUtil;
 
@@ -439,7 +440,7 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
 
         FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Screenshot", description, "png");
         FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, parent.getWindow());
-        VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, proposedFileName);
+        VirtualFileWrapper fileWrapper = fileSaverDialog.save((VirtualFile)null, proposedFileName);
 
         if (fileWrapper != null) {
           try {

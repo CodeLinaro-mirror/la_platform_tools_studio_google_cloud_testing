@@ -23,7 +23,6 @@ import com.intellij.execution.testframework.sm.runner.states.*;
 import com.intellij.execution.testframework.stacktrace.DiffHyperlink;
 import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.ide.util.EditSourceUtil;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.text.StringUtil;
@@ -36,13 +35,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 public class GoogleCloudTestProxy extends AbstractTestProxy {
-  private static final Logger LOG = Logger.getInstance(GoogleCloudTestProxy.class.getName());
-
   private List<GoogleCloudTestProxy> myChildren;
   private GoogleCloudTestProxy myParent;
 
@@ -476,7 +472,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
     //TODO: In future, we might not want to show the name of the enclosing configuration unless the root node is selected.
     localizedMessage = getParent().getParent().getName() + "\n\t" + localizedMessage;
     if (myState instanceof TestFailedState) {
-      ((TestFailedState) myState).addError(localizedMessage, stackTrace, myPrinter);
+      myState = compoundOf((TestFailedState)myState, new TestFailedState(localizedMessage, stackTrace));
     }
     else {
       myState = testError
@@ -484,6 +480,14 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
                 : new TestFailedState(localizedMessage, stackTrace);
       fireOnNewPrintable(myState);
     }
+  }
+
+  @NotNull
+  private static CompoundTestFailedState compoundOf(@NotNull TestFailedState tfs1, @NotNull TestFailedState tfs2) {
+    CompoundTestFailedState compoundTestFailedState = new CompoundTestFailedState();
+    compoundTestFailedState.addFailure(tfs1);
+    compoundTestFailedState.addFailure(tfs2);
+    return compoundTestFailedState;
   }
 
   public void setTestComparisonFailed(@NotNull final String localizedMessage,
@@ -647,10 +651,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
     addLast(new Printable() {
       @Override
       public void printOn(final Printer printer) {
-        final String errorText = TestFailedState.buildErrorPresentationText(output, stackTrace);
-        LOG.assertTrue(errorText != null);
-
-        TestFailedState.printError(printer, Arrays.asList(errorText));
+        new TestFailedState(output, stackTrace).printOn(printer);
       }
     });
   }

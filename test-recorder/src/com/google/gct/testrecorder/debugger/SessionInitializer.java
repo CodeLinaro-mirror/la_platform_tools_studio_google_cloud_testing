@@ -321,6 +321,15 @@ public class SessionInitializer implements Runnable {
     SwingUtilities.invokeLater(new Runnable() {
       @Override
       public void run() {
+        String title = "Test Recorder has detached from the device VM";
+        if (isDeviceConnected()) {
+          // The device is still connected, so the app might have crashed or some other VM issue happened, and thus,
+          // it is impossible to reconnect.
+          Messages.showDialog(myProject, "Test Recorder stopped recording your actions because the app stopped.",
+                              title, new String[]{"OK"}, 0, null);
+          return;
+        }
+
         String message = "Test Recorder stopped recording your actions because it has detached from the device VM.\n" +
                          "Please fix the connection and click Resume to continue.";
         // Keep trying until a successful reconnection or the user explicitly stops attempting to reconnect.
@@ -329,7 +338,7 @@ public class SessionInitializer implements Runnable {
           if (myRecordingDialog != null) {
             myRecordingDialog.setDebuggerSession(null);
           }
-          int userChoice = Messages.showDialog(myProject, message, "Test Recorder has detached from the device VM",
+          int userChoice = Messages.showDialog(myProject, message, title,
                                                new String[]{"Stop", "Resume"}, 1, null);
           message = null;
           if (userChoice != 0) {
@@ -475,4 +484,15 @@ public class SessionInitializer implements Runnable {
     throw new RuntimeException("Could not find the original device to reconnect to!");
   }
 
+  private boolean isDeviceConnected() {
+    AndroidDebugBridge debugBridge = AndroidSdkUtils.getDebugBridge(myProject);
+    if (debugBridge != null) {
+      for (IDevice device : debugBridge.getDevices()) {
+        if (myDevice.getSerialNumber().equals(device.getSerialNumber())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 }

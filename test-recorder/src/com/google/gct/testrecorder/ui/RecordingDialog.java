@@ -26,6 +26,7 @@ import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_IC
 import static com.google.gct.testrecorder.util.ClassHelper.getInternalName;
 import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.createElementLevelMap;
+import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getAppPackageName;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getClassName;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getContentDescription;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getResourceId;
@@ -89,6 +90,7 @@ import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.psi.PsiClass;
 import com.intellij.ui.JBColor;
@@ -279,6 +281,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             myAssertionMode = true;
             getRootPane().setDefaultButton(mySaveAssertionAndAddAnotherButton);
             BasicTreeNode root = model.getXmlRootNode();
+            String applicationId = getApplicationId("");
+            if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
+              Messages.showDialog(myProject, "Out-of-app assertions are not supported and will break the generated Espresso test.",
+                                  "Warning: adding an out-of-app assertion", new String[]{"OK"}, 0, null);
+            }
             BufferedImage preparedImage = rotateImage(initialImage, getRotation(root));
             myScreenshotPanel.updateScreenShot(preparedImage, model);
             // Populate drop down menu
@@ -539,6 +546,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       // which might confuse Gradle about the location of android tests.
       TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet.getModule(), myLaunchedActivityName);
       chooser.show();
+      PsiClass testClass = chooser.getTestClass();
+      if (testClass == null) {
+        // Test class generation was cancelled or resulted in an error.
+        return;
+      }
       Module testClassModule = chooser.getTestClassModule();
 
       //Similarly, compute resource package name and application id before the potential Gradle confusion.
@@ -578,18 +590,13 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           }
         }
       }
-
-      PsiClass testClass = chooser.getTestClass();
-
-      if (testClass != null) {
-        super.doOKAction();
-        new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelActions(), myLaunchedActivityName,
-                              myWasEverPaused, chooser.isKotlinTestClass(), myUsesAndroidxDependency).generate();
-      }
+      super.doOKAction();
+      new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelActions(), myLaunchedActivityName,
+                            myWasEverPaused, chooser.isKotlinTestClass(), myUsesAndroidxDependency).generate();
     } else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");
       FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
-      VirtualFileWrapper fileWrapper = fileSaverDialog.save(null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
+      VirtualFileWrapper fileWrapper = fileSaverDialog.save((VirtualFile)null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
 
       if (fileWrapper != null) {
         try {
