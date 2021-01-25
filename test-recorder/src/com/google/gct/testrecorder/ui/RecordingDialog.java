@@ -156,10 +156,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private static final GradleVersion MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("1.0.0");
 
   /** The minimal version of androidx espresso-core in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_ESPRESSO_CORE_VERSION = GradleVersion.parse("3.1.0-alpha1");
+  private static final GradleVersion MIN_ANDROIDX_ESPRESSO_CORE_VERSION = GradleVersion.parse("3.3.0");
 
   /** The minimal version of androidx rules in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_RULES_VERSION = GradleVersion.parse("1.1.0-alpha1");
+  private static final GradleVersion MIN_ANDROIDX_RULES_VERSION = GradleVersion.parse("1.3.0");
 
   /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
   private static String espressoCoreVersion = null;
@@ -427,7 +427,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private static String getAndroidxEspressoCoreVersion() {
     if (androidxEspressoCoreVersion == null) {
-      androidxEspressoCoreVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE, "3.1.0-alpha2");
+      androidxEspressoCoreVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE, "3.3.0");
     }
     return androidxEspressoCoreVersion;
   }
@@ -441,7 +441,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private static String getAndroidxRulesVersion() {
     if (androidxRulesVersion == null) {
-      androidxRulesVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_RULES, "1.1.0-alpha2");
+      androidxRulesVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_RULES, "1.3.0");
     }
     return androidxRulesVersion;
   }
@@ -879,15 +879,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         }
 
         WriteCommandAction.runWriteCommandAction(myProject, () -> {
-          if (!hasUptodateEspressoCoreDependency(androidModuleModel)) {
-            addOrUpdateEspressoCoreDependency();
-          }
-
-          if (!hasUptodateRulesDependency(androidModuleModel)) {
-            addOrUpdateRulesDependency();
-          }
-
-          if (myNeedsContribDependency && !hasUptodateEspressoContribDependency(androidModuleModel)) {
+          addOrUpdateEspressoCoreDependency();
+          addOrUpdateRulesDependency();
+          if (myNeedsContribDependency) {
             addOrUpdateEspressoContribDependency();
           }
 
