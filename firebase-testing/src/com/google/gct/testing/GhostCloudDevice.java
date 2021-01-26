@@ -301,6 +301,11 @@ public class GhostCloudDevice implements IDevice {
   }
 
   @Override
+  public String uninstallApp(String applicationID, String... extraArgs) throws InstallException {
+    return null;
+  }
+
+  @Override
   public void reboot(String into) throws TimeoutException, AdbCommandRejectedException, IOException {
 
   }
