@@ -4,10 +4,6 @@ load("//tools/base/bazel:bazel.bzl", "iml_module")
 iml_module(
     name = "test-recorder",
     srcs = ["src"],
-    bundled_deps = [
-        "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",
-        "//tools/studio/google/cloud/testing/test-recorder/lib:swt",
-    ],
     iml_files = ["test-recorder.iml"],
     lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
