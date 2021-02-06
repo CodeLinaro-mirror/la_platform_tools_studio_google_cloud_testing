@@ -43,7 +43,6 @@ iml_module(
         "//tools/adt/idea/artwork:intellij.android.artwork[module]",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
-        "//tools/adt/idea/.idea/libraries:protobuf",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
     ],
 )
