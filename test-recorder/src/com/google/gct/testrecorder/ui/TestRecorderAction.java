@@ -18,6 +18,7 @@ package com.google.gct.testrecorder.ui;
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.run.AndroidSessionInfo;
+import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxAction;
 import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.debugger.SessionInitializer;
@@ -33,6 +34,7 @@ import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
+import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
@@ -78,6 +80,12 @@ public class TestRecorderAction extends AnAction {
     final Project project = event.getProject();
 
     if (project == null || !project.isInitialized() || project.isDisposed() || DumbService.getInstance(project).isDumb()) {
+      presentation.setEnabled(false);
+      return;
+    }
+
+    DeviceAndSnapshotComboBoxAction deviceAndSnapshotComboBoxAction = (DeviceAndSnapshotComboBoxAction) ActionManager.getInstance().getAction("DeviceAndSnapshotComboBox");
+    if (deviceAndSnapshotComboBoxAction.isMultipleTargetsSelectedInComboBox(project)) {
       presentation.setEnabled(false);
       return;
     }
