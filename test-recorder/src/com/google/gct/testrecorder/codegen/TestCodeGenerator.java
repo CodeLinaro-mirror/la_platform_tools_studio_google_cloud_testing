@@ -15,7 +15,11 @@
  */
 package com.google.gct.testrecorder.codegen;
 
-import com.android.SdkConstants;
+import static com.google.gct.testrecorder.util.StringHelper.boxString;
+import static com.google.gct.testrecorder.util.StringHelper.getClassName;
+import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharacter;
+import static org.jetbrains.android.util.AndroidUtils.computePackageName;
+
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.build.GradleBuildState;
@@ -32,7 +36,6 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.google.wireless.android.sdk.stats.TestRecorderDetails;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
-import com.intellij.codeInsight.actions.ReformatCodeProcessor;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.ide.SelectInContext;
 import com.intellij.ide.SelectInTarget;
@@ -40,8 +43,15 @@ import com.intellij.ide.actions.OpenFileAction;
 import com.intellij.ide.actions.SelectInContextImpl;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.ProjectViewPane;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.ActionPlaces;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.CommonDataKeys;
+import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.openapi.actionSystem.PlatformDataKeys;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.TransactionGuard;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.progress.impl.CoreProgressManager;
@@ -49,9 +59,18 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiManager;
 import com.intellij.util.ThreeState;
 import com.intellij.util.containers.ConcurrentLongObjectMap;
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.Writer;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.velocity.VelocityContext;
@@ -61,18 +80,6 @@ import org.jetbrains.android.sdk.AndroidPlatform;
 import org.jetbrains.android.sdk.AndroidTargetData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.io.File;
-import java.io.PrintWriter;
-import java.io.Writer;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import static com.google.gct.testrecorder.util.StringHelper.*;
-import static org.jetbrains.android.util.AndroidUtils.computePackageName;
 
 /**
  * This class generates instrumentation test and saves it to target location given the
@@ -119,7 +126,16 @@ public class TestCodeGenerator {
       return;
     }
 
-    writeCode(testFilePath, testVirtualFile);
+    ApplicationManager.getApplication().runWriteAction(() -> writeCode(testVirtualFile));
+
+    // Commit the document such that the automatically triggered code formatter does not fail.
+    PsiDocumentManager psiDocumentManager = PsiDocumentManager.getInstance(myProject);
+    Document document = FileDocumentManager.getInstance().getDocument(testVirtualFile);
+    if (document != null) {
+      psiDocumentManager.commitDocument(document);
+    } else {
+      psiDocumentManager.commitAllDocuments();
+    }
 
     // TODO: Figure out why we need to do refresh two times here.
     testVirtualFile.refresh(false, true);
@@ -158,12 +174,8 @@ public class TestCodeGenerator {
 
         JobScheduler.getScheduler().schedule(() -> {
           waitForBackgroundTasksToFinish();
-
           TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
             new OptimizeImportsProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile)).run());
-
-          TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
-            new ReformatCodeProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile), null, false).run());
         }, 10, TimeUnit.MILLISECONDS);
       }
     });
@@ -208,11 +220,11 @@ public class TestCodeGenerator {
   }
 
   @VisibleForTesting
-  protected void writeCode(String testFilePath, VirtualFile testVirtualFile) {
+  protected void writeCode(VirtualFile testVirtualFile) {
     // Write code to the test class file.
     Writer writer = null;
     try {
-      writer = new PrintWriter(testFilePath, SdkConstants.UTF_8);
+      writer = new PrintWriter(testVirtualFile.getOutputStream(this));
 
       VelocityEngine velocityEngine = new VelocityEngine();
       // Suppress creation of velocity.log file.
