@@ -125,12 +125,8 @@ class MyTest {
 
         val elementClass7 = onView(
                 allOf(withId(resourceId4), withText("replacement \n\ntext\n"), withContentDescription("content description 3"),
-                        childAtPosition(
-                                allOf(withId(parentResourceId5),
-                                        childAtPosition(
-                                                allOf(withId(parentResourceId6), withContentDescription("parent content description 2")),
-                                                0)),
-                                1),
+                        withParent(allOf(withId(parentResourceId5),
+                                withParent(allOf(withId(parentResourceId6), withContentDescription("parent content description 2"))))),
                         isDisplayed()))
         elementClass7.check(matches(withText("replacement \n\ntext\n")))
 
