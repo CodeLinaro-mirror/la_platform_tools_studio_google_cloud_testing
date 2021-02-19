@@ -53,13 +53,14 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
 
-    testCodeGenerator.writeCode(testFilePath, testVirtualFile);
+    ApplicationManager.getApplication().runWriteAction(() -> testCodeGenerator.writeCode(testVirtualFile));
     Project project = myModule.getProject();
 
     testVirtualFile.refresh(false, true, () -> {
       PsiDocumentManager.getInstance(project).commitAllDocuments();
 
-      new OptimizeImportsProcessor(project, testClass.getContainingFile()).run();
+      //TODO: Figure out why OptimizeImportsProcessor does not optimize imports in a test.
+      //new OptimizeImportsProcessor(project, testClass.getContainingFile()).run();
       new ReformatCodeProcessor(project, testClass.getContainingFile(), null, false).run();
 
       String actualTestClassContent = FileDocumentManager.getInstance().getDocument(testVirtualFile).getText();
@@ -85,7 +86,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
 
-    testCodeGenerator.writeCode(testFilePath, testVirtualFile);
+    ApplicationManager.getApplication().runWriteAction(() -> testCodeGenerator.writeCode(testVirtualFile));
     Project project = myModule.getProject();
 
     testVirtualFile.refresh(false, true, () -> {

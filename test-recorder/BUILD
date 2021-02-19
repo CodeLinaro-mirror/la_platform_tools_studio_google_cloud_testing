@@ -4,10 +4,6 @@ load("//tools/base/bazel:bazel.bzl", "iml_module")
 iml_module(
     name = "test-recorder",
     srcs = ["src"],
-    bundled_deps = [
-        "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",
-        "//tools/studio/google/cloud/testing/test-recorder/lib:swt",
-    ],
     iml_files = ["test-recorder.iml"],
     lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
@@ -26,7 +22,6 @@ iml_module(
         "//tools/analytics-library/tracker:analytics-tracker[module]",
         "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
-        "//tools/adt/idea/.idea/libraries:protobuf",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
         "//tools/adt/idea/deploy:intellij.android.deploy[module]",
         "//tools/adt/idea/artwork:intellij.android.artwork[module]",
