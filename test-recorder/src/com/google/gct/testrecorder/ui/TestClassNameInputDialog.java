@@ -26,6 +26,7 @@ import com.android.tools.idea.gradle.dsl.api.PluginModel;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
 import com.android.tools.idea.stats.UsageTrackerUtils;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
@@ -201,9 +202,9 @@ public class TestClassNameInputDialog extends DialogWrapper {
     AndroidModuleModel androidModel = AndroidModuleModel.get(myTestClassModule);
     if (androidModel != null) {
       for (IdeSourceProvider sourceProvider : androidModel.getTestSourceProviders(ARTIFACT_ANDROID_TEST)) {
-        for (File javaDirectory : sourceProvider.getJavaDirectories()) {
+        for (File srcDir : Iterables.concat(sourceProvider.getJavaDirectories(), sourceProvider.getKotlinDirectories())) {
           try {
-            androidTestSourceRoots.add(FileUtil.toSystemIndependentName(javaDirectory.getCanonicalPath()));
+            androidTestSourceRoots.add(FileUtil.toSystemIndependentName(srcDir.getCanonicalPath()));
           } catch (IOException e) {
             // ignore
           }
