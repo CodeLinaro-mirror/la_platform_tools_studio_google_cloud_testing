@@ -15,10 +15,10 @@
  */
 package com.google.gct.testrecorder.ui;
 
-import static com.android.ide.common.gradle.model.IdeAndroidProject.ARTIFACT_ANDROID_TEST;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 
 import com.android.SdkConstants;
+import com.android.ide.common.gradle.model.IdeArtifactName;
 import com.android.ide.common.gradle.model.IdeSourceProvider;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
@@ -201,7 +201,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
     AndroidModuleModel androidModel = AndroidModuleModel.get(myTestClassModule);
     if (androidModel != null) {
-      for (IdeSourceProvider sourceProvider : androidModel.getTestSourceProviders(ARTIFACT_ANDROID_TEST)) {
+      for (IdeSourceProvider sourceProvider : androidModel.getTestSourceProviders(IdeArtifactName.ANDROID_TEST)) {
         for (File srcDir : Iterables.concat(sourceProvider.getJavaDirectories(), sourceProvider.getKotlinDirectories())) {
           try {
             androidTestSourceRoots.add(FileUtil.toSystemIndependentName(srcDir.getCanonicalPath()));
