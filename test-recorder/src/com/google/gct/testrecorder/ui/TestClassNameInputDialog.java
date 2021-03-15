@@ -16,18 +16,19 @@
 package com.google.gct.testrecorder.ui;
 
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
+import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 
 import com.android.SdkConstants;
-import com.android.ide.common.gradle.model.IdeArtifactName;
-import com.android.ide.common.gradle.model.IdeSourceProvider;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.PluginModel;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.projectsystem.SourceProviders;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
 import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
@@ -40,7 +41,6 @@ import com.intellij.openapi.roots.GeneratedSourcesFilter;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Computable;
-import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.JavaDirectoryService;
 import com.intellij.psi.PsiClass;
@@ -49,7 +49,6 @@ import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -59,6 +58,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
@@ -197,22 +197,14 @@ public class TestClassNameInputDialog extends DialogWrapper {
   }
 
   private List<String> getAndroidTestSourceRoots() {
-    List<String> androidTestSourceRoots = Lists.newArrayList();
-
-    AndroidModuleModel androidModel = AndroidModuleModel.get(myTestClassModule);
-    if (androidModel != null) {
-      for (IdeSourceProvider sourceProvider : androidModel.getTestSourceProviders(IdeArtifactName.ANDROID_TEST)) {
-        for (File srcDir : Iterables.concat(sourceProvider.getJavaDirectories(), sourceProvider.getKotlinDirectories())) {
-          try {
-            androidTestSourceRoots.add(FileUtil.toSystemIndependentName(srcDir.getCanonicalPath()));
-          } catch (IOException e) {
-            // ignore
-          }
-        }
-      }
-    }
-
-    return androidTestSourceRoots;
+    AndroidFacet facet = AndroidFacet.getInstance(myTestClassModule);
+    if (facet == null) return emptyList();
+    SourceProviders sourceProviders = SourceProviders.getInstance(facet);
+    return Streams.stream(Iterables.concat(
+      sourceProviders.getAndroidTestSources().getJavaDirectories(),
+      sourceProviders.getAndroidTestSources().getKotlinDirectories()
+    ))
+      .map(VirtualFile::getCanonicalPath).collect(toList());
   }
 
   private static List<String> getCanonicalPaths(List<VirtualFile> virtualFiles) {
