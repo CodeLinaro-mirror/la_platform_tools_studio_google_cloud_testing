@@ -15,7 +15,6 @@
  */
 package com.google.gct.testrecorder.ui;
 
-import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
@@ -48,7 +47,6 @@ import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
-import java.io.File;
 import java.util.List;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -157,11 +155,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
           .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER),
        myProject));
 
-      VirtualFile moduleRoot = findFileByIoFile(new File(myTestClassModule.getModuleFilePath()).getParentFile(), true);
-      if (moduleRoot == null) {
-        throw new RuntimeException("Could not find module root for module " + myTestClassModule.getName());
-      }
-
+      VirtualFile moduleRoot = getModuleRoot(launchedActivitySourceRoot);
       List<String> androidTestSourceRoots = getAndroidTestSourceRoots();
 
       if (androidTestSourceRoots.isEmpty()) {
@@ -187,6 +181,27 @@ public class TestClassNameInputDialog extends DialogWrapper {
       return existingAndroidTestSourceRoots.get(
         findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, getCanonicalPaths(existingAndroidTestSourceRoots)));
     }
+  }
+
+  private VirtualFile getModuleRoot(@Nullable VirtualFile launchedActivitySourceRoot) {
+    @NotNull VirtualFile[] contentRoots = ModuleRootManager.getInstance(myTestClassModule).getContentRoots();
+    if (contentRoots.length == 0) {
+      throw new RuntimeException("Could not find any content roots");
+    }
+
+    if (contentRoots.length == 1 || launchedActivitySourceRoot == null
+        || launchedActivitySourceRoot.getCanonicalPath() == null) {
+      return contentRoots[0];
+    }
+
+    for (VirtualFile contentRoot : contentRoots) {
+      if (contentRoot.getCanonicalPath() != null
+          && launchedActivitySourceRoot.getCanonicalPath().startsWith(contentRoot.getCanonicalPath())) {
+        return contentRoot;
+      }
+    }
+
+    return contentRoots[0];
   }
 
   private VirtualFile findContainingDirectory(VirtualFile currentDirectory, String path) {
