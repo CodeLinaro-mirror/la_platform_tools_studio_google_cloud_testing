@@ -275,7 +275,7 @@ public class GoogleCloudTestsPresentationUtil {
         }
         else {
           final int frameIndex = TestsProgressAnimator.getCurrentFrameIndex();
-          return hasErrors ? SMPoolOfTestIcons.FRAMES_E[frameIndex] : TestsProgressAnimator.FRAMES[frameIndex];
+          return hasErrors ? SMPoolOfTestIcons.RUNNING_E_ICON : TestsProgressAnimator.FRAMES[frameIndex];
         }
       case SKIPPED_INDEX:
         return hasErrors ? SMPoolOfTestIcons.SKIPPED_E_ICON : PoolOfTestIcons.SKIPPED_ICON;
