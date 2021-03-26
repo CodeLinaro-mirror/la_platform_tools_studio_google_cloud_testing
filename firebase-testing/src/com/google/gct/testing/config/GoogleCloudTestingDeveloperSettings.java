@@ -36,7 +36,7 @@ public class GoogleCloudTestingDeveloperSettings implements PersistentStateCompo
   }
 
   public static GoogleCloudTestingDeveloperSettings getInstance(Project project) {
-    return ServiceManager.getService(project, GoogleCloudTestingDeveloperSettings.class);
+    return project.getService(GoogleCloudTestingDeveloperSettings.class);
   }
 
   @NotNull
