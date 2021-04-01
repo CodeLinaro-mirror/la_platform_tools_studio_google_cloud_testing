@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="5" by="lint 4.2.0-dev">
+<issues format="5" by="lint 7.0.0-dev">
 
     <issue
         id="DefaultLocale"
@@ -55,22 +55,6 @@
         <location
             file="src/com/google/gct/testing/vnc/VncKeepAliveThreadImpl.java"
             line="93"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope">
-        <location
-            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
-            line="86"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope">
-        <location
-            file="src/com/google/gct/testing/CloudConfigurationImpl.java"
-            line="87"/>
     </issue>
 
 </issues>
