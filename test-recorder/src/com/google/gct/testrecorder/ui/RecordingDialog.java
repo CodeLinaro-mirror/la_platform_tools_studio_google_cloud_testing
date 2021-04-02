@@ -39,8 +39,6 @@ import static org.apache.commons.lang.StringUtils.isEmpty;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
-import com.android.ide.common.gradle.model.IdeDependencies;
-import com.android.ide.common.gradle.model.IdeLibrary;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.analytics.UsageTracker;
@@ -48,11 +46,10 @@ import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
-import com.android.tools.idea.gradle.util.GradleUtil;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
+import com.android.tools.idea.projectsystem.DependencyScopeType;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.ApkProviderUtil;
@@ -61,7 +58,6 @@ import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.UiNode;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.codegen.TestCodeGenerator;
 import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.ElementDescriptor;
@@ -110,7 +106,6 @@ import java.awt.event.ItemListener;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -566,13 +561,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
       // Automatically check/setup Espresso dependencies for Gradle projects only.
       GradleBuildModel gradleBuildModel = GradleBuildModel.get(testClassModule);
-      AndroidModuleModel androidModuleModel = AndroidModuleModel.get(testClassModule);
-      if (gradleBuildModel != null && androidModuleModel != null) {
+      if (gradleBuildModel != null) {
         AndroidModel androidModel = gradleBuildModel.android();
         // androidModel will be null when the Gradle experimental plugin is used and it's not possible to update the instrumentation runner.
         // TODO: Provide an appropriate error message or some alternative way to update instrumentation runner when the Gradle experimental
         // plugin is used.
-        if (androidModel != null && !hasAllRequiredEspressoDependencies(androidModel, androidModuleModel)) {
+        if (!hasAllRequiredEspressoDependencies(androidModel, ProjectSystemUtil.getModuleSystem(testClassModule))) {
           UsageTracker.log(UsageTrackerUtils.withProjectId(
             AndroidStudioEvent.newBuilder()
              .setCategory(EventCategory.TEST_RECORDER)
@@ -586,7 +580,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
                                   "Please click on the corresponding link(s) to install them.",
                                   "Missing or obsolete Espresso dependencies",
                                   new String[]{Messages.NO_BUTTON, Messages.YES_BUTTON}, 1, null) != 0) {
-            setupEspresso(gradleBuildModel, androidModuleModel);
+            setupEspresso(gradleBuildModel);
           }
         }
       }
@@ -736,12 +730,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     return myRootPanel;
   }
 
-  private boolean hasAllRequiredEspressoDependencies(@NotNull AndroidModel androidModel, @NotNull AndroidModuleModel androidModuleModel) {
+  private boolean hasAllRequiredEspressoDependencies(@NotNull AndroidModel androidModel, @NotNull AndroidModuleSystem androidModuleSystem) {
     initializeDependencyRequirements();
     // TODO: To improve performance, consider doing these checks in a single pass.
-    return hasUptodateEspressoCoreDependency(androidModuleModel)
-           && hasUptodateRulesDependency(androidModuleModel)
-           && (!myNeedsContribDependency || hasUptodateEspressoContribDependency(androidModuleModel))
+    return hasUptodateEspressoCoreDependency(androidModuleSystem)
+           && hasUptodateRulesDependency(androidModuleSystem)
+           && (!myNeedsContribDependency || hasUptodateEspressoContribDependency(androidModuleSystem))
            && hasSetInstrumentationRunner(androidModel);
   }
 
@@ -765,22 +759,22 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     }
   }
 
-  private boolean hasUptodateEspressoCoreDependency(@NotNull AndroidModuleModel androidModuleModel) {
+  private boolean hasUptodateEspressoCoreDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
     String artifact = GoogleMavenArtifactId.ESPRESSO_CORE.toString();
     String androidxArtifact = GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE.toString();
-    return hasUptodateDependency(androidModuleModel, artifact, androidxArtifact, myMinEspressoCoreVersion, myMinAndroidxEspressoCoreVersion);
+    return hasUptodateDependency(androidModuleSystem, artifact, androidxArtifact, myMinEspressoCoreVersion, myMinAndroidxEspressoCoreVersion);
   }
 
-  private boolean hasUptodateRulesDependency(@NotNull AndroidModuleModel androidModuleModel) {
+  private boolean hasUptodateRulesDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
     String artifact = GoogleMavenArtifactId.TEST_RULES.toString();
     String androidxArtifact = GoogleMavenArtifactId.ANDROIDX_TEST_RULES.toString();
-    return hasUptodateDependency(androidModuleModel, artifact, androidxArtifact, myMinRulesVersion, myMinAndroidxRulesVersion);
+    return hasUptodateDependency(androidModuleSystem, artifact, androidxArtifact, myMinRulesVersion, myMinAndroidxRulesVersion);
   }
 
-  private boolean hasUptodateEspressoContribDependency(@NotNull AndroidModuleModel androidModuleModel) {
+  private boolean hasUptodateEspressoContribDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
     String artifact = GoogleMavenArtifactId.ESPRESSO_CONTRIB.toString();
     String androidxArtifact = GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CONTRIB.toString();
-    return hasUptodateDependency(androidModuleModel, artifact, androidxArtifact, myMinEspressoCoreVersion, myMinAndroidxEspressoCoreVersion);
+    return hasUptodateDependency(androidModuleSystem, artifact, androidxArtifact, myMinEspressoCoreVersion, myMinAndroidxEspressoCoreVersion);
   }
 
   private static boolean hasSetInstrumentationRunner(@NotNull AndroidModel androidModel) {
@@ -792,15 +786,15 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
    * This logic assumes that existing ATSL dependencies are consistent, i.e., either all are androidx or all are not androidx.
    * Otherwise, it is an app build configuration error and Espresso Test Recorder dependency handling is undefined.
    */
-  private boolean hasUptodateDependency(@NotNull AndroidModuleModel androidModuleModel, String artifact, String androidxArtifact,
+  private boolean hasUptodateDependency(@NotNull AndroidModuleSystem androidModuleSystem, String artifact, String androidxArtifact,
                                         GradleVersion minVersion, GradleVersion androidxMinVersion) {
-    GradleVersion dependencyVersion = getDependencyVersion(androidModuleModel, artifact);
+    GradleVersion dependencyVersion = getDependencyVersion(androidModuleSystem, artifact);
     if (dependencyVersion != null) {
       myUsesAnyEspressoDependency = true;
       return dependencyVersion.compareTo(minVersion) >= 0;
     }
 
-    GradleVersion androidxDependencyVersion = getDependencyVersion(androidModuleModel, androidxArtifact);
+    GradleVersion androidxDependencyVersion = getDependencyVersion(androidModuleSystem, androidxArtifact);
     if (androidxDependencyVersion != null) {
       myUsesAnyEspressoDependency = true;
       myUsesAndroidxDependency = true;
@@ -811,22 +805,15 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   @Nullable
-  private static GradleVersion getDependencyVersion(@NotNull AndroidModuleModel androidModuleModel, String artifact) {
-    Collection<IdeLibrary> libraries = Lists.newArrayList();
-    IdeDependencies androidTestCompileDependencies = androidModuleModel.getSelectedAndroidTestCompileDependencies();
-    if (androidTestCompileDependencies != null) {
-      libraries.addAll(androidTestCompileDependencies.getAndroidLibraries());
-    }
-    libraries.addAll(androidModuleModel.getSelectedMainCompileLevel2Dependencies().getAndroidLibraries());
-
-    for (IdeLibrary library : libraries) {
-      if (GradleUtil.dependsOn(library, artifact)) {
-        GradleCoordinate coordinate = GradleCoordinate.parseCoordinateString(library.getArtifactAddress());
-        return coordinate != null ? coordinate.getVersion() : null;
-      }
-    }
-
-    return null;
+  private static GradleVersion getDependencyVersion(@NotNull AndroidModuleSystem androidModuleSystem, String artifact) {
+    GradleCoordinate coordinate = GradleCoordinate.parseCoordinateString(artifact + ":+");
+    if (coordinate == null) return null;
+    GradleCoordinate resolvedDependency = androidModuleSystem.getResolvedDependency(
+      coordinate,
+      DependencyScopeType.ANDROID_TEST
+    );
+    if (resolvedDependency == null) return null;
+    return resolvedDependency.getVersion();
   }
 
   private GoogleMavenArtifactId getEspressoArtifactId() {
@@ -849,7 +836,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     return myUsesAndroidxDependency ? getAndroidxRulesVersion() : getRulesVersion();
   }
 
-  private void setupEspresso(@NotNull GradleBuildModel gradleBuildModel, @NotNull AndroidModuleModel androidModuleModel) {
+  private void setupEspresso(@NotNull GradleBuildModel gradleBuildModel) {
     if (!myUsesAnyEspressoDependency) {
       // Establish whether to use androidx Espresso dependencies based on other present dependencies.
       AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(myFacet.getModule());
