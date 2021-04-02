@@ -235,8 +235,11 @@ public class GhostCloudDevice implements IDevice {
   }
 
   @Override
-  public void pushFile(String local, String remote) throws IOException, AdbCommandRejectedException, TimeoutException, SyncException {
+  public void push(@NonNull String[] local, @NonNull String remote) {
+  }
 
+  @Override
+  public void pushFile(@NonNull String local, @NonNull String remote) {
   }
 
   @Override
