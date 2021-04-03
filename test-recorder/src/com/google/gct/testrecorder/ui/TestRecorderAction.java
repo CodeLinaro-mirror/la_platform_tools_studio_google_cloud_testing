@@ -16,7 +16,11 @@
 package com.google.gct.testrecorder.ui;
 
 import com.android.annotations.VisibleForTesting;
+import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.idea.projectsystem.AndroidModuleSystem;
+import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidSessionInfo;
 import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxAction;
 import com.android.tools.idea.stats.UsageTrackerUtils;
@@ -84,6 +88,7 @@ public class TestRecorderAction extends AnAction {
       return;
     }
 
+    // Disable Espresso Test Recorder if multiple target devices are selected.
     DeviceAndSnapshotComboBoxAction deviceAndSnapshotComboBoxAction = (DeviceAndSnapshotComboBoxAction) ActionManager.getInstance().getAction("DeviceAndSnapshotComboBox");
     if (deviceAndSnapshotComboBoxAction.isMultipleTargetsSelectedInComboBox(project)) {
       presentation.setEnabled(false);
@@ -148,20 +153,35 @@ public class TestRecorderAction extends AnAction {
 
   private static void launchTestRecorderOnConfiguration(Project project, RunConfiguration configurationBase, boolean isRecordingTest) {
     TestRecorderRunConfigurationProxy testRecorderConfigurationProxy = TestRecorderRunConfigurationProxy.getInstance(configurationBase);
+    if (testRecorderConfigurationProxy == null) {
+      throw new RuntimeException("Could not obtain an instance of TestRecorderRunConfigurationProxy");
+    }
+    Module module = testRecorderConfigurationProxy.getModule();
+
+    // Do not launch Espresso Test Recorder for Compose projects, since Espresso Testing Framework does not support Compose.
+    AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(module);
+    for (GoogleMavenArtifactId artifactId : GoogleMavenArtifactId.values()) {
+      if (artifactId.getMavenGroupId().startsWith("androidx.compose.") ) {
+        GradleCoordinate coordinate = moduleSystem.getResolvedDependency(artifactId.getCoordinate("+"));
+        if (coordinate != null) {
+          String message = "Espresso Testing Framework does not support Compose projects.";
+          Messages.showDialog(project, message, "Espresso test cannot be recorded", new String[]{"OK"}, 0, null);
+          return;
+        }
+      }
+    }
+
     LocatableConfigurationBase testRecorderConfiguration = testRecorderConfigurationProxy.getTestRecorderRunConfiguration();
 
     ExecutionEnvironmentBuilder builder = ExecutionEnvironmentBuilder.createOrNull(
       testRecorderConfiguration.getProject(), DefaultDebugExecutor.getDebugExecutorInstance(), testRecorderConfiguration);
-
     if (builder == null) {
-      throw new RuntimeException("Could not create execution environment builder!");
+      throw new RuntimeException("Could not create execution environment builder");
     }
 
     ExecutionEnvironment environment = builder.build();
 
-    Module module = testRecorderConfigurationProxy.getModule();
     AndroidFacet facet = AndroidFacet.getInstance(module);
-
     if (facet == null) {
       throw new RuntimeException("Could not obtain Android facet for module: " + module.getName());
     }
