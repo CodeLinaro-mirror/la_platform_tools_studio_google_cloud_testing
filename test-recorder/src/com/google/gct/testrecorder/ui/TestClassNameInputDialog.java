@@ -31,7 +31,11 @@ import com.google.common.collect.Streams;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
+import com.intellij.ide.fileTemplates.FileTemplate;
+import com.intellij.ide.fileTemplates.FileTemplateManager;
+import com.intellij.ide.fileTemplates.FileTemplateUtil;
 import com.intellij.ide.fileTemplates.JavaTemplateUtil;
+import com.intellij.ide.fileTemplates.actions.CreateFromTemplateActionBase;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbService;
@@ -41,13 +45,16 @@ import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.JavaDirectoryService;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDirectory;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
+import com.intellij.util.IncorrectOperationException;
 import java.util.List;
+import java.util.Properties;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -404,8 +411,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
           DumbService service = DumbService.getInstance(myProject);
           service.setAlternativeResolveEnabled(true);
           try {
-            myTestClass = JavaDirectoryService.getInstance().createClass(
-              myTestClassParent, myClassName, JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME, false);
+            myTestClass = createClassFromTemplate();
             if (isKotlinTestClass()) {
               myTestClass.getContainingFile().setName(appendKotlinExtension(myClassName));
             }
@@ -428,6 +434,29 @@ public class TestClassNameInputDialog extends DialogWrapper {
     } else {
       super.doOKAction();
     }
+  }
+
+  private PsiClass createClassFromTemplate() throws Exception {
+    Project project = myTestClassParent.getProject();
+    FileTemplate template =
+      FileTemplateManager.getInstance(project).getInternalTemplate(JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME);
+    template.setReformatCode(false);
+
+    Properties defaultProperties = FileTemplateManager.getInstance(project).getDefaultProperties();
+    Properties properties = new Properties(defaultProperties);
+    properties.setProperty(FileTemplate.ATTRIBUTE_NAME, myClassName);
+
+    PsiElement element =
+      FileTemplateUtil.createFromTemplate(template, myClassName + SdkConstants.DOT_JAVA, properties, myTestClassParent);
+    final PsiJavaFile file = (PsiJavaFile)element.getContainingFile();
+    PsiClass[] classes = file.getClasses();
+    if (classes.length < 1) {
+      throw new IncorrectOperationException("Failed to create a test class from a template");
+    }
+    if (template.isLiveTemplateEnabled() && file.getViewProvider().getDocument() != null) {
+      CreateFromTemplateActionBase.startLiveTemplate(file);
+    }
+    return classes[0];
   }
 
   private boolean doesClassExist() {
