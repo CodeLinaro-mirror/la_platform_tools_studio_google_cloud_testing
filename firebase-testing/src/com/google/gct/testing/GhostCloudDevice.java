@@ -17,12 +17,24 @@ package com.google.gct.testing;
 
 import com.android.annotations.NonNull;
 import com.android.annotations.Nullable;
-import com.android.ddmlib.*;
+import com.android.ddmlib.AdbCommandRejectedException;
+import com.android.ddmlib.Client;
+import com.android.ddmlib.FileListingService;
+import com.android.ddmlib.IDevice;
+import com.android.ddmlib.IShellOutputReceiver;
+import com.android.ddmlib.InstallException;
+import com.android.ddmlib.InstallReceiver;
+import com.android.ddmlib.RawImage;
+import com.android.ddmlib.ScreenRecorderOptions;
+import com.android.ddmlib.ShellCommandUnresponsiveException;
+import com.android.ddmlib.SyncException;
+import com.android.ddmlib.SyncService;
+import com.android.ddmlib.TimeoutException;
 import com.android.ddmlib.log.LogReceiver;
 import com.android.sdklib.AndroidVersion;
 import com.google.api.services.testing.model.AndroidDevice;
 import com.google.api.services.testing.model.Device;
-
+import com.google.common.util.concurrent.ListenableFuture;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -403,7 +415,7 @@ public class GhostCloudDevice implements IDevice {
 
   @NonNull
   @Override
-  public Future<String> getSystemProperty(@NonNull String name) {
+  public ListenableFuture<String> getSystemProperty(@NonNull String name) {
     return null;
   }
 
