@@ -85,6 +85,7 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
+import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
@@ -278,8 +279,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             BasicTreeNode root = model.getXmlRootNode();
             String applicationId = getApplicationId("");
             if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
-              Messages.showDialog(myProject, "Out-of-app assertions are not supported and will break the generated Espresso test.",
-                                  "Warning: adding an out-of-app assertion", new String[]{"OK"}, 0, null);
+              Messages.showMessageDialog(myRootPanel, "Out-of-app assertions are not supported and will break the generated Espresso test.",
+                                         "Warning: adding an out-of-app assertion", null);
             }
             BufferedImage preparedImage = rotateImage(initialImage, getRotation(root));
             myScreenshotPanel.updateScreenShot(preparedImage, model);
@@ -573,13 +574,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
              .setKind(EventKind.TEST_RECORDER_MISSING_ESPRESSO_DEPENDENCIES),
             myProject));
 
-          if (Messages.showDialog(myProject,
-                                  "Some dependencies for running Espresso tests are missing or obsolete.\n" +
-                                  "Would you like to automatically add/update Espresso dependencies for this app?\n" +
-                                  "To complete the set up, Gradle might ask you to install the missing libraries.\n" +
-                                  "Please click on the corresponding link(s) to install them.",
-                                  "Missing or obsolete Espresso dependencies",
-                                  new String[]{Messages.NO_BUTTON, Messages.YES_BUTTON}, 1, null) != 0) {
+          if (MessageDialogBuilder.yesNo("Missing or obsolete Espresso dependencies",
+                                         "Some dependencies for running Espresso tests are missing or obsolete.\n" +
+                                         "Would you like to automatically add/update Espresso dependencies for this app?\n" +
+                                         "To complete the set up, Gradle might ask you to install the missing libraries.\n" +
+                                         "Please click on the corresponding link(s) to install them.").icon(null).ask(myRootPanel)) {
             setupEspresso(gradleBuildModel);
           }
         }
@@ -597,7 +596,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           FileUtils.write(fileWrapper.getFile(), getJsonForActions(myProject, getAllModelActions()));
         } catch (Exception ex) {
           String message = isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
-          Messages.showDialog(myProject, message, "Could not save Robo script to a file", new String[]{"OK"}, 0, null);
+          Messages.showMessageDialog(myRootPanel, message, "Could not save Robo script to a file", null);
         }
       }
 
