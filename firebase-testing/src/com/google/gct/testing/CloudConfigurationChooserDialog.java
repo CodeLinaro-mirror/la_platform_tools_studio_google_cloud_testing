@@ -40,7 +40,7 @@ import com.intellij.util.IconUtil;
 import com.intellij.util.PlatformIcons;
 import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.tree.TreeUtil;
-import icons.AndroidIcons;
+import icons.StudioIcons;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 
@@ -180,7 +180,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
 
           if (node == customRoot) {
             append("Custom", SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
-            setIcon(AndroidIcons.Android);
+            setIcon(StudioIcons.Common.ANDROID_HEAD);
           } else if (node == defaultsRoot) {
             append("Defaults", SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
             setIcon(AllIcons.General.Settings);

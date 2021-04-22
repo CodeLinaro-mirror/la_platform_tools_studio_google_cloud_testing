@@ -64,6 +64,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Computable;
 import com.intellij.psi.PsiClass;
@@ -325,8 +326,8 @@ public class SessionInitializer implements Runnable {
         if (isDeviceConnected()) {
           // The device is still connected, so the app might have crashed or some other VM issue happened, and thus,
           // it is impossible to reconnect.
-          Messages.showDialog(myProject, "Test Recorder stopped recording your actions because the app stopped.",
-                              title, new String[]{"OK"}, 0, null);
+          Messages.showMessageDialog(myRecordingDialog.getRootPane(),
+                                     "Test Recorder stopped recording your actions because the app stopped.", title, null);
           return;
         }
 
@@ -338,10 +339,12 @@ public class SessionInitializer implements Runnable {
           if (myRecordingDialog != null) {
             myRecordingDialog.setDebuggerSession(null);
           }
-          int userChoice = Messages.showDialog(myProject, message, title,
-                                               new String[]{"Stop", "Resume"}, 1, null);
+
+          boolean shouldResume =
+            MessageDialogBuilder.yesNo(title, message).yesText("Resume").noText("Stop").icon(null).ask(myRecordingDialog.getRootPane());
+
           message = null;
-          if (userChoice != 0) {
+          if (shouldResume) {
             try {
               restartDebugging();
             } catch (Exception e) {

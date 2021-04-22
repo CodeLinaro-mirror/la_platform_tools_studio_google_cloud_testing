@@ -36,6 +36,7 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.google.wireless.android.sdk.stats.TestRecorderDetails;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
+import com.intellij.codeInsight.actions.ReformatCodeProcessor;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.ide.SelectInContext;
 import com.intellij.ide.SelectInTarget;
@@ -49,7 +50,6 @@ import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.application.TransactionGuard;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
@@ -174,8 +174,14 @@ public class TestCodeGenerator {
 
         JobScheduler.getScheduler().schedule(() -> {
           waitForBackgroundTasksToFinish();
-          TransactionGuard.getInstance().submitTransactionLater(myProject, () ->
+
+          ApplicationManager.getApplication().invokeAndWait(() ->
             new OptimizeImportsProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile)).run());
+
+          waitForBackgroundTasksToFinish();
+
+          ApplicationManager.getApplication().invokeLater(() ->
+            new ReformatCodeProcessor(myProject, PsiManager.getInstance(myProject).findFile(testVirtualFile), null, false).run());
         }, 10, TimeUnit.MILLISECONDS);
       }
     });
