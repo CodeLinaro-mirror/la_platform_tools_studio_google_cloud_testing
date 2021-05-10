@@ -193,7 +193,7 @@ public class CloudTestingUtils {
   private static void showCascadingErrorMessages(@Nullable final Project project, final String errorDialogTitle, String userErrorMessage,
                                                  final String detailedErrorMessage) {
 
-    new Notification(errorDialogTitle, "", String.format("<b>%s</b> <a href=''>Details</a>", userErrorMessage), NotificationType.WARNING,
+    new Notification(errorDialogTitle, "", String.format("<b>%s</b> <a href=''>Details</a>", userErrorMessage), NotificationType.WARNING).setListener(
       new NotificationListener.Adapter() {
         @Override
         protected void hyperlinkActivated(@NotNull Notification notification, @NotNull HyperlinkEvent event) {
