@@ -90,7 +90,7 @@ public class TestRecorderAction extends AnAction {
 
     // Disable Espresso Test Recorder if multiple target devices are selected.
     DeviceAndSnapshotComboBoxAction deviceAndSnapshotComboBoxAction = (DeviceAndSnapshotComboBoxAction) ActionManager.getInstance().getAction("DeviceAndSnapshotComboBox");
-    if (deviceAndSnapshotComboBoxAction.isMultipleTargetsSelectedInComboBox(project)) {
+    if (deviceAndSnapshotComboBoxAction.isMultipleTargetsSelectedInComboBox(project) && deviceAndSnapshotComboBoxAction.getNumberOfSelectedDevices(project) > 1) {
       presentation.setEnabled(false);
       return;
     }
