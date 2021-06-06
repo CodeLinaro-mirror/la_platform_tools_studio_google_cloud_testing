@@ -23,7 +23,7 @@ import org.jetbrains.annotations.Nullable;
 @State(
     name = "CloudDefaultPersistentConfigurations",
     storages = {
-      @Storage(file = "$MODULE_FILE$")
+      @Storage("$MODULE_FILE$")
     }
 )
 public class CloudDefaultPersistentConfigurations implements PersistentStateComponent<CloudPersistentState> {
