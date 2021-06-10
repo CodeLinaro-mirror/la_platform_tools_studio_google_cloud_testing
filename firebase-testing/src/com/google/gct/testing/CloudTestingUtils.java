@@ -35,6 +35,7 @@ import com.intellij.openapi.ui.popup.Balloon;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.wm.StatusBar;
 import com.intellij.openapi.wm.WindowManager;
+import com.intellij.ui.BrowserHyperlinkListener;
 import com.intellij.ui.ColorUtil;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.util.ui.UIUtil;
@@ -46,7 +47,6 @@ import org.jetbrains.annotations.Nullable;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
-import javax.swing.event.HyperlinkListener;
 import java.awt.*;
 
 public class CloudTestingUtils {
@@ -256,7 +256,7 @@ public class CloudTestingUtils {
     editorPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
     editorPane.setEditable(false);
     editorPane.setBackground(backgroundColor);
-    editorPane.addHyperlinkListener(getHyperlinkListener());
+    editorPane.addHyperlinkListener(BrowserHyperlinkListener.INSTANCE);
   }
 
   public static void addToInvokeLater(final Runnable runnable) {
@@ -276,26 +276,4 @@ public class CloudTestingUtils {
       LOG.warn(e);
     }
   }
-
-  private static HyperlinkListener getHyperlinkListener() {
-    return new HyperlinkListener() {
-      @Override
-      public void hyperlinkUpdate(final HyperlinkEvent linkEvent) {
-        if (linkEvent.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-          ApplicationManager.getApplication().executeOnPooledThread(new Runnable() {
-            @Override
-            public void run() {
-              try {
-                Desktop.getDesktop().browse(linkEvent.getURL().toURI());
-              }
-              catch (Exception e) {
-                // ignore
-              }
-            }
-          });
-        }
-      }
-    };
-  }
-
 }
