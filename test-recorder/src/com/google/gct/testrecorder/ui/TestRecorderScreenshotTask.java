@@ -18,11 +18,14 @@ package com.google.gct.testrecorder.ui;
 
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
+import com.android.tools.idea.ddms.screenshot.DeviceScreenshotSupplier;
+import com.android.tools.idea.ddms.screenshot.ScreenshotImage;
 import com.android.tools.idea.ddms.screenshot.ScreenshotTask;
 import com.android.uiautomator.UiAutomatorModel;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import java.awt.image.BufferedImage;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -41,7 +44,7 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
   private boolean success = false;
 
   public TestRecorderScreenshotTask(Project project, IDevice device, String packageName, ScreenshotCallback callback) {
-    super(project, device);
+    super(project, new DeviceScreenshotSupplier(device));
     myProject = project;
     myDevice = device;
     myPackageName = packageName;
@@ -109,7 +112,9 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
   @Override
   public void onSuccess() {
     if (success) {
-      myCallback.onSuccess(getScreenshot(), new UiAutomatorModel(myUiHierarchyLocalFile));
+      ScreenshotImage screenshotImage = getScreenshot();
+      BufferedImage image = screenshotImage == null ? null : screenshotImage.getImage();
+      myCallback.onSuccess(image, new UiAutomatorModel(myUiHierarchyLocalFile));
     }
   }
 }
