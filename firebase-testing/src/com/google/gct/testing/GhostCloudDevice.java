@@ -231,13 +231,7 @@ public class GhostCloudDevice implements IDevice {
   }
 
   @Override
-  public void removeForward(int localPort, int remotePort) throws TimeoutException, AdbCommandRejectedException, IOException {
-
-  }
-
-  @Override
-  public void removeForward(int localPort, String remoteSocketName, DeviceUnixSocketNamespace namespace)
-    throws TimeoutException, AdbCommandRejectedException, IOException {
+  public void removeForward(int localPort) throws TimeoutException, AdbCommandRejectedException, IOException {
 
   }
 
