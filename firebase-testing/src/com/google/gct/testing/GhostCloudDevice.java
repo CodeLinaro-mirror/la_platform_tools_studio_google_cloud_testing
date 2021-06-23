@@ -236,6 +236,16 @@ public class GhostCloudDevice implements IDevice {
   }
 
   @Override
+  public void createReverse(int remotePort, int localPort) throws TimeoutException, AdbCommandRejectedException, IOException {
+
+  }
+
+  @Override
+  public void removeReverse(int remotePort) throws TimeoutException, AdbCommandRejectedException, IOException {
+
+  }
+
+  @Override
   public String getClientName(int pid) {
     return null;
   }
