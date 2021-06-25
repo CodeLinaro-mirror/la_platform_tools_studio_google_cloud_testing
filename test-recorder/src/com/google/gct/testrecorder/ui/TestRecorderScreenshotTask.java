@@ -102,13 +102,8 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
     success = true;
   }
 
-  private void showErrorMessage(final String errorMessage, final String title) {
-    SwingUtilities.invokeLater(new Runnable() {
-      @Override
-      public void run() {
-        Messages.showErrorDialog(myProject, errorMessage, title);
-      }
-    });
+  private void showErrorMessage(@NotNull String errorMessage, @NotNull String title) {
+    SwingUtilities.invokeLater(() -> Messages.showErrorDialog(myProject, errorMessage, title));
   }
 
   @Override
