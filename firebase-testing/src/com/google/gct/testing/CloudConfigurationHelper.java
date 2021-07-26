@@ -17,6 +17,7 @@ package com.google.gct.testing;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
+import com.android.sdklib.AndroidVersion;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.sdk.IdeSdks;
@@ -77,7 +78,7 @@ import java.io.File;
 import java.net.InetAddress;
 import java.util.*;
 
-import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getApkForRunConfiguration;
+import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getSingleApkOrParentFolderForRunConfiguration;
 import static com.google.gct.testing.CloudTestingUtils.checkJavaVersion;
 import static com.jcraft.jsch.KeyPair.RSA;
 
@@ -599,6 +600,17 @@ public final class CloudConfigurationHelper {
     if (cloudTestingConfiguration != null && cloudTestingConfiguration.getDeviceConfigurationCount() > 0) {
       final List<String> expectedConfigurationInstances =
         cloudTestingConfiguration.computeConfigurationInstances(ConfigurationInstance.DISPLAY_NAME_DELIMITER);
+      int minApiVersion = cloudTestingConfiguration
+        .apiDimension
+        .getEnabledTypes()
+        .stream()
+        .filter(it -> it instanceof ApiDimension.ApiLevel)
+        .map(it -> (ApiDimension.ApiLevel)it)
+        .map(ApiDimension.ApiLevel::getApiVersion)
+        .min(Integer::compareTo)
+        .orElse(1);
+      IDevice ghostMinApiVersionDevice =
+        new GhostCloudDevice("*not an id*", "*not a module id*", new AndroidVersion(minApiVersion), "", "");
       new Thread(new Runnable() {
         @Override
         public void run() {
@@ -624,14 +636,14 @@ public final class CloudConfigurationHelper {
             return;
           }
 
-          File appApk = getApkForRunConfiguration(module, testRunConfiguration, false);
+          File appApk = getSingleApkOrParentFolderForRunConfiguration(module, testRunConfiguration, false, ghostMinApiVersionDevice);
           if (appApk == null) {
             CloudTestingUtils.showErrorMessage(module.getProject(), "Error finding app APK",
                                                "Could not find your app APK!\n");
             return;
           }
 
-          File testApk = getApkForRunConfiguration(module, testRunConfiguration, true);
+          File testApk = getSingleApkOrParentFolderForRunConfiguration(module, testRunConfiguration, true, ghostMinApiVersionDevice);
           if (testApk == null) {
             CloudTestingUtils.showErrorMessage(module.getProject(), "Error finding test APK",
                                                "Could not find your test APK!\n");
