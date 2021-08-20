@@ -231,6 +231,10 @@ public class DeviceDimension extends CloudConfigurationDimension {
       return form.equals("VIRTUAL");
     }
 
+    public boolean isPhysical() {
+      return form.equals("PHYSICAL");
+    }
+
     @Override
     public String getId() {
       return id;
