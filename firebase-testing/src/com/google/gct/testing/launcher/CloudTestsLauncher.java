@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.gct.testing.CloudConfigurationImpl;
 import com.google.gct.testing.CloudTestingUtils;
 import com.google.gct.testing.dimension.CloudTestingType;
+import com.google.gct.testing.dimension.DeviceDimension;
 import com.intellij.openapi.application.ApplicationInfo;
 import com.intellij.openapi.ui.Messages;
 import org.apache.http.NameValuePair;
@@ -119,7 +120,8 @@ public class CloudTestsLauncher {
 
     testMatrix.setClientInfo(new ClientInfo().setName("Android Studio " + ApplicationInfo.getInstance().getFullVersion()));
 
-    final String testTimeout = "1800s"; // 30 minutes in seconds
+    // Max timeout is 45 minutes for physical and 60 minutes for virtual devices.
+    final String testTimeout = usesPhysicalDevice(cloudTestConfiguration) ? "2700s" : "3600s";
 
     testMatrix.setTestSpecification(
       new TestSpecification().setTestTimeout(testTimeout).setAndroidInstrumentationTest(
@@ -180,6 +182,15 @@ public class CloudTestsLauncher {
                                                                                  exceptionMessage);
     }
     return triggeredTestMatrix;
+  }
+
+  private static boolean usesPhysicalDevice(CloudConfigurationImpl cloudTestConfiguration) {
+    for (CloudTestingType enabledDevice : cloudTestConfiguration.getDeviceDimension().getEnabledTypes()) {
+      if (((DeviceDimension.Device) enabledDevice).isPhysical()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
