@@ -320,7 +320,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
 
     final String stacktrace = myStacktrace;
     if (stacktrace != null && (testConsoleProperties instanceof SMStacktraceParser) && isLeaf()) {
-      final Navigatable result = ((SMStacktraceParser)testConsoleProperties).getErrorNavigatable(location.getProject(), stacktrace);
+      final Navigatable result = ((SMStacktraceParser)testConsoleProperties).getErrorNavigatable(location, stacktrace);
       if (result != null) {
         return result;
       }
