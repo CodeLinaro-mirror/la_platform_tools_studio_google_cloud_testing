@@ -30,7 +30,7 @@ public class GsutilSettings extends SdkHomeSettings {
   }
 
   public static GsutilSettings getInstance(Project project) {
-    return ServiceManager.getService(project, GsutilSettings.class);
+    return project.getService(GsutilSettings.class);
   }
 
   public static String getGsutilExecutable(Project project) {
