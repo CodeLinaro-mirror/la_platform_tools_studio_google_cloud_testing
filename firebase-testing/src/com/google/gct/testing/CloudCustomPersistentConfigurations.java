@@ -25,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 @State(
     name = "CloudCustomPersistentConfigurations",
     storages = {
-      @Storage(file = "$MODULE_FILE$")
+      @Storage("$MODULE_FILE$")
     }
 )
 public class CloudCustomPersistentConfigurations implements PersistentStateComponent<CloudPersistentState> {
