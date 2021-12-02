@@ -19,9 +19,9 @@ import com.android.annotations.Nullable;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.DeviceFutures;
-import com.android.tools.idea.run.editor.DefaultActivityLaunch;
-import com.android.tools.idea.run.editor.LaunchOptionState;
-import com.android.tools.idea.run.editor.SpecificActivityLaunch;
+import com.android.tools.idea.run.activity.launch.DefaultActivityLaunch;
+import com.android.tools.idea.run.activity.launch.ActivityLaunchOptionState;
+import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.intellij.execution.configurations.LocatableConfigurationBase;
 import com.intellij.execution.runners.ExecutionEnvironment;
@@ -51,18 +51,18 @@ public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRun
 
   @Override
   public boolean isLaunchActivitySupported() {
-    LaunchOptionState launchOptionState = myBaseConfiguration.getLaunchOptionState(myBaseConfiguration.MODE);
+    ActivityLaunchOptionState activityLaunchOptionState = myBaseConfiguration.getLaunchOptionState(myBaseConfiguration.MODE);
 
     // Supported launch activities are Default and Specified.
-    return launchOptionState instanceof DefaultActivityLaunch.State || launchOptionState instanceof SpecificActivityLaunch.State;
+    return activityLaunchOptionState instanceof DefaultActivityLaunch.State || activityLaunchOptionState instanceof SpecificActivityLaunch.State;
   }
 
   @Override
   public String getLaunchActivityClass() {
-    LaunchOptionState launchOptionState = myBaseConfiguration.getLaunchOptionState(myBaseConfiguration.MODE);
+    ActivityLaunchOptionState activityLaunchOptionState = myBaseConfiguration.getLaunchOptionState(myBaseConfiguration.MODE);
 
-    if (launchOptionState instanceof SpecificActivityLaunch.State) {
-      return ((SpecificActivityLaunch.State)launchOptionState).ACTIVITY_CLASS;
+    if (activityLaunchOptionState instanceof SpecificActivityLaunch.State) {
+      return ((SpecificActivityLaunch.State)activityLaunchOptionState).ACTIVITY_CLASS;
     }
 
     return "";
