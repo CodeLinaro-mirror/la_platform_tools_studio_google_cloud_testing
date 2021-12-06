@@ -17,8 +17,8 @@ package com.google.gct.testrecorder.codegen;
 
 import static com.google.gct.testrecorder.util.StringHelper.boxString;
 import static com.google.gct.testrecorder.util.StringHelper.getClassName;
+import static com.google.gct.testrecorder.util.StringHelper.getPackageName;
 import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharacter;
-import static org.jetbrains.android.util.AndroidUtils.computePackageName;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
@@ -268,7 +268,7 @@ public class TestCodeGenerator {
     velocityContext.put("TestActivityName", getClassName(myLaunchedActivityName));
     velocityContext.put("ClassName", myTestClass.getName());
     velocityContext.put("TestMethodName", lowerCaseFirstCharacter(myTestClass.getName()));
-    velocityContext.put("PackageName", computePackageName(myTestClassModule, testCodeVirtualFile));
+    velocityContext.put("PackageName", getPackageName(myTestClass.getQualifiedName()));
     velocityContext.put("WasEverPaused", myWasEverPaused);
     velocityContext.put("ResourcePackageName", myResourcePackageName);
     velocityContext.put("EspressoPackageNamePrefix", myUsesAndroidxDependency ? "androidx" : "android.support");
