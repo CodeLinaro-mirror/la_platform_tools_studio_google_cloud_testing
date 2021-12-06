@@ -58,6 +58,12 @@ public class StringHelper {
     return qualifiedClassName.substring(qualifiedClassName.lastIndexOf('.') + 1);
   }
 
+  @NotNull
+  public static String getPackageName(@NotNull String qualifiedClassName) {
+    int lastSeparatorIndex = qualifiedClassName.lastIndexOf('.');
+    return lastSeparatorIndex != -1 ? qualifiedClassName.substring(0, lastSeparatorIndex) : "";
+  }
+
   /**
    * Returns a pair of (package_name, element_id).
    */
