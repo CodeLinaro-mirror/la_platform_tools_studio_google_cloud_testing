@@ -6,11 +6,16 @@ package ${PackageName};
 import ${EspressoPackageNamePrefix}.test.espresso.DataInteraction;
 import ${EspressoPackageNamePrefix}.test.espresso.ViewInteraction;
 import ${EspressoPackageNamePrefix}.test.filters.LargeTest;
-import ${EspressoPackageNamePrefix}.test.rule.ActivityTestRule;
+#if (${UsesAndroidxDependency})
+import androidx.test.ext.junit.rules.ActivityScenarioRule;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+#else
+import android.support.test.rule.ActivityTestRule;
+import android.support.test.runner.AndroidJUnit4;
+#end
 #if (${HasRequestedPermissions})
 import ${EspressoPackageNamePrefix}.test.rule.GrantPermissionRule;
 #end
-import ${EspressoPackageNamePrefix}.test.runner.AndroidJUnit4;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -49,8 +54,15 @@ import static org.hamcrest.Matchers.is;
 #end
 public class ${ClassName} {
 
+#if (${UsesAndroidxDependency})
     @Rule
-    public ActivityTestRule<${TestActivityName}> mActivityTestRule = new ActivityTestRule<>(${TestActivityName}.class);
+    public ActivityScenarioRule<${TestActivityName}> mActivityScenarioRule =
+            new ActivityScenarioRule<>(${TestActivityName}.class);
+#else
+    @Rule
+    public ActivityTestRule<${TestActivityName}> mActivityTestRule =
+            new ActivityTestRule<>(${TestActivityName}.class);
+#end
 
 #if (${HasRequestedPermissions})
     @Rule

@@ -271,6 +271,7 @@ public class TestCodeGenerator {
     velocityContext.put("PackageName", getPackageName(myTestClass.getQualifiedName()));
     velocityContext.put("WasEverPaused", myWasEverPaused);
     velocityContext.put("ResourcePackageName", myResourcePackageName);
+    velocityContext.put("UsesAndroidxDependency", myUsesAndroidxDependency);
     velocityContext.put("EspressoPackageNamePrefix", myUsesAndroidxDependency ? "androidx" : "android.support");
     velocityContext.put("RecyclerViewPackageNamePrefix", myUsesAndroidxDependency ? "androidx.recyclerview.widget" : "android.support.v7.widget");
 
