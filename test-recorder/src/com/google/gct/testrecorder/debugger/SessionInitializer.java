@@ -32,8 +32,8 @@ import com.android.SdkConstants;
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidSessionInfo;
-import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.tools.idea.run.activity.ActivityLocatorUtils;
 import com.android.tools.idea.run.activity.DefaultActivityLocator;
 import com.google.common.base.Strings;
@@ -465,7 +465,7 @@ public class SessionInitializer implements Runnable {
     }
 
     try {
-      myPackageName = ApkProviderUtil.computePackageName(myFacet);
+      myPackageName = ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
     } catch (Exception e) {
       throw new RuntimeException("Could not compute package name!");
     }

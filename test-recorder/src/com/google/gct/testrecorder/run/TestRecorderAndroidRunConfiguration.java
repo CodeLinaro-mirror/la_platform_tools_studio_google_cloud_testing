@@ -17,9 +17,9 @@ package com.google.gct.testrecorder.run;
 
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.NullOutputReceiver;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProvider;
-import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.tools.idea.run.tasks.AppLaunchTask;
 import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.ConsolePrinter;
@@ -97,7 +97,7 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
       if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
         try {
           // Clear the app data such that the test recording starts from the initial app state.
-          String command = "pm clear " + ApkProviderUtil.computePackageName(myFacet);
+          String command = "pm clear " + ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
           launchContext.getConsolePrinter().stdout("$ adb shell " + command);
           launchContext.getDevice().executeShellCommand(command, new NullOutputReceiver(), 5, TimeUnit.SECONDS);
         } catch (Exception e) {

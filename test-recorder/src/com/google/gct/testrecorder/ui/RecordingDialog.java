@@ -52,7 +52,6 @@ import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.DependencyScopeType;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
-import com.android.tools.idea.run.ApkProviderUtil;
 import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
@@ -613,7 +612,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private String getApplicationId(String defaultId) {
     try {
-      return ApkProviderUtil.computePackageName(myFacet);
+      return ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
     } catch (Exception e) {
       return defaultId;
     }
