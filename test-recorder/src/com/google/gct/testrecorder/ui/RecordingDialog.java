@@ -87,6 +87,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.util.SystemInfoRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.psi.PsiClass;
@@ -663,7 +664,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       @Override
       public void actionPerformed(ActionEvent e) {
         long elapsed = System.currentTimeMillis() - start;
-        if (elapsed > ANIMATION_INTERVAL) {
+        if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
           myScreenshotPanel.setMinimumSize(new Dimension(screenshotPanelTotalWidth, screenshotPanelTotalHeight));
           t.stop();
         } else {
@@ -692,7 +693,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       @Override
       public void actionPerformed(ActionEvent e) {
         long elapsed = System.currentTimeMillis() - start;
-        if (elapsed > ANIMATION_INTERVAL) {
+        if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
           myScreenshotPanel.setVisible(false);
           myScreenshotPanel.setMinimumSize(new Dimension(0, 0));
           getWindow().setMinimumSize(
