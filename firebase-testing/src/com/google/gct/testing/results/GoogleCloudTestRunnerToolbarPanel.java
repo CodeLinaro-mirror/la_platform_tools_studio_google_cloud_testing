@@ -36,7 +36,7 @@ public class GoogleCloudTestRunnerToolbarPanel extends SMTRunnerToolbarPanel {
 
     int lastComponentIndex = getComponentCount() - 1;
     ActionToolbarImpl actionToolbar = (ActionToolbarImpl)getComponent(lastComponentIndex);
-    final DefaultActionGroup cloudActionGroup = new DefaultActionGroup(null, false);
+    final DefaultActionGroup cloudActionGroup = new DefaultActionGroup((String)null, false);
     int separatorCounter = 0;
     boolean cloudActionsAdded = false;
     for (AnAction action : actionToolbar.getActions()) {
