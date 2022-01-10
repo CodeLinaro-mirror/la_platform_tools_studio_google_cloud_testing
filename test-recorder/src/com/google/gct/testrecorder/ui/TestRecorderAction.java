@@ -15,6 +15,8 @@
  */
 package com.google.gct.testrecorder.ui;
 
+import static org.apache.commons.lang.StringUtils.isEmpty;
+
 import com.android.annotations.VisibleForTesting;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
@@ -30,6 +32,7 @@ import com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxy;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
+import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionTargetManager;
 import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.RunnerAndConfigurationSettings;
@@ -52,13 +55,10 @@ import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.ui.popup.list.ListPopupImpl;
 import icons.StudioIcons;
+import java.util.List;
+import javax.swing.Icon;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import java.util.List;
-
-import static org.apache.commons.lang.StringUtils.isEmpty;
 
 public class TestRecorderAction extends AnAction {
   // TODO: This is a temporary workaround to deal with the launch schedule conflicts.
@@ -152,6 +152,16 @@ public class TestRecorderAction extends AnAction {
   }
 
   private static void launchTestRecorderOnConfiguration(Project project, RunConfiguration configurationBase, boolean isRecordingTest) {
+    try {
+      attemptLaunchTestRecorderOnConfiguration(project, configurationBase, isRecordingTest);
+    } catch (Exception e) {
+      String message = isEmpty(e.getMessage()) ? "Unknown error" : e.getMessage();
+      Messages.showDialog(project, message, "Could not launch Espresso Test Recorder", new String[]{"OK"}, 0, null);
+    }
+  }
+
+  private static void attemptLaunchTestRecorderOnConfiguration(Project project, RunConfiguration configurationBase, boolean isRecordingTest)
+    throws ExecutionException {
     TestRecorderRunConfigurationProxy testRecorderConfigurationProxy = TestRecorderRunConfigurationProxy.getInstance(configurationBase);
     if (testRecorderConfigurationProxy == null) {
       throw new RuntimeException("Could not obtain an instance of TestRecorderRunConfigurationProxy");
@@ -194,13 +204,8 @@ public class TestRecorderAction extends AnAction {
       oldSessionInfo.getProcessHandler().detachProcess();
     }
 
-    try {
-      environment.getRunner().execute(environment, descriptor -> ApplicationManager.getApplication().executeOnPooledThread(
-        new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration, isRecordingTest)));
-    } catch (Exception e) {
-      String message = isEmpty(e.getMessage()) ? "Unknown error" : e.getMessage();
-      Messages.showDialog(project, message, "Could not start debugging of the app", new String[]{"OK"}, 0, null);
-    }
+    environment.getRunner().execute(environment, descriptor -> ApplicationManager.getApplication().executeOnPooledThread(
+      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration, isRecordingTest)));
   }
 
   @VisibleForTesting

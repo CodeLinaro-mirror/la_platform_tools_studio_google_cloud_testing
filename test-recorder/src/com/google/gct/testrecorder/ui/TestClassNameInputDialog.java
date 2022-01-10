@@ -104,11 +104,8 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
     // Remove the Kotlin language option if the launched activity is not a Kotlin class
     // and Kotlin plugin is not enabled.
-    if (myClassLanguageComboBox.getSelectedIndex() < 1) {
-      GradleBuildModel gradleBuildModel = GradleBuildModel.get(myTestClassModule);
-      if (gradleBuildModel == null || !PluginModel.extractNames(gradleBuildModel.plugins()).contains("kotlin-android")) {
-        myClassLanguageComboBox.removeItemAt(1);
-      }
+    if (myClassLanguageComboBox.getSelectedIndex() < 1 && !hasKotlinPlugin()) {
+      myClassLanguageComboBox.removeItemAt(1);
     }
 
     SwingUtilities.invokeLater(new Runnable(){
@@ -117,6 +114,16 @@ public class TestClassNameInputDialog extends DialogWrapper {
         updateOKButton();
       }
     });
+  }
+
+  private boolean hasKotlinPlugin() {
+    GradleBuildModel gradleBuildModel = GradleBuildModel.get(myTestClassModule);
+    if (gradleBuildModel == null) {
+      return false;
+    }
+    List<String> pluginNames = PluginModel.extractNames(gradleBuildModel.plugins());
+    return pluginNames.contains("kotlin-android")
+           || pluginNames.contains("org.jetbrains.kotlin.android");
   }
 
   private void prepareEnvironment() {
