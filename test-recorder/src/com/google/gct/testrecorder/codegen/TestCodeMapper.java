@@ -30,10 +30,7 @@ import static com.google.gct.testrecorder.util.StringHelper.parseId;
 
 import com.android.SdkConstants;
 import com.android.annotations.VisibleForTesting;
-import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.resources.ResourceType;
-import com.android.tools.idea.res.LocalResourceRepository;
-import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.android.utils.Pair;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -45,7 +42,7 @@ import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.intellij.lang.java.lexer.JavaLexer;
-import com.intellij.openapi.module.Module;
+import com.intellij.openapi.project.Project;
 import com.intellij.pom.java.LanguageLevel;
 import java.util.LinkedList;
 import java.util.List;
@@ -62,7 +59,7 @@ public class TestCodeMapper {
   private static final String DATA_VARIABLE_CLASS_NAME = "DataInteraction";
 
   private final String myApplicationId;
-  private final Module myModule;
+  private final Project myProject;
   @Nullable private final AndroidTargetData myAndroidTargetData;
   private final boolean myIsKotlinTestClass;
   private boolean myIsChildAtPositionAdded;
@@ -75,9 +72,9 @@ public class TestCodeMapper {
   private final Map<String, Integer> myVariableNameIndexes = Maps.newHashMap();
 
 
-  public TestCodeMapper(String applicationId, Module module, @Nullable AndroidTargetData androidTargetData, boolean isKotlinTestClass) {
+  public TestCodeMapper(String applicationId, Project project, @Nullable AndroidTargetData androidTargetData, boolean isKotlinTestClass) {
     myApplicationId = applicationId;
-    myModule = module;
+    myProject = project;
     myAndroidTargetData = androidTargetData;
     myIsKotlinTestClass = isKotlinTestClass;
   }
@@ -296,7 +293,7 @@ public class TestCodeMapper {
     boolean addIsDisplayed = checkIsDisplayed && index == 0;
 
     ElementDescriptor elementDescriptor = elementDescriptors.get(index);
-    MatcherBuilder matcherBuilder = new MatcherBuilder(myModule.getProject(), myIsKotlinTestClass);
+    MatcherBuilder matcherBuilder = new MatcherBuilder(myProject, myIsKotlinTestClass);
 
     int lastIndex = elementDescriptors.size() - 1;
 
@@ -382,13 +379,7 @@ public class TestCodeMapper {
     }
 
     String testCodeId = "R.id." + parsedId.getSecond();
-    if (parsedId.getFirst().equals(myApplicationId)) {
-      LocalResourceRepository projectResources = ResourceRepositoryManager.getInstance(myModule).getProjectResources();
-      if (!projectResources.hasResources(ResourceNamespace.RES_AUTO, ResourceType.ID, parsedId.getSecond())) {
-        // For some reason, androidx.appcompat resources are evaluated by debugger as the application's resources.
-        testCodeId = "androidx.appcompat." + testCodeId;
-      }
-    } else {
+    if (!parsedId.getFirst().equals(myApplicationId)) {
       // Only the app's resource package will be explicitly imported, so use a fully qualified id for other packages.
       testCodeId = parsedId.getFirst() + "." + testCodeId;
     }

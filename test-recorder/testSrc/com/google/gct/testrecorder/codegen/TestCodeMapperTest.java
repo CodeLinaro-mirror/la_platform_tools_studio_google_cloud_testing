@@ -15,26 +15,27 @@
  */
 package com.google.gct.testrecorder.codegen;
 
-import static com.google.gct.testrecorder.event.TestRecorderEvent.SwipeDirection.Right;
-
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
-import java.util.List;
 import org.jetbrains.android.AndroidTestCase;
+
+import java.util.List;
+
+import static com.google.gct.testrecorder.event.TestRecorderEvent.SwipeDirection.Right;
 
 public class TestCodeMapperTest extends AndroidTestCase {
 
   public void testIsOverflowMenuButton() throws Exception {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, false);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
     assertTrue(testCodeMapper.isOverflowMenuButton("android.widget.ActionMenuPresenter.OverflowMenuButton"));
     assertTrue(testCodeMapper.isOverflowMenuButton("android.support.v7.widget.ActionMenuPresenter.OverflowMenuButton"));
   }
 
   public void testCloseSoftKeyboardAfterTextEdit() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, false);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
 
     TestRecorderEvent textChangeEvent = new TestRecorderEvent(TestRecorderEvent.TEXT_CHANGE, System.currentTimeMillis());
     textChangeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, -1, "", "content description", ""));
@@ -46,7 +47,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   }
 
   public void testJavaSwipeAction() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, false);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
 
     TestRecorderEvent swipeEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_SWIPE, System.currentTimeMillis());
     swipeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, -1, "", "content description", ""));
@@ -57,7 +58,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   }
 
   public void testKotlinSwipeAction() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, true);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, true);
 
     TestRecorderEvent swipeEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_SWIPE, System.currentTimeMillis());
     swipeEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, -1, "", "content description", ""));
@@ -68,7 +69,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   }
 
   public void testJavaDelayedMessagePost() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, false);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
 
     TestRecorderEvent delayedMessagePostEvent = new TestRecorderEvent(TestRecorderEvent.DELAYED_MESSAGE_POST, System.currentTimeMillis());
     delayedMessagePostEvent.setDelayTime(1500);
@@ -79,7 +80,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   }
 
   public void testKotlinDelayedMessagePost() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, true);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, true);
 
     TestRecorderEvent delayedMessagePostEvent = new TestRecorderEvent(TestRecorderEvent.DELAYED_MESSAGE_POST, System.currentTimeMillis());
     delayedMessagePostEvent.setDelayTime(1500);
@@ -90,7 +91,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   }
 
   public void testJavaAdapterViewAction() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, false);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
 
     TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
     clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, 2, -1, "", "", ""));
@@ -103,7 +104,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   }
 
   public void testKotlinAdapterViewAction() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, true);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, true);
 
     TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
     clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, 2, -1, "", "", ""));
@@ -118,7 +119,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   public void testContentDescriptionSuppression() {
     TestRecorderSettings.getInstance().USE_CONTENT_DESCRIPTION_FOR_ELEMENT_MATCHING = false;
 
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, false);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
 
     TestRecorderEvent clickEvent = new TestRecorderEvent(TestRecorderEvent.VIEW_CLICK, System.currentTimeMillis());
     clickEvent.addElementDescriptor(new ElementDescriptor("SomeClass", -1, -1, -1, "myId", "my content description", ""));
@@ -130,7 +131,7 @@ public class TestCodeMapperTest extends AndroidTestCase {
   }
 
   public void testRequestedPermissionsHandling() {
-    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule, null, false);
+    TestCodeMapper testCodeMapper = new TestCodeMapper("12345", myModule.getProject(), null, false);
 
     TestRecorderEvent permissionsRequestEvent1 = new TestRecorderEvent(TestRecorderEvent.PERMISSIONS_REQUEST, System.currentTimeMillis());
     permissionsRequestEvent1.setRequestedPermissions(Lists.newArrayList("a", "b"));
