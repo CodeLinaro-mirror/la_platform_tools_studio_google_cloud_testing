@@ -276,7 +276,7 @@ public class TestCodeGenerator {
     velocityContext.put("RecyclerViewPackageNamePrefix", myUsesAndroidxDependency ? "androidx.recyclerview.widget" : "android.support.v7.widget");
 
     // Generate test code.
-    TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myProject, getAndroidTargetData(), myIsKotlinTestClass);
+    TestCodeMapper codeMapper = new TestCodeMapper(myApplicationId, myTestClassModule, getAndroidTargetData(), myIsKotlinTestClass);
     ArrayList<String> testCodeLines = new ArrayList<String>();
     int eventCount = 0;
     int assertionCount = 0;
