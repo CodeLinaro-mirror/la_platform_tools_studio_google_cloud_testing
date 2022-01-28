@@ -310,6 +310,18 @@ public class SessionInitializer implements Runnable {
           }
         }
 
+        // A workaround until new DefaultActivityLocator(myFacet).getQualifiedActivityName(myDevice)
+        // returns a fully qualified activity name again (b/216843699).
+        if (activityName.startsWith(".")) {
+          for (Activity activity : application.getActivities()) {
+            if (ActivityLocatorUtils.getQualifiedName(activity).endsWith(activityName)) {
+              return ActivityLocatorUtils.getQualifiedName(activity);
+            }
+          }
+          // No matching activity found, remove the leading period.
+          activityName = activityName.substring(1);
+        }
+
         // Neither actual activity nor alias - should not happen, but return the originally found activity for the sake of completeness.
         return activityName;
       }
