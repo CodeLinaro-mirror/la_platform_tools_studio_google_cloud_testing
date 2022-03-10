@@ -575,6 +575,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
       String applicationId = getApplicationId(resourcePackageName);
 
+      if (resourcePackageName == null) {
+        // Fallback to application ID as the app's package name.
+        resourcePackageName = applicationId;
+      }
+
       // Automatically check/setup Espresso dependencies for Gradle projects only.
       GradleBuildModel gradleBuildModel = GradleBuildModel.get(testClassModule);
       if (gradleBuildModel != null) {
