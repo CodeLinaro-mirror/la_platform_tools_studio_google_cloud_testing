@@ -8,6 +8,15 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="library" name="studio-sdk" level="project" />
+    <orderEntry type="module-library">
+      <library name="JSch">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/jcraft/jsch/0.1.55/jsch-0.1.55.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
     <orderEntry type="library" name="studio-plugin-Groovy" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="intellij.android.common" />
