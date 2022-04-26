@@ -910,7 +910,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
           gradleBuildModel.applyChanges();
 
-          GradleSyncInvoker.getInstance().requestProjectSync(myProject, TRIGGER_ESPRESSO_SETUP);
+          GradleSyncInvoker.getInstance().requestProjectSync(myProject, new GradleSyncInvoker.Request(TRIGGER_ESPRESSO_SETUP), null);
         });
       }
 
