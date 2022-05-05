@@ -17,6 +17,7 @@ package com.google.gct.testrecorder.ui;
 
 import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_IMPLEMENTATION;
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
+import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.ASSERTION_RULES_WITHOUT_TEXT;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.ASSERTION_RULES_WITH_TEXT;
 import static com.google.gct.testrecorder.event.TestRecorderAssertion.EXISTS;
@@ -46,11 +47,11 @@ import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
-import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.DependencyScopeType;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.android.uiautomator.UiAutomatorModel;
@@ -910,7 +911,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
           gradleBuildModel.applyChanges();
 
-          GradleSyncInvoker.getInstance().requestProjectSync(myProject, TRIGGER_ESPRESSO_SETUP);
+          if (myProject != null) {
+            getProjectSystem(myProject).getSyncManager().syncProject(new ProjectSystemSyncManager.SyncReason(TRIGGER_ESPRESSO_SETUP));
+          }
         });
       }
 
