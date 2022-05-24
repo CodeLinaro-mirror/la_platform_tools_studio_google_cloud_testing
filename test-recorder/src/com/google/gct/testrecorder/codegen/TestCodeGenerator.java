@@ -15,6 +15,7 @@
  */
 package com.google.gct.testrecorder.codegen;
 
+import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
 import static com.google.gct.testrecorder.util.StringHelper.boxString;
 import static com.google.gct.testrecorder.util.StringHelper.getClassName;
 import static com.google.gct.testrecorder.util.StringHelper.getPackageName;
@@ -22,8 +23,6 @@ import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharac
 
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.gradle.project.build.GradleBuildState;
-import com.android.tools.idea.gradle.project.sync.GradleSyncState;
 import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.collect.Collections2;
 import com.google.gct.testrecorder.event.ElementAction;
@@ -50,6 +49,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
@@ -61,7 +61,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiManager;
-import com.intellij.util.ThreeState;
 import com.intellij.util.containers.ConcurrentLongObjectMap;
 import java.io.File;
 import java.io.PrintWriter;
@@ -189,10 +188,10 @@ public class TestCodeGenerator {
 
   private void waitForBackgroundTasksToFinish() {
     int secondsWaited = 0;
-    GradleSyncState syncState = GradleSyncState.getInstance(myProject);
-    GradleBuildState buildState = GradleBuildState.getInstance(myProject);
+    final var projectSystem = getProjectSystem(myProject);
     while (secondsWaited < BACKGROUND_TASKS_WAIT_LIMIT) {
-      if (!syncState.isSyncInProgress() && syncState.isSyncNeeded() != ThreeState.YES && !buildState.isBuildInProgress()) {
+      final var syncManager = projectSystem.getSyncManager();
+      if (!syncManager.isSyncInProgress() && !syncManager.isSyncNeeded() && !CompilerManager.getInstance(myProject).isCompilationActive()) {
         break;
       }
       try {
