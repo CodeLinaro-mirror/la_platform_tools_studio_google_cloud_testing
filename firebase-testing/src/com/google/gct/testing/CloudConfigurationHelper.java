@@ -67,7 +67,7 @@ import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.Session;
 import icons.AndroidIcons;
 import icons.StudioIcons;
-import org.apache.log4j.helpers.ISO8601DateFormat;
+import java.text.SimpleDateFormat;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -309,8 +309,7 @@ public final class CloudConfigurationHelper {
       suffix.append(characters.charAt(randomGenerator.nextInt(characters.length())));
     }
 
-    String creationTime = new ISO8601DateFormat().format(new Date());
-    return "as-build_" + creationTime.replace(' ', '_').replace(',', '.') + "_" + suffix;
+    return "as-build_" + new SimpleDateFormat("yyyy-mm-dd_HH:mm:ss.SSS").format(new Date()) + "_" + suffix;
   }
 
   public static void launchCloudDevice(int selectedConfigurationId, @NotNull String cloudProjectId, @NotNull AndroidFacet facet) {

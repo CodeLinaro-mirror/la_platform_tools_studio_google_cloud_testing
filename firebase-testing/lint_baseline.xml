@@ -57,4 +57,12 @@
             line="93"/>
     </issue>
 
+    <issue
+        id="SimpleDateFormat"
+        message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates.">
+        <location
+            file="src/com/google/gct/testing/CloudConfigurationHelper.java"
+            line="312"/>
+    </issue>
+
 </issues>
