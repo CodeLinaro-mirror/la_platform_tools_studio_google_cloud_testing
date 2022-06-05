@@ -21,6 +21,7 @@ iml_module(
     # do not sort: must match IML order
     deps = [
         "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "//prebuilts/tools/common/m2:JSch",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
         "//tools/adt/idea/android-common:intellij.android.common[module]",
         "//tools/adt/idea/android:intellij.android.core[module]",
