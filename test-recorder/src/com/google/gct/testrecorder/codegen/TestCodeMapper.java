@@ -28,7 +28,7 @@ import static com.google.gct.testrecorder.util.StringHelper.getClassName;
 import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharacter;
 import static com.google.gct.testrecorder.util.StringHelper.parseId;
 
-import com.android.SdkConstants;
+import com.android.AndroidXConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.resources.ResourceType;
@@ -337,7 +337,7 @@ public class TestCodeMapper {
     int groupViewChildPosition = elementDescriptor.getGroupViewChildPosition();
 
     // Do not use child position for ViewPager children as it changes dynamically and non-deterministically.
-    if (SdkConstants.CLASS_VIEW_PAGER.isEquals(elementDescriptors.get(index + 1).getClassName())
+    if (AndroidXConstants.CLASS_VIEW_PAGER.isEquals(elementDescriptors.get(index + 1).getClassName())
         // Do not use child position for assertions due to potential child position mismatches between UIAutomator (when assertion is
         // recorded) and Espresso (when assertion is replayed/verified).
         || isAssertionConditions) {
