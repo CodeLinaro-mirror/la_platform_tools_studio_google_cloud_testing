@@ -31,6 +31,7 @@ import static com.google.gct.testrecorder.util.StringHelper.parseId;
 import com.android.SdkConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.ide.common.rendering.api.ResourceNamespace;
+import com.android.ide.common.resources.ResourceItem;
 import com.android.resources.ResourceType;
 import com.android.tools.idea.res.LocalResourceRepository;
 import com.android.tools.idea.res.ResourceRepositoryManager;
@@ -385,8 +386,15 @@ public class TestCodeMapper {
     if (parsedId.getFirst().equals(myApplicationId)) {
       LocalResourceRepository projectResources = ResourceRepositoryManager.getInstance(myModule).getProjectResources();
       if (!projectResources.hasResources(ResourceNamespace.RES_AUTO, ResourceType.ID, parsedId.getSecond())) {
-        // For some reason, androidx.appcompat resources are evaluated by debugger as the application's resources.
-        testCodeId = "androidx.appcompat." + testCodeId;
+        // For some reason, library resources are evaluated by debugger as application resources, so find the containing library and
+        // use its package name to qualify the resource id.
+        for (ResourceItem resource :
+          ResourceRepositoryManager.getInstance(myModule).getResourcesForNamespace(ResourceNamespace.RES_AUTO).getAllResources()) {
+          if (resource.getType() == ResourceType.ID && parsedId.getSecond().equals(resource.getName())) {
+            testCodeId = resource.getRepository().getPackageName() + "." + testCodeId;
+            break;
+          }
+        }
       }
     } else {
       // Only the app's resource package will be explicitly imported, so use a fully qualified id for other packages.
