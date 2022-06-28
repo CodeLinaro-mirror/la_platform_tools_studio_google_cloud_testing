@@ -36,7 +36,6 @@ import com.intellij.openapi.project.Project;
 import java.util.List;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class CloudDebuggingTargetProvider extends DeployTargetProvider {
   private String myCloudDeviceSerialNumber;
@@ -90,9 +89,8 @@ public class CloudDebuggingTargetProvider extends DeployTargetProvider {
         return null;
       }
 
-      @Nullable
       @Override
-      public DeviceFutures getDevices(@NotNull AndroidFacet facet) {
+      public @NotNull DeviceFutures getDevices(@NotNull Project project) {
         return DeviceFutures.forDevices(DeviceSelectionUtils.getAllCompatibleDevices(new TargetDeviceFilter() {
           @Override
           public boolean matchesDevice(@NotNull IDevice device) {
