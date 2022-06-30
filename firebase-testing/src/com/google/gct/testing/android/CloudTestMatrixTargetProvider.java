@@ -108,10 +108,10 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
 
       @Nullable
       @Override
-      public DeviceFutures getDevices(@NotNull AndroidFacet facet) {
+      public DeviceFutures getDevices(@NotNull Project project) {
         // This runs when a developer debugs (not runs) an Android instrumented test. Use the device selected in the drop down.
         DeviceAndSnapshotComboBoxTargetProvider provider = new DeviceAndSnapshotComboBoxTargetProvider();
-        return provider.getDeployTarget(facet.getModule().getProject()).getDevices(facet);
+        return provider.getDeployTarget(project).getDevices(project);
       }
     };
   }
