@@ -357,7 +357,7 @@ public class TestCodeMapper {
   private boolean isAndroidFrameworkPrivateId(String resourceId) {
     Pair<String, String> parsedId = parseId(resourceId);
     return myAndroidTargetData != null && parsedId != null && "android".equals(parsedId.getFirst())
-           && !myAndroidTargetData.isResourcePublic(ResourceType.ID.getName(), parsedId.getSecond());
+           && !myAndroidTargetData.isResourcePublic(ResourceType.ID, parsedId.getSecond());
   }
 
   /**
