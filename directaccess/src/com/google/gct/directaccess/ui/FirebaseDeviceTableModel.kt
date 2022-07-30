@@ -18,6 +18,8 @@ package com.google.gct.directaccess.ui
 import com.android.tools.idea.devicemanager.Device
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.services.firebase.directaccess.client.DeviceInfo
+import icons.StudioIcons
+import javax.swing.Icon
 import javax.swing.table.AbstractTableModel
 
 const val DEVICE_MODEL_COLUMN_INDEX = 0
@@ -25,7 +27,7 @@ const val API_MODEL_COLUMN_INDEX = 1
 const val ACTIONS_COLUMN_INDEX = 2
 
 class FirebaseDeviceTableModel(devices: List<DeviceInfo>) : AbstractTableModel() {
-  private val devices = devices.map { FirebaseDevice(it) }.toMutableList()
+  val devices = devices.map { FirebaseDevice(it) }.toMutableList()
 
   override fun getRowCount(): Int {
     return devices.size
@@ -39,8 +41,13 @@ class FirebaseDeviceTableModel(devices: List<DeviceInfo>) : AbstractTableModel()
     return when (columnIndex) {
       DEVICE_MODEL_COLUMN_INDEX -> devices[rowIndex]
       API_MODEL_COLUMN_INDEX -> devices[rowIndex].androidVersion
+      ACTIONS_COLUMN_INDEX -> StudioIcons.Avd.RUN
       else -> ""
     }
+  }
+
+  override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean {
+    return columnIndex == ACTIONS_COLUMN_INDEX
   }
 
   override fun getColumnName(modelColumnIndex: Int): String {
@@ -55,6 +62,7 @@ class FirebaseDeviceTableModel(devices: List<DeviceInfo>) : AbstractTableModel()
   override fun getColumnClass(columnIndex: Int): Class<*> {
     return when (columnIndex) {
       DEVICE_MODEL_COLUMN_INDEX -> Device::class.java
+      ACTIONS_COLUMN_INDEX -> Icon::class.java
       else -> super.getColumnClass(columnIndex)
     }
   }

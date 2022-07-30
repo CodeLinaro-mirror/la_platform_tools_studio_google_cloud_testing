@@ -15,5 +15,6 @@
     <orderEntry type="module" module-name="android.sdktools.flags" />
     <orderEntry type="module" module-name="intellij.android.device-manager" />
     <orderEntry type="module" module-name="directaccess-client" />
+    <orderEntry type="module" module-name="intellij.android.artwork" />
   </component>
 </module>
