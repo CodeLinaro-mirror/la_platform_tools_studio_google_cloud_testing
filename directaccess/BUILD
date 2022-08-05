@@ -15,6 +15,6 @@ iml_module(
         "//tools/adt/idea/android-common:intellij.android.common[module]",
         "//tools/base/flags:studio.android.sdktools.flags[module]",
         "//tools/adt/idea/device-manager:intellij.android.device-manager[module]",
-        "//tools/studio/google/cloud/testing/directaccess-client[module]",
+        "//tools/vendor/google/directaccess-client[module]",
     ],
 )

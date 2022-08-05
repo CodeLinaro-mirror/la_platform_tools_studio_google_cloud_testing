@@ -20,7 +20,7 @@ import com.android.tools.idea.devicemanager.ConnectionType
 import com.android.tools.idea.devicemanager.Device
 import com.android.tools.idea.devicemanager.Key
 import com.android.tools.idea.devicemanager.SerialNumber
-import com.google.gct.directaccess.client.DeviceInfo
+import com.google.services.firebase.directaccess.client.DeviceInfo
 import javax.swing.Icon
 
 class FirebaseDevice private constructor(builder: Builder) : Device(builder) {

@@ -18,7 +18,7 @@ package com.google.gct.directaccess.ui
 import com.android.tools.adtui.stdui.CommonButton
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
-import com.google.gct.directaccess.client.catalog.FirebaseDirectAccessClient
+import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project

@@ -17,7 +17,7 @@ package com.google.gct.directaccess.ui
 
 import com.android.tools.idea.devicemanager.Device
 import com.google.gct.directaccess.FirebaseDevice
-import com.google.gct.directaccess.client.DeviceInfo
+import com.google.services.firebase.directaccess.client.DeviceInfo
 import javax.swing.table.AbstractTableModel
 
 const val DEVICE_MODEL_COLUMN_INDEX = 0
