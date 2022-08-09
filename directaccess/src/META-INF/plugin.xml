@@ -31,4 +31,8 @@
     <deviceManagerTab
       implementation="com.google.gct.directaccess.ui.FirebaseDeviceTab"/>
   </extensions>
+
+  <extensions defaultExtensionNs="com.android.tools.idea">
+    <deviceProvisioner implementation="com.google.gct.directaccess.provisioner.FirebaseDeviceProvisionerFactory"/>
+  </extensions>
 </idea-plugin>

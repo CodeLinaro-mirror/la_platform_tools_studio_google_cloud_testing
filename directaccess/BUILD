@@ -17,5 +17,9 @@ iml_module(
         "//tools/adt/idea/device-manager:intellij.android.device-manager[module]",
         "//tools/vendor/google/directaccess-client[module]",
         "//tools/adt/idea/artwork:intellij.android.artwork[module]",
+        "//tools/adt/idea/android-adb:intellij.android.adb[module]",
+        "//tools/base/device-provisioner:studio.android.sdktools.device-provisioner[module]",
+        "//tools/base/adblib:studio.android.sdktools.adblib[module]",
+        "//tools/base/adblib-tools:studio.android.sdktools.adblib.tools[module]",
     ],
 )
