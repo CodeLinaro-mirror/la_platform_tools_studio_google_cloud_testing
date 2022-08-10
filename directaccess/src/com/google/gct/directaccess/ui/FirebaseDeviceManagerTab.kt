@@ -21,7 +21,7 @@ import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 
-class FirebaseDeviceTab: DeviceManagerTab {
+class FirebaseDeviceTab : DeviceManagerTab {
 
   override fun isApplicable() = StudioFlags.DIRECT_ACCESS.get()
 

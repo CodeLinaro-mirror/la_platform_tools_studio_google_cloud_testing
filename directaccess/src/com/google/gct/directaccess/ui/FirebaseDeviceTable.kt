@@ -30,9 +30,7 @@ import javax.swing.Icon
 import javax.swing.JTable
 
 class FirebaseDeviceTable(model: FirebaseDeviceTableModel) :
-  DeviceTable<FirebaseDevice>(
-    model,
-    FirebaseDevice::class.java), Disposable {
+  DeviceTable<FirebaseDevice>(model, FirebaseDevice::class.java), Disposable {
 
   init {
     setDefaultRenderer(Device::class.java, FirebaseDeviceTableCellRenderer())
@@ -41,8 +39,7 @@ class FirebaseDeviceTable(model: FirebaseDeviceTableModel) :
 
   override fun deviceViewColumnIndex() = convertColumnIndexToView(DEVICE_MODEL_COLUMN_INDEX)
 
-  override fun dispose() {
-  }
+  override fun dispose() {}
 }
 
 // TODO: replace this with better UI
@@ -53,11 +50,14 @@ class LaunchButtonTableCellEditor(model: FirebaseDeviceTableModel) :
 
   init {
     myButton.addActionListener {
-      executeOnPooledThread { testConnectDirectAccess(
-        AppExecutorUtil.getAppExecutorService(),
-        model.devices[row].target.substringAfter(' '),
-        model.devices[row].androidVersion.apiString,
-        StudioFlags.DIRECT_ACCESS_PROJECT.get()) }
+      executeOnPooledThread {
+        testConnectDirectAccess(
+          AppExecutorUtil.getAppExecutorService(),
+          model.devices[row].target.substringAfter(' '),
+          model.devices[row].androidVersion.apiString,
+          StudioFlags.DIRECT_ACCESS_PROJECT.get()
+        )
+      }
     }
   }
 

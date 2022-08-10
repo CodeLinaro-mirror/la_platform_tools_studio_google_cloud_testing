@@ -18,5 +18,5 @@ package com.google.gct.directaccess.ui
 import com.android.tools.idea.devicemanager.DeviceTableCellRenderer
 import com.google.gct.directaccess.FirebaseDevice
 
-class FirebaseDeviceTableCellRenderer: DeviceTableCellRenderer<FirebaseDevice>(FirebaseDevice::class.java) {
-}
+class FirebaseDeviceTableCellRenderer :
+  DeviceTableCellRenderer<FirebaseDevice>(FirebaseDevice::class.java) {}
