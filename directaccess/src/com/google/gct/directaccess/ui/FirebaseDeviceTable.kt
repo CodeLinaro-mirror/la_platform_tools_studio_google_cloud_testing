@@ -19,6 +19,7 @@ import com.android.tools.idea.concurrency.executeOnPooledThread
 import com.android.tools.idea.devicemanager.Device
 import com.android.tools.idea.devicemanager.DeviceTable
 import com.android.tools.idea.devicemanager.IconButtonTableCellEditor
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.services.firebase.directaccess.client.device.directaccess.testConnectDirectAccess
 import com.intellij.openapi.Disposable
@@ -55,7 +56,8 @@ class LaunchButtonTableCellEditor(model: FirebaseDeviceTableModel) :
       executeOnPooledThread { testConnectDirectAccess(
         AppExecutorUtil.getAppExecutorService(),
         model.devices[row].target.substringAfter(' '),
-        model.devices[row].androidVersion.apiString) }
+        model.devices[row].androidVersion.apiString,
+        StudioFlags.DIRECT_ACCESS_PROJECT.get()) }
     }
   }
 
