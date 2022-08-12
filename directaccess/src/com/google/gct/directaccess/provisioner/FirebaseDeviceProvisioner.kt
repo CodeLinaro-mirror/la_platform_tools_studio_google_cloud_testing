@@ -16,13 +16,20 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
+import com.android.adblib.deviceProperties
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
+import com.android.sdklib.deviceprovisioner.Connected
+import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceHandle
+import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
+import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
-import com.android.sdklib.deviceprovisioner.EditTemplateAction
+import com.android.tools.idea.concurrency.executeOnPooledThread
+import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,14 +43,28 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
   // TODO: find a proper priority
   override val priority: Int = 120
   override suspend fun claim(device: ConnectedDevice): Boolean {
+    val sn = device.deviceInfoFlow.value.serialNumber
+    if (sn.matches(Regex("^localhost:\\d+$"))) {
+      val port = sn.substringAfter(':').toInt()
+      val service = project.service<DirectAccessService>()
+      if (service.deviceClients.containsKey(port)) {
+        val properties = device.deviceProperties().allReadonly()
+        val deviceProperties =
+          DirectAccessDeviceProperties.build { readCommonProperties(properties) }
+        _devices.emit(
+          devices.value.plus(
+            DirectAccessDeviceHandle(MutableStateFlow(Connected(deviceProperties, device)))
+          )
+        )
+        return true
+      }
+    }
     return false
   }
-
   private val _devices = MutableStateFlow(emptyList<DeviceHandle>())
   override val devices: StateFlow<List<DeviceHandle>> = _devices.asStateFlow()
   private val _templates = MutableStateFlow(emptyList<DeviceTemplate>())
   override val templates: StateFlow<List<DeviceTemplate>> = _templates.asStateFlow()
-
   init {
     _templates.value =
       FirebaseDirectAccessClient.availableDevices.map { info ->
@@ -52,20 +73,39 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
           override val activationAction: ActivationAction
             get() =
               object : ActivationAction {
-                override suspend fun activate(params: ActivationParams) = Unit
-
+                override suspend fun activate(params: ActivationParams) {
+                  executeOnPooledThread {
+                    project
+                      .service<DirectAccessService>()
+                      .acquireAndConnect(info.name, info.api.toString())
+                  }
+                }
                 override val label: String = "Acquire"
                 override val isEnabled: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
               }
-
-          override val editAction: EditTemplateAction
-            get() =
-              object : EditTemplateAction {
-                override suspend fun edit() = Unit
-                override val label: String = "Edit"
-                override val isEnabled: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
-              }
+          override val editAction = null
         }
       }
+  }
+}
+
+class DirectAccessDeviceHandle(override val stateFlow: StateFlow<DeviceState>) : DeviceHandle {
+  override val deactivationAction =
+    object : DeactivationAction {
+      override suspend fun deactivate() {
+        TODO("Not yet implemented")
+      }
+      override val label: String
+        get() = "Disconnect"
+      override val isEnabled: StateFlow<Boolean>
+        get() = MutableStateFlow(true)
+    }
+}
+
+class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
+  class Builder : DeviceProperties.Builder()
+  companion object {
+    fun build(block: Builder.() -> Unit) =
+      Builder().apply(block).run { DirectAccessDeviceProperties(buildBase()) }
   }
 }
