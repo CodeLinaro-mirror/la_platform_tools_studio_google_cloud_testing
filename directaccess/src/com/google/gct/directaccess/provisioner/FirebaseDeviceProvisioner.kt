@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin {
   // TODO: find a proper priority
   override val priority: Int = 120
+
   override suspend fun claim(device: ConnectedDevice): Boolean {
     val sn = device.deviceInfoFlow.value.serialNumber
     if (sn.matches(Regex("^localhost:\\d+$"))) {
@@ -61,10 +62,12 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
     }
     return false
   }
+
   private val _devices = MutableStateFlow(emptyList<DeviceHandle>())
   override val devices: StateFlow<List<DeviceHandle>> = _devices.asStateFlow()
   private val _templates = MutableStateFlow(emptyList<DeviceTemplate>())
   override val templates: StateFlow<List<DeviceTemplate>> = _templates.asStateFlow()
+
   init {
     _templates.value =
       FirebaseDirectAccessClient.availableDevices.map { info ->

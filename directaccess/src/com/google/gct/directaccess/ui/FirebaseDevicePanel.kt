@@ -18,10 +18,14 @@ package com.google.gct.directaccess.ui
 import com.android.tools.adtui.stdui.CommonButton
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.JBDimension
@@ -43,7 +47,31 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
       preferredSize = JBDimension(3, 20)
       maximumSize = preferredSize
     }
-  private val reloadButton = CommonButton(AllIcons.Actions.Refresh)
+  private val reloadButton =
+    CommonButton(AllIcons.Actions.Refresh).apply {
+      addActionListener {
+        val service = project.service<DirectAccessService>()
+        val devices =
+          service.listDevices()
+            ?: run {
+              Messages.showWarningDialog("Not connected", "Not Connected")
+              return@addActionListener
+            }
+        devices
+          .filter { existingSession ->
+            !service
+              .deviceClients
+              .values
+              .map { it.sessionName.toString() }
+              .contains(existingSession.name)
+          }
+          .forEach {
+            val session = service.getDeviceSession(it.name)!!
+            service.reconnect(session)
+          }
+      }
+    }
+
   private val helpButton = CommonButton(AllIcons.Actions.Help)
 
   init {
@@ -53,6 +81,9 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
 
     layOut()
     Disposer.register(parent, this)
+
+    // Temporarily get the provisioner service to ensure it's initialized
+    project.service<DeviceProvisionerService>()
   }
 
   override fun newTable(): JTable {

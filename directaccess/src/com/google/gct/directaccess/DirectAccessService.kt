@@ -15,10 +15,12 @@
  */
 package com.google.gct.directaccess
 
+import com.android.tools.adbbridge.DeviceSession
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.device.directaccess.DirectAccessClient
 import com.google.services.firebase.directaccess.client.device.remote.service.adb.forwardingdaemon.directaccess.DirectAccessServiceClient
+import com.google.services.firebase.directaccess.client.session.models.resourcenames.DeviceAssociationName
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -57,4 +59,26 @@ class DirectAccessService(val project: Project) {
     directAccessClient.reserveAndStartStreaming()
     directAccessClient.port?.let { port -> deviceClients.put(port, directAccessClient) }
   }
+
+  fun reconnect(session: DeviceSession) {
+    val device = session.androidDeviceList.getAndroidDevices(0)
+    val directAccessClient =
+      serviceClient?.let {
+        DirectAccessClient(gcpProject, device.androidModelId, device.androidVersionId, it)
+      }
+        ?: run {
+          Messages.showWarningDialog("Please log in first", "Log In Required")
+          return
+        }
+    directAccessClient.startStreaming(
+      DeviceAssociationName.parseFrom(
+        session.connectionInfo.adbConnectInfo.adbDevicesList.single().device
+      )
+    )
+    directAccessClient.port?.let { port -> deviceClients.put(port, directAccessClient) }
+  }
+
+  fun listDevices() = serviceClient?.listDeviceSessions()
+  fun getDeviceSession(deviceSessionName: String) =
+    serviceClient?.getDeviceSession(deviceSessionName)
 }
