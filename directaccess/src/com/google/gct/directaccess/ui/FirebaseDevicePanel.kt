@@ -30,7 +30,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.JBDimension
 import javax.swing.GroupLayout
-import javax.swing.JButton
 import javax.swing.JSeparator
 import javax.swing.JTable
 import javax.swing.SwingConstants
@@ -41,7 +40,6 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
       FirebaseDeviceTableModel(FirebaseDirectAccessClient.availableDevices, project)
     )
 
-  private val createButton = JButton("Add Device")
   private val separator: JSeparator =
     JSeparator(SwingConstants.VERTICAL).apply {
       preferredSize = JBDimension(3, 20)
@@ -103,9 +101,6 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
           layout
             .createSequentialGroup()
             .addGap(JBUIScale.scale(5))
-            .addComponent(createButton)
-            .addGap(JBUIScale.scale(4))
-            .addComponent(separator)
             .addComponent(reloadButton)
             .addComponent(helpButton)
         )
@@ -116,8 +111,6 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
         .addGroup(
           layout
             .createParallelGroup(GroupLayout.Alignment.CENTER)
-            .addComponent(createButton)
-            .addComponent(separator)
             .addComponent(reloadButton)
             .addComponent(helpButton)
         )
