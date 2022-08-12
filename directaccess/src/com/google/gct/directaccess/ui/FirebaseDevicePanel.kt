@@ -33,7 +33,9 @@ import javax.swing.SwingConstants
 
 class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(project) {
   private val table =
-    FirebaseDeviceTable(FirebaseDeviceTableModel(FirebaseDirectAccessClient.availableDevices))
+    FirebaseDeviceTable(
+      FirebaseDeviceTableModel(FirebaseDirectAccessClient.availableDevices, project)
+    )
 
   private val createButton = JButton("Add Device")
   private val separator: JSeparator =

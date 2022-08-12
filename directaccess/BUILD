@@ -21,5 +21,6 @@ iml_module(
         "//tools/base/device-provisioner:studio.android.sdktools.device-provisioner[module]",
         "//tools/base/adblib:studio.android.sdktools.adblib[module]",
         "//tools/base/adblib-tools:studio.android.sdktools.adblib.tools[module]",
+        "//tools/studio/google/cloud/tools/google-login-plugin:google-login-as[module]",
     ],
 )
