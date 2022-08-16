@@ -15,28 +15,32 @@
  */
 package com.google.gct.directaccess
 
+import com.android.adblib.serialNumber
 import com.android.sdklib.AndroidVersion
 import com.android.tools.idea.devicemanager.ConnectionType
 import com.android.tools.idea.devicemanager.Device
 import com.android.tools.idea.devicemanager.Key
 import com.android.tools.idea.devicemanager.SerialNumber
-import com.google.services.firebase.directaccess.client.DeviceInfo
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import javax.swing.Icon
 
 class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
   constructor(
-    info: DeviceInfo
+    device: DirectAccessDeviceHandle
   ) : this(
-    Builder()
-      .setName("${info.brand} ${info.name}")
-      .setApi(info.api)
-      .setTarget("${info.manufacturer} ${info.codename}")
+    device.stateFlow.value.let { deviceState ->
+      val properties = deviceState.properties
+      Builder()
+        .setName(properties.title())
+        .setApi(properties.androidVersion?.apiLevel ?: 0)
+        .setTarget(deviceState.connectedDevice?.serialNumber ?: "unknown")
+    }
   )
 
   override fun getIcon(): Icon = myType.physicalIcon
 
-  override fun isOnline() = false
+  override fun isOnline() = true
 
   private class Builder : Device.Builder() {
     override fun build(): FirebaseDevice = FirebaseDevice(this)

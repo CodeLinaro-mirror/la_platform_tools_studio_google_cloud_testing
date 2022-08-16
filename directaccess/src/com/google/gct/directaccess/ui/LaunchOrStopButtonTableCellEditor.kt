@@ -15,23 +15,28 @@
  */
 package com.google.gct.directaccess.ui
 
-import com.intellij.openapi.Disposable
-import com.intellij.ui.table.JBTable
+import com.android.tools.idea.devicemanager.IconButtonTableCellEditor
+import java.awt.Component
+import javax.swing.JTable
 
-class FirebaseDeviceTable(
-  model: FirebaseDeviceTableModel,
-) : JBTable(model), Disposable {
-
+object LaunchOrStopButtonTableCellEditor : IconButtonTableCellEditor() {
   init {
-    setDefaultRenderer(FirebaseItem::class.java, FirebaseItemTableCellRenderer)
-    setDefaultRenderer(Boolean::class.java, LaunchOrStopButtonTableCellRenderer)
-    setDefaultEditor(Boolean::class.java, LaunchOrStopButtonTableCellEditor)
+    myButton.addActionListener {
+      myValue = false
+      fireEditingStopped()
+    }
   }
 
-  fun getItemAt(viewRowIndex: Int): FirebaseItem {
-    val columnIndex = convertColumnIndexToView(DEVICE_MODEL_COLUMN_INDEX)
-    return getValueAt(viewRowIndex, (columnIndex)) as FirebaseItem
-  }
+  override fun getTableCellEditorComponent(
+    table: JTable,
+    value: Any,
+    selected: Boolean,
+    viewRowIndex: Int,
+    viewColumnIndex: Int
+  ): Component {
+    val item = (table as FirebaseDeviceTable).getItemAt(viewRowIndex)
 
-  override fun dispose() {}
+    myButton.setDefaultIcon(item.icon)
+    return super.getTableCellEditorComponent(table, value, selected, viewRowIndex, viewColumnIndex)
+  }
 }
