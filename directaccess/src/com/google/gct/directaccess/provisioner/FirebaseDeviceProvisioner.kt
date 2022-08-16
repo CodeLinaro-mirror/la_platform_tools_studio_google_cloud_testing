@@ -80,7 +80,7 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
                   executeOnPooledThread {
                     project
                       .service<DirectAccessService>()
-                      .acquireAndConnect(info.name, info.api.toString())
+                      .acquireAndConnect(info.codename, info.api.toString())
                   }
                 }
                 override val label: String = "Acquire"
