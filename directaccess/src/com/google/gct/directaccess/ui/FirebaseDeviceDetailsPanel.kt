@@ -18,5 +18,4 @@ package com.google.gct.directaccess.ui
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.intellij.openapi.project.Project
 
-class FirebaseDeviceDetailsPanel(project: Project): DetailsPanel("test") {
-}
+class FirebaseDeviceDetailsPanel(project: Project) : DetailsPanel("test") {}

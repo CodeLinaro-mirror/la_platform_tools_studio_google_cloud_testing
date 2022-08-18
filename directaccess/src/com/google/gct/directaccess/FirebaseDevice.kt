@@ -25,7 +25,9 @@ import javax.swing.Icon
 
 class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
-  constructor(info: DeviceInfo) : this(
+  constructor(
+    info: DeviceInfo
+  ) : this(
     Builder()
       .setName("${info.brand} ${info.name}")
       .setApi(info.api)
@@ -40,13 +42,14 @@ class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
     override fun build(): FirebaseDevice = FirebaseDevice(this)
 
     init {
-      myKey = object : Key() {
-        override fun getConnectionType(): ConnectionType = ConnectionType.UNKNOWN
+      myKey =
+        object : Key() {
+          override fun getConnectionType(): ConnectionType = ConnectionType.UNKNOWN
 
-        override fun getSerialNumber(): SerialNumber = SerialNumber("none")
+          override fun getSerialNumber(): SerialNumber = SerialNumber("none")
 
-        override fun isPersistent() = true
-      }
+          override fun isPersistent() = true
+        }
     }
 
     fun setName(name: String): Builder {

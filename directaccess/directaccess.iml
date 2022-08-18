@@ -16,5 +16,12 @@
     <orderEntry type="module" module-name="intellij.android.device-manager" />
     <orderEntry type="module" module-name="directaccess-client" />
     <orderEntry type="module" module-name="intellij.android.artwork" />
+    <orderEntry type="module" module-name="intellij.android.adb" />
+    <orderEntry type="module" module-name="android.sdktools.device-provisioner" />
+    <orderEntry type="module" module-name="android.sdktools.adblib" />
+    <orderEntry type="module" module-name="android.sdktools.adblib.tools" />
+    <orderEntry type="module" module-name="google-login-as" />
+    <orderEntry type="library" name="studio-proto" level="project" />
+    <orderEntry type="library" name="directaccess_client_proto" level="project" />
   </component>
 </module>

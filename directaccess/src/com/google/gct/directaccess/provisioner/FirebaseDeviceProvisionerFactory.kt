@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.gct.directaccess.ui
+package com.google.gct.directaccess.provisioner
 
-import com.android.tools.idea.devicemanager.DeviceTableCellRenderer
-import com.google.gct.directaccess.FirebaseDevice
+import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerFactory
+import com.intellij.openapi.project.Project
 
-class FirebaseDeviceTableCellRenderer :
-  DeviceTableCellRenderer<FirebaseDevice>(FirebaseDevice::class.java) {}
+class FirebaseDeviceProvisionerFactory : DeviceProvisionerFactory {
+  override fun create(project: Project): DeviceProvisionerPlugin =
+    FirebaseDeviceProvisioner(project)
+}

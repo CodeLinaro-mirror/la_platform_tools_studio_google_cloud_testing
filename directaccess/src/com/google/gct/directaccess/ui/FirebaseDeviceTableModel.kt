@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui
 import com.android.tools.idea.devicemanager.Device
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.services.firebase.directaccess.client.DeviceInfo
+import com.intellij.openapi.project.Project
 import icons.StudioIcons
 import javax.swing.Icon
 import javax.swing.table.AbstractTableModel
@@ -26,7 +27,8 @@ const val DEVICE_MODEL_COLUMN_INDEX = 0
 const val API_MODEL_COLUMN_INDEX = 1
 const val ACTIONS_COLUMN_INDEX = 2
 
-class FirebaseDeviceTableModel(devices: List<DeviceInfo>) : AbstractTableModel() {
+class FirebaseDeviceTableModel(devices: List<DeviceInfo>, val project: Project) :
+  AbstractTableModel() {
   val devices = devices.map { FirebaseDevice(it) }.toMutableList()
 
   override fun getRowCount(): Int {

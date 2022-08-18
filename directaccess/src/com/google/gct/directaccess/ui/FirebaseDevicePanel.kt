@@ -18,28 +18,58 @@ package com.google.gct.directaccess.ui
 import com.android.tools.adtui.stdui.CommonButton
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.JBDimension
 import javax.swing.GroupLayout
-import javax.swing.JButton
 import javax.swing.JSeparator
 import javax.swing.JTable
 import javax.swing.SwingConstants
 
 class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(project) {
-  private val table = FirebaseDeviceTable(FirebaseDeviceTableModel(FirebaseDirectAccessClient.availableDevices))
+  private val table =
+    FirebaseDeviceTable(
+      FirebaseDeviceTableModel(FirebaseDirectAccessClient.availableDevices, project)
+    )
 
-  private val createButton = JButton("Add Device")
-  private val separator: JSeparator = JSeparator(SwingConstants.VERTICAL).apply {
-    preferredSize = JBDimension(3, 20)
-    maximumSize = preferredSize
-  }
-  private val reloadButton = CommonButton(AllIcons.Actions.Refresh)
+  private val separator: JSeparator =
+    JSeparator(SwingConstants.VERTICAL).apply {
+      preferredSize = JBDimension(3, 20)
+      maximumSize = preferredSize
+    }
+  private val reloadButton =
+    CommonButton(AllIcons.Actions.Refresh).apply {
+      addActionListener {
+        val service = project.service<DirectAccessService>()
+        val devices =
+          service.listDevices()
+            ?: run {
+              Messages.showWarningDialog("Not connected", "Not Connected")
+              return@addActionListener
+            }
+        devices
+          .filter { existingSession ->
+            !service
+              .deviceClients
+              .values
+              .map { it.sessionName.toString() }
+              .contains(existingSession.name)
+          }
+          .forEach {
+            val session = service.getDeviceSession(it.name)!!
+            service.reconnect(session)
+          }
+      }
+    }
+
   private val helpButton = CommonButton(AllIcons.Actions.Help)
 
   init {
@@ -49,6 +79,9 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
 
     layOut()
     Disposer.register(parent, this)
+
+    // Temporarily get the provisioner service to ensure it's initialized
+    project.service<DeviceProvisionerService>()
   }
 
   override fun newTable(): JTable {
@@ -61,26 +94,27 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
 
   private fun layOut() {
     val layout = GroupLayout(this)
-    val horizontalGroup: GroupLayout.Group = layout.createParallelGroup()
-      .addGroup(
-        layout.createSequentialGroup()
-          .addGap(JBUIScale.scale(5))
-          .addComponent(createButton)
-          .addGap(JBUIScale.scale(4))
-          .addComponent(separator)
-          .addComponent(reloadButton)
-          .addComponent(helpButton)
-      )
-      .addComponent(myDetailsPanelPanel)
-    val verticalGroup: GroupLayout.Group = layout.createSequentialGroup()
-      .addGroup(
-        layout.createParallelGroup(GroupLayout.Alignment.CENTER)
-          .addComponent(createButton)
-          .addComponent(separator)
-          .addComponent(reloadButton)
-          .addComponent(helpButton)
-      )
-      .addComponent(myDetailsPanelPanel)
+    val horizontalGroup: GroupLayout.Group =
+      layout
+        .createParallelGroup()
+        .addGroup(
+          layout
+            .createSequentialGroup()
+            .addGap(JBUIScale.scale(5))
+            .addComponent(reloadButton)
+            .addComponent(helpButton)
+        )
+        .addComponent(myDetailsPanelPanel)
+    val verticalGroup: GroupLayout.Group =
+      layout
+        .createSequentialGroup()
+        .addGroup(
+          layout
+            .createParallelGroup(GroupLayout.Alignment.CENTER)
+            .addComponent(reloadButton)
+            .addComponent(helpButton)
+        )
+        .addComponent(myDetailsPanelPanel)
     layout.setHorizontalGroup(horizontalGroup)
     layout.setVerticalGroup(verticalGroup)
     setLayout(layout)

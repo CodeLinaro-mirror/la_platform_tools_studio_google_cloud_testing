@@ -19,19 +19,17 @@ import com.android.tools.idea.concurrency.executeOnPooledThread
 import com.android.tools.idea.devicemanager.Device
 import com.android.tools.idea.devicemanager.DeviceTable
 import com.android.tools.idea.devicemanager.IconButtonTableCellEditor
+import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.FirebaseDevice
-import com.google.services.firebase.directaccess.client.device.directaccess.testConnectDirectAccess
 import com.intellij.openapi.Disposable
-import com.intellij.util.concurrency.AppExecutorUtil
+import com.intellij.openapi.components.service
 import icons.StudioIcons
 import java.awt.Component
 import javax.swing.Icon
 import javax.swing.JTable
 
 class FirebaseDeviceTable(model: FirebaseDeviceTableModel) :
-  DeviceTable<FirebaseDevice>(
-    model,
-    FirebaseDevice::class.java), Disposable {
+  DeviceTable<FirebaseDevice>(model, FirebaseDevice::class.java), Disposable {
 
   init {
     setDefaultRenderer(Device::class.java, FirebaseDeviceTableCellRenderer())
@@ -40,8 +38,7 @@ class FirebaseDeviceTable(model: FirebaseDeviceTableModel) :
 
   override fun deviceViewColumnIndex() = convertColumnIndexToView(DEVICE_MODEL_COLUMN_INDEX)
 
-  override fun dispose() {
-  }
+  override fun dispose() {}
 }
 
 // TODO: replace this with better UI
@@ -52,10 +49,15 @@ class LaunchButtonTableCellEditor(model: FirebaseDeviceTableModel) :
 
   init {
     myButton.addActionListener {
-      executeOnPooledThread { testConnectDirectAccess(
-        AppExecutorUtil.getAppExecutorService(),
-        model.devices[row].target.substringAfter(' '),
-        model.devices[row].androidVersion.apiString) }
+      executeOnPooledThread {
+        model
+          .project
+          .service<DirectAccessService>()
+          .acquireAndConnect(
+            model.devices[row].target.substringAfter(' '),
+            model.devices[row].androidVersion.apiString,
+          )
+      }
     }
   }
 
