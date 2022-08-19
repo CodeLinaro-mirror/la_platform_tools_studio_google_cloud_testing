@@ -9,12 +9,6 @@
   <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Build+Number+Ranges for description -->
   <idea-version since-build="107.107"/>
 
-  <application-components>
-  </application-components>
-
-  <project-components>
-  </project-components>
-
   <depends>org.jetbrains.android</depends>
   <depends>org.intellij.groovy</depends>
   <depends>com.google.gct.login</depends>

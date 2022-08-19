@@ -25,13 +25,6 @@
   <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Build+Number+Ranges for description -->
   <idea-version since-build="107.105"/>
 
-  <application-components>
-  </application-components>
-
-  <project-components>
-  </project-components>
-
-
   <actions>
     <action id="GoogleCloudTesting.TestRecorder" class="com.google.gct.testrecorder.ui.TestRecorderAction" text="Record Espresso Test" description="Record Espresso test for selected configuration">
       <add-to-group group-id="RunMenu" anchor="after" relative-to-action="Android.ChooseProfileConfiguration"/>
