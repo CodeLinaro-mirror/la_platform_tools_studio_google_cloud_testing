@@ -17,6 +17,7 @@ package com.google.gct.directaccess
 
 import com.android.tools.adbbridge.DeviceSession
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.device.directaccess.DirectAccessClient
 import com.google.services.firebase.directaccess.client.device.remote.service.adb.forwardingdaemon.directaccess.DirectAccessServiceClient
@@ -35,7 +36,13 @@ class DirectAccessService(val project: Project) {
     get() {
       return field
         ?: GoogleLogin.instance.fetchOAuth2Token()?.let { token ->
-          DirectAccessServiceClient(gcpProject, AppExecutorUtil.getAppExecutorService(), token)
+          DirectAccessServiceClient(
+              gcpProject,
+              NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
+                .build(),
+              AppExecutorUtil.getAppExecutorService(),
+              token
+            )
             .also {
               field = it
               GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->

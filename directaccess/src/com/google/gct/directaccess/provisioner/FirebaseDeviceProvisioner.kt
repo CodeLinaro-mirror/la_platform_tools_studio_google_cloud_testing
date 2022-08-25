@@ -27,6 +27,7 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.tools.idea.concurrency.executeOnPooledThread
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
 import com.intellij.openapi.components.service
@@ -70,25 +71,28 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
 
   init {
     _templates.value =
-      FirebaseDirectAccessClient.availableDevices.map { info ->
-        object : DeviceTemplate {
-          override val displayName: String = "${info.manufacturer} ${info.codename}"
-          override val activationAction: ActivationAction
-            get() =
-              object : ActivationAction {
-                override suspend fun activate(params: ActivationParams) {
-                  executeOnPooledThread {
-                    project
-                      .service<DirectAccessService>()
-                      .acquireAndConnect(info.codename, info.api.toString())
+      FirebaseDirectAccessClient.getAvailableDevices(
+          "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/"
+        )
+        .map { info ->
+          object : DeviceTemplate {
+            override val displayName: String = "${info.manufacturer} ${info.codename}"
+            override val activationAction: ActivationAction
+              get() =
+                object : ActivationAction {
+                  override suspend fun activate(params: ActivationParams) {
+                    executeOnPooledThread {
+                      project
+                        .service<DirectAccessService>()
+                        .acquireAndConnect(info.codename, info.api.toString())
+                    }
                   }
+                  override val label: String = "Acquire"
+                  override val isEnabled: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
                 }
-                override val label: String = "Acquire"
-                override val isEnabled: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
-              }
-          override val editAction = null
+            override val editAction = null
+          }
         }
-      }
   }
 }
 

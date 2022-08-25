@@ -15,6 +15,7 @@
  */
 package com.google.gct.testing.launcher;
 
+import com.android.annotations.Nullable;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
@@ -98,19 +99,36 @@ public class CloudAuthenticator {
     return myCloudResourceManager;
   }
 
+  /**
+   * Get a test client pointing to the default (prod) backend.
+   */
   public Testing getTest() {
+    return getTest(null);
+  }
+
+  /**
+   * Get a test client pointing to the given backend.
+   */
+  public Testing getTest(@Nullable String endpoint) {
     prepareCredential();
     if (myTest == null) {
-      myTest =
-        new Testing.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME).build();
+      Testing.Builder builder =
+        new Testing.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME);
+      if (endpoint != null) {
+        builder.setRootUrl(endpoint);
+      }
+      myTest = builder.build();
     }
     return myTest;
   }
 
-  public AndroidDeviceCatalog getAndroidDeviceCatalog() {
+  /**
+   * Get the {@link AndroidDeviceCatalog} for the given FTL {@code endpoint}.
+   */
+  public AndroidDeviceCatalog getAndroidDeviceCatalogForEnvironment(@Nullable String endpoint) {
     long currentTimestamp = System.currentTimeMillis();
     try {
-      AndroidDeviceCatalog catalog = getTest().testEnvironmentCatalog().get("ANDROID").execute().getAndroidDeviceCatalog();
+      AndroidDeviceCatalog catalog = getTest(endpoint).testEnvironmentCatalog().get("ANDROID").execute().getAndroidDeviceCatalog();
       if (catalog.getVersions().isEmpty() || catalog.getModels().isEmpty() || catalog.getRuntimeConfiguration().getLocales().isEmpty()
         || catalog.getRuntimeConfiguration().getOrientations().isEmpty()) {
         showDeviceCatalogError("Android device catalog is empty for some dimensions", currentTimestamp);
@@ -125,9 +143,16 @@ public class CloudAuthenticator {
     }
   }
 
+  /**
+   * Get the {@link AndroidDeviceCatalog} for the default (prod) FTL backend.
+   */
+  public AndroidDeviceCatalog getAndroidDeviceCatalog() {
+    return getAndroidDeviceCatalogForEnvironment(null);
+  }
+
   private void showDeviceCatalogError(String errorMessageSuffix, long currentTimestamp) {
     // The error should be reported just once per burst of invocations.
-    if (currentTimestamp - myLastDiscoveryServiceInvocationTimestamp > 1000l) { // If more than a second has passed.
+    if (currentTimestamp - myLastDiscoveryServiceInvocationTimestamp > 1000L) { // If more than a second has passed.
       CloudTestingUtils.showErrorMessage(null, "Error retrieving android device catalog",
                                          "Failed to retrieve available firebase devices! Please try again later.\n" + errorMessageSuffix);
     }

@@ -19,6 +19,7 @@ import com.android.tools.adtui.stdui.CommonButton
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
 import com.intellij.icons.AllIcons
@@ -37,7 +38,12 @@ import javax.swing.SwingConstants
 class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(project) {
   private val table =
     FirebaseDeviceTable(
-      FirebaseDeviceTableModel(FirebaseDirectAccessClient.availableDevices, project)
+      FirebaseDeviceTableModel(
+        FirebaseDirectAccessClient.getAvailableDevices(
+          "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/"
+        ),
+        project
+      )
     )
 
   private val separator: JSeparator =

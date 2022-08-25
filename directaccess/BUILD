@@ -24,5 +24,6 @@ iml_module(
         "//tools/studio/google/cloud/tools/google-login-plugin:google-login-as[module]",
         "//tools/adt/idea/.idea/libraries:studio-proto",
         "//tools/adt/idea/.idea/libraries:directaccess_client_proto",
+        "//tools/adt/idea/.idea/libraries:studio-grpc",
     ],
 )
