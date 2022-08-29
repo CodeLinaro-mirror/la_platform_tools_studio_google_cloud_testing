@@ -29,11 +29,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.scale.JBUIScale
-import com.intellij.util.ui.JBDimension
 import javax.swing.GroupLayout
-import javax.swing.JSeparator
 import javax.swing.JTable
-import javax.swing.SwingConstants
+import kotlinx.coroutines.launch
 
 class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(project) {
   private val scope = AndroidCoroutineScope(parent)
@@ -43,33 +41,30 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
       FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread, parent),
     )
 
-  private val separator: JSeparator =
-    JSeparator(SwingConstants.VERTICAL).apply {
-      preferredSize = JBDimension(3, 20)
-      maximumSize = preferredSize
-    }
   private val reloadButton =
     CommonButton(AllIcons.Actions.Refresh).apply {
       addActionListener {
-        val service = project.service<DirectAccessService>()
-        val devices =
-          service.listDevices()
-            ?: run {
-              Messages.showWarningDialog("Not connected", "Not Connected")
-              return@addActionListener
+        AndroidCoroutineScope(parent).launch {
+          val service = project.service<DirectAccessService>()
+          val devices =
+            service.listDevices()
+              ?: run {
+                Messages.showWarningDialog("Not connected", "Not Connected")
+                return@launch
+              }
+          devices
+            .filter { existingSession ->
+              !service
+                .deviceClients
+                .values
+                .map { it.sessionName.toString() }
+                .contains(existingSession.name)
             }
-        devices
-          .filter { existingSession ->
-            !service
-              .deviceClients
-              .values
-              .map { it.sessionName.toString() }
-              .contains(existingSession.name)
-          }
-          .forEach {
-            val session = service.getDeviceSession(it.name)!!
-            service.reconnect(session)
-          }
+            .forEach {
+              val session = service.getDeviceSession(it.name)!!
+              service.reconnect(session)
+            }
+        }
       }
     }
 

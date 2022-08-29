@@ -149,7 +149,7 @@ class FirebaseDeviceTemplate(
         if (_isEnabled.value) {
           // Disable further activate actions to avoid multiple devices.
           _isEnabled.value = false
-          executeOnPooledThread {
+          scope.launch {
             project
               .service<DirectAccessService>()
               .acquireAndConnect(info.codename, info.api.toString())
