@@ -22,7 +22,9 @@ import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.device.directaccess.DirectAccessClient
 import com.google.services.firebase.directaccess.client.device.remote.service.adb.forwardingdaemon.directaccess.DirectAccessServiceClient
 import com.google.services.firebase.directaccess.client.session.models.resourcenames.DeviceAssociationName
+import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.concurrency.AppExecutorUtil
@@ -32,7 +34,7 @@ class DirectAccessService(val project: Project) {
   private val gcpProject: String
     get() = StudioFlags.DIRECT_ACCESS_PROJECT.get()
 
-  var serviceClient: DirectAccessServiceClient? = null
+  private var serviceClient: DirectAccessServiceClient? = null
     get() {
       return field
         ?: GoogleLogin.instance.fetchOAuth2Token()?.let { token ->
@@ -51,7 +53,6 @@ class DirectAccessService(val project: Project) {
             }
         }
     }
-    private set
 
   // Port to client
   val deviceClients: MutableMap<Int, DirectAccessClient> = mutableMapOf()
@@ -60,10 +61,22 @@ class DirectAccessService(val project: Project) {
     val directAccessClient =
       serviceClient?.let { DirectAccessClient(gcpProject, device, api, it) }
         ?: run {
-          Messages.showWarningDialog("Please log in first", "Log In Required")
+          invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
           return
         }
-    directAccessClient.reserveAndStartStreaming()
+    Logger.getInstance(DirectAccessService::class.java)
+      .info(
+        "acquireAndConnect device: $device api: $api project: $gcpProject user: ${GoogleLogin.instance.activeUser?.email}"
+      )
+    try {
+      directAccessClient.reserveAndStartStreaming()
+    } catch (e: Exception) {
+      invokeLater {
+        Messages.showWarningDialog("Failed to connect: ${e.message}", "Failed to Connect")
+      }
+      Logger.getInstance(DirectAccessService::class.java).warn("Failed to connect", e)
+      return
+    }
     directAccessClient.port?.let { port -> deviceClients.put(port, directAccessClient) }
   }
 
