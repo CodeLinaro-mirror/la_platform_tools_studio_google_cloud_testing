@@ -81,7 +81,7 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
     }
   }
 
-  override suspend fun claim(device: ConnectedDevice): Boolean {
+  override suspend fun claim(device: ConnectedDevice): DeviceHandle? {
     val sn = device.deviceInfoFlow.value.serialNumber
     if (sn.matches(Regex("^localhost:\\d+$"))) {
       val port = sn.substringAfter(':').toInt()
@@ -99,10 +99,10 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
           stateFlow.value = Disconnected(deviceProperties)
           _devices.update { it - handle }
         }
-        return true
+        return handle
       }
     }
-    return false
+    return null
   }
 }
 
