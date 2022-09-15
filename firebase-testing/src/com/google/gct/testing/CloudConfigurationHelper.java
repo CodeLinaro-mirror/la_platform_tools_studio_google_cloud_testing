@@ -154,16 +154,16 @@ public final class CloudConfigurationHelper {
       return Lists.newArrayList();
     }
 
-    List<CloudPersistentConfiguration> cloudPersistentConfigurations = Lists.newArrayList(Iterables.filter(
-      CloudCustomPersistentConfigurations.getInstance(facet.getModule()).getState().myCloudPersistentConfigurations,
-      new Predicate<CloudPersistentConfiguration>() {
-        @Override
-        public boolean apply(@Nullable CloudPersistentConfiguration configuration) {
-          return configuration != null && configuration.kind == configurationKind;
-        }
-      }));
-    return Lists.newArrayList(Iterables.concat(deserializeConfigurations(cloudPersistentConfigurations, true, facet),
+    return Lists.newArrayList(Iterables.concat(deserializeConfigurations(getPersistentConfigurations(facet, configurationKind), true, facet),
                                                getDefaultConfigurations(facet, configurationKind)));
+  }
+
+  @NotNull
+  public static List<CloudPersistentConfiguration> getPersistentConfigurations(
+    @NotNull AndroidFacet facet, @NotNull final CloudConfiguration.Kind configurationKind) {
+    return Lists.newArrayList(Iterables.filter(
+      CloudCustomPersistentConfigurations.getInstance(facet.getModule()).getState().myCloudPersistentConfigurations,
+      configuration -> configuration != null && configuration.kind == configurationKind));
   }
 
   @VisibleForTesting
