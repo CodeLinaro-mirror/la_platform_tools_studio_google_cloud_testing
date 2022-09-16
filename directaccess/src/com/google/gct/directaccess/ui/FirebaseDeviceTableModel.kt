@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import javax.swing.table.AbstractTableModel
 import kotlinx.coroutines.CoroutineDispatcher
@@ -27,9 +28,10 @@ const val ACTIONS_COLUMN_INDEX = 2
 class FirebaseDeviceTableModel(
   val project: Project,
   private val scope: CoroutineScope,
-  uiDispatcher: CoroutineDispatcher
+  uiDispatcher: CoroutineDispatcher,
+  parent: Disposable
 ) : AbstractTableModel() {
-  private val itemManager = FirebaseItemManager(project, this, scope, uiDispatcher)
+  private val itemManager = FirebaseItemManager(project, this, scope, uiDispatcher, parent)
 
   override fun getRowCount(): Int {
     return itemManager.itemCount

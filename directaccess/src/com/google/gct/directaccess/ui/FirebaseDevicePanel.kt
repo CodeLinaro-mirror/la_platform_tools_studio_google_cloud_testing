@@ -40,7 +40,7 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
 
   private val table =
     FirebaseDeviceTable(
-      FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread),
+      FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread, parent),
     )
 
   private val separator: JSeparator =

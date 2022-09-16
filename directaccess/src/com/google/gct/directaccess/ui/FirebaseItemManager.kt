@@ -64,6 +64,7 @@ class FirebaseDeviceItem(
   val device: FirebaseDevice,
   private val handle: DirectAccessDeviceHandle,
   private val uiDispatcher: CoroutineDispatcher,
+  parent: Disposable,
   override val onUpdate: () -> Unit
 ) : FirebaseItem, Disposable {
 
@@ -77,7 +78,6 @@ class FirebaseDeviceItem(
     get() = handle.deactivationAction.isEnabled.value
 
   private val scope = handle.stateFlow.value.connectedDevice?.scope
-  private var isDeactivatingEnabled = false
 
   override fun startAction() {
     // We do not need to set isDeactivating back to false
@@ -86,6 +86,7 @@ class FirebaseDeviceItem(
   }
 
   init {
+    Disposer.register(parent, this)
     scope?.launch {
       handle.deactivationAction.isEnabled.collect { withContext(uiDispatcher) { onUpdate() } }
     }
@@ -98,6 +99,7 @@ class FirebaseDeviceTemplateItem(
   val template: FirebaseDeviceTemplate,
   parentScope: CoroutineScope,
   private val uiDispatcher: CoroutineDispatcher,
+  parent: Disposable,
   override val onUpdate: () -> Unit
 ) : FirebaseItem, Disposable {
   var activeItem: FirebaseItem = this
@@ -119,6 +121,7 @@ class FirebaseDeviceTemplateItem(
   override val apiLevel = template.apiLevel
 
   init {
+    Disposer.register(parent, this)
     scope.launch {
       template.activationAction.isEnabled.collect { withContext(uiDispatcher) { onUpdate() } }
     }
@@ -133,7 +136,13 @@ class FirebaseDeviceTemplateItem(
             } else {
               // TODO (b/246171065): activating multiple devices
               assert(devices.size == 1)
-              FirebaseDeviceItem(FirebaseDevice(devices[0]), devices[0], uiDispatcher, onUpdate)
+              FirebaseDeviceItem(
+                FirebaseDevice(devices[0]),
+                devices[0],
+                uiDispatcher,
+                this@FirebaseDeviceTemplateItem,
+                onUpdate
+              )
             }
           onUpdate()
         }
@@ -148,7 +157,8 @@ class FirebaseItemManager(
   val project: Project,
   private val model: AbstractTableModel,
   private val scope: CoroutineScope,
-  uiDispatcher: CoroutineDispatcher
+  uiDispatcher: CoroutineDispatcher,
+  parent: Disposable
 ) {
   private var templateItems: List<FirebaseDeviceTemplateItem> = emptyList()
 
@@ -171,7 +181,7 @@ class FirebaseItemManager(
             templateItems =
               newTemplates.map { template ->
                 existingMap[template]
-                  ?: FirebaseDeviceTemplateItem(template, scope, uiDispatcher) {
+                  ?: FirebaseDeviceTemplateItem(template, scope, uiDispatcher, parent) {
                     val index = templateItems.indexOfFirst { item -> item.template == template }
                     if (index != -1) {
                       model.fireTableRowsUpdated(index, index)
