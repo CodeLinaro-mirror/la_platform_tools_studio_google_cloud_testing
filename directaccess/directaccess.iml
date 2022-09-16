@@ -24,5 +24,15 @@
     <orderEntry type="library" name="studio-proto" level="project" />
     <orderEntry type="library" name="directaccess_client_proto" level="project" />
     <orderEntry type="library" name="studio-grpc" level="project" />
+    <orderEntry type="module" module-name="firebase-testing" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../firebase-testing/lib/google-api-services-testing-v1-revsnapshot-1.20.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>

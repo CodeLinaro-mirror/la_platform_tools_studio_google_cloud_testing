@@ -25,5 +25,7 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:studio-proto",
         "//tools/adt/idea/.idea/libraries:directaccess_client_proto",
         "//tools/adt/idea/.idea/libraries:studio-grpc",
+        "//tools/studio/google/cloud/testing/firebase-testing[module]",
+        "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-testing-v1-revsnapshot-1.20.0",
     ],
 )

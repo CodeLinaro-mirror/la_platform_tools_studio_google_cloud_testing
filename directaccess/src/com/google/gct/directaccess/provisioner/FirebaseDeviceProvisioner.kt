@@ -33,7 +33,6 @@ import com.android.tools.idea.concurrency.executeOnPooledThread
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.DeviceInfo
-import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
 import com.google.services.firebase.directaccess.client.device.directaccess.DirectAccessClient
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
@@ -68,9 +67,7 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
     project.coroutineScope.launch {
       while (true) {
         try {
-          FirebaseDirectAccessClient.getAvailableDevices(
-              "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/"
-            )
+          CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
             .map { info -> FirebaseDeviceTemplate(project, info, devices, project.coroutineScope) }
             .let { result -> _templates.emit(result) }
         } catch (e: Exception) {
