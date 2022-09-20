@@ -5,6 +5,7 @@ iml_module(
     name = "directaccess",
     srcs = ["src"],
     iml_files = ["directaccess.iml"],
+    resources = ["resources"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [

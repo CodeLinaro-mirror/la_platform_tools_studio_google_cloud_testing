@@ -13,21 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.gct.directaccess.ui
+package icons
 
-import com.android.tools.idea.devicemanager.DeviceManagerTab
-import com.android.tools.idea.devicemanager.DevicePanel
-import com.android.tools.idea.flags.StudioFlags
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.IconLoader
+import javax.swing.Icon
 
-class FirebaseDeviceTab : DeviceManagerTab {
-
-  override fun isApplicable() = StudioFlags.DIRECT_ACCESS.get()
-
-  override fun getName() = "Firebase"
-
-  override fun getPanel(project: Project, parentDisposable: Disposable): DevicePanel {
-    return FirebaseDevicePanel(project, parentDisposable)
-  }
+object DirectAccessIcons {
+  var FIREBASE_LOGO: Icon =
+    IconLoader.getIcon("/firebase/firebase_logo.png", DirectAccessIcons::class.java) // 112x32
 }

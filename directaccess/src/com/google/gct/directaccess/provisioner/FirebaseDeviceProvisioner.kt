@@ -70,6 +70,8 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
           CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
             .map { info -> FirebaseDeviceTemplate(project, info, devices, project.coroutineScope) }
             .let { result -> _templates.emit(result) }
+        } catch (ignore: NotLoggedInException) {
+          // do nothing
         } catch (e: Exception) {
           logger.warn(e)
         }

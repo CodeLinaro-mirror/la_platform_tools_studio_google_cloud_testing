@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.google.services.firebase.directaccess.client.DeviceInfo
 
@@ -25,9 +26,14 @@ object CatalogClient {
    *
    * TODO: apply real filters when available
    */
-  fun getAvailableDevices(endpoint: String): List<DeviceInfo> =
-    (CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint)
-        ?: throw Exception("Error fetching catalog.")).models
+  fun getAvailableDevices(endpoint: String): List<DeviceInfo> {
+    if (!GoogleLogin.instance.isLoggedIn) {
+      throw NotLoggedInException()
+    }
+    val catalog =
+      (CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint)
+        ?: throw Exception("Error fetching catalog."))
+    return catalog.models
       .filter {
         it.form == "PHYSICAL" && (it["supportedAbis"] as? List<*>)?.contains("arm64-v8a") == true
       }
@@ -39,4 +45,7 @@ object CatalogClient {
           }
           ?: listOf()
       }
+  }
 }
+
+class NotLoggedInException : Exception("Not logged in")
