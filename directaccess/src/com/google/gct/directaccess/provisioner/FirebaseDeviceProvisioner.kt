@@ -119,7 +119,7 @@ class FirebaseDeviceTemplate(
       deviceList.filterIsInstance<DirectAccessDeviceHandle>().filter { handle ->
         val properties = handle.stateFlow.value.properties
         apiLevel == properties.androidVersion?.apiLevel &&
-          properties.manufacturer == info.manufacturer &&
+          info.manufacturer.equals(properties.manufacturer, ignoreCase = true) &&
           properties.model == info.name
       }
     }
