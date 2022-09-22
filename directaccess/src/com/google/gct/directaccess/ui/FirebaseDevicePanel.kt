@@ -16,12 +16,12 @@
 package com.google.gct.directaccess.ui
 
 import com.android.tools.adtui.stdui.CommonButton
+import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
-import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
-import com.google.services.firebase.directaccess.client.catalog.FirebaseDirectAccessClient
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
@@ -36,14 +36,11 @@ import javax.swing.JTable
 import javax.swing.SwingConstants
 
 class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(project) {
+  private val scope = AndroidCoroutineScope(parent)
+
   private val table =
     FirebaseDeviceTable(
-      FirebaseDeviceTableModel(
-        FirebaseDirectAccessClient.getAvailableDevices(
-          "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/"
-        ),
-        project
-      )
+      FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread, parent),
     )
 
   private val separator: JSeparator =

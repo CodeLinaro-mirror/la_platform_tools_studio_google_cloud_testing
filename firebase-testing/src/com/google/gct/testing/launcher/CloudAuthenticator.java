@@ -70,6 +70,7 @@ public class CloudAuthenticator {
     return new Storage.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), null).setApplicationName(APPLICATION_NAME).build();
   }
 
+  @NotNull
   public Storage getStorage() {
     prepareCredential();
     if (myStorage == null) {
@@ -89,6 +90,7 @@ public class CloudAuthenticator {
         .setRootUrl(toolResultsBackendUrl).build();
   }
 
+  @NotNull
   public CloudResourceManager getCloudResourceManager() {
     prepareCredential();
     if (myCloudResourceManager == null) {
@@ -102,6 +104,7 @@ public class CloudAuthenticator {
   /**
    * Get a test client pointing to the default (prod) backend.
    */
+  @NotNull
   public Testing getTest() {
     return getTest(null);
   }
@@ -109,6 +112,7 @@ public class CloudAuthenticator {
   /**
    * Get a test client pointing to the given backend.
    */
+  @NotNull
   public Testing getTest(@Nullable String endpoint) {
     prepareCredential();
     if (myTest == null) {
@@ -125,6 +129,7 @@ public class CloudAuthenticator {
   /**
    * Get the {@link AndroidDeviceCatalog} for the given FTL {@code endpoint}.
    */
+  @Nullable
   public AndroidDeviceCatalog getAndroidDeviceCatalogForEnvironment(@Nullable String endpoint) {
     long currentTimestamp = System.currentTimeMillis();
     try {
@@ -146,6 +151,7 @@ public class CloudAuthenticator {
   /**
    * Get the {@link AndroidDeviceCatalog} for the default (prod) FTL backend.
    */
+  @Nullable
   public AndroidDeviceCatalog getAndroidDeviceCatalog() {
     return getAndroidDeviceCatalogForEnvironment(null);
   }
@@ -158,6 +164,7 @@ public class CloudAuthenticator {
     }
   }
 
+  @NotNull
   public Toolresults getToolresults() {
     prepareCredential();
     if (myToolresults == null) {
@@ -180,6 +187,7 @@ public class CloudAuthenticator {
     }
   }
 
+  @NotNull
   private HttpTransport createHttpTransport() {
     try {
       return GoogleNetHttpTransport.newTrustedTransport();

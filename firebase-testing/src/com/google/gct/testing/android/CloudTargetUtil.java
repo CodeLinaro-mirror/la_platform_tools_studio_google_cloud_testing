@@ -18,6 +18,8 @@ package com.google.gct.testing.android;
 import com.android.tools.idea.run.ValidationError;
 import com.google.common.collect.Lists;
 import com.google.gct.testing.CloudConfigurationHelper;
+import com.google.gct.testing.CloudConfigurationImpl;
+import com.google.gct.testing.CloudPersistentConfiguration;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 
@@ -45,9 +47,15 @@ public final class CloudTargetUtil {
       errors.add(ValidationError.fatal("Cloud project not specified."));
     }
 
-    CloudConfiguration selectedConfig = null;
-    for (CloudConfiguration config : CloudConfigurationHelper.getCloudConfigurations(facet, kind)) {
-      if (config.getId() == cloudConfigurationId) {
+    if (cloudConfigurationId == CloudConfigurationImpl.DEFAULT_MATRIX_CONFIGURATION_ID
+        || cloudConfigurationId == CloudConfigurationImpl.DEFAULT_FREE_TIER_MATRIX_CONFIGURATION_ID) {
+      // Pre-configured non-editable configurations should always be well-formed.
+      return errors;
+    }
+
+    CloudPersistentConfiguration selectedConfig = null;
+    for (CloudPersistentConfiguration config : CloudConfigurationHelper.getPersistentConfigurations(facet, kind)) {
+      if (config.id == cloudConfigurationId) {
         selectedConfig = config;
       }
     }
@@ -58,7 +66,8 @@ public final class CloudTargetUtil {
       return errors;
     }
 
-    if (selectedConfig.getDeviceConfigurationCount() < 1) {
+    if (selectedConfig.devices.isEmpty() || selectedConfig.apiLevels.isEmpty()
+        || selectedConfig.languages.isEmpty() || selectedConfig.orientations.isEmpty()) {
       errors.add(ValidationError.fatal("Selected matrix configuration is empty."));
     }
 

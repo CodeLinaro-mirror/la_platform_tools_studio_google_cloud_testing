@@ -15,24 +15,26 @@
  */
 package com.google.gct.directaccess.ui
 
-import com.android.tools.idea.devicemanager.Device
-import com.google.gct.directaccess.FirebaseDevice
-import com.google.services.firebase.directaccess.client.DeviceInfo
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
-import icons.StudioIcons
-import javax.swing.Icon
 import javax.swing.table.AbstractTableModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 
 const val DEVICE_MODEL_COLUMN_INDEX = 0
 const val API_MODEL_COLUMN_INDEX = 1
 const val ACTIONS_COLUMN_INDEX = 2
 
-class FirebaseDeviceTableModel(devices: List<DeviceInfo>, val project: Project) :
-  AbstractTableModel() {
-  val devices = devices.map { FirebaseDevice(it) }.toMutableList()
+class FirebaseDeviceTableModel(
+  val project: Project,
+  private val scope: CoroutineScope,
+  uiDispatcher: CoroutineDispatcher,
+  parent: Disposable
+) : AbstractTableModel() {
+  private val itemManager = FirebaseItemManager(project, this, scope, uiDispatcher, parent)
 
   override fun getRowCount(): Int {
-    return devices.size
+    return itemManager.itemCount
   }
 
   override fun getColumnCount(): Int {
@@ -41,15 +43,15 @@ class FirebaseDeviceTableModel(devices: List<DeviceInfo>, val project: Project) 
 
   override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
     return when (columnIndex) {
-      DEVICE_MODEL_COLUMN_INDEX -> devices[rowIndex]
-      API_MODEL_COLUMN_INDEX -> devices[rowIndex].androidVersion
-      ACTIONS_COLUMN_INDEX -> StudioIcons.Avd.RUN
+      DEVICE_MODEL_COLUMN_INDEX -> itemManager.getItem(rowIndex)
+      API_MODEL_COLUMN_INDEX -> itemManager.getItem(rowIndex).apiLevel
+      ACTIONS_COLUMN_INDEX -> itemManager.getItem(rowIndex).isActive
       else -> ""
     }
   }
 
   override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean {
-    return columnIndex == ACTIONS_COLUMN_INDEX
+    return columnIndex == ACTIONS_COLUMN_INDEX && itemManager.getItem(rowIndex).isActive
   }
 
   override fun getColumnName(modelColumnIndex: Int): String {
@@ -63,9 +65,18 @@ class FirebaseDeviceTableModel(devices: List<DeviceInfo>, val project: Project) 
 
   override fun getColumnClass(columnIndex: Int): Class<*> {
     return when (columnIndex) {
-      DEVICE_MODEL_COLUMN_INDEX -> Device::class.java
-      ACTIONS_COLUMN_INDEX -> Icon::class.java
+      DEVICE_MODEL_COLUMN_INDEX -> FirebaseItem::class.java
+      ACTIONS_COLUMN_INDEX -> Boolean::class.java
       else -> super.getColumnClass(columnIndex)
+    }
+  }
+
+  override fun setValueAt(value: Any?, rowIndex: Int, columnIndex: Int) {
+    if (columnIndex == ACTIONS_COLUMN_INDEX) {
+      val item = itemManager.getItem(rowIndex)
+      if (item.isActive && value == false) {
+        item.startAction()
+      }
     }
   }
 }
