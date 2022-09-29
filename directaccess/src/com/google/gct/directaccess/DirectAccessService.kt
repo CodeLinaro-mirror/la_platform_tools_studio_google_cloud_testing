@@ -16,6 +16,8 @@
 package com.google.gct.directaccess
 
 import com.android.tools.adbbridge.DeviceSession
+import com.android.tools.idea.adblib.AdbLibService
+import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.google.gct.login.GoogleLogin
@@ -27,7 +29,6 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import com.intellij.util.concurrency.AppExecutorUtil
 
 @Service
 class DirectAccessService(val project: Project) {
@@ -42,8 +43,9 @@ class DirectAccessService(val project: Project) {
               gcpProject,
               NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
                 .build(),
-              AppExecutorUtil.getAppExecutorService(),
-              token
+              AndroidCoroutineScope(project),
+              token,
+              AdbLibService.getSession(project)
             )
             .also {
               field = it
@@ -57,7 +59,7 @@ class DirectAccessService(val project: Project) {
   // Port to client
   val deviceClients: MutableMap<Int, DirectAccessClient> = mutableMapOf()
 
-  fun acquireAndConnect(device: String, api: String) {
+  suspend fun acquireAndConnect(device: String, api: String) {
     val directAccessClient =
       serviceClient?.let { DirectAccessClient(gcpProject, device, api, it) }
         ?: run {
@@ -80,7 +82,7 @@ class DirectAccessService(val project: Project) {
     directAccessClient.port?.let { port -> deviceClients.put(port, directAccessClient) }
   }
 
-  fun reconnect(session: DeviceSession) {
+  suspend fun reconnect(session: DeviceSession) {
     val device = session.androidDeviceList.getAndroidDevices(0)
     val directAccessClient =
       serviceClient?.let {
