@@ -17,7 +17,6 @@ package com.google.gct.directaccess.provisioner
 
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
-import com.google.services.firebase.directaccess.client.DeviceInfo
 
 object CatalogClient {
 

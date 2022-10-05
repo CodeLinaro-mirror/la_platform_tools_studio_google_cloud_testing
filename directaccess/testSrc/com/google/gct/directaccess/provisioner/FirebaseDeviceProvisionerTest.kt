@@ -20,7 +20,6 @@ import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.google.common.truth.Truth.assertThat
-import com.google.services.firebase.directaccess.client.DeviceInfo
 import com.intellij.testFramework.ProjectRule
 import org.junit.After
 import org.junit.Before

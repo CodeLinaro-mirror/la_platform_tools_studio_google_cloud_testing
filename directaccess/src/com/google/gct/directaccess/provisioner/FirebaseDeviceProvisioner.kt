@@ -29,16 +29,15 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Disconnected
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.idea.concurrency.coroutineScope
-import com.android.tools.idea.concurrency.executeOnPooledThread
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
-import com.google.services.firebase.directaccess.client.DeviceInfo
-import com.google.services.firebase.directaccess.client.device.directaccess.DirectAccessClient
+import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -92,7 +91,8 @@ class FirebaseDeviceProvisioner(
       val port = sn.substringAfter(':').toInt()
       val service = project.service<DirectAccessService>()
 
-      val client = service.deviceClients[port]
+      val connectionManager = service.connectionManager ?: return null
+      val client = connectionManager.connections[port]
       if (client != null) {
         val properties = device.deviceProperties().allReadonly()
         val deviceProperties =
@@ -173,7 +173,7 @@ class FirebaseDeviceTemplate(
 
 class DirectAccessDeviceHandle(
   override val stateFlow: StateFlow<DeviceState>,
-  private val client: DirectAccessClient
+  private val client: DirectAccessConnection
 ) : DeviceHandle {
   override val deactivationAction =
     object : DeactivationAction {
@@ -183,7 +183,7 @@ class DirectAccessDeviceHandle(
         // Disable further deactivate actions for the device.
         if (_isEnabled.value) {
           _isEnabled.value = false
-          executeOnPooledThread { client.close() }
+          coroutineScope { launch { client.endSession() } }
         }
       }
 

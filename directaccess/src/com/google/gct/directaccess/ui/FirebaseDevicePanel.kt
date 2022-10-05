@@ -46,23 +46,20 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
       addActionListener {
         AndroidCoroutineScope(parent).launch {
           val service = project.service<DirectAccessService>()
-          val devices =
-            service.listDevices()
+          val reservationManager =
+            service.reservationManager
               ?: run {
                 Messages.showWarningDialog("Not connected", "Not Connected")
                 return@launch
               }
-          devices
-            .filter { existingSession ->
-              !service
-                .deviceClients
-                .values
-                .map { it.sessionName.toString() }
-                .contains(existingSession.name)
+          val reservations = reservationManager.listReservations()
+          reservations
+            .filter { existingReservation ->
+              service.connectionManager?.getConnection(existingReservation) != null
             }
             .forEach {
-              val session = service.getDeviceSession(it.name)!!
-              service.reconnect(session)
+              service.connectionManager?.connect(it)
+                ?: run { Messages.showWarningDialog("Not connected", "Not Connected") }
             }
         }
       }
