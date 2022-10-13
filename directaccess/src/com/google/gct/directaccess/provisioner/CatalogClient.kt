@@ -33,18 +33,14 @@ object CatalogClient {
     val catalog =
       (CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint)
         ?: throw Exception("Error fetching catalog."))
-    return catalog.models
-      .filter {
-        it.form == "PHYSICAL" && (it["supportedAbis"] as? List<*>)?.contains("arm64-v8a") == true
-      }
-      .flatMap { model ->
-        model.supportedVersionIds
-          ?.filter { versionId -> versionId?.toIntOrNull()?.let { it >= 29 } == true }
-          ?.map {
-            DeviceInfo(model.brand, model.name, model.manufacturer, model.codename, it.toInt())
-          }
-          ?: listOf()
-      }
+    return catalog.models.filter { it.form == "PHYSICAL" }.flatMap { model ->
+      model.supportedVersionIds
+        ?.filter { versionId -> versionId?.toIntOrNull()?.let { it >= 26 } == true }
+        ?.map {
+          DeviceInfo(model.brand, model.name, model.manufacturer, model.codename, it.toInt())
+        }
+        ?: listOf()
+    }
   }
 }
 
