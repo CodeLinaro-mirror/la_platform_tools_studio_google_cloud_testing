@@ -20,6 +20,7 @@ import com.android.tools.idea.adblib.AdbLibService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
+import com.android.tools.idea.io.netty.channel.ChannelOption
 import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.device.directaccess.DirectAccessClient
 import com.google.services.firebase.directaccess.client.device.remote.service.adb.forwardingdaemon.directaccess.DirectAccessServiceClient
@@ -42,6 +43,7 @@ class DirectAccessService(val project: Project) {
           DirectAccessServiceClient(
               gcpProject,
               NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
+                .withOption(ChannelOption.TCP_NODELAY, true)
                 .build(),
               AndroidCoroutineScope(project),
               token,
