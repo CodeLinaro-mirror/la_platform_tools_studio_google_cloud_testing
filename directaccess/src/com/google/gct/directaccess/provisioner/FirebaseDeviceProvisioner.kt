@@ -48,11 +48,17 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+private val defaultDeviceInfoProvider = {
+  CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
+}
 /**
  * Provides access to physical devices run by Firebase. Supports configuring Firebase device
  * templates and activating / deactivating them.
  */
-class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin {
+class FirebaseDeviceProvisioner(
+  val project: Project,
+  deviceInfoProvider: () -> List<DeviceInfo> = defaultDeviceInfoProvider
+) : DeviceProvisionerPlugin {
   private val logger = Logger.getInstance(FirebaseDeviceProvisioner::class.java)
 
   // TODO: find a proper priority
@@ -67,7 +73,7 @@ class FirebaseDeviceProvisioner(val project: Project) : DeviceProvisionerPlugin 
     project.coroutineScope.launch {
       while (true) {
         try {
-          CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
+          deviceInfoProvider()
             .map { info -> FirebaseDeviceTemplate(project, info, devices, project.coroutineScope) }
             .let { result -> _templates.emit(result) }
         } catch (ignore: NotLoggedInException) {
