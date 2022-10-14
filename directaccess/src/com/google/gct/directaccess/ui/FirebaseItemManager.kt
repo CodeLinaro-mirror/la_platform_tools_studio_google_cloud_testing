@@ -17,6 +17,7 @@ package com.google.gct.directaccess.ui
 
 import com.android.annotations.concurrency.UiThread
 import com.android.sdklib.deviceprovisioner.Disconnected
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
@@ -52,7 +53,10 @@ interface FirebaseItem {
 
   val apiLevel: Int
 
+  /** Action icon associated with the item. */
   val icon: Icon
+
+  val deviceType: DeviceType
 
   val tooltipText: String
 }
@@ -72,6 +76,9 @@ class FirebaseDeviceItem(
 
   override val isActive: Boolean
     get() = handle.deactivationAction.isEnabled.value
+
+  override val deviceType: DeviceType
+    get() = device.type
 
   init {
     scope.launch { handle.stateFlow.collect { withContext(uiDispatcher) { onUpdate() } } }
@@ -98,8 +105,12 @@ class FirebaseDeviceTemplateItem(
     get() = template.activationAction.isEnabled.value
 
   override val icon: Icon = StudioIcons.Avd.RUN
+
   override val tooltipText: String =
     if (isActive) "Connect to a new firebase device" else "Firebase device connecting"
+
+  override val deviceType: DeviceType
+    get() = template.info.type
 
   override fun startAction() {
     scope.launch { template.activationAction.activate() }

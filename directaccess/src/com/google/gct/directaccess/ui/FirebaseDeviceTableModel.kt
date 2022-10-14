@@ -15,14 +15,16 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.android.tools.idea.devicemanager.DeviceType
 import com.intellij.openapi.project.Project
 import javax.swing.table.AbstractTableModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 
-const val DEVICE_MODEL_COLUMN_INDEX = 0
-const val API_MODEL_COLUMN_INDEX = 1
-const val ACTIONS_COLUMN_INDEX = 2
+const val DEVICE_ICON_COLUMN_INDEX = 0
+const val DEVICE_MODEL_COLUMN_INDEX = 1
+const val API_MODEL_COLUMN_INDEX = 2
+const val ACTIONS_COLUMN_INDEX = 3
 
 class FirebaseDeviceTableModel(
   val project: Project,
@@ -35,12 +37,11 @@ class FirebaseDeviceTableModel(
     return itemManager.itemCount
   }
 
-  override fun getColumnCount(): Int {
-    return 3
-  }
+  override fun getColumnCount() = 4
 
   override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
     return when (columnIndex) {
+      DEVICE_ICON_COLUMN_INDEX -> itemManager.getItem(rowIndex).deviceType
       DEVICE_MODEL_COLUMN_INDEX -> itemManager.getItem(rowIndex)
       API_MODEL_COLUMN_INDEX -> itemManager.getItem(rowIndex).apiLevel
       ACTIONS_COLUMN_INDEX -> itemManager.getItem(rowIndex).isActive
@@ -63,6 +64,7 @@ class FirebaseDeviceTableModel(
 
   override fun getColumnClass(columnIndex: Int): Class<*> {
     return when (columnIndex) {
+      DEVICE_ICON_COLUMN_INDEX -> DeviceType::class.java
       DEVICE_MODEL_COLUMN_INDEX -> FirebaseItem::class.java
       ACTIONS_COLUMN_INDEX -> Boolean::class.java
       else -> super.getColumnClass(columnIndex)
