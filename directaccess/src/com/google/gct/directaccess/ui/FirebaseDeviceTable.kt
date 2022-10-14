@@ -17,6 +17,9 @@ package com.google.gct.directaccess.ui
 
 import com.intellij.openapi.Disposable
 import com.intellij.ui.table.JBTable
+import java.util.function.Function
+import javax.swing.table.TableModel
+import javax.swing.table.TableRowSorter
 
 class FirebaseDeviceTable(
   model: FirebaseDeviceTableModel,
@@ -26,6 +29,7 @@ class FirebaseDeviceTable(
     setDefaultRenderer(FirebaseItem::class.java, FirebaseItemTableCellRenderer)
     setDefaultRenderer(Boolean::class.java, LaunchOrStopButtonTableCellRenderer)
     setDefaultEditor(Boolean::class.java, LaunchOrStopButtonTableCellEditor)
+    rowSorter = newRowSorter(dataModel)
   }
 
   fun getItemAt(viewRowIndex: Int): FirebaseItem {
@@ -33,5 +37,21 @@ class FirebaseDeviceTable(
     return getValueAt(viewRowIndex, (columnIndex)) as FirebaseItem
   }
 
+  private fun newRowSorter(tableModel: TableModel) =
+    TableRowSorter(tableModel).apply {
+      setComparator(
+        DEVICE_MODEL_COLUMN_INDEX,
+        Comparator.comparing(
+          Function<FirebaseItem, String> {
+            when (it) {
+              is FirebaseDeviceItem -> it.device.name
+              is FirebaseDeviceTemplateItem -> it.template.displayName
+              else -> ""
+            }
+          }
+        )
+      )
+      setComparator(API_MODEL_COLUMN_INDEX, Comparator.naturalOrder<Int>().reversed())
+    }
   override fun dispose() {}
 }
