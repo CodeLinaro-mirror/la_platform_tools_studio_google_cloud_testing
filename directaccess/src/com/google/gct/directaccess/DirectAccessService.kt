@@ -21,6 +21,7 @@ import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.android.tools.idea.io.netty.channel.ChannelOption
 import com.google.gct.login.GoogleLogin
+import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.intellij.openapi.Disposable
@@ -72,21 +73,16 @@ class DirectAccessService(val project: Project) : Disposable {
         }
     }
 
-  suspend fun acquireAndConnect(device: String, api: String) {
+  suspend fun reserveConnection(device: String, api: String): DirectAccessConnection? =
     withContext(Dispatchers.IO) {
-      val reservation = reservationManager?.createReservation(device, api)
-      val connection =
-        reservation?.let { connectionManager?.connect(reservation) }
-          ?: run {
-            invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
-            return@withContext
-          }
-      connection.waitUntilReservationActive()
-      connection.connect()
-      // TODO: start streaming only when we want. Right now it happens automatically.
-      // connection.startStreaming()
+      reservationManager?.createReservation(device, api)?.let { reservation ->
+        connectionManager?.connect(reservation)
+      }
+        ?: run {
+          invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
+          return@withContext null
+        }
     }
-  }
 
   override fun dispose() {}
 }

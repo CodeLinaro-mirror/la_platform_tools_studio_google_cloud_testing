@@ -39,7 +39,7 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
 
   private val table =
     FirebaseDeviceTable(
-      FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread, parent),
+      FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread),
     )
 
   private val reloadButton =

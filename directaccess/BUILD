@@ -6,6 +6,7 @@ iml_module(
     srcs = ["src"],
     iml_files = ["directaccess.iml"],
     resources = ["resources"],
+    tags = ["no_test_windows"],  # b/213385827
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
@@ -33,6 +34,8 @@ iml_module(
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
         "//tools/adt/idea/.idea/libraries:truth[test]",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
+        "//tools/adt/idea/.idea/libraries:jetbrains.kotlinx.coroutines.test[test]",
+        "//tools/base/fakeadbserver:studio.android.sdktools.fakeadbserver[module, test]",
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-testing-v1-revsnapshot-1.20.0",
     ],
 )
