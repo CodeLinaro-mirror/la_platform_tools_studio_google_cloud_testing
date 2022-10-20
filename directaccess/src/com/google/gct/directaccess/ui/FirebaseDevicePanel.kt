@@ -22,6 +22,7 @@ import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.DirectAccessService
+import com.google.services.firebase.directaccess.client.isFailed
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
@@ -55,11 +56,21 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
           val reservations = reservationManager.listReservations()
           reservations
             .filter { existingReservation ->
-              service.connectionManager?.getConnection(existingReservation) != null
+              !existingReservation.sessionState.isFailed() &&
+                service.connectionManager?.getConnection(existingReservation) == null
             }
             .forEach {
-              service.connectionManager?.connect(it)
-                ?: run { Messages.showWarningDialog("Not connected", "Not Connected") }
+              launch {
+                val connection =
+                  service.connectionManager?.connect(it)
+                    ?: run {
+                      // TODO: improve error notification
+                      Messages.showWarningDialog("Not connected", "Not Connected")
+                      return@launch
+                    }
+                connection.waitUntilReservationActive()
+                connection.connect()
+              }
             }
         }
       }
