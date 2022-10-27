@@ -22,6 +22,7 @@ import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.DirectAccessService
+import com.google.services.firebase.directaccess.client.isFailed
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
@@ -38,7 +39,7 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
 
   private val table =
     FirebaseDeviceTable(
-      FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread, parent),
+      FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread),
     )
 
   private val reloadButton =
@@ -46,23 +47,30 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
       addActionListener {
         AndroidCoroutineScope(parent).launch {
           val service = project.service<DirectAccessService>()
-          val devices =
-            service.listDevices()
+          val reservationManager =
+            service.reservationManager
               ?: run {
                 Messages.showWarningDialog("Not connected", "Not Connected")
                 return@launch
               }
-          devices
-            .filter { existingSession ->
-              !service
-                .deviceClients
-                .values
-                .map { it.sessionName.toString() }
-                .contains(existingSession.name)
+          val reservations = reservationManager.listReservations()
+          reservations
+            .filter { existingReservation ->
+              !existingReservation.sessionState.isFailed() &&
+                service.connectionManager?.getConnection(existingReservation) == null
             }
             .forEach {
-              val session = service.getDeviceSession(it.name)!!
-              service.reconnect(session)
+              launch {
+                val connection =
+                  service.connectionManager?.connect(it)
+                    ?: run {
+                      // TODO: improve error notification
+                      Messages.showWarningDialog("Not connected", "Not Connected")
+                      return@launch
+                    }
+                connection.waitUntilReservationActive()
+                connection.connect()
+              }
             }
         }
       }

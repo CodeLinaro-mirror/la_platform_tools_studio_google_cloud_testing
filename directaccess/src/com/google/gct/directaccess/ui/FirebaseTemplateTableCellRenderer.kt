@@ -103,7 +103,7 @@ class FirebaseTemplateTableCellRenderer : TableCellRenderer {
     stateLabel.foreground = foreground
     line2Label.font = UIUtil.getLabelFont(UIUtil.FontSize.SMALL)
     line2Label.foreground = foreground.brighter()
-    line2Label.text = template.targetName
+    line2Label.text = template.info.codename
     myPanel.background = Tables.getBackground(table, selected)
     myPanel.border = Tables.getBorder(selected, focused)
     return myPanel

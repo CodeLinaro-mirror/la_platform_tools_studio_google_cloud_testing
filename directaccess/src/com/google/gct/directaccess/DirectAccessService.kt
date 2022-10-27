@@ -15,94 +15,74 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.adbbridge.DeviceSession
 import com.android.tools.idea.adblib.AdbLibService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.android.tools.idea.io.netty.channel.ChannelOption
 import com.google.gct.login.GoogleLogin
-import com.google.services.firebase.directaccess.client.device.directaccess.DirectAccessClient
-import com.google.services.firebase.directaccess.client.device.remote.service.adb.forwardingdaemon.directaccess.DirectAccessServiceClient
-import com.google.services.firebase.directaccess.client.session.models.resourcenames.DeviceAssociationName
+import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
+import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Service
-class DirectAccessService(val project: Project) {
+class DirectAccessService(val project: Project) : Disposable {
   private val gcpProject: String
     get() = StudioFlags.DIRECT_ACCESS_PROJECT.get()
 
-  private var serviceClient: DirectAccessServiceClient? = null
+  private val channel =
+    NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
+      .withOption(ChannelOption.TCP_NODELAY, true)
+      .build()
+
+  var reservationManager: DirectAccessReservationManager? = null
     get() {
       return field
         ?: GoogleLogin.instance.fetchOAuth2Token()?.let { token ->
-          DirectAccessServiceClient(
-              gcpProject,
-              NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
-                .withOption(ChannelOption.TCP_NODELAY, true)
-                .build(),
-              AndroidCoroutineScope(project),
-              token,
-              AdbLibService.getSession(project)
-            )
-            .also {
-              field = it
-              GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->
-                if (!loggedIn) field = null
-              }
+          DirectAccessReservationManager(gcpProject, channel, token).also {
+            field = it
+            GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->
+              if (!loggedIn) field = null
             }
+          }
+        }
+    }
+    private set
+
+  var connectionManager: DirectAccessConnectionManager? = null
+    get() {
+      return field
+        ?: reservationManager?.let { reservationManager ->
+          GoogleLogin.instance.fetchOAuth2Token()?.let { token ->
+            DirectAccessConnectionManager(
+                AdbLibService.getSession(project),
+                AndroidCoroutineScope(this),
+                token,
+                channel,
+                reservationManager,
+              )
+              .also { field = it }
+          }
         }
     }
 
-  // Port to client
-  val deviceClients: MutableMap<Int, DirectAccessClient> = mutableMapOf()
-
-  suspend fun acquireAndConnect(device: String, api: String) {
-    val directAccessClient =
-      serviceClient?.let { DirectAccessClient(gcpProject, device, api, it) }
+  suspend fun reserveConnection(device: String, api: String): DirectAccessConnection? =
+    withContext(Dispatchers.IO) {
+      reservationManager?.createReservation(device, api)?.let { reservation ->
+        connectionManager?.connect(reservation)
+      }
         ?: run {
           invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
-          return
+          return@withContext null
         }
-    Logger.getInstance(DirectAccessService::class.java)
-      .info(
-        "acquireAndConnect device: $device api: $api project: $gcpProject user: ${GoogleLogin.instance.activeUser?.email}"
-      )
-    try {
-      directAccessClient.reserveAndStartStreaming()
-    } catch (e: Exception) {
-      invokeLater {
-        Messages.showWarningDialog("Failed to connect: ${e.message}", "Failed to Connect")
-      }
-      Logger.getInstance(DirectAccessService::class.java).warn("Failed to connect", e)
-      return
     }
-    directAccessClient.port?.let { port -> deviceClients.put(port, directAccessClient) }
-  }
 
-  suspend fun reconnect(session: DeviceSession) {
-    val device = session.androidDeviceList.getAndroidDevices(0)
-    val directAccessClient =
-      serviceClient?.let {
-        DirectAccessClient(gcpProject, device.androidModelId, device.androidVersionId, it)
-      }
-        ?: run {
-          Messages.showWarningDialog("Please log in first", "Log In Required")
-          return
-        }
-    directAccessClient.startStreaming(
-      DeviceAssociationName.parseFrom(
-        session.connectionInfo.adbConnectInfo.adbDevicesList.single().device
-      )
-    )
-    directAccessClient.port?.let { port -> deviceClients.put(port, directAccessClient) }
-  }
-
-  fun listDevices() = serviceClient?.listDeviceSessions()
-  fun getDeviceSession(deviceSessionName: String) =
-    serviceClient?.getDeviceSession(deviceSessionName)
+  override fun dispose() {}
 }

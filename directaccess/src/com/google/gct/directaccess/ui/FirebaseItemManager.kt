@@ -15,17 +15,14 @@
  */
 package com.google.gct.directaccess.ui
 
-import com.android.adblib.scope
 import com.android.annotations.concurrency.UiThread
-import com.android.tools.idea.concurrency.createChildScope
+import com.android.sdklib.deviceprovisioner.Disconnected
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.FirebaseDeviceTemplate
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Disposer
 import icons.StudioIcons
 import javax.swing.Icon
 import javax.swing.table.AbstractTableModel
@@ -62,12 +59,11 @@ interface FirebaseItem {
 
 class FirebaseDeviceItem(
   val device: FirebaseDevice,
-  private val handle: DirectAccessDeviceHandle,
+  val handle: DirectAccessDeviceHandle,
+  private val scope: CoroutineScope,
   private val uiDispatcher: CoroutineDispatcher,
-  parent: Disposable,
   override val onUpdate: () -> Unit
-) : FirebaseItem, Disposable {
-
+) : FirebaseItem {
   override val apiLevel = device.androidVersion.apiLevel
 
   override val icon: Icon = StudioIcons.Avd.STOP
@@ -77,33 +73,26 @@ class FirebaseDeviceItem(
   override val isActive: Boolean
     get() = handle.deactivationAction.isEnabled.value
 
-  private val scope = handle.stateFlow.value.connectedDevice?.scope
+  init {
+    scope.launch { handle.stateFlow.collect { withContext(uiDispatcher) { onUpdate() } } }
+  }
 
   override fun startAction() {
-    // We do not need to set isDeactivating back to false
-    // because the device will be removed from the model after getting deactivated.
-    scope?.launch { handle.deactivationAction.deactivate() }
+    scope.launch { handle.deactivationAction.deactivate() }
   }
-
-  init {
-    Disposer.register(parent, this)
-    scope?.launch {
-      handle.deactivationAction.isEnabled.collect { withContext(uiDispatcher) { onUpdate() } }
-    }
-  }
-
-  override fun dispose() = Unit
 }
 
 class FirebaseDeviceTemplateItem(
   val template: FirebaseDeviceTemplate,
-  parentScope: CoroutineScope,
+  private val scope: CoroutineScope,
   private val uiDispatcher: CoroutineDispatcher,
-  parent: Disposable,
   override val onUpdate: () -> Unit
-) : FirebaseItem, Disposable {
-  var activeItem: FirebaseItem = this
-    private set
+) : FirebaseItem {
+
+  val activeItem: FirebaseItem
+    get() = deviceItem ?: this
+
+  private var deviceItem: FirebaseDeviceItem? = null
 
   override val isActive: Boolean
     get() = template.activationAction.isEnabled.value
@@ -112,55 +101,34 @@ class FirebaseDeviceTemplateItem(
   override val tooltipText: String =
     if (isActive) "Connect to a new firebase device" else "Firebase device connecting"
 
-  private val scope = parentScope.createChildScope(isSupervisor = true, parentDisposable = this)
-
   override fun startAction() {
     scope.launch { template.activationAction.activate() }
   }
 
-  override val apiLevel = template.apiLevel
+  override val apiLevel = template.info.api
 
-  init {
-    Disposer.register(parent, this)
-    scope.launch {
-      template.activationAction.isEnabled.collect { withContext(uiDispatcher) { onUpdate() } }
-    }
-
-    scope.launch {
-      template.claimedDevices.distinctUntilChanged().collect { devices ->
-        withContext(uiDispatcher) {
-          activeItem =
-            if (devices.isEmpty()) {
-              (activeItem as? FirebaseDeviceItem)?.let { Disposer.dispose(it) }
-              this@FirebaseDeviceTemplateItem
-            } else {
-              // TODO (b/246171065): activating multiple devices
-              assert(devices.size == 1)
-              FirebaseDeviceItem(
-                FirebaseDevice(devices[0]),
-                devices[0],
-                uiDispatcher,
-                this@FirebaseDeviceTemplateItem,
-                onUpdate
-              )
-            }
-          onUpdate()
-        }
+  suspend fun updateActiveItem() {
+    withContext(uiDispatcher) {
+      val oldDevice = deviceItem?.handle
+      val newDevice = template.latestActivatingDevice.takeIf { it?.state !is Disconnected }
+      if (newDevice != oldDevice) {
+        deviceItem =
+          newDevice?.let {
+            FirebaseDeviceItem(FirebaseDevice(it), it, scope, uiDispatcher, onUpdate)
+          }
+        onUpdate()
       }
     }
   }
-
-  override fun dispose() = Unit
 }
 
 class FirebaseItemManager(
   val project: Project,
   private val model: AbstractTableModel,
   private val scope: CoroutineScope,
-  uiDispatcher: CoroutineDispatcher,
-  parent: Disposable
+  private val uiDispatcher: CoroutineDispatcher
 ) {
-  private var templateItems: List<FirebaseDeviceTemplateItem> = emptyList()
+  private var templateItems = emptyList<FirebaseDeviceTemplateItem>()
 
   fun getItem(index: Int) = templateItems[index].activeItem
 
@@ -168,29 +136,37 @@ class FirebaseItemManager(
     get() = templateItems.size
 
   init {
-    val templatesFlow = project.service<DeviceProvisionerService>().deviceProvisioner.templates
+    val provisionerPlugin = project.service<DeviceProvisionerService>().deviceProvisioner
     scope.launch {
-      templatesFlow
+      provisionerPlugin
+        .templates
         .map { it.filterIsInstance<FirebaseDeviceTemplate>() }
         .distinctUntilChanged()
-        .collect { newTemplates ->
-          val newTemplateSet = newTemplates.toSet()
-          templateItems.filter { it.template !in newTemplateSet }.forEach { Disposer.dispose(it) }
-          withContext(uiDispatcher) {
-            val existingMap = templateItems.associateBy { it.template }
-            templateItems =
-              newTemplates.map { template ->
-                existingMap[template]
-                  ?: FirebaseDeviceTemplateItem(template, scope, uiDispatcher, parent) {
-                    val index = templateItems.indexOfFirst { item -> item.template == template }
-                    if (index != -1) {
-                      model.fireTableRowsUpdated(index, index)
-                    }
-                  }
+        .collect { newTemplates -> refreshTemplates(newTemplates) }
+    }
+    scope.launch {
+      provisionerPlugin
+        .devices
+        .map { it.filterIsInstance<DirectAccessDeviceHandle>() }
+        .distinctUntilChanged()
+        .collect { templateItems.forEach { it.updateActiveItem() } }
+    }
+  }
+
+  private suspend fun refreshTemplates(newTemplates: List<FirebaseDeviceTemplate>) {
+    withContext(uiDispatcher) {
+      val existingMap = templateItems.associateBy { it.template }
+      templateItems =
+        newTemplates.map { template ->
+          existingMap[template]
+            ?: FirebaseDeviceTemplateItem(template, scope, uiDispatcher) {
+              val index = templateItems.indexOfFirst { item -> item.template == template }
+              if (index != -1) {
+                model.fireTableRowsUpdated(index, index)
               }
-            model.fireTableDataChanged()
-          }
+            }
         }
+      model.fireTableDataChanged()
     }
   }
 }
