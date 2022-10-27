@@ -53,6 +53,8 @@ import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 import java.util.Properties;
 import javax.swing.JComboBox;
@@ -169,7 +171,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
           .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER),
        myProject));
 
-      VirtualFile moduleRoot = getModuleRoot(launchedActivitySourceRoot);
+      VirtualFile closestContentRoot = getClosestContentRoot(launchedActivitySourceRoot);
       List<String> androidTestSourceRoots = getAndroidTestSourceRoots();
 
       if (androidTestSourceRoots.isEmpty()) {
@@ -177,12 +179,17 @@ public class TestClassNameInputDialog extends DialogWrapper {
         // create a test source root following naming convention, i.e., $MODULE_DIR$/src/androidTest/java.
         // TODO: If there are examples when naming convention fails, consider updating .iml as well,
         // e.g., using contentEntry.addSourceFolder(VfsUtilCore.pathToUrl(parentSourceRoot.getCanonicalPath() + "/androidTest/java"), true);
-        return getOrCreateSubdirectory(moduleRoot, new String[]{"src", "androidTest", "java"}, true);
+        VirtualFile contentRootParent = closestContentRoot.getParent();
+        if (contentRootParent != null && contentRootParent.getName().equals("src")) {
+          // Make "androidTest" a sibling of the closest content root.
+          return getOrCreateSubdirectory(contentRootParent, new String[]{"androidTest", "java"}, true);
+        }
+        return getOrCreateSubdirectory(closestContentRoot, new String[]{"src", "androidTest", "java"}, true);
       } else {
         String closestAndroidTestSourcePath =
           androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
-        VirtualFile parentDirectory = moduleRoot;
-        if (moduleRoot.getCanonicalPath() == null || !closestAndroidTestSourcePath.startsWith(moduleRoot.getCanonicalPath())) {
+        VirtualFile parentDirectory = closestContentRoot;
+        if (closestContentRoot.getCanonicalPath() == null || !closestAndroidTestSourcePath.startsWith(closestContentRoot.getCanonicalPath())) {
           parentDirectory = findContainingDirectory(launchedActivitySourceRoot, closestAndroidTestSourcePath);
           if (parentDirectory == null) {
             throw new RuntimeException("Failed to find a parent directory for android test source path: " + closestAndroidTestSourcePath);
@@ -197,7 +204,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     }
   }
 
-  private VirtualFile getModuleRoot(@Nullable VirtualFile launchedActivitySourceRoot) {
+  private VirtualFile getClosestContentRoot(@Nullable VirtualFile launchedActivitySourceRoot) {
     @NotNull VirtualFile[] contentRoots = ModuleRootManager.getInstance(myTestClassModule).getContentRoots();
     if (contentRoots.length == 0) {
       throw new RuntimeException("Could not find any content roots");
@@ -229,11 +236,26 @@ public class TestClassNameInputDialog extends DialogWrapper {
     AndroidFacet facet = AndroidFacet.getInstance(myTestClassModule);
     if (facet == null) return emptyList();
     SourceProviders sourceProviders = SourceProviders.getInstance(facet);
-    return Streams.stream(Iterables.concat(
+    List<String> androidTestSourceRoots = Streams.stream(Iterables.concat(
       sourceProviders.getAndroidTestSources().getJavaDirectories(),
       sourceProviders.getAndroidTestSources().getKotlinDirectories()
-    ))
-      .map(VirtualFile::getCanonicalPath).collect(toList());
+    )).map(VirtualFile::getCanonicalPath).collect(toList());
+    if (!androidTestSourceRoots.isEmpty()) {
+      return androidTestSourceRoots;
+    }
+    // If no actual Android test source roots were found, look for potential ones as URLs.
+    return Streams.stream(Iterables.concat(
+      sourceProviders.getAndroidTestSources().getJavaDirectoryUrls(),
+      sourceProviders.getAndroidTestSources().getKotlinDirectoryUrls()
+    )).map(TestClassNameInputDialog::getURLPath).collect(toList());
+  }
+
+  private static String getURLPath(String url) {
+    try {
+      return new URL(url).getPath();
+    } catch (MalformedURLException e) {
+      return url;
+    }
   }
 
   private static List<String> getCanonicalPaths(List<VirtualFile> virtualFiles) {

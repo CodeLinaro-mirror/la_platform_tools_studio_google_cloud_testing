@@ -16,6 +16,7 @@
 package com.google.gct.testrecorder.util;
 
 import com.android.tools.lint.helpers.DefaultJavaEvaluator;
+import com.intellij.openapi.project.IndexNotReadyException;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
@@ -28,7 +29,7 @@ public class ClassHelper {
    * For example, for a class foo.bar.Foo.Bar it returns foo.bar.Foo$Bar.
    */
   public static String getInternalName(Project project, String className) {
-    PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(className, GlobalSearchScope.allScope(project));
+    PsiClass psiClass = getPsiClass(project, className);
     if (psiClass != null) {
       DefaultJavaEvaluator evaluator = new DefaultJavaEvaluator(project, null);
       String internalName = evaluator.getInternalName(psiClass);
@@ -47,6 +48,14 @@ public class ClassHelper {
     resultClassName.append(nameFragments[nameFragments.length -1]);
 
     return resultClassName.toString();
+  }
+
+  private static PsiClass getPsiClass(Project project, String className) {
+    try {
+      return JavaPsiFacade.getInstance(project).findClass(className, GlobalSearchScope.allScope(project));
+    } catch (IndexNotReadyException e) {
+      return null;
+    }
   }
 
 }
