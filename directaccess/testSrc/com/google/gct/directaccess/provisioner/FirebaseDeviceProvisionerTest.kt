@@ -32,6 +32,7 @@ import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.TestUtils.Companion.deviceInfoListProvider
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import kotlinx.coroutines.cancel
 import org.junit.After
@@ -46,14 +47,6 @@ class FirebaseDeviceProvisionerTest {
   private val session = FakeAdbSession()
   lateinit var plugin: FirebaseDeviceProvisioner
   lateinit var provisioner: DeviceProvisioner
-
-  private var deviceInfoListProvider = {
-    listOf(
-      DeviceInfo("Google", "Pixel 5", "Google", "codename1", 31),
-      DeviceInfo("Google", "Pixel 6", "Google", "codename2", 32),
-      DeviceInfo("Google", "Pixel 6 Pro", "Google", "codename3", 33)
-    )
-  }
 
   @Before
   fun setUp() = runBlockingWithTimeout {
