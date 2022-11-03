@@ -31,14 +31,17 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Disconnected
 import com.android.sdklib.deviceprovisioner.PhysicalDeviceProperties
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.concurrency.createChildScope
+import com.android.tools.idea.emulator.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.ToolWindowManager
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +51,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val defaultDeviceInfoProvider = {
   CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
@@ -128,6 +132,16 @@ class FirebaseDeviceTemplate(
       private val _isEnabled = MutableStateFlow(true)
 
       override suspend fun activate(params: ActivationParams) {
+        // Open running devices window if not already open
+        ToolWindowManager.getInstance(project).getToolWindow(RUNNING_DEVICES_TOOL_WINDOW_ID)?.let {
+          toolWindow ->
+          withContext(AndroidDispatchers.uiThread) {
+            if (!toolWindow.isVisible) {
+              toolWindow.show()
+            }
+            toolWindow.activate(null)
+          }
+        }
         if (_isEnabled.value) { // Disable further activate actions to avoid multiple devices.
           _isEnabled.value = false
           val connection =
