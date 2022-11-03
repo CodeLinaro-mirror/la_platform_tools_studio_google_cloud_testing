@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 
@@ -32,11 +33,21 @@ object CatalogClient {
     val catalog =
       (CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint)
         ?: throw Exception("Error fetching catalog."))
+
+    val eapFilter =
+      StudioFlags.DIRECT_ACCESS_DEVICE_FILTER.get().split(",").filterNot { it.isEmpty() }.groupBy({
+          it.substringBefore("/")
+        }) { it.substringAfter("/") }
+
     return catalog.models.filter { it.form == "PHYSICAL" }.flatMap { model ->
-      model.supportedVersionIds
+      model
+        .supportedVersionIds
         ?.filter { versionId -> versionId?.toIntOrNull()?.let { it >= 26 } == true }
         ?.map {
           DeviceInfo(model.brand, model.name, model.manufacturer, model.codename, it.toInt())
+        }
+        ?.filter {
+          eapFilter.isEmpty() || eapFilter[it.codename]?.contains(it.api.toString()) == true
         }
         ?: listOf()
     }
