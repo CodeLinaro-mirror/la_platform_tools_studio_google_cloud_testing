@@ -38,7 +38,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class GoogleCloudTestProxy extends AbstractTestProxy {
+public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatable {
   private List<GoogleCloudTestProxy> myChildren;
   private GoogleCloudTestProxy myParent;
 
@@ -304,6 +304,21 @@ public class GoogleCloudTestProxy extends AbstractTestProxy {
     }
 
     return null;
+  }
+
+  @Override
+  public void navigate(boolean requestFocus) {
+    // Navigation is not supported.
+  }
+
+  @Override
+  public boolean canNavigate() {
+    return false;
+  }
+
+  @Override
+  public boolean canNavigateToSource() {
+    return false;
   }
 
   private static String extractPath(@NotNull String locationUrl) {

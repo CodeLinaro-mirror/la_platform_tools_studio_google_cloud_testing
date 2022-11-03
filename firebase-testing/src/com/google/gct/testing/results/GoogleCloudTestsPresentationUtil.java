@@ -39,27 +39,20 @@ import static com.intellij.execution.testframework.sm.runner.states.TestStateInf
 
 public class GoogleCloudTestsPresentationUtil {
   @NonNls private static final String DOUBLE_SPACE = "  ";
-  @NonNls private static final String SECONDS_SUFFIX = " " + SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.seconds");
-  @NonNls private static final String MILLISECONDS_SUFFIX = " " + SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.milliseconds");
+  @NonNls private static final String SECONDS_SUFFIX = " s";
+  @NonNls private static final String MILLISECONDS_SUFFIX = " ms";
   @NonNls private static final String WORLD_CREATION_TIME = "0" + SECONDS_SUFFIX;
-  @NonNls private static final String DURATION_UNKNOWN = SmRunnerBundle.message(
-      "sm.test.runner.ui.tabs.statistics.columns.duration.unknown");
-  @NonNls private static final String DURATION_NO_TESTS = SmRunnerBundle.message(
-      "sm.test.runner.ui.tabs.statistics.columns.duration.no.tests");
-  @NonNls private static final String DURATION_NOT_RUN = SmRunnerBundle.message(
-      "sm.test.runner.ui.tabs.statistics.columns.duration.not.run");
-  @NonNls private static final String DURATION_RUNNING_PREFIX = SmRunnerBundle.message(
-      "sm.test.runner.ui.tabs.statistics.columns.duration.prefix.running");
-  @NonNls private static final String DURATION_TERMINATED_PREFIX = SmRunnerBundle.message(
-      "sm.test.runner.ui.tabs.statistics.columns.duration.prefix.terminated");
+  @NonNls private static final String DURATION_UNKNOWN = "Unknown";
+  @NonNls private static final String DURATION_NO_TESTS = "No tests";
+  @NonNls private static final String DURATION_NOT_RUN = "Not run";
+  @NonNls private static final String DURATION_RUNNING_PREFIX = "Running tests...";
+  @NonNls private static final String DURATION_TERMINATED_PREFIX = "Terminated";
   @NonNls private static final String COLON = ": ";
   public static final SimpleTextAttributes PASSED_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, TestsUIUtil.PASSED_COLOR);
   public static final SimpleTextAttributes DEFFECT_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, Color.RED);
   public static final SimpleTextAttributes TERMINATED_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, Color.ORANGE);
-  @NonNls private static final String RESULTS_NO_TESTS = SmRunnerBundle.message(
-      "sm.test.runner.ui.tabs.statistics.columns.results.no.tests");
-  @NonNls private static final String NO_NAME_TEST = SmRunnerBundle.message(
-      "sm.test.runner.ui.tests.tree.presentation.labels.test.noname");
+  @NonNls private static final String RESULTS_NO_TESTS = "No tests were found";
+  @NonNls private static final String NO_NAME_TEST = "<no name>";
   @NonNls private static final String UNKNOWN_TESTS_COUNT = "<...>";
   @NonNls static final String DEFAULT_TESTS_CATEGORY = "Tests";
 
