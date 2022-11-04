@@ -78,9 +78,14 @@ class FirebaseDeviceProvisioner(
   init {
     project.coroutineScope.launch {
       while (true) {
+        val oldTemplates =
+          _templates.value.groupBy { (it as FirebaseDeviceTemplate).info }.mapValues { it.value[0] }
         try {
           deviceInfoProvider()
-            .map { info -> FirebaseDeviceTemplate(project, info, _devices, createChildScope(true)) }
+            .map { info ->
+              oldTemplates[info]
+                ?: FirebaseDeviceTemplate(project, info, _devices, createChildScope(true))
+            }
             .let { result -> _templates.emit(result) }
         } catch (ignore: NotLoggedInException) {
           // do nothing
