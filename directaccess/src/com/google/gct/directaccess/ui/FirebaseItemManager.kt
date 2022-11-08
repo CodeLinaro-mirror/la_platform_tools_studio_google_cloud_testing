@@ -155,10 +155,10 @@ class FirebaseItemManager(
 
   private suspend fun refreshTemplates(newTemplates: List<FirebaseDeviceTemplate>) {
     withContext(uiDispatcher) {
-      val existingMap = templateItems.associateBy { it.template }
+      val existingMap = templateItems.associateBy { it.template.info }
       templateItems =
         newTemplates.map { template ->
-          existingMap[template]
+          existingMap[template.info]
             ?: FirebaseDeviceTemplateItem(template, scope, uiDispatcher) {
               val index = templateItems.indexOfFirst { item -> item.template == template }
               if (index != -1) {
