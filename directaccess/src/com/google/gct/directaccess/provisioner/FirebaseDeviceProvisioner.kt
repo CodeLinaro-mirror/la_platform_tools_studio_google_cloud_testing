@@ -41,6 +41,7 @@ import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.MessageDialogBuilder
 import com.intellij.openapi.wm.ToolWindowManager
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -147,7 +148,8 @@ class FirebaseDeviceTemplate(
             toolWindow.activate(null)
           }
         }
-        if (_isEnabled.value) { // Disable further activate actions to avoid multiple devices.
+        // Disable further activate actions to avoid multiple devices.
+        if (_isEnabled.value && disconnectOtherDevices()) {
           _isEnabled.value = false
           val connection =
             project
@@ -190,6 +192,25 @@ class FirebaseDeviceTemplate(
 
       override val label: String = "Acquire"
       override val isEnabled: StateFlow<Boolean> = _isEnabled
+
+      private suspend fun disconnectOtherDevices(): Boolean {
+        devices.value.filterIsInstance<DirectAccessDeviceHandle>().forEach {
+          val isConfirmed =
+            withContext(AndroidDispatchers.uiThread) {
+              MessageDialogBuilder.okCancel(
+                  "Confirm Disconnection",
+                  "${it.state.properties.title()} will be disconnected before connecting to a new device."
+                )
+                .ask(project)
+            }
+          if (isConfirmed) {
+            it.deactivationAction.deactivate()
+          } else {
+            return false
+          }
+        }
+        return true
+      }
     }
 
   override val editAction = null
