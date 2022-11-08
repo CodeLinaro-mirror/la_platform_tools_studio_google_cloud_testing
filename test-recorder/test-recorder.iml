@@ -41,5 +41,6 @@
     <orderEntry type="module" module-name="intellij.lint" />
     <orderEntry type="module" module-name="intellij.android.gradle.dsl" />
     <orderEntry type="module" module-name="android.sdktools.lint-api" />
+    <orderEntry type="module" module-name="intellij.android.execution.common" />
   </component>
 </module>
