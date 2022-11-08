@@ -26,7 +26,7 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
-import com.google.gct.directaccess.TestUtils.Companion.deviceInfoListProvider
+import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.provisioner.FirebaseDeviceProvisioner
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.util.concurrency.EdtExecutorService

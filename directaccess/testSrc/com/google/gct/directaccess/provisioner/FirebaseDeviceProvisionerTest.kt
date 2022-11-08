@@ -32,7 +32,7 @@ import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
-import com.google.gct.directaccess.TestUtils.Companion.deviceInfoListProvider
+import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import kotlinx.coroutines.cancel
 import org.junit.After

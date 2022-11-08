@@ -15,26 +15,25 @@
  */
 package com.google.gct.directaccess
 
-import com.android.adblib.serialNumber
 import com.android.sdklib.AndroidVersion
 import com.android.tools.idea.devicemanager.ConnectionType
 import com.android.tools.idea.devicemanager.Device
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.devicemanager.Key
 import com.android.tools.idea.devicemanager.SerialNumber
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
+import com.google.gct.directaccess.provisioner.DeviceInfo
 import javax.swing.Icon
 
 class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
   constructor(
-    device: DirectAccessDeviceHandle
+    device: DeviceInfo
   ) : this(
-    device.stateFlow.value.let { deviceState ->
-      val properties = deviceState.properties
-      Builder()
-        .setName(properties.title())
-        .setApi(properties.androidVersion?.apiLevel ?: 0)
-        .setTarget(deviceState.connectedDevice?.serialNumber ?: "unknown")
+    Builder().apply {
+      setName("${device.manufacturer} ${device.name}")
+      setApi(device.api)
+      setTarget(device.codename)
+      setType(device.type)
     }
   )
 
@@ -68,6 +67,11 @@ class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
     fun setApi(api: Int): Builder {
       myAndroidVersion = AndroidVersion(api)
+      return this
+    }
+
+    fun setType(type: DeviceType): Builder {
+      myType = type
       return this
     }
   }

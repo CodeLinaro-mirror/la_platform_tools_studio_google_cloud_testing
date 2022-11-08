@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
@@ -44,7 +45,16 @@ object CatalogClient {
         .supportedVersionIds
         ?.filter { versionId -> versionId?.toIntOrNull()?.let { it >= 26 } == true }
         ?.map {
-          DeviceInfo(model.brand, model.name, model.manufacturer, model.codename, it.toInt())
+          val type =
+            when (model["formFactor"]) {
+              // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
+              // tablets
+              "PHONE",
+              "TABLET" -> DeviceType.PHONE
+              "WEARABLE" -> DeviceType.WEAR_OS
+              else -> DeviceType.PHONE
+            }
+          DeviceInfo(model.brand, model.name, model.manufacturer, model.codename, it.toInt(), type)
         }
         ?.filter {
           eapFilter.isEmpty() || eapFilter[it.codename]?.contains(it.api.toString()) == true
