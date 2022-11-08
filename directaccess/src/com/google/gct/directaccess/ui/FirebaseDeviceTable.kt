@@ -15,15 +15,22 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.ui.table.JBTable
-import java.util.function.Function
+import javax.swing.RowSorter
+import javax.swing.SortOrder
 import javax.swing.table.TableModel
 import javax.swing.table.TableRowSorter
 
 class FirebaseDeviceTable(
   model: FirebaseDeviceTableModel,
 ) : JBTable(model), Disposable {
+
+  companion object {
+    private val PROPERTIES_COMPONENT_COLUMN_KEY = "${this::class.java}.COLUMN"
+    private val PROPERTIES_COMPONENT_ORDER_KEY = "${this::class.java}.ORDER"
+  }
 
   init {
     setDefaultRenderer(FirebaseItem::class.java, FirebaseItemTableCellRenderer)
@@ -41,17 +48,39 @@ class FirebaseDeviceTable(
     TableRowSorter(tableModel).apply {
       setComparator(
         DEVICE_MODEL_COLUMN_INDEX,
-        Comparator.comparing(
-          Function<FirebaseItem, String> {
-            when (it) {
-              is FirebaseDeviceItem -> it.device.name
-              is FirebaseDeviceTemplateItem -> it.template.displayName
-              else -> ""
-            }
+        Comparator.comparing { item: FirebaseItem ->
+          when (item) {
+            is FirebaseDeviceItem -> item.device.name
+            is FirebaseDeviceTemplateItem -> item.template.displayName
+            else -> ""
           }
-        )
+        }
       )
-      setComparator(API_MODEL_COLUMN_INDEX, Comparator.naturalOrder<Int>().reversed())
+      setComparator(API_MODEL_COLUMN_INDEX, Comparator.naturalOrder<Int>())
+      setSortable(ACTIONS_COLUMN_INDEX, false)
+      val columnList = PropertiesComponent.getInstance().getList(PROPERTIES_COMPONENT_COLUMN_KEY)
+      val orderList = PropertiesComponent.getInstance().getList(PROPERTIES_COMPONENT_ORDER_KEY)
+      sortKeys =
+        if (columnList?.isNotEmpty() == true && orderList?.isNotEmpty() == true) {
+          columnList.zip(orderList).map {
+            RowSorter.SortKey(it.first.toInt(), SortOrder.valueOf(it.second))
+          }
+        } else {
+          // Default sort order
+          listOf(
+            RowSorter.SortKey(DEVICE_MODEL_COLUMN_INDEX, SortOrder.ASCENDING),
+            RowSorter.SortKey(API_MODEL_COLUMN_INDEX, SortOrder.DESCENDING)
+          )
+        }
+      addRowSorterListener {
+        if (sortKeys.isNotEmpty()) {
+          PropertiesComponent.getInstance()
+            .setList(PROPERTIES_COMPONENT_COLUMN_KEY, sortKeys.map { it.column.toString() })
+          PropertiesComponent.getInstance()
+            .setList(PROPERTIES_COMPONENT_ORDER_KEY, sortKeys.map { it.sortOrder.toString() })
+        }
+      }
     }
+
   override fun dispose() {}
 }
