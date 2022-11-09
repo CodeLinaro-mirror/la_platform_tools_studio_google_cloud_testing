@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
@@ -94,6 +95,7 @@ class FirebaseItemManagerTest {
     assertThat(firebaseItemManager.itemCount).isEqualTo(2 * deviceInfoListProvider().size)
   }
 
+  @Ignore("b/258306184")
   @Test
   fun testGetItem() = runBlockingWithTimeout {
     // Setup
