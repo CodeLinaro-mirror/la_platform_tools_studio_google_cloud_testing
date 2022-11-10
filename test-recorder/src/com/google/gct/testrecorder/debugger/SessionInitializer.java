@@ -448,7 +448,13 @@ public class SessionInitializer implements Runnable {
       if (myDebuggerSession != null) {
         XDebugSession xDebugSession = myDebuggerSession.getXDebugSession();
         if (xDebugSession != null) {
-          xDebugSession.stop();
+          // Stop the debug session on the event dispatch thread (b/254411132).
+          ApplicationManager.getApplication().invokeLater(new Runnable() {
+            @Override
+            public void run() {
+              xDebugSession.stop();
+            }
+          });
         }
       }
     } else {
