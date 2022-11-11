@@ -194,12 +194,15 @@ class FirebaseDeviceTemplate(
       override val isEnabled: StateFlow<Boolean> = _isEnabled
 
       private suspend fun disconnectOtherDevices(): Boolean {
+        if (StudioFlags.DIRECT_ACCESS_MULTIPLE_DEVICES.get()) {
+          return true
+        }
         devices.value.filterIsInstance<DirectAccessDeviceHandle>().forEach {
           val isConfirmed =
             withContext(AndroidDispatchers.uiThread) {
               MessageDialogBuilder.okCancel(
-                  "Confirm Disconnection",
-                  "${it.state.properties.title()} will be disconnected before connecting to a new device."
+                  "Confirm Device check-in",
+                  "${it.state.properties.title()} will be disconnected and checked-in before connecting to a new device. All user data will be wiped."
                 )
                 .ask(project)
             }
