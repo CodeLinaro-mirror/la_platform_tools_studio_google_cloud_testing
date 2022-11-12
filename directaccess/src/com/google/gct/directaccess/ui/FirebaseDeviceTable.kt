@@ -37,6 +37,7 @@ class FirebaseDeviceTable(
     setDefaultRenderer(Boolean::class.java, LaunchOrStopButtonTableCellRenderer)
     setDefaultEditor(Boolean::class.java, LaunchOrStopButtonTableCellEditor)
     rowSorter = newRowSorter(dataModel)
+    setShowGrid(false)
   }
 
   fun getItemAt(viewRowIndex: Int): FirebaseItem {
