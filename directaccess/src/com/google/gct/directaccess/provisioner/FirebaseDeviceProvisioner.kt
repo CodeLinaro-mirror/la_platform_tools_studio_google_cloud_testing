@@ -34,8 +34,8 @@ import com.android.sdklib.deviceprovisioner.PhysicalDeviceProperties
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.emulator.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.openapi.components.service
