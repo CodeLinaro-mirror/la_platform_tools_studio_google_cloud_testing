@@ -22,6 +22,7 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.FirebaseDeviceTemplate
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.State
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import icons.StudioIcons
@@ -29,6 +30,7 @@ import javax.swing.Icon
 import javax.swing.table.AbstractTableModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -121,13 +123,28 @@ class FirebaseDeviceTemplateItem(
   suspend fun updateActiveItem() {
     withContext(uiDispatcher) {
       val oldDevice = deviceItem?.handle
-      val newDevice = template.latestActivatingDevice.takeIf { it?.state !is Disconnected }
+      val newDevice = template.activeDevice.takeIf { it?.state !is Disconnected }
       if (newDevice != oldDevice) {
-        deviceItem =
-          newDevice?.let {
-            FirebaseDeviceItem(FirebaseDevice(template.info), it, scope, uiDispatcher, onUpdate)
+        newDevice?.let { newDeviceHandle ->
+          scope.launch {
+            newDeviceHandle.connection.state.collect { connState ->
+              if (connState == State.CLOSED) {
+                deviceItem = null
+                coroutineContext.cancel()
+              } else {
+                deviceItem =
+                  FirebaseDeviceItem(
+                    FirebaseDevice(template.info, connState),
+                    newDeviceHandle,
+                    scope,
+                    uiDispatcher,
+                    onUpdate
+                  )
+              }
+              onUpdate()
+            }
           }
-        onUpdate()
+        }
       }
     }
   }

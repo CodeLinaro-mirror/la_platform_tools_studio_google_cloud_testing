@@ -22,27 +22,41 @@ import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.devicemanager.Key
 import com.android.tools.idea.devicemanager.SerialNumber
 import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.State
 import javax.swing.Icon
 
 class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
+  private val myState = builder.myState
+
   constructor(
-    device: DeviceInfo
+    device: DeviceInfo,
+    connectionState: State,
   ) : this(
     Builder().apply {
       setName("${device.manufacturer} ${device.name}")
       setApi(device.api)
-      setTarget(device.codename)
       setType(device.type)
+      setConnectionState(connectionState)
+      setTarget(
+        when (connectionState) {
+          State.RESERVING -> "Reserving a device..."
+          State.RESERVED -> "Connecting to device..."
+          State.CONNECTED, State.STREAMING -> device.codename
+          else -> device.codename
+        }
+      )
     }
   )
 
   override fun getIcon(): Icon = myType.physicalIcon
 
-  override fun isOnline() = true
+  override fun isOnline() = myState == State.CONNECTED
 
   private class Builder : Device.Builder() {
     override fun build(): FirebaseDevice = FirebaseDevice(this)
+    var myState: State = State.CLOSED
+      private set
 
     init {
       myKey =
@@ -72,6 +86,11 @@ class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
     fun setType(type: DeviceType): Builder {
       myType = type
+      return this
+    }
+
+    fun setConnectionState(connectionState: State): Builder {
+      myState = connectionState
       return this
     }
   }

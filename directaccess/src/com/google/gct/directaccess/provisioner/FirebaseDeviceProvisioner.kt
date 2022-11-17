@@ -46,6 +46,7 @@ import com.intellij.openapi.wm.ToolWindowManager
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -123,7 +124,7 @@ class FirebaseDeviceTemplate(
    *
    * TODO (b/246171065): resolve potential race condition to support activating multiple devices
    */
-  var latestActivatingDevice: DirectAccessDeviceHandle? = null
+  var activeDevice: DirectAccessDeviceHandle? = null
     private set
 
   override val activationAction: ActivationAction =
@@ -170,7 +171,7 @@ class FirebaseDeviceTemplate(
               connectionType = ConnectionType.USB
             }
           // Notify provisioner plugin of the new device.
-          latestActivatingDevice =
+          activeDevice =
             DirectAccessDeviceHandle(
                 scope.createChildScope(true),
                 Activating(deviceProperties),
@@ -178,15 +179,17 @@ class FirebaseDeviceTemplate(
               )
               .also { device ->
                 scope.launch {
-                  devices.update { list -> list + device }
                   device.stateFlow.collect {
                     if (it is Disconnected) {
-                      devices.update { list -> list - device }
+                      activeDevice = null
                       _isEnabled.value = true
+                      devices.update { list -> list - device }
+                      coroutineContext.cancel()
                     }
                   }
                 }
               }
+          activeDevice?.let { devices.update { list -> list + it } }
         }
       }
 
