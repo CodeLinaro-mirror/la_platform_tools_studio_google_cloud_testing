@@ -114,7 +114,7 @@ class FirebaseDeviceTemplateItem(
       if (newDevice != oldDevice) {
         deviceItem =
           newDevice?.let {
-            FirebaseDeviceItem(FirebaseDevice(it), it, scope, uiDispatcher, onUpdate)
+            FirebaseDeviceItem(FirebaseDevice(template.info), it, scope, uiDispatcher, onUpdate)
           }
         onUpdate()
       }

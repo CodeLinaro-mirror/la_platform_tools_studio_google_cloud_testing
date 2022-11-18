@@ -15,10 +15,13 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.tools.idea.devicemanager.DeviceType
+
 data class DeviceInfo(
   val brand: String,
   val name: String,
   val manufacturer: String,
   val codename: String,
-  val api: Int
+  val api: Int,
+  val type: DeviceType
 )

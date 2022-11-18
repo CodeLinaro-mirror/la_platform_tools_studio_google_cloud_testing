@@ -34,13 +34,14 @@ import com.android.sdklib.deviceprovisioner.PhysicalDeviceProperties
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.emulator.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.MessageDialogBuilder
 import com.intellij.openapi.wm.ToolWindowManager
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -147,7 +148,8 @@ class FirebaseDeviceTemplate(
             toolWindow.activate(null)
           }
         }
-        if (_isEnabled.value) { // Disable further activate actions to avoid multiple devices.
+        // Disable further activate actions to avoid multiple devices.
+        if (_isEnabled.value && disconnectOtherDevices()) {
           _isEnabled.value = false
           val connection =
             project
@@ -190,6 +192,28 @@ class FirebaseDeviceTemplate(
 
       override val label: String = "Acquire"
       override val isEnabled: StateFlow<Boolean> = _isEnabled
+
+      private suspend fun disconnectOtherDevices(): Boolean {
+        if (StudioFlags.DIRECT_ACCESS_MULTIPLE_DEVICES.get()) {
+          return true
+        }
+        devices.value.filterIsInstance<DirectAccessDeviceHandle>().forEach {
+          val isConfirmed =
+            withContext(AndroidDispatchers.uiThread) {
+              MessageDialogBuilder.okCancel(
+                  "Confirm Device check-in",
+                  "${it.state.properties.title()} will be disconnected and checked-in before connecting to a new device. All user data will be wiped."
+                )
+                .ask(project)
+            }
+          if (isConfirmed) {
+            it.deactivationAction.deactivate()
+          } else {
+            return false
+          }
+        }
+        return true
+      }
     }
 
   override val editAction = null

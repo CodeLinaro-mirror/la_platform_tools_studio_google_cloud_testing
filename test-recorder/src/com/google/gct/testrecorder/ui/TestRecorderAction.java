@@ -20,6 +20,8 @@ import static org.apache.commons.lang.StringUtils.isEmpty;
 import com.android.annotations.VisibleForTesting;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
+import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
@@ -167,6 +169,14 @@ public class TestRecorderAction extends AnAction {
       throw new RuntimeException("Could not obtain an instance of TestRecorderRunConfigurationProxy");
     }
     Module module = testRecorderConfigurationProxy.getModule();
+
+    // Do not launch Espresso Test Recorder for projects that include native C++ code because they are not fully supported.
+    if (GradleBuildModel.get(module).android().externalNativeBuild().cmake().version().getValueType()
+        != GradlePropertyModel.ValueType.NONE) {
+      String message = "Espresso Test Recorder does not support projects with native C++ code.";
+      Messages.showDialog(project, message, "Espresso test cannot be recorded", new String[]{"OK"}, 0, null);
+      return;
+    }
 
     // Do not launch Espresso Test Recorder for Compose projects, since Espresso Testing Framework does not support Compose.
     AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(module);
