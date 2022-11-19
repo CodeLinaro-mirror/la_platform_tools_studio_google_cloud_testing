@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess
 
+import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.adblib.AdbLibService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.flags.StudioFlags
@@ -24,6 +25,7 @@ import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
+import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.components.Service
@@ -73,11 +75,26 @@ class DirectAccessService(val project: Project) : Disposable {
         }
     }
 
-  suspend fun reserveConnection(device: String, api: String): DirectAccessConnection? =
+  /**
+   * Returns a [DirectAccessConnection] connecting to the remote device with [codename] and [api].
+   *
+   * The remote device is managed by a newly created [Reservation] from [reservationManager].
+   * However, if a [Reservation] with the same device information is created from another studio
+   * instance before calling this method, the existing [Reservation] will be reused by
+   * [reservationManager] and assigned to the returned [DirectAccessConnection].
+   */
+  suspend fun reserveConnection(codename: String, api: String): DirectAccessConnection? =
     withContext(Dispatchers.IO) {
-      reservationManager?.createReservation(device, api)?.let { reservation ->
-        connectionManager?.connect(reservation)
-      }
+      val reservation =
+        reservationManager?.listReservations()?.firstOrNull { reservation ->
+          !reservation.sessionState.isClosed() &&
+            reservation.androidDeviceList.androidDevicesList.any {
+              it.androidModelId == codename && it.androidVersionId == api
+            }
+        }
+          ?: reservationManager?.createReservation(codename, api) ?: return@withContext null
+
+      connectionManager?.connect(reservation)
         ?: run {
           invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
           return@withContext null

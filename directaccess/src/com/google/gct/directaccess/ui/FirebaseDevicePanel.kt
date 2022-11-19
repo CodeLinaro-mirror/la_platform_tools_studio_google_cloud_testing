@@ -21,13 +21,11 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
-import com.google.gct.directaccess.DirectAccessService
-import com.google.services.firebase.directaccess.client.isFailed
+import com.google.gct.directaccess.provisioner.updateReservations
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.scale.JBUIScale
 import javax.swing.GroupLayout
@@ -46,32 +44,8 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
     CommonButton(AllIcons.Actions.Refresh).apply {
       addActionListener {
         AndroidCoroutineScope(parent).launch {
-          val service = project.service<DirectAccessService>()
-          val reservationManager =
-            service.reservationManager
-              ?: run {
-                Messages.showWarningDialog("Not connected", "Not Connected")
-                return@launch
-              }
-          val reservations = reservationManager.listReservations()
-          reservations
-            .filter { existingReservation ->
-              !existingReservation.sessionState.isFailed() &&
-                service.connectionManager?.getConnection(existingReservation) == null
-            }
-            .forEach {
-              launch {
-                val connection =
-                  service.connectionManager?.connect(it)
-                    ?: run {
-                      // TODO: improve error notification
-                      Messages.showWarningDialog("Not connected", "Not Connected")
-                      return@launch
-                    }
-                connection.waitUntilReservationActive()
-                connection.connect()
-              }
-            }
+          val service = project.service<DeviceProvisionerService>()
+          updateReservations(project, service.deviceProvisioner.templates)
         }
       }
     }
