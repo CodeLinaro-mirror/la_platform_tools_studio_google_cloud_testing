@@ -66,7 +66,7 @@ interface FirebaseItem {
 class FirebaseDeviceItem(
   val device: FirebaseDevice,
   val handle: DirectAccessDeviceHandle,
-  private val scope: CoroutineScope,
+  val scope: CoroutineScope,
   private val uiDispatcher: CoroutineDispatcher,
   override val onUpdate: () -> Unit
 ) : FirebaseItem {
