@@ -17,10 +17,12 @@ package com.google.gct.directaccess.ui
 
 import com.android.annotations.concurrency.UiThread
 import com.android.sdklib.deviceprovisioner.Disconnected
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.FirebaseDeviceTemplate
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.State
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import icons.StudioIcons
@@ -28,6 +30,7 @@ import javax.swing.Icon
 import javax.swing.table.AbstractTableModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -52,7 +55,10 @@ interface FirebaseItem {
 
   val apiLevel: Int
 
+  /** Action icon associated with the item. */
   val icon: Icon
+
+  val deviceType: DeviceType
 
   val tooltipText: String
 }
@@ -60,7 +66,7 @@ interface FirebaseItem {
 class FirebaseDeviceItem(
   val device: FirebaseDevice,
   val handle: DirectAccessDeviceHandle,
-  private val scope: CoroutineScope,
+  val scope: CoroutineScope,
   private val uiDispatcher: CoroutineDispatcher,
   override val onUpdate: () -> Unit
 ) : FirebaseItem {
@@ -72,6 +78,9 @@ class FirebaseDeviceItem(
 
   override val isActive: Boolean
     get() = handle.deactivationAction.isEnabled.value
+
+  override val deviceType: DeviceType
+    get() = device.type
 
   init {
     scope.launch { handle.stateFlow.collect { withContext(uiDispatcher) { onUpdate() } } }
@@ -98,8 +107,12 @@ class FirebaseDeviceTemplateItem(
     get() = template.activationAction.isEnabled.value
 
   override val icon: Icon = StudioIcons.Avd.RUN
+
   override val tooltipText: String =
     if (isActive) "Connect to a new firebase device" else "Firebase device connecting"
+
+  override val deviceType: DeviceType
+    get() = template.info.type
 
   override fun startAction() {
     scope.launch { template.activationAction.activate() }
@@ -110,13 +123,28 @@ class FirebaseDeviceTemplateItem(
   suspend fun updateActiveItem() {
     withContext(uiDispatcher) {
       val oldDevice = deviceItem?.handle
-      val newDevice = template.latestActivatingDevice.takeIf { it?.state !is Disconnected }
+      val newDevice = template.activeDevice.takeIf { it?.state !is Disconnected }
       if (newDevice != oldDevice) {
-        deviceItem =
-          newDevice?.let {
-            FirebaseDeviceItem(FirebaseDevice(template.info), it, scope, uiDispatcher, onUpdate)
+        newDevice?.let { newDeviceHandle ->
+          scope.launch {
+            newDeviceHandle.connection.state.collect { connState ->
+              if (connState == State.CLOSED) {
+                deviceItem = null
+                coroutineContext.cancel()
+              } else {
+                deviceItem =
+                  FirebaseDeviceItem(
+                    FirebaseDevice(template.info, connState),
+                    newDeviceHandle,
+                    scope,
+                    uiDispatcher,
+                    onUpdate
+                  )
+              }
+              onUpdate()
+            }
           }
-        onUpdate()
+        }
       }
     }
   }

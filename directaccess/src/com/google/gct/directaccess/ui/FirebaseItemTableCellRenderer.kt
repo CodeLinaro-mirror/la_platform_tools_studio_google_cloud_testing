@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.ui
 
 import com.intellij.ui.components.JBLabel
+import java.awt.Component
 import javax.swing.JTable
 import javax.swing.table.TableCellRenderer
 
@@ -25,14 +26,16 @@ object FirebaseItemTableCellRenderer : TableCellRenderer {
 
   override fun getTableCellRendererComponent(
     table: JTable,
-    value: Any?,
+    value: Any,
     isSelected: Boolean,
     hasFocus: Boolean,
     row: Int,
     column: Int
-  ) =
-    when (value) {
-      is FirebaseDeviceItem ->
+  ): Component {
+
+    return when (value) {
+      is FirebaseDeviceItem -> {
+        deviceRenderer.startRepainterIfNeeded(value, table, row, column)
         deviceRenderer.getTableCellRendererComponent(
           table,
           value.device,
@@ -41,6 +44,7 @@ object FirebaseItemTableCellRenderer : TableCellRenderer {
           row,
           column
         )
+      }
       is FirebaseDeviceTemplateItem ->
         templateRenderer.getTableCellRendererComponent(
           table,
@@ -52,4 +56,5 @@ object FirebaseItemTableCellRenderer : TableCellRenderer {
         )
       else -> JBLabel("Empty content")
     }
+  }
 }

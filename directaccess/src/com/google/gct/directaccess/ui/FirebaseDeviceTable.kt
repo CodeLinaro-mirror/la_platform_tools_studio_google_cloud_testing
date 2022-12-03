@@ -15,6 +15,9 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.android.tools.idea.devicemanager.DeviceType
+import com.android.tools.idea.devicemanager.IconButtonTableCellRenderer
+import com.android.tools.idea.devicemanager.Tables
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.ui.table.JBTable
@@ -33,6 +36,7 @@ class FirebaseDeviceTable(
   }
 
   init {
+    setDefaultRenderer(DeviceType::class.java, FirebaseDeviceIconButtonTableCellRenderer)
     setDefaultRenderer(FirebaseItem::class.java, FirebaseItemTableCellRenderer)
     setDefaultRenderer(Boolean::class.java, LaunchOrStopButtonTableCellRenderer)
     setDefaultEditor(Boolean::class.java, LaunchOrStopButtonTableCellEditor)
@@ -58,6 +62,7 @@ class FirebaseDeviceTable(
         }
       )
       setComparator(API_MODEL_COLUMN_INDEX, Comparator.naturalOrder<Int>())
+      setSortable(DEVICE_ICON_COLUMN_INDEX, false)
       setSortable(ACTIONS_COLUMN_INDEX, false)
       val columnList = PropertiesComponent.getInstance().getList(PROPERTIES_COMPONENT_COLUMN_KEY)
       val orderList = PropertiesComponent.getInstance().getList(PROPERTIES_COMPONENT_ORDER_KEY)
@@ -69,8 +74,9 @@ class FirebaseDeviceTable(
         } else {
           // Default sort order
           listOf(
+            RowSorter.SortKey(DEVICE_ICON_COLUMN_INDEX, SortOrder.UNSORTED),
             RowSorter.SortKey(DEVICE_MODEL_COLUMN_INDEX, SortOrder.ASCENDING),
-            RowSorter.SortKey(API_MODEL_COLUMN_INDEX, SortOrder.DESCENDING)
+            RowSorter.SortKey(API_MODEL_COLUMN_INDEX, SortOrder.DESCENDING),
           )
         }
       addRowSorterListener {
@@ -83,5 +89,12 @@ class FirebaseDeviceTable(
       }
     }
 
+  override fun doLayout() {
+    Tables.setWidths(
+      columnModel.getColumn(DEVICE_ICON_COLUMN_INDEX),
+      IconButtonTableCellRenderer.getPreferredWidth(this, DeviceType::class.java)
+    )
+    super.doLayout()
+  }
   override fun dispose() {}
 }
