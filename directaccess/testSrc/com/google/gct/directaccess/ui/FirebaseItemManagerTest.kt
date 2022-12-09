@@ -28,7 +28,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.provisioner.FirebaseDeviceProvisioner
-import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.intellij.util.concurrency.EdtExecutorService
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -37,7 +37,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
@@ -95,7 +94,6 @@ class FirebaseItemManagerTest {
     assertThat(firebaseItemManager.itemCount).isEqualTo(2 * deviceInfoListProvider().size)
   }
 
-  @Ignore("b/258306184")
   @Test
   fun testGetItem() = runBlockingWithTimeout {
     // Setup
@@ -107,12 +105,12 @@ class FirebaseItemManagerTest {
         uiDispatcher
       )
     val deviceInfo = deviceInfoListProvider()[0]
-    val connection = mock<DirectAccessConnection>()
+    val fakeConnection = FakeDirectAccessConnection()
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     whenever(
         mockDirectAccessService.reserveConnection(deviceInfo.codename, deviceInfo.api.toString())
       )
-      .thenReturn(connection)
+      .thenReturn(fakeConnection)
     // Wait
     yieldUntil { firebaseItemManager.itemCount != 0 }
 
@@ -121,17 +119,19 @@ class FirebaseItemManagerTest {
 
     // Start the 1st device
     firebaseItemManager.getItem(0).startAction()
-    // Wait till the device is active
+    // Wait till the device is claimed
     yieldUntil { plugin.devices.value.isNotEmpty() }
+    // wait till the item is active
+    yieldUntil { firebaseItemManager.getItem(0).isActive }
 
     // Assert
     assertThat(firebaseItemManager.getItem(0)).isInstanceOf(FirebaseDeviceItem::class.java)
 
     // Stop the 1st device
     firebaseItemManager.getItem(0).startAction()
-    // Wait till the device is not active
+    // Wait till the device is released
     yieldUntil { plugin.devices.value.isEmpty() }
-    // Wait till the active device is updated and the current item is active
+    // Wait till the item is active
     yieldUntil { firebaseItemManager.getItem(0).isActive }
 
     // Assert

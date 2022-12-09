@@ -153,13 +153,13 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private static final GradleVersion MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("1.0.0");
 
   /** The minimal version of androidx espresso-core in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_ESPRESSO_CORE_VERSION = GradleVersion.parse("3.3.0");
+  private static final GradleVersion MIN_ANDROIDX_ESPRESSO_CORE_VERSION = GradleVersion.parse("3.5.0");
 
   /** The minimal version of androidx rules in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_RULES_VERSION = GradleVersion.parse("1.3.0");
+  private static final GradleVersion MIN_ANDROIDX_RULES_VERSION = GradleVersion.parse("1.5.0");
 
   /** The minimal version of androidx ext junit in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_EXT_JUNIT_VERSION = GradleVersion.parse("1.1.3");
+  private static final GradleVersion MIN_ANDROIDX_EXT_JUNIT_VERSION = GradleVersion.parse("1.1.4");
 
   /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
   private static String espressoCoreVersion = null;
@@ -432,7 +432,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private static String getAndroidxEspressoCoreVersion() {
     if (androidxEspressoCoreVersion == null) {
-      androidxEspressoCoreVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE, "3.3.0");
+      androidxEspressoCoreVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE, "3.5.0");
     }
     return androidxEspressoCoreVersion;
   }
@@ -446,14 +446,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private static String getAndroidxRulesVersion() {
     if (androidxRulesVersion == null) {
-      androidxRulesVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_RULES, "1.3.0");
+      androidxRulesVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_RULES, "1.5.0");
     }
     return androidxRulesVersion;
   }
 
   private static String getAndroidxExtJunitVersion() {
     if (androidxExtJunitVersion == null) {
-      androidxExtJunitVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_EXT_JUNIT, "1.1.3");
+      androidxExtJunitVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_EXT_JUNIT, "1.1.4");
     }
     return androidxExtJunitVersion;
   }
