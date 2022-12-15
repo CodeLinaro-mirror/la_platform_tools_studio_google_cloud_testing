@@ -47,14 +47,15 @@ class DirectAccessService(val project: Project) : Disposable {
   var reservationManager: DirectAccessReservationManager? = null
     get() {
       return field
-        ?: GoogleLogin.instance.fetchOAuth2Token()?.let { token ->
-          DirectAccessReservationManager(gcpProject, channel, token).also {
+        ?: DirectAccessReservationManager(gcpProject, channel) {
+          GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
+        }
+          .also {
             field = it
             GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->
               if (!loggedIn) field = null
             }
           }
-        }
     }
     private set
 
@@ -62,16 +63,14 @@ class DirectAccessService(val project: Project) : Disposable {
     get() {
       return field
         ?: reservationManager?.let { reservationManager ->
-          GoogleLogin.instance.fetchOAuth2Token()?.let { token ->
-            DirectAccessConnectionManager(
-                AdbLibService.getSession(project),
-                AndroidCoroutineScope(this),
-                token,
-                channel,
-                reservationManager,
-              )
-              .also { field = it }
-          }
+          DirectAccessConnectionManager(
+              AdbLibService.getSession(project),
+              AndroidCoroutineScope(this),
+              { GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken() },
+              channel,
+              reservationManager,
+            )
+            .also { field = it }
         }
     }
 

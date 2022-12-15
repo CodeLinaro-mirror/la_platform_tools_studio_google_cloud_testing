@@ -58,7 +58,7 @@ class FirebaseDeviceProvisionerTest {
   @Before
   fun setUp() = runBlockingWithTimeout {
     directAccessReservationManager =
-      DirectAccessReservationManager("testProject", grpcConnectionRule.channel, "testToken")
+      DirectAccessReservationManager("testProject", grpcConnectionRule.channel) { "testToken" }
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
