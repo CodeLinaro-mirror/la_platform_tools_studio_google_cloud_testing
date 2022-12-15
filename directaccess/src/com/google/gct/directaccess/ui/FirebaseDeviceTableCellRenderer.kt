@@ -15,7 +15,6 @@
  */
 package com.google.gct.directaccess.ui
 
-import com.android.sdklib.deviceprovisioner.Activating
 import com.android.sdklib.deviceprovisioner.Connected
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.tools.idea.concurrency.AndroidDispatchers
@@ -33,9 +32,9 @@ class FirebaseDeviceTableCellRenderer :
 
   private val spinner = AnimatedIcon.Default()
   override fun getStateIcon(device: FirebaseDevice): Icon? =
-    when (device.state) {
-      is Connected -> StudioIcons.Avd.STATUS_DECORATOR_ONLINE
-      is Activating -> spinner
+    when {
+      device.state.isTransitioning -> spinner
+      device.state is Connected -> StudioIcons.Avd.STATUS_DECORATOR_ONLINE
       else -> null
     }
 
@@ -44,12 +43,12 @@ class FirebaseDeviceTableCellRenderer :
       (table.getClientProperty("SpinnerHandles") as? MutableSet<DeviceHandle>)
         ?: mutableSetOf<DeviceHandle>().also { table.putClientProperty("SpinnerHandles", it) }
     val handle = value.handle
-    if (handle.state !is Activating || runningSpinners.contains(handle)) return
+    if (!handle.state.isTransitioning || runningSpinners.contains(handle)) return
     runningSpinners.add(handle)
     value.scope.launch(AndroidDispatchers.uiThread) {
       while (true) {
         delay(100)
-        if (handle.state !is Activating) {
+        if (!handle.state.isTransitioning) {
           runningSpinners.remove(handle)
           return@launch
         }

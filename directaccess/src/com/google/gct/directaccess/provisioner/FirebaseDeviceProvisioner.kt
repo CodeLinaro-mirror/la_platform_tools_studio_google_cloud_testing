@@ -18,7 +18,6 @@ package com.google.gct.directaccess.provisioner
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
 import com.android.sdklib.AndroidVersion
-import com.android.sdklib.deviceprovisioner.Activating
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
 import com.android.sdklib.deviceprovisioner.Connected
@@ -287,6 +286,9 @@ class DirectAccessDeviceHandle(
     device.invokeOnDisconnection { stateFlow.value = Disconnected(deviceProperties) }
     return true
   }
+
+  class Activating(override val properties: DeviceProperties) :
+    Disconnected(properties, isTransitioning = true, "Connecting")
 }
 
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
