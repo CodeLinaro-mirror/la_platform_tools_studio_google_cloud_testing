@@ -21,7 +21,6 @@ import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
 import com.android.sdklib.deviceprovisioner.Connected
-import com.android.sdklib.deviceprovisioner.ConnectionType
 import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProperties
@@ -29,7 +28,6 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Disconnected
-import com.android.sdklib.deviceprovisioner.PhysicalDeviceProperties
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.coroutineScope
@@ -188,11 +186,10 @@ class FirebaseDeviceTemplate(
               ?: return
 
           val deviceProperties =
-            PhysicalDeviceProperties.build {
+            DirectAccessDeviceProperties.build {
               manufacturer = deviceInfo.manufacturer
               androidVersion = AndroidVersion(deviceInfo.api)
               model = deviceInfo.name
-              connectionType = ConnectionType.USB
             }
           // Notify provisioner plugin of the new device.
           activeDevice =
