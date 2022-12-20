@@ -7,6 +7,7 @@ iml_module(
     iml_files = ["directaccess.iml"],
     resources = ["resources"],
     tags = ["no_test_windows"],  # b/213385827
+    test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
