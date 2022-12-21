@@ -29,12 +29,15 @@ import com.android.sdklib.deviceprovisioner.Disconnected
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.studiogrpc.testutils.GrpcConnectionRule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.junit.After
@@ -55,11 +58,15 @@ class FirebaseDeviceProvisionerTest {
   private lateinit var plugin: FirebaseDeviceProvisioner
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
+  private lateinit var scope: CoroutineScope
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
-      DirectAccessReservationManager("testProject", grpcConnectionRule.channel) { "testToken" }
+      DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
+        "testToken"
+      }
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
@@ -72,6 +79,7 @@ class FirebaseDeviceProvisionerTest {
 
   @After
   fun tearDown() {
+    scope.cancel()
     session.close()
   }
 
