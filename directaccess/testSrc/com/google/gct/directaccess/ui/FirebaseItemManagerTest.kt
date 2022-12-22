@@ -39,6 +39,8 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.Mockito.anyString
+import org.mockito.Mockito.doReturn
 
 class FirebaseItemManagerTest {
 
@@ -52,6 +54,11 @@ class FirebaseItemManagerTest {
   @Before
   fun setUp() = runBlockingWithTimeout {
     uiDispatcher = EdtExecutorService.getInstance().asCoroutineDispatcher()
+    val fakeConnection = FakeDirectAccessConnection()
+    val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
+    doReturn(fakeConnection)
+      .whenever(mockDirectAccessService)
+      .reserveConnection(anyString(), anyString())
     plugin = FirebaseDeviceProvisioner(projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     firebaseDeviceTableModel = mock()
@@ -104,13 +111,6 @@ class FirebaseItemManagerTest {
         projectRule.project.coroutineScope,
         uiDispatcher
       )
-    val deviceInfo = deviceInfoListProvider()[0]
-    val fakeConnection = FakeDirectAccessConnection()
-    val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
-    whenever(
-        mockDirectAccessService.reserveConnection(deviceInfo.codename, deviceInfo.api.toString())
-      )
-      .thenReturn(fakeConnection)
     // Wait
     yieldUntil { firebaseItemManager.itemCount != 0 }
 
@@ -125,16 +125,13 @@ class FirebaseItemManagerTest {
     yieldUntil { firebaseItemManager.getItem(0).isActive }
 
     // Assert
-    assertThat(firebaseItemManager.getItem(0)).isInstanceOf(FirebaseDeviceItem::class.java)
+    yieldUntil { firebaseItemManager.getItem(0) is FirebaseDeviceItem }
 
     // Stop the 1st device
     firebaseItemManager.getItem(0).startAction()
     // Wait till the device is released
     yieldUntil { plugin.devices.value.isEmpty() }
-    // Wait till the item is active
-    yieldUntil { firebaseItemManager.getItem(0).isActive }
-
-    // Assert
-    assertThat(firebaseItemManager.getItem(0)).isInstanceOf(FirebaseDeviceTemplateItem::class.java)
+    // Wait till the item becomes an active template
+    yieldUntil { (firebaseItemManager.getItem(0) as? FirebaseDeviceTemplateItem)?.isActive == true }
   }
 }

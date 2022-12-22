@@ -16,15 +16,19 @@
 package com.google.gct.directaccess.ui
 
 import com.android.annotations.concurrency.UiThread
-import com.android.sdklib.deviceprovisioner.Disconnected
+import com.android.sdklib.deviceprovisioner.DeviceHandle
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.FirebaseDeviceTemplate
-import com.google.services.firebase.directaccess.client.DirectAccessConnection.State
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
+import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.MessageDialogBuilder
 import icons.StudioIcons
 import javax.swing.Icon
 import javax.swing.table.AbstractTableModel
@@ -32,6 +36,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -64,6 +69,7 @@ interface FirebaseItem {
 }
 
 class FirebaseDeviceItem(
+  private val itemManager: FirebaseItemManager,
   val device: FirebaseDevice,
   val handle: DirectAccessDeviceHandle,
   val scope: CoroutineScope,
@@ -72,26 +78,43 @@ class FirebaseDeviceItem(
 ) : FirebaseItem {
   override val apiLevel = device.androidVersion.apiLevel
 
-  override val icon: Icon = StudioIcons.Avd.STOP
-  override val tooltipText: String =
-    if (isActive) "Disconnect this firebase device" else "Firebase device disconnecting"
+  override val icon: Icon
+    get() =
+      if (handle.activationAction.isEnabled.value) StudioIcons.Avd.RUN else StudioIcons.Avd.STOP
+  override val tooltipText: String
+    get() =
+      when {
+        handle.activationAction.isEnabled.value -> "Connect to a firebase device"
+        isActive -> "Disconnect this firebase device"
+        else -> "Firebase device disconnecting"
+      }
 
   override val isActive: Boolean
-    get() = handle.deactivationAction.isEnabled.value
+    get() = handle.connection.state.value.connection != ConnectionState.DISCONNECTING
 
   override val deviceType: DeviceType
     get() = device.type
 
   init {
-    scope.launch { handle.stateFlow.collect { withContext(uiDispatcher) { onUpdate() } } }
+    scope.launch { handle.connection.state.collect { withContext(uiDispatcher) { onUpdate() } } }
   }
 
   override fun startAction() {
-    scope.launch { handle.deactivationAction.deactivate() }
+    scope.launch {
+      when (handle.connection.state.value.connection) {
+        ConnectionState.DISCONNECTED -> {
+          if (itemManager.resetAllOtherDevices(handle)) handle.activationAction.activate()
+        }
+        ConnectionState.CONNECTING, ConnectionState.CONNECTED ->
+          handle.deactivationAction.deactivate()
+        ConnectionState.DISCONNECTING -> {}
+      }
+    }
   }
 }
 
 class FirebaseDeviceTemplateItem(
+  private val itemManager: FirebaseItemManager,
   val template: FirebaseDeviceTemplate,
   private val scope: CoroutineScope,
   private val uiDispatcher: CoroutineDispatcher,
@@ -108,41 +131,50 @@ class FirebaseDeviceTemplateItem(
 
   override val icon: Icon = StudioIcons.Avd.RUN
 
-  override val tooltipText: String =
-    if (isActive) "Connect to a new firebase device" else "Firebase device connecting"
+  override val tooltipText: String = "Connect to a firebase device"
 
   override val deviceType: DeviceType
-    get() = template.info.type
+    get() = template.deviceInfo.type
 
   override fun startAction() {
-    scope.launch { template.activationAction.activate() }
+    scope.launch {
+      if (itemManager.resetAllOtherDevices()) {
+        template.activationAction.activate()
+        template.activeDevice?.activationAction?.activate()
+      }
+    }
   }
 
-  override val apiLevel = template.info.api
+  override val apiLevel = template.deviceInfo.api
 
   suspend fun updateActiveItem() {
     withContext(uiDispatcher) {
       val oldDevice = deviceItem?.handle
-      val newDevice = template.activeDevice.takeIf { it?.state !is Disconnected }
+      val newDevice = template.activeDevice
       if (newDevice != oldDevice) {
         newDevice?.let { newDeviceHandle ->
           scope.launch {
-            newDeviceHandle.connection.state.collect { connState ->
-              if (connState == State.CLOSED) {
-                deviceItem = null
-                coroutineContext.cancel()
-              } else {
-                deviceItem =
-                  FirebaseDeviceItem(
-                    FirebaseDevice(template.info, connState),
-                    newDeviceHandle,
-                    scope,
-                    uiDispatcher,
-                    onUpdate
-                  )
+            newDeviceHandle
+              .connection
+              .state
+              .combine(newDevice.stateFlow) { remoteState, deviceState ->
+                if (remoteState.reservation.sessionState.isClosed()) {
+                  deviceItem = null
+                  coroutineContext.cancel()
+                } else {
+                  deviceItem =
+                    FirebaseDeviceItem(
+                      itemManager,
+                      FirebaseDevice(template.deviceInfo, remoteState, deviceState),
+                      newDeviceHandle,
+                      scope,
+                      uiDispatcher,
+                      onUpdate
+                    )
+                }
+                onUpdate()
               }
-              onUpdate()
-            }
+              .collect()
           }
         }
       }
@@ -163,8 +195,9 @@ class FirebaseItemManager(
   val itemCount
     get() = templateItems.size
 
+  private val provisionerPlugin = project.service<DeviceProvisionerService>().deviceProvisioner
+
   init {
-    val provisionerPlugin = project.service<DeviceProvisionerService>().deviceProvisioner
     scope.launch {
       provisionerPlugin
         .templates
@@ -183,18 +216,47 @@ class FirebaseItemManager(
 
   private suspend fun refreshTemplates(newTemplates: List<FirebaseDeviceTemplate>) {
     withContext(uiDispatcher) {
-      val existingMap = templateItems.associateBy { it.template.info }
+      val existingMap = templateItems.associateBy { it.template.deviceInfo }
       templateItems =
         newTemplates.map { template ->
-          existingMap[template.info]
-            ?: FirebaseDeviceTemplateItem(template, scope, uiDispatcher) {
+          existingMap[template.deviceInfo]
+            ?: FirebaseDeviceTemplateItem(this@FirebaseItemManager, template, scope, uiDispatcher) {
               val index = templateItems.indexOfFirst { item -> item.template == template }
               if (index != -1) {
                 model.fireTableRowsUpdated(index, index)
               }
             }
+              .also { it.updateActiveItem() }
         }
       model.fireTableDataChanged()
     }
+  }
+
+  suspend fun resetAllOtherDevices(device: DeviceHandle? = null): Boolean {
+    if (StudioFlags.DIRECT_ACCESS_MULTIPLE_DEVICES.get()) {
+      return true
+    }
+    provisionerPlugin
+      .devices
+      .value
+      .filterIsInstance<DirectAccessDeviceHandle>()
+      .filter { it != device }
+      .forEach {
+        val isConfirmed =
+          withContext(AndroidDispatchers.uiThread) {
+            MessageDialogBuilder.okCancel(
+                "Confirm Device check-in",
+                "${it.state.properties.title()} will be disconnected and checked-in " +
+                  "before connecting to a new device. All user data will be wiped."
+              )
+              .ask(project)
+          }
+        if (isConfirmed) {
+          it.deactivationAction.deactivate()
+        } else {
+          return false
+        }
+      }
+    return true
   }
 }

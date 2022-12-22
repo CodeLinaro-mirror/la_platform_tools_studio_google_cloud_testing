@@ -16,33 +16,54 @@
 package com.google.gct.directaccess
 
 import com.android.sdklib.AndroidVersion
+import com.android.sdklib.deviceprovisioner.Connected
+import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.idea.devicemanager.ConnectionType
 import com.android.tools.idea.devicemanager.Device
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.devicemanager.Key
 import com.android.tools.idea.devicemanager.SerialNumber
 import com.google.gct.directaccess.provisioner.DeviceInfo
-import com.google.services.firebase.directaccess.client.DirectAccessConnection.State
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.RemoteState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 
+/** Model class for rendering firebase device in device manager table cell. */
 class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
-  private val myState = builder.myState
+  val state: DeviceState = builder.myState
 
   constructor(
     device: DeviceInfo,
-    connectionState: State,
+    remoteState: RemoteState,
+    deviceState: DeviceState
   ) : this(
     Builder().apply {
       setName("${device.manufacturer} ${device.name}")
       setApi(device.api)
       setType(device.type)
-      setConnectionState(connectionState)
+      setState(deviceState)
       setTarget(
-        when (connectionState) {
-          State.RESERVING -> "Reserving a device..."
-          State.RESERVED -> "Connecting to device..."
-          State.CONNECTED, State.STREAMING -> device.codename
+        when (remoteState.connection) {
+          ConnectionState.DISCONNECTED ->
+            reservationExpiringMessage(
+              TimeUnit.SECONDS.toMillis(remoteState.reservation.expireTime.seconds)
+            )
+          ConnectionState.CONNECTING, ConnectionState.CONNECTED -> {
+            if (deviceState is Connected) {
+              reservationExpiringMessage(
+                TimeUnit.SECONDS.toMillis(remoteState.reservation.expireTime.seconds)
+              )
+            } else if (remoteState.reservation.connectionInfo.adbConnectInfo.adbDevicesList
+                .isNotEmpty()
+            ) {
+              "Connecting to device..."
+            } else "Reserving a device..."
+          }
           else -> device.codename
         }
       )
@@ -51,11 +72,11 @@ class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
 
   override fun getIcon(): Icon = myType.physicalIcon
 
-  override fun isOnline() = myState == State.CONNECTED
+  override fun isOnline() = state is Connected
 
   private class Builder : Device.Builder() {
     override fun build(): FirebaseDevice = FirebaseDevice(this)
-    var myState: State = State.CLOSED
+    lateinit var myState: DeviceState
       private set
 
     init {
@@ -89,9 +110,15 @@ class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
       return this
     }
 
-    fun setConnectionState(connectionState: State): Builder {
-      myState = connectionState
+    fun setState(state: DeviceState): Builder {
+      myState = state
       return this
     }
   }
+}
+
+private fun reservationExpiringMessage(expireTimeMillis: Long): String {
+  val formattedDate =
+    SimpleDateFormat("h:mm:ss a", Locale.getDefault()).format(Date(expireTimeMillis))
+  return "Device will expire at $formattedDate"
 }

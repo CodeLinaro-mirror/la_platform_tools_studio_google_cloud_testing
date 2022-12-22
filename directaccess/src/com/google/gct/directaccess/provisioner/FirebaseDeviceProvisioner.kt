@@ -18,11 +18,9 @@ package com.google.gct.directaccess.provisioner
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
 import com.android.sdklib.AndroidVersion
-import com.android.sdklib.deviceprovisioner.Activating
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
 import com.android.sdklib.deviceprovisioner.Connected
-import com.android.sdklib.deviceprovisioner.ConnectionType
 import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProperties
@@ -30,30 +28,30 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Disconnected
-import com.android.sdklib.deviceprovisioner.PhysicalDeviceProperties
-import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
+import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
+import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.MessageDialogBuilder
-import com.intellij.openapi.wm.ToolWindowManager
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private val defaultDeviceInfoProvider = {
   CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
@@ -78,23 +76,36 @@ class FirebaseDeviceProvisioner(
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
   init {
+    // Update templates every 5 minutes.
     project.coroutineScope.launch {
       while (true) {
         val oldTemplates =
-          _templates.value.groupBy { (it as FirebaseDeviceTemplate).info }.mapValues { it.value[0] }
+          templates.value.groupBy { (it as FirebaseDeviceTemplate).deviceInfo }.mapValues {
+            it.value[0]
+          }
         try {
           deviceInfoProvider()
             .map { info ->
               oldTemplates[info]
                 ?: FirebaseDeviceTemplate(project, info, _devices, createChildScope(true))
             }
-            .let { result -> _templates.emit(result) }
+            .let { result -> _templates.value = result }
         } catch (ignore: NotLoggedInException) {
           // do nothing
         } catch (e: Exception) {
           logger.warn(e)
         }
         delay(TimeUnit.MINUTES.toMillis(5))
+      }
+    }
+
+    // Fetch reservations with new templates.
+    project.coroutineScope.launch { templates.collect { updateReservations(project, templates) } }
+    // Fetch reservations periodically in case a Reservation is created elsewhere.
+    project.coroutineScope.launch {
+      while (true) {
+        updateReservations(project, templates)
+        delay(TimeUnit.MINUTES.toMillis(1))
       }
     }
   }
@@ -111,13 +122,35 @@ class FirebaseDeviceProvisioner(
   }
 }
 
+suspend fun updateReservations(project: Project, templates: StateFlow<List<DeviceTemplate>>) {
+  val templateMap =
+    templates.value.filterIsInstance<FirebaseDeviceTemplate>().groupBy { template ->
+      template.deviceInfo.let { "${it.codename} ${it.api}" }
+    }
+  project
+    .service<DirectAccessService>()
+    .reservationManager
+    ?.listReservations()
+    ?.filter { reservation ->
+      !reservation.sessionState.isClosed() &&
+        reservation.androidDeviceList.androidDevicesList.isNotEmpty()
+    }
+    ?.forEach { reservation ->
+      val key =
+        reservation.androidDeviceList.androidDevicesList[0].let {
+          "${it.androidModelId} ${it.androidVersionId}"
+        }
+      templateMap[key]?.firstOrNull()?.activationAction?.activate()
+    }
+}
+
 class FirebaseDeviceTemplate(
   private val project: Project,
-  val info: DeviceInfo,
+  val deviceInfo: DeviceInfo,
   devices: MutableStateFlow<List<DeviceHandle>>,
   private val scope: CoroutineScope
 ) : DeviceTemplate {
-  override val displayName: String = "${info.manufacturer} ${info.name}"
+  override val displayName: String = "${deviceInfo.manufacturer} ${deviceInfo.name}"
 
   /**
    * Last device handle activated by the template.
@@ -129,123 +162,109 @@ class FirebaseDeviceTemplate(
 
   override val activationAction: ActivationAction =
     object : ActivationAction {
-      /**
-       * Ideally [activationAction] should always be enabled. However, as the current UI only
-       * supports one device per template, [activationAction] is disabled intentionally when there
-       * is a device activating or running.
-       *
-       * TODO (b/246171065): activating multiple devices
-       */
       private val _isEnabled = MutableStateFlow(true)
 
+      /**
+       * Creates a [DirectAccessDeviceHandle] with [Disconnected] state.
+       *
+       * This method first finds or create a [Reservation] that matches its [deviceInfo]. Then a
+       * [DirectAccessDeviceHandle] is created with a [DirectAccessConnection] to the [Reservation].
+       * Connection is not started until the activationAction of device handle get called. The
+       * device handle is added to the devices flow of the provisioner and will be removed after
+       * [Reservation] closed. This method is disabled when a device handle is activating or
+       * activated. At most one device is available for each template.
+       *
+       * TODO (b/246171065): activating multiple devices.
+       */
       override suspend fun activate(params: ActivationParams) {
-        // Open running devices window if not already open
-        ToolWindowManager.getInstance(project).getToolWindow(RUNNING_DEVICES_TOOL_WINDOW_ID)?.let {
-          toolWindow ->
-          withContext(AndroidDispatchers.uiThread) {
-            if (!toolWindow.isVisible) {
-              toolWindow.show()
-            }
-            toolWindow.activate(null)
-          }
-        }
         // Disable further activate actions to avoid multiple devices.
-        if (_isEnabled.value && disconnectOtherDevices()) {
-          _isEnabled.value = false
+        if (_isEnabled.compareAndSet(expect = true, update = false)) {
           val connection =
             project
               .service<DirectAccessService>()
-              .reserveConnection(info.codename, info.api.toString())
+              .reserveConnection(deviceInfo.codename, deviceInfo.api.toString())
               ?: return
 
-          scope.launch(Dispatchers.IO) {
-            connection.waitUntilReservationActive()
-            connection.connect()
-          }
-
           val deviceProperties =
-            PhysicalDeviceProperties.build {
-              manufacturer = info.manufacturer
-              androidVersion = AndroidVersion(info.api)
-              model = info.name
-              connectionType = ConnectionType.USB
+            DirectAccessDeviceProperties.build {
+              manufacturer = deviceInfo.manufacturer
+              androidVersion = AndroidVersion(deviceInfo.api)
+              model = deviceInfo.name
             }
           // Notify provisioner plugin of the new device.
           activeDevice =
             DirectAccessDeviceHandle(
-                scope.createChildScope(true),
-                Activating(deviceProperties),
-                connection
-              )
-              .also { device ->
-                scope.launch {
-                  device.stateFlow.collect {
-                    if (it is Disconnected) {
-                      activeDevice = null
-                      _isEnabled.value = true
-                      devices.update { list -> list - device }
-                      coroutineContext.cancel()
-                    }
-                  }
+              project,
+              scope.createChildScope(true),
+              Disconnected(deviceProperties),
+              connection
+            )
+          activeDevice?.also { device ->
+            devices.update { list -> list + device }
+            scope.launch {
+              connection.state.collect {
+                if (it.reservation.sessionState.isClosed()) {
+                  activeDevice = null
+                  _isEnabled.value = true
+                  devices.update { list -> list - device }
+                  coroutineContext.cancel()
                 }
               }
-          activeDevice?.let { devices.update { list -> list + it } }
+            }
+          }
         }
       }
 
       override val label: String = "Acquire"
       override val isEnabled: StateFlow<Boolean> = _isEnabled
-
-      private suspend fun disconnectOtherDevices(): Boolean {
-        if (StudioFlags.DIRECT_ACCESS_MULTIPLE_DEVICES.get()) {
-          return true
-        }
-        devices.value.filterIsInstance<DirectAccessDeviceHandle>().forEach {
-          val isConfirmed =
-            withContext(AndroidDispatchers.uiThread) {
-              MessageDialogBuilder.okCancel(
-                  "Confirm Device check-in",
-                  "${it.state.properties.title()} will be disconnected and checked-in before connecting to a new device. All user data will be wiped."
-                )
-                .ask(project)
-            }
-          if (isConfirmed) {
-            it.deactivationAction.deactivate()
-          } else {
-            return false
-          }
-        }
-        return true
-      }
     }
 
   override val editAction = null
 }
 
 class DirectAccessDeviceHandle(
+  private val project: Project,
   scope: CoroutineScope,
   state: DeviceState,
   val connection: DirectAccessConnection
 ) : DeviceHandle {
-  private val _stateFlow = MutableStateFlow(state)
-  override val stateFlow: StateFlow<DeviceState> = _stateFlow
+
+  override val stateFlow = MutableStateFlow(state)
+
+  override val activationAction =
+    object : ActivationAction {
+      /** Starts connection to the remote device. */
+      override suspend fun activate(params: ActivationParams) {
+        scope.launch {
+          stateFlow.update { Activating(it.properties) }
+          connection.connect()
+        }
+      }
+
+      override val label: String = "Connect"
+      override val isEnabled: StateFlow<Boolean> =
+        connection
+          .state
+          .map { it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED }
+          .stateIn(scope, SharingStarted.Eagerly, true)
+    }
 
   override val deactivationAction =
     object : DeactivationAction {
-      private val _isEnabled = MutableStateFlow(true)
-
       override suspend fun deactivate() {
-        // Disable further deactivate actions for the device.
-        if (_isEnabled.value) {
-          _isEnabled.value = false
-          scope.launch { connection.endSession() }
-          _stateFlow.value = Disconnected(_stateFlow.value.properties)
+        scope.launch {
+          connection.endReservation()
+          stateFlow.value = Disconnected(stateFlow.value.properties)
         }
       }
 
       override val label: String
         get() = "Disconnect"
-      override val isEnabled: StateFlow<Boolean> = _isEnabled
+      override val isEnabled: StateFlow<Boolean> =
+        connection
+          .state
+          .map { !it.reservation.sessionState.isClosed() }
+          .stateIn(scope, SharingStarted.Eagerly, true)
     }
 
   /** Returns true and changes state to [Connected] if [port] matches the [connection] of handle. */
@@ -253,11 +272,20 @@ class DirectAccessDeviceHandle(
     if (connection.port != port) {
       return false
     }
+    // Show the device tab in running devices window.
+    project
+      .messageBus
+      .syncPublisher(DeviceHeadsUpListener.TOPIC)
+      .deviceNeedsAttention(device.deviceInfoFlow.value.serialNumber, project)
     val properties = device.deviceProperties().allReadonly()
     val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
-    _stateFlow.value = Connected(deviceProperties, device)
+    stateFlow.value = Connected(deviceProperties, device)
+    device.invokeOnDisconnection { stateFlow.value = Disconnected(deviceProperties) }
     return true
   }
+
+  class Activating(override val properties: DeviceProperties) :
+    Disconnected(properties, isTransitioning = true, "Connecting")
 }
 
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
