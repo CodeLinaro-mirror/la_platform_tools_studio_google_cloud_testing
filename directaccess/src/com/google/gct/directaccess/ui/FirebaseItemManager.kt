@@ -246,7 +246,7 @@ class FirebaseItemManager(
           withContext(AndroidDispatchers.uiThread) {
             MessageDialogBuilder.okCancel(
                 "Confirm Device check-in",
-                "${it.state.properties.title()} will be disconnected and checked-in " +
+                "${it.state.properties.title} will be disconnected and checked-in " +
                   "before connecting to a new device. All user data will be wiped."
               )
               .ask(project)
