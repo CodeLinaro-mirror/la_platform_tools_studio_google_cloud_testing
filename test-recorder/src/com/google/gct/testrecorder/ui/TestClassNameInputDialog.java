@@ -192,7 +192,8 @@ public class TestClassNameInputDialog extends DialogWrapper {
         if (closestContentRoot.getCanonicalPath() == null || !closestAndroidTestSourcePath.startsWith(closestContentRoot.getCanonicalPath())) {
           parentDirectory = findContainingDirectory(launchedActivitySourceRoot, closestAndroidTestSourcePath);
           if (parentDirectory == null) {
-            throw new RuntimeException("Failed to find a parent directory for android test source path: " + closestAndroidTestSourcePath);
+            throw new RuntimeException("Failed to find a parent directory for android test source path: " + closestAndroidTestSourcePath
+                                       + " and launched activity source root: " + launchedActivitySourceRoot.getCanonicalPath());
           }
         }
         return getOrCreateSubdirectory(
