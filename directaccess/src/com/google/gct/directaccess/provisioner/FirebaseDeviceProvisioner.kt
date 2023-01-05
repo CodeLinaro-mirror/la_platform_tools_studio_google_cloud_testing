@@ -276,7 +276,7 @@ class DirectAccessDeviceHandle(
     project
       .messageBus
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
-      .deviceNeedsAttention(device.deviceInfoFlow.value.serialNumber, project)
+      .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
     val properties = device.deviceProperties().allReadonly()
     val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
     stateFlow.value = Connected(deviceProperties, device)
