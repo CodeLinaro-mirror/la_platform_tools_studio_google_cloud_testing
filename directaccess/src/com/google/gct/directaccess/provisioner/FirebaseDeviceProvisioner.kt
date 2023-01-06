@@ -30,7 +30,6 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Disconnected
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
-import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.run.DeviceHeadsUpListener
@@ -47,11 +46,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val defaultDeviceInfoProvider = {
   CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
@@ -235,7 +234,7 @@ class DirectAccessDeviceHandle(
     object : ActivationAction {
       /** Starts connection to the remote device. */
       override suspend fun activate(params: ActivationParams) {
-        scope.launch {
+        withContext(scope.coroutineContext) {
           stateFlow.update { Activating(it.properties) }
           connection.connect()
         }
@@ -252,7 +251,7 @@ class DirectAccessDeviceHandle(
   override val deactivationAction =
     object : DeactivationAction {
       override suspend fun deactivate() {
-        scope.launch {
+        withContext(scope.coroutineContext) {
           connection.endReservation()
           stateFlow.value = Disconnected(stateFlow.value.properties)
         }
