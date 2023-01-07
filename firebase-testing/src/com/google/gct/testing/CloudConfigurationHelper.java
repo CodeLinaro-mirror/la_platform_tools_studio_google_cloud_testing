@@ -24,6 +24,7 @@ import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.api.client.util.Maps;
 import com.google.api.client.util.Sets;
+import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.cloudresourcemanager.model.ListProjectsResponse;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
@@ -75,6 +76,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.*;
 
@@ -128,8 +130,8 @@ public final class CloudConfigurationHelper {
     List<String> cloudProjects = Lists.newArrayList();
 
     try {
-      ListProjectsResponse response = CloudAuthenticator.getInstance().getCloudResourceManager().projects().list().setPageSize(1000).execute();
-      if (response != null && response.getProjects() != null) {
+      ListProjectsResponse response = listProjects(null);
+      while (response != null && response.getProjects() != null) {
         for (com.google.api.services.cloudresourcemanager.model.Project pantheonProject : response.getProjects()) {
           if (!Strings.isNullOrEmpty(pantheonProject.getProjectId())
               // Ignore any projects scheduled for deletion.
@@ -137,6 +139,11 @@ public final class CloudConfigurationHelper {
             cloudProjects.add(pantheonProject.getProjectId());
           }
         }
+        String nextPageToken = response.getNextPageToken();
+        if (nextPageToken == null || nextPageToken.isEmpty()) {
+          break;
+        }
+        response = listProjects(nextPageToken);
       }
     } catch(Exception ignored) {
     }
@@ -144,6 +151,15 @@ public final class CloudConfigurationHelper {
     Collections.sort(cloudProjects);
 
     return cloudProjects;
+  }
+
+  private static ListProjectsResponse listProjects(String pageToken) throws IOException {
+    CloudResourceManager.Projects.List listProjects =
+      CloudAuthenticator.getInstance().getCloudResourceManager().projects().list().setPageSize(1000);
+    if (pageToken != null) {
+      listProjects.setPageToken(pageToken);
+    }
+    return listProjects.execute();
   }
 
   @NotNull
