@@ -159,7 +159,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private static final GradleVersion MIN_ANDROIDX_RULES_VERSION = GradleVersion.parse("1.5.0");
 
   /** The minimal version of androidx ext junit in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_EXT_JUNIT_VERSION = GradleVersion.parse("1.1.4");
+  private static final GradleVersion MIN_ANDROIDX_EXT_JUNIT_VERSION = GradleVersion.parse("1.1.5");
 
   /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
   private static String espressoCoreVersion = null;
@@ -453,7 +453,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private static String getAndroidxExtJunitVersion() {
     if (androidxExtJunitVersion == null) {
-      androidxExtJunitVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_EXT_JUNIT, "1.1.4");
+      androidxExtJunitVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_EXT_JUNIT, "1.1.5");
     }
     return androidxExtJunitVersion;
   }
