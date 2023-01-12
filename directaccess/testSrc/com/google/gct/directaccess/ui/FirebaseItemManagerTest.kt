@@ -59,7 +59,7 @@ class FirebaseItemManagerTest {
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
       .reserveConnection(anyString(), anyString())
-    plugin = FirebaseDeviceProvisioner(projectRule.project, deviceInfoListProvider)
+    plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     firebaseDeviceTableModel = mock()
     val mockDeviceProvisionerService =

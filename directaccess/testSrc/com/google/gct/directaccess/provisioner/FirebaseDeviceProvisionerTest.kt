@@ -36,6 +36,7 @@ import com.google.services.firebase.directaccess.client.FakeDirectAccessConnecti
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -64,7 +65,7 @@ class FirebaseDeviceProvisionerTest {
       .whenever(mockDirectAccessService)
       .reserveConnection(anyString(), anyString())
     doReturn(directAccessReservationManager).whenever(mockDirectAccessService).reservationManager
-    plugin = FirebaseDeviceProvisioner(projectRule.project, deviceInfoListProvider)
+    plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
@@ -136,6 +137,21 @@ class FirebaseDeviceProvisionerTest {
     session.hostServices.devices = DeviceList(listOf(), listOf())
     yieldUntil { state.value is Disconnected }
     yieldUntil { template.activationAction.isEnabled.value }
+  }
+
+  @Test
+  fun deviceGoesAwayWhenReservationEnds() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+
+    val device = provisioner.devices.value.first()
+    val job = device.scope.launch { device.stateFlow.collect {} }
+
+    fakeConnection.endReservation()
+
+    yieldUntil { provisioner.devices.value.isEmpty() }
+    assertThat(job.isCancelled).isTrue()
   }
 
   @Test

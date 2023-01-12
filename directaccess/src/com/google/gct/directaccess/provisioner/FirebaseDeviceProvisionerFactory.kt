@@ -18,8 +18,9 @@ package com.google.gct.directaccess.provisioner
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerFactory
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.CoroutineScope
 
 class FirebaseDeviceProvisionerFactory : DeviceProvisionerFactory {
-  override fun create(project: Project): DeviceProvisionerPlugin =
-    FirebaseDeviceProvisioner(project)
+  override fun create(scope: CoroutineScope, project: Project): DeviceProvisionerPlugin =
+    FirebaseDeviceProvisioner(scope, project)
 }
