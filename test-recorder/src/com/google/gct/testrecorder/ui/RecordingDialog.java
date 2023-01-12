@@ -64,8 +64,11 @@ import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.event.TestRecorderEventListener;
+import com.google.gct.testrecorder.roboscript.ContextualRoboscript;
+import com.google.gct.testrecorder.roboscript.RoboscriptConfiguration;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.util.StringHelper;
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -509,7 +512,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     GsonBuilder gsonBuilder = new GsonBuilder();
     gsonBuilder.registerTypeAdapter(ElementDescriptor.class, new ElementDescriptorSerializer(project));
-    return gsonBuilder.setPrettyPrinting().create().toJson(testRecorderEvents);
+    Gson gson = gsonBuilder.setPrettyPrinting().create();
+    RoboscriptConfiguration roboscriptConfiguration = new RoboscriptConfiguration(false, false);
+    String roboscriptHeader = "\"roboscript\": "
+                              + gson.toJson(roboscriptConfiguration)
+                              + "\n";
+    List<ContextualRoboscript> contextualRoboscripts = new ArrayList<>();
+    contextualRoboscripts.add(new ContextualRoboscript(testRecorderEvents));
+    return roboscriptHeader + gson.toJson(contextualRoboscripts);
   }
 
   @NotNull

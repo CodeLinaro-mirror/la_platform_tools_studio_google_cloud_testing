@@ -15,29 +15,18 @@
  */
 package com.google.gct.testrecorder.ui;
 
-import com.google.gct.testrecorder.event.TestRecorderEvent;
+import static com.google.gct.testrecorder.util.ActionsCreator.createActions;
+
 import com.google.gct.testrecorder.util.ResourceHelper;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.android.AndroidTestCase;
-
-import java.io.File;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-
-import static com.google.gct.testrecorder.util.ActionsCreator.createActions;
 
 public class RecordingDialogTest extends AndroidTestCase {
 
   public void testJsonGeneration() {
     String jsonForActions = RecordingDialog.getJsonForActions(myModule.getProject(), createActions(1484950638081l));
     assertEquals(getExpectedJsonText(), jsonForActions);
-
-    Type dataType = new TypeToken<ArrayList<TestRecorderEvent>>() {}.getType();
-    List<TestRecorderEvent> fromJson = (ArrayList<TestRecorderEvent>) new Gson().fromJson(jsonForActions, dataType);
-    assertEquals(13, fromJson.size());
   }
 
   private String getExpectedJsonText() {
