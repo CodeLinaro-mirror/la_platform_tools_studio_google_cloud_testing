@@ -41,6 +41,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -256,7 +257,7 @@ class DirectAccessDeviceHandle(
   override val deactivationAction =
     object : DeactivationAction {
       override suspend fun deactivate() {
-        withContext(scope.coroutineContext) {
+        withContext(scope.coroutineContext + NonCancellable) {
           connection.endReservation()
           stateFlow.value = Disconnected(stateFlow.value.properties)
         }

@@ -151,6 +151,9 @@ class FirebaseDeviceProvisionerTest {
     fakeConnection.endReservation()
 
     yieldUntil { provisioner.devices.value.isEmpty() }
+
+    // Once the device is removed, the provisioner should cancel the job
+    job.join()
     assertThat(job.isCancelled).isTrue()
   }
 
