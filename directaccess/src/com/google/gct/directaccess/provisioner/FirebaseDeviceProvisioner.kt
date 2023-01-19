@@ -30,7 +30,6 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Disconnected
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
-import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.run.DeviceHeadsUpListener
@@ -42,16 +41,16 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val defaultDeviceInfoProvider = {
   CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
@@ -62,6 +61,7 @@ private val defaultDeviceInfoProvider = {
  * templates and activating / deactivating them.
  */
 class FirebaseDeviceProvisioner(
+  scope: CoroutineScope,
   project: Project,
   deviceInfoProvider: () -> List<DeviceInfo> = defaultDeviceInfoProvider
 ) : DeviceProvisionerPlugin {
@@ -77,7 +77,7 @@ class FirebaseDeviceProvisioner(
 
   init {
     // Update templates every 5 minutes.
-    project.coroutineScope.launch {
+    scope.launch {
       while (true) {
         val oldTemplates =
           templates.value.groupBy { (it as FirebaseDeviceTemplate).deviceInfo }.mapValues {
@@ -87,7 +87,12 @@ class FirebaseDeviceProvisioner(
           deviceInfoProvider()
             .map { info ->
               oldTemplates[info]
-                ?: FirebaseDeviceTemplate(project, info, _devices, createChildScope(true))
+                ?: FirebaseDeviceTemplate(
+                  project,
+                  info,
+                  _devices,
+                  createChildScope(isSupervisor = true)
+                )
             }
             .let { result -> _templates.value = result }
         } catch (ignore: NotLoggedInException) {
@@ -100,9 +105,9 @@ class FirebaseDeviceProvisioner(
     }
 
     // Fetch reservations with new templates.
-    project.coroutineScope.launch { templates.collect { updateReservations(project, templates) } }
+    scope.launch { templates.collect { updateReservations(project, templates) } }
     // Fetch reservations periodically in case a Reservation is created elsewhere.
-    project.coroutineScope.launch {
+    scope.launch {
       while (true) {
         updateReservations(project, templates)
         delay(TimeUnit.MINUTES.toMillis(1))
@@ -191,27 +196,27 @@ class FirebaseDeviceTemplate(
               androidVersion = AndroidVersion(deviceInfo.api)
               model = deviceInfo.name
             }
+          val deviceScope = scope.createChildScope(isSupervisor = true)
           // Notify provisioner plugin of the new device.
           activeDevice =
             DirectAccessDeviceHandle(
-              project,
-              scope.createChildScope(true),
-              Disconnected(deviceProperties),
-              connection
-            )
-          activeDevice?.also { device ->
-            devices.update { list -> list + device }
-            scope.launch {
-              connection.state.collect {
-                if (it.reservation.sessionState.isClosed()) {
-                  activeDevice = null
-                  _isEnabled.value = true
-                  devices.update { list -> list - device }
-                  coroutineContext.cancel()
+                project,
+                deviceScope,
+                Disconnected(deviceProperties),
+                connection
+              )
+              .also { device ->
+                devices.update { list -> list + device }
+                deviceScope.launch {
+                  connection.state.collect {
+                    if (it.reservation.sessionState.isClosed()) {
+                      activeDevice = null
+                      _isEnabled.value = true
+                      devices.update { list -> list - device }
+                    }
+                  }
                 }
               }
-            }
-          }
         }
       }
 
@@ -224,7 +229,7 @@ class FirebaseDeviceTemplate(
 
 class DirectAccessDeviceHandle(
   private val project: Project,
-  scope: CoroutineScope,
+  override val scope: CoroutineScope,
   state: DeviceState,
   val connection: DirectAccessConnection
 ) : DeviceHandle {
@@ -235,7 +240,7 @@ class DirectAccessDeviceHandle(
     object : ActivationAction {
       /** Starts connection to the remote device. */
       override suspend fun activate(params: ActivationParams) {
-        scope.launch {
+        withContext(scope.coroutineContext) {
           stateFlow.update { Activating(it.properties) }
           connection.connect()
         }
@@ -252,7 +257,7 @@ class DirectAccessDeviceHandle(
   override val deactivationAction =
     object : DeactivationAction {
       override suspend fun deactivate() {
-        scope.launch {
+        withContext(scope.coroutineContext + NonCancellable) {
           connection.endReservation()
           stateFlow.value = Disconnected(stateFlow.value.properties)
         }

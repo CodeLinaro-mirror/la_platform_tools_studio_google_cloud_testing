@@ -40,8 +40,8 @@ import static org.apache.commons.lang.StringUtils.isEmpty;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
+import com.android.ide.common.gradle.Version;
 import com.android.ide.common.repository.GradleCoordinate;
-import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
@@ -64,8 +64,11 @@ import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.event.TestRecorderEventListener;
+import com.google.gct.testrecorder.roboscript.ContextualRoboscript;
+import com.google.gct.testrecorder.roboscript.RoboscriptConfiguration;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.util.StringHelper;
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -141,25 +144,25 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   public static final String ANDROIDX_TEST_INSTRUMENTATION_RUNNER = "androidx.test.runner.AndroidJUnitRunner";
 
   /** The minimal version of espresso-core in build.gradle that does not require updating for importing LargeTest. */
-  private static final GradleVersion MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST = GradleVersion.parse("2.2.2");
+  private static final Version MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST = Version.Companion.parse("2.2.2");
 
   /** The minimal version of rules in build.gradle that does not require updating for importing LargeTest. */
-  private static final GradleVersion MIN_RULES_VERSION_FOR_LARGE_TEST = GradleVersion.parse("0.5");
+  private static final Version MIN_RULES_VERSION_FOR_LARGE_TEST = Version.Companion.parse("0.5");
 
   /** The minimal version of espresso-core in build.gradle that does not require updating for using GrantPermissionRule. */
-  private static final GradleVersion MIN_ESPRESSO_CORE_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("3.0.0");
+  private static final Version MIN_ESPRESSO_CORE_VERSION_FOR_GRANT_PERMISSION_RULE = Version.Companion.parse("3.0.0");
 
   /** The minimal version of rules in build.gradle that does not require updating for using GrantPermissionRule. */
-  private static final GradleVersion MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE = GradleVersion.parse("1.0.0");
+  private static final Version MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE = Version.Companion.parse("1.0.0");
 
   /** The minimal version of androidx espresso-core in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_ESPRESSO_CORE_VERSION = GradleVersion.parse("3.5.0");
+  private static final Version MIN_ANDROIDX_ESPRESSO_CORE_VERSION = Version.Companion.parse("3.5.0");
 
   /** The minimal version of androidx rules in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_RULES_VERSION = GradleVersion.parse("1.5.0");
+  private static final Version MIN_ANDROIDX_RULES_VERSION = Version.Companion.parse("1.5.0");
 
   /** The minimal version of androidx ext junit in build.gradle that does not require updating. */
-  private static final GradleVersion MIN_ANDROIDX_EXT_JUNIT_VERSION = GradleVersion.parse("1.1.4");
+  private static final Version MIN_ANDROIDX_EXT_JUNIT_VERSION = Version.Companion.parse("1.1.5");
 
   /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
   private static String espressoCoreVersion = null;
@@ -209,11 +212,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private boolean myUsesAnyEspressoDependency = false;
   private boolean myUsesAndroidxDependency = false;
   private boolean myUsesGrantPermissionRule = false;
-  private GradleVersion myMinEspressoCoreVersion = MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST;
-  private final GradleVersion myMinAndroidxEspressoCoreVersion = MIN_ANDROIDX_ESPRESSO_CORE_VERSION;
-  private GradleVersion myMinRulesVersion = MIN_RULES_VERSION_FOR_LARGE_TEST;
-  private final GradleVersion myMinAndroidxRulesVersion = MIN_ANDROIDX_RULES_VERSION;
-  private final GradleVersion myMinAndroidxExtJunitVersion = MIN_ANDROIDX_EXT_JUNIT_VERSION;
+  private Version myMinEspressoCoreVersion = MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST;
+  private final Version myMinAndroidxEspressoCoreVersion = MIN_ANDROIDX_ESPRESSO_CORE_VERSION;
+  private Version myMinRulesVersion = MIN_RULES_VERSION_FOR_LARGE_TEST;
+  private final Version myMinAndroidxRulesVersion = MIN_ANDROIDX_RULES_VERSION;
+  private final Version myMinAndroidxExtJunitVersion = MIN_ANDROIDX_EXT_JUNIT_VERSION;
 
   private JPanel myRootPanel;
   private ScreenshotPanel myScreenshotPanel;
@@ -453,7 +456,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
   private static String getAndroidxExtJunitVersion() {
     if (androidxExtJunitVersion == null) {
-      androidxExtJunitVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_EXT_JUNIT, "1.1.4");
+      androidxExtJunitVersion = getLatestDependencyVersion(GoogleMavenArtifactId.ANDROIDX_TEST_EXT_JUNIT, "1.1.5");
     }
     return androidxExtJunitVersion;
   }
@@ -509,7 +512,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     GsonBuilder gsonBuilder = new GsonBuilder();
     gsonBuilder.registerTypeAdapter(ElementDescriptor.class, new ElementDescriptorSerializer(project));
-    return gsonBuilder.setPrettyPrinting().create().toJson(testRecorderEvents);
+    Gson gson = gsonBuilder.setPrettyPrinting().create();
+    RoboscriptConfiguration roboscriptConfiguration = new RoboscriptConfiguration(false, false);
+    String roboscriptHeader = "\"roboscript\": "
+                              + gson.toJson(roboscriptConfiguration)
+                              + "\n";
+    List<ContextualRoboscript> contextualRoboscripts = new ArrayList<>();
+    contextualRoboscripts.add(new ContextualRoboscript(testRecorderEvents));
+    return roboscriptHeader + gson.toJson(contextualRoboscripts);
   }
 
   @NotNull
@@ -815,14 +825,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
    * Otherwise, it is an app build configuration error and Espresso Test Recorder dependency handling is undefined.
    */
   private boolean hasUptodateDependency(@NotNull AndroidModuleSystem androidModuleSystem, String artifact, String androidxArtifact,
-                                        GradleVersion minVersion, GradleVersion androidxMinVersion) {
-    GradleVersion dependencyVersion = getDependencyVersion(androidModuleSystem, artifact);
+                                        Version minVersion, Version androidxMinVersion) {
+    Version dependencyVersion = getDependencyVersion(androidModuleSystem, artifact);
     if (dependencyVersion != null) {
       myUsesAnyEspressoDependency = true;
       return dependencyVersion.compareTo(minVersion) >= 0;
     }
 
-    GradleVersion androidxDependencyVersion = getDependencyVersion(androidModuleSystem, androidxArtifact);
+    Version androidxDependencyVersion = getDependencyVersion(androidModuleSystem, androidxArtifact);
     if (androidxDependencyVersion != null) {
       myUsesAnyEspressoDependency = true;
       myUsesAndroidxDependency = true;
@@ -833,7 +843,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   @Nullable
-  private static GradleVersion getDependencyVersion(@NotNull AndroidModuleSystem androidModuleSystem, String artifact) {
+  private static Version getDependencyVersion(@NotNull AndroidModuleSystem androidModuleSystem, String artifact) {
     GradleCoordinate coordinate = GradleCoordinate.parseCoordinateString(artifact + ":+");
     if (coordinate == null) return null;
     GradleCoordinate resolvedDependency = androidModuleSystem.getResolvedDependency(
@@ -841,7 +851,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       DependencyScopeType.ANDROID_TEST
     );
     if (resolvedDependency == null) return null;
-    return resolvedDependency.getVersion();
+    return resolvedDependency.getLowerBoundVersion();
   }
 
   private GoogleMavenArtifactId getEspressoArtifactId() {

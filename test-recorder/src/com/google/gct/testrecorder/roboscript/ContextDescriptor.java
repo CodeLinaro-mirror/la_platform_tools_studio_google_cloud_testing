@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.gct.directaccess.provisioner
+package com.google.gct.testrecorder.roboscript;
 
-import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
-import com.android.tools.idea.deviceprovisioner.DeviceProvisionerFactory
-import com.intellij.openapi.project.Project
-import kotlinx.coroutines.CoroutineScope
+public class ContextDescriptor {
+  public enum Condition {
+    app_under_test_shown
+  }
 
-class FirebaseDeviceProvisionerFactory : DeviceProvisionerFactory {
-  override fun create(scope: CoroutineScope, project: Project): DeviceProvisionerPlugin =
-    FirebaseDeviceProvisioner(scope, project)
+  private Condition condition = Condition.app_under_test_shown;
 }
