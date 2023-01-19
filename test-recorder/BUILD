@@ -7,9 +7,14 @@ iml_module(
     iml_files = ["test-recorder.iml"],
     lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
+    test_class = "com.google.gct.testrecorder.ETRTestSuite",
+    test_data = [
+        "//prebuilts/studio/sdk:platforms/latest",
+        "//tools/adt/idea/android/testData",
+    ],
     test_resources = ["test-resources"],
     test_srcs = ["testSrc"],
-    test_tags = ["manual"],
+    test_timeout = "long",
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
@@ -29,5 +34,8 @@ iml_module(
         "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
         "//tools/base/lint:studio.android.sdktools.lint-api[module]",
         "//tools/adt/idea/execution/common:intellij.android.execution.common[module]",
+        "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
+        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
+        "//tools/adt/idea/.idea/libraries:mockito[test]",
     ],
 )
