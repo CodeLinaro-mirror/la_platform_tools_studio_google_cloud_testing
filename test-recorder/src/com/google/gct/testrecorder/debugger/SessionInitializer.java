@@ -144,10 +144,7 @@ public class SessionInitializer implements Runnable {
                                                          "(Landroid/os/Message;)V", false));
     myBreakpointDescriptors.add(new BreakpointDescriptor(PERMISSIONS_REQUEST, "android.app.Activity", "requestPermissions",
                                                          "([Ljava/lang/String;I)V", false));
-  }
 
-  @Override
-  public void run() {
     myDebuggerManagerListener = new DebuggerManagerListener() {
       @Override
       public void sessionCreated(DebuggerSession session) {
@@ -164,7 +161,10 @@ public class SessionInitializer implements Runnable {
     };
 
     DebuggerManagerEx.getInstanceEx(myProject).addDebuggerManagerListener(myDebuggerManagerListener);
+  }
 
+  @Override
+  public void run() {
     try {
       assignDevice();
     } catch (final Exception e) {

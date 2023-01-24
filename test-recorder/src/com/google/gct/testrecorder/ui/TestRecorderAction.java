@@ -214,8 +214,10 @@ public class TestRecorderAction extends AnAction {
       oldSessionInfo.getProcessHandler().detachProcess();
     }
 
-    environment.getRunner().execute(environment, descriptor -> ApplicationManager.getApplication().executeOnPooledThread(
-      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration, isRecordingTest)));
+    SessionInitializer sessionInitializer =
+      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration, isRecordingTest);
+    environment.getRunner().execute(environment, descriptor ->
+      ApplicationManager.getApplication().executeOnPooledThread(sessionInitializer));
   }
 
   @VisibleForTesting
