@@ -19,9 +19,9 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
+import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
-import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
@@ -58,7 +58,7 @@ class FirebaseItemManagerTest {
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
-      .reserveConnection(anyString(), anyString())
+      .reserveConnection(anyString(), anyString(), any())
     plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     firebaseDeviceTableModel = mock()

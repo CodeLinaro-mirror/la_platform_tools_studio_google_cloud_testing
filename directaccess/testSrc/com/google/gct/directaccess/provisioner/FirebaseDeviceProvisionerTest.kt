@@ -26,6 +26,7 @@ import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
+import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
@@ -71,7 +72,7 @@ class FirebaseDeviceProvisionerTest {
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
-      .reserveConnection(anyString(), anyString())
+      .reserveConnection(anyString(), anyString(), any())
     doReturn(directAccessReservationManager).whenever(mockDirectAccessService).reservationManager
     plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))

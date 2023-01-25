@@ -187,7 +187,7 @@ class FirebaseDeviceTemplate(
           val connection =
             project
               .service<DirectAccessService>()
-              .reserveConnection(deviceInfo.codename, deviceInfo.api.toString())
+              .reserveConnection(deviceInfo.codename, deviceInfo.api.toString(), scope)
               ?: return
 
           val deviceProperties =

@@ -31,8 +31,7 @@ import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
 
 @Service
 class DirectAccessService(val project: Project) : Disposable {
@@ -59,13 +58,12 @@ class DirectAccessService(val project: Project) : Disposable {
     }
     private set
 
-  var connectionManager: DirectAccessConnectionManager? = null
+  private var connectionManager: DirectAccessConnectionManager? = null
     get() {
       return field
         ?: reservationManager?.let { reservationManager ->
           DirectAccessConnectionManager(
               AdbLibService.getSession(project),
-              AndroidCoroutineScope(this),
               { GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken() },
               channel,
               reservationManager,
@@ -82,23 +80,26 @@ class DirectAccessService(val project: Project) : Disposable {
    * instance before calling this method, the existing [Reservation] will be reused by
    * [reservationManager] and assigned to the returned [DirectAccessConnection].
    */
-  suspend fun reserveConnection(codename: String, api: String): DirectAccessConnection? =
-    withContext(Dispatchers.IO) {
-      val reservation =
-        reservationManager?.listReservations()?.firstOrNull { reservation ->
-          !reservation.sessionState.isClosed() &&
-            reservation.androidDeviceList.androidDevicesList.any {
-              it.androidModelId == codename && it.androidVersionId == api
-            }
-        }
-          ?: reservationManager?.createReservation(codename, api) ?: return@withContext null
+  fun reserveConnection(
+    codename: String,
+    api: String,
+    scope: CoroutineScope
+  ): DirectAccessConnection? {
+    val reservation =
+      reservationManager?.listReservations()?.firstOrNull { reservation ->
+        !reservation.sessionState.isClosed() &&
+          reservation.androidDeviceList.androidDevicesList.any {
+            it.androidModelId == codename && it.androidVersionId == api
+          }
+      }
+        ?: reservationManager?.createReservation(codename, api) ?: return null
 
-      connectionManager?.connect(reservation)
-        ?: run {
-          invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
-          return@withContext null
-        }
-    }
+    return connectionManager?.connect(reservation, scope)
+      ?: run {
+        invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
+        return null
+      }
+  }
 
   override fun dispose() {}
 }
