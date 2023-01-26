@@ -16,25 +16,24 @@
 package com.google.gct.testrecorder.run;
 
 import com.android.ddmlib.IDevice;
-import com.android.ddmlib.NullOutputReceiver;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProvider;
-import com.android.tools.idea.run.tasks.AppLaunchTask;
+import com.android.tools.idea.run.ApkProvisionException;
 import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.ConsolePrinter;
+import com.android.tools.idea.run.configuration.execution.ExecutionUtils;
+import com.android.tools.idea.run.tasks.AppLaunchTask;
 import com.android.tools.idea.run.tasks.LaunchContext;
-import com.android.tools.idea.run.tasks.LaunchResult;
 import com.android.tools.idea.run.tasks.LaunchTask;
 import com.android.tools.idea.run.util.LaunchStatus;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
+import com.intellij.execution.ExecutionException;
 import com.intellij.openapi.diagnostic.Logger;
 import org.jdom.Element;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.concurrent.TimeUnit;
 
 public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration {
   private static final Logger LOGGER = Logger.getInstance(TestRecorderAndroidRunConfiguration.class);
@@ -93,19 +92,19 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
     }
 
     @Override
-    public LaunchResult run(@NotNull LaunchContext launchContext) {
+    public void run(@NotNull LaunchContext launchContext) throws ExecutionException {
       if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
+        String command;
         try {
-          // Clear the app data such that the test recording starts from the initial app state.
-          String command = "pm clear " + ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
-          launchContext.getConsolePrinter().stdout("$ adb shell " + command);
-          launchContext.getDevice().executeShellCommand(command, new NullOutputReceiver(), 5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-          // It is unfortunate that the command to clear the app data might have failed, but it is not a blocker, so proceed.
-          LOGGER.warn("Exception clearing app data", e);
+          command = "pm clear " + ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
         }
+        catch (ApkProvisionException e) {
+          throw new ExecutionException(e);
+        }
+        ExecutionUtils.executeShellCommand(launchContext.getDevice(), command, launchContext.getConsolePrinter(),
+                                           launchContext.getProgressIndicator());
       }
-      return myDefaultLaunchTask.run(launchContext);
+      myDefaultLaunchTask.run(launchContext);
     }
 
     @NotNull
