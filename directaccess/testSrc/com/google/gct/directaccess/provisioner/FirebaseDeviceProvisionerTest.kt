@@ -35,6 +35,7 @@ import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.deviceAddress
 import com.studiogrpc.testutils.GrpcConnectionRule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -114,7 +115,7 @@ class FirebaseDeviceProvisionerTest {
     assertThat(properties.manufacturer).isEqualTo(deviceInfo.manufacturer)
 
     // Bring the device online by claiming a matched connected device.
-    val serialNumber = "localhost:${fakeConnection.port}"
+    val serialNumber = fakeConnection.deviceAddress()!!.address
     // We intentionally add a suffix to verify if the properties have been updated.
     val suffix = "-connected"
     session.deviceServices.configureDeviceProperties(
