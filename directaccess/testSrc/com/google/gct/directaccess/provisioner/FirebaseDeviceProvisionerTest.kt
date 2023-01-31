@@ -33,6 +33,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
+import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
@@ -61,9 +62,12 @@ class FirebaseDeviceProvisionerTest {
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
   private lateinit var scope: CoroutineScope
+  private lateinit var mockGoogleLogin: GoogleLogin
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
+    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
       DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {

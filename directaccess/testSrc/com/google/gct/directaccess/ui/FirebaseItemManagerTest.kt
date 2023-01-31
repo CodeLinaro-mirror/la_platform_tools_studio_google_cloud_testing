@@ -28,6 +28,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.provisioner.FirebaseDeviceProvisioner
+import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.intellij.util.concurrency.EdtExecutorService
 import kotlinx.coroutines.CoroutineDispatcher
@@ -50,9 +51,12 @@ class FirebaseItemManagerTest {
   private lateinit var uiDispatcher: CoroutineDispatcher
   private lateinit var plugin: FirebaseDeviceProvisioner
   private lateinit var provisioner: DeviceProvisioner
+  private lateinit var mockGoogleLogin: GoogleLogin
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
+    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     uiDispatcher = EdtExecutorService.getInstance().asCoroutineDispatcher()
     val fakeConnection = FakeDirectAccessConnection()
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
@@ -81,7 +85,7 @@ class FirebaseItemManagerTest {
       FirebaseItemManager(
         projectRule.project,
         firebaseDeviceTableModel,
-        projectRule.project.coroutineScope,
+        session.scope,
         uiDispatcher
       )
     // Wait
@@ -108,7 +112,7 @@ class FirebaseItemManagerTest {
       FirebaseItemManager(
         projectRule.project,
         firebaseDeviceTableModel,
-        projectRule.project.coroutineScope,
+        session.scope,
         uiDispatcher
       )
     // Wait
