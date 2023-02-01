@@ -16,8 +16,8 @@
 package com.google.gct.directaccess
 
 import com.android.sdklib.AndroidVersion
-import com.android.sdklib.deviceprovisioner.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.tools.idea.devicemanager.ConnectionType
 import com.android.tools.idea.devicemanager.Device
 import com.android.tools.idea.devicemanager.DeviceType
