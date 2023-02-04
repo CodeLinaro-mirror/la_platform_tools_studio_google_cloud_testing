@@ -23,18 +23,22 @@ import com.android.adblib.scope
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
-import com.android.sdklib.deviceprovisioner.Connected
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
-import com.android.sdklib.deviceprovisioner.Disconnected
+import com.android.sdklib.deviceprovisioner.DeviceState.Connected
+import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.deviceAddress
 import com.studiogrpc.testutils.GrpcConnectionRule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.junit.After
@@ -55,11 +59,15 @@ class FirebaseDeviceProvisionerTest {
   private lateinit var plugin: FirebaseDeviceProvisioner
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
+  private lateinit var scope: CoroutineScope
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
-      DirectAccessReservationManager("testProject", grpcConnectionRule.channel) { "testToken" }
+      DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
+        "testToken"
+      }
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
@@ -72,6 +80,7 @@ class FirebaseDeviceProvisionerTest {
 
   @After
   fun tearDown() {
+    scope.cancel()
     session.close()
   }
 
@@ -106,7 +115,7 @@ class FirebaseDeviceProvisionerTest {
     assertThat(properties.manufacturer).isEqualTo(deviceInfo.manufacturer)
 
     // Bring the device online by claiming a matched connected device.
-    val serialNumber = "localhost:${fakeConnection.port}"
+    val serialNumber = fakeConnection.deviceAddress()!!.address
     // We intentionally add a suffix to verify if the properties have been updated.
     val suffix = "-connected"
     session.deviceServices.configureDeviceProperties(
@@ -163,5 +172,24 @@ class FirebaseDeviceProvisionerTest {
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
     updateReservations(projectRule.project, plugin.templates)
     yieldUntil { provisioner.devices.value.isNotEmpty() }
+  }
+
+  @Test
+  fun disambiguatorAddedAfterDeviceConnects() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    assertThat(provisioner.devices.value.size).isEqualTo(1)
+
+    val handle = provisioner.devices.value[0]
+    assertThat(handle.state.properties.disambiguator).isNull()
+
+    handle.activationAction?.activate()
+    yieldUntil { handle.state.properties.disambiguator != null }
+
+    assertThat(handle.state).isInstanceOf(DirectAccessDeviceHandle.Activating::class.java)
+    assertThat(handle.state.properties.disambiguator).isEqualTo("12345")
   }
 }

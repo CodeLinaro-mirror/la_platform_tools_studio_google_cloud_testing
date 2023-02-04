@@ -15,8 +15,8 @@
  */
 package com.google.gct.directaccess.ui
 
-import com.android.sdklib.deviceprovisioner.Connected
 import com.android.sdklib.deviceprovisioner.DeviceHandle
+import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.devicemanager.DeviceTableCellRenderer
 import com.google.gct.directaccess.FirebaseDevice

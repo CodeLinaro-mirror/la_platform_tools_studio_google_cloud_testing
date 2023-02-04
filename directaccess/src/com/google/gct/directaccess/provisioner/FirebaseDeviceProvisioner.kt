@@ -20,14 +20,14 @@ import com.android.adblib.deviceProperties
 import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
-import com.android.sdklib.deviceprovisioner.Connected
 import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.sdklib.deviceprovisioner.DeviceState.Connected
+import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
-import com.android.sdklib.deviceprovisioner.Disconnected
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
@@ -243,6 +243,19 @@ class DirectAccessDeviceHandle(
         withContext(scope.coroutineContext) {
           stateFlow.update { Activating(it.properties) }
           connection.connect()
+          // Add disambiguator field that adds the port on which the device is connected to denote
+          // this is a firebase device.
+          // TODO(b/260153322): Remove once device manager moves to device provisioner framework
+          stateFlow.update {
+            Activating(
+              DirectAccessDeviceProperties.build {
+                manufacturer = it.properties.manufacturer
+                androidVersion = it.properties.androidVersion
+                model = it.properties.model
+                disambiguator = "${connection.port}"
+              }
+            )
+          }
         }
       }
 
@@ -283,7 +296,12 @@ class DirectAccessDeviceHandle(
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
     val properties = device.deviceProperties().allReadonly()
-    val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
+    val deviceProperties =
+      DirectAccessDeviceProperties.build {
+        readCommonProperties(properties)
+        // TODO(b/260153322): Remove once device manager moves to device provisioner framework
+        disambiguator = "${connection.port}"
+      }
     stateFlow.value = Connected(deviceProperties, device)
     device.invokeOnDisconnection { stateFlow.value = Disconnected(deviceProperties) }
     return true
