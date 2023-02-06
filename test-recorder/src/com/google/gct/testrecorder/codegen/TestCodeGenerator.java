@@ -335,7 +335,7 @@ public class TestCodeGenerator {
       return null;
     }
 
-    return androidPlatform.getSdkData().getTargetData(androidPlatform.getTarget());
+    return AndroidTargetData.get(androidPlatform.getSdkData(), androidPlatform.getTarget());
   }
 
 }
