@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adbbridge.Reservation
@@ -26,18 +27,20 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.protobuf.Timestamp
+import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
+import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.ui.JBMenuItem
 import com.intellij.openapi.ui.JBPopupMenu
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.testFramework.PlatformTestUtil.dispatchAllEventsInIdeEventQueue
-import com.intellij.testFramework.ProjectRule
 import com.intellij.ui.JBColor
 import java.awt.Dimension
 import java.time.Duration
@@ -49,7 +52,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class FirebaseDevicePopUpMenuButtonTableCellEditorTest {
-  @get:Rule val projectRule = ProjectRule()
+  @get:Rule val projectRule = AndroidProjectRule.inMemory()
 
   @Test
   fun testActions() = runBlockingWithTimeout {
@@ -83,7 +86,13 @@ class FirebaseDevicePopUpMenuButtonTableCellEditorTest {
       }
 
       val child = createChildScope()
-      val handle = DirectAccessDeviceHandle(projectRule.project, child, deviceState, connection)
+      val reservationManager = mock<DirectAccessReservationManager>()
+      whenever(reservationManager.fetchReservationFlow(""))
+        .thenReturn(MutableStateFlow(reservation))
+      val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
+      whenever(mockDirectAccessService.reservationManager).thenReturn(reservationManager)
+      whenever(mockDirectAccessService.connectToReservation(any(), any())).thenReturn(connection)
+      val handle = DirectAccessDeviceHandle(projectRule.project, child, deviceState, "")
       val item = FirebaseDeviceItem(mock(), device, handle, child, AndroidDispatchers.uiThread) {}
 
       val table: FirebaseDeviceTable = mock()

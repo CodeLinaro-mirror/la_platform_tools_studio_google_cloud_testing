@@ -24,6 +24,7 @@ import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.FirebaseDeviceTemplate
+import com.google.gct.directaccess.provisioner.isClosed
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
@@ -164,8 +165,8 @@ class FirebaseDeviceTemplateItem(
         newDevice?.let { newDeviceHandle ->
           scope.launch {
             newDeviceHandle.connection.state
-              .combine(newDevice.stateFlow) { remoteState, deviceState ->
-                if (remoteState.reservation.sessionState.isClosed()) {
+              .combine(newDeviceHandle.stateFlow) { remoteState, deviceState ->
+                if (deviceState.reservation?.state?.isClosed() == true) {
                   deviceItem = null
                   coroutineContext.cancel()
                 } else {

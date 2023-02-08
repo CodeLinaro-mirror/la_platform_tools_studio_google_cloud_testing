@@ -30,6 +30,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
+import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
@@ -40,11 +41,14 @@ import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.login.LoginState
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
+import com.google.services.firebase.directaccess.client.findOrCreateReservation
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -182,10 +186,12 @@ suspend fun updateReservations(project: Project, templates: StateFlow<List<Devic
 class FirebaseDeviceTemplate(
   private val project: Project,
   val deviceInfo: DeviceInfo,
-  devices: MutableStateFlow<List<DeviceHandle>>,
+  private val devices: MutableStateFlow<List<DeviceHandle>>,
   private val scope: CoroutineScope
 ) : DeviceTemplate {
   override val displayName: String = "${deviceInfo.manufacturer} ${deviceInfo.name}"
+
+  private val isActivationEnabled = MutableStateFlow(true)
 
   /**
    * Last device handle activated by the template.
@@ -193,12 +199,24 @@ class FirebaseDeviceTemplate(
    * TODO (b/246171065): resolve potential race condition to support activating multiple devices
    */
   var activeDevice: DirectAccessDeviceHandle? = null
-    private set
+    private set(device) {
+      field = device
+      if (device != null) {
+        devices.update { list -> list + device }
+        device.scope.launch {
+          device.stateFlow.collect {
+            if (it.reservation?.state?.isClosed() == true) {
+              field = null
+              isActivationEnabled.value = true
+              devices.update { list -> list - device }
+            }
+          }
+        }
+      }
+    }
 
   override val activationAction: TemplateActivationAction =
     object : TemplateActivationAction {
-      private val _isEnabled = MutableStateFlow(true)
-
       // TODO: Pass duration through to the DirectAccessConnectionManager.
       override val durationUsed = false
 
@@ -216,16 +234,19 @@ class FirebaseDeviceTemplate(
        */
       override suspend fun activate(duration: Duration?): DeviceHandle {
         // Disable further activate actions to avoid multiple devices.
-        if (!_isEnabled.compareAndSet(expect = true, update = false)) {
+        if (!isActivationEnabled.compareAndSet(expect = true, update = false)) {
           throw DeviceActionDisabledException(this)
         }
 
-        val connection =
+        val reservationManager =
+          project.service<DirectAccessService>().reservationManager
+            ?: throw DeviceActionException("Unable to access ReservationManager.")
+
+        val reservationName =
           try {
-            project
-              .service<DirectAccessService>()
-              .reserveConnection(deviceInfo.codename, deviceInfo.api.toString(), scope)
-              ?: throw DeviceActionException("Unable to reserve device.")
+            reservationManager
+              .findOrCreateReservation(deviceInfo.codename, deviceInfo.api.toString())
+              .name
           } catch (e: Exception) {
             // Pass the underlying gRPC exception as a cause
             // TODO: Perhaps extract more detail if we can get it.
@@ -239,31 +260,18 @@ class FirebaseDeviceTemplate(
             model = deviceInfo.name
           }
         val deviceScope = scope.createChildScope(isSupervisor = true)
-
+        // Notify provisioner plugin of the new device.
         return DirectAccessDeviceHandle(
             project,
             deviceScope,
             Disconnected(deviceProperties),
-            connection
+            reservationName
           )
-          .also { device ->
-            activeDevice = device
-            // Notify provisioner plugin of the new device.
-            devices.update { list -> list + device }
-            deviceScope.launch {
-              connection.state.collect {
-                if (it.reservation.sessionState.isClosed()) {
-                  activeDevice = null
-                  _isEnabled.value = true
-                  devices.update { list -> list - device }
-                }
-              }
-            }
-          }
+          .also { activeDevice = it }
       }
 
       override val label: String = "Acquire"
-      override val isEnabled: StateFlow<Boolean> = _isEnabled
+      override val isEnabled: StateFlow<Boolean> = isActivationEnabled
     }
 
   override val editAction = null
@@ -273,10 +281,51 @@ class DirectAccessDeviceHandle(
   private val project: Project,
   override val scope: CoroutineScope,
   state: DeviceState,
-  val connection: DirectAccessConnection
+  reservationName: String
 ) : DeviceHandle {
 
+  private val reservationManager: DirectAccessReservationManager =
+    project.service<DirectAccessService>().reservationManager
+      ?: throw RuntimeException("Not logged in.")
+
+  val connection: DirectAccessConnection =
+    project.service<DirectAccessService>().connectToReservation(reservationName, scope)
+      ?: throw RuntimeException("Not logged in.")
+
   override val stateFlow = MutableStateFlow(state)
+
+  init {
+    scope.launch {
+      // Map Reservation to its device provisioner format.
+      reservationManager
+        .fetchReservationFlow(reservationName)
+        .map {
+          val reservationState =
+            when (it.sessionState) {
+              Reservation.SessionState.REQUESTED,
+              Reservation.SessionState.PENDING -> ReservationState.PENDING
+              Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
+              Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
+              else -> ReservationState.ERROR
+            }
+          com.android.sdklib.deviceprovisioner.Reservation(
+            reservationState,
+            "None",
+            Instant.ofEpochSecond(it.createTime.seconds),
+            Instant.ofEpochSecond(it.expireTime.seconds)
+          )
+        }
+        .collect { reservation ->
+          stateFlow.update { state ->
+            when (state) {
+              is Connected -> state.copy(reservation = reservation)
+              is Disconnected -> state.copy(reservation = reservation)
+              else -> state
+            }
+          }
+        }
+    }
+  }
 
   override val activationAction =
     object : ActivationAction {
@@ -357,3 +406,6 @@ class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by
       Builder().apply(block).run { DirectAccessDeviceProperties(buildBase()) }
   }
 }
+
+fun ReservationState.isClosed() =
+  this == ReservationState.ERROR || this == ReservationState.COMPLETE

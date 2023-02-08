@@ -47,7 +47,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.anyString
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
 class FirebaseDeviceProvisionerTest {
@@ -57,10 +57,10 @@ class FirebaseDeviceProvisionerTest {
   @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
 
   private val session = FakeAdbSession()
-  private val fakeConnection = FakeDirectAccessConnection()
   private lateinit var plugin: FirebaseDeviceProvisioner
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
+  private lateinit var fakeConnection: FakeDirectAccessConnection
   private lateinit var scope: CoroutineScope
   private lateinit var mockGoogleLogin: GoogleLogin
 
@@ -74,10 +74,16 @@ class FirebaseDeviceProvisionerTest {
         "testToken"
       }
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
-    doReturn(fakeConnection)
-      .whenever(mockDirectAccessService)
-      .reserveConnection(anyString(), anyString(), any())
     doReturn(directAccessReservationManager).whenever(mockDirectAccessService).reservationManager
+    doAnswer {
+        val reservationName = it.arguments[0] as String
+        val deviceScope = it.arguments[1] as CoroutineScope
+        fakeConnection =
+          FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
+        fakeConnection
+      }
+      .whenever(mockDirectAccessService)
+      .connectToReservation(any(), any())
     plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     yieldUntil { provisioner.templates.value.isNotEmpty() }

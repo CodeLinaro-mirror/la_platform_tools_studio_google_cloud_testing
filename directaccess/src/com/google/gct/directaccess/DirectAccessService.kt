@@ -15,7 +15,6 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.adblib.AdbLibService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.flags.StudioFlags
@@ -25,7 +24,6 @@ import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
-import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
@@ -71,33 +69,12 @@ class DirectAccessService(val project: Project) : Disposable {
     }
 
   /**
-   * Returns a [DirectAccessConnection] connecting to the remote device with [codename] and [api].
-   *
-   * The remote device is managed by a newly created [Reservation] from [reservationManager].
-   * However, if a [Reservation] with the same device information is created from another studio
-   * instance before calling this method, the existing [Reservation] will be reused by
-   * [reservationManager] and assigned to the returned [DirectAccessConnection].
+   * Returns a [DirectAccessConnection] connecting to a device with [reservationName] and [scope].
    */
-  fun reserveConnection(
-    codename: String,
-    api: String,
+  fun connectToReservation(
+    reservationName: String,
     scope: CoroutineScope
-  ): DirectAccessConnection? {
-    // These should be present if we are logged in.
-    val reservationManager = reservationManager ?: return null
-    val connectionManager = connectionManager ?: return null
-
-    val reservation =
-      reservationManager.listReservations().firstOrNull { reservation ->
-        !reservation.sessionState.isClosed() &&
-          reservation.androidDeviceList.androidDevicesList.any {
-            it.androidModelId == codename && it.androidVersionId == api
-          }
-      }
-        ?: reservationManager.createReservation(codename, api)
-
-    return connectionManager.connect(reservation, scope)
-  }
+  ): DirectAccessConnection? = connectionManager?.connect(reservationName, scope)
 
   override fun dispose() {}
 }
