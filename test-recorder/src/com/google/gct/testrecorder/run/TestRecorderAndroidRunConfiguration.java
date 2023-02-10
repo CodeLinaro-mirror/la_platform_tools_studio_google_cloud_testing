@@ -21,12 +21,10 @@ import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProvider;
 import com.android.tools.idea.run.ApkProvisionException;
 import com.android.tools.idea.run.ApplicationIdProvider;
-import com.android.tools.idea.run.ConsolePrinter;
 import com.android.tools.idea.run.configuration.execution.ExecutionUtils;
 import com.android.tools.idea.run.tasks.AppLaunchTask;
 import com.android.tools.idea.run.tasks.LaunchContext;
 import com.android.tools.idea.run.tasks.LaunchTask;
-import com.android.tools.idea.run.util.LaunchStatus;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.intellij.execution.ExecutionException;
 import com.intellij.openapi.diagnostic.Logger;
@@ -60,12 +58,10 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
                                                    @NotNull AndroidFacet facet,
                                                    @NotNull String contributorsAmStartOptions,
                                                    boolean waitForDebugger,
-                                                   @NotNull LaunchStatus launchStatus,
                                                    @NotNull ApkProvider apkProvider,
-                                                   @NotNull ConsolePrinter consolePrinter,
-                                                   @NotNull IDevice device) {
+                                                   @NotNull IDevice device) throws ExecutionException {
     LaunchTask launchTask = super.getApplicationLaunchTask(applicationIdProvider, facet, contributorsAmStartOptions,
-                                                           waitForDebugger, launchStatus, apkProvider, consolePrinter, device);
+                                                           waitForDebugger, apkProvider, device);
     return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
   }
 
@@ -101,7 +97,7 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
         catch (ApkProvisionException e) {
           throw new ExecutionException(e);
         }
-        ExecutionUtils.executeShellCommand(launchContext.getDevice(), command, launchContext.getConsolePrinter(),
+        ExecutionUtils.executeShellCommand(launchContext.getDevice(), command, launchContext.getConsoleView(),
                                            launchContext.getProgressIndicator());
       }
       myDefaultLaunchTask.run(launchContext);

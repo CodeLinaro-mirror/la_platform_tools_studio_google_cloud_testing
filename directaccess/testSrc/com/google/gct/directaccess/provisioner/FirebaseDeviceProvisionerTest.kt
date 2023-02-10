@@ -26,12 +26,14 @@ import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
+import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
+import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
@@ -60,9 +62,12 @@ class FirebaseDeviceProvisionerTest {
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
   private lateinit var scope: CoroutineScope
+  private lateinit var mockGoogleLogin: GoogleLogin
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
+    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
       DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
@@ -71,7 +76,7 @@ class FirebaseDeviceProvisionerTest {
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
-      .reserveConnection(anyString(), anyString())
+      .reserveConnection(anyString(), anyString(), any())
     doReturn(directAccessReservationManager).whenever(mockDirectAccessService).reservationManager
     plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))

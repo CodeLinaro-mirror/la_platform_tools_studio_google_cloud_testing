@@ -19,15 +19,16 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
+import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
-import com.android.tools.idea.concurrency.coroutineScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.provisioner.FirebaseDeviceProvisioner
+import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.intellij.util.concurrency.EdtExecutorService
 import kotlinx.coroutines.CoroutineDispatcher
@@ -50,15 +51,18 @@ class FirebaseItemManagerTest {
   private lateinit var uiDispatcher: CoroutineDispatcher
   private lateinit var plugin: FirebaseDeviceProvisioner
   private lateinit var provisioner: DeviceProvisioner
+  private lateinit var mockGoogleLogin: GoogleLogin
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
+    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     uiDispatcher = EdtExecutorService.getInstance().asCoroutineDispatcher()
     val fakeConnection = FakeDirectAccessConnection()
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
     doReturn(fakeConnection)
       .whenever(mockDirectAccessService)
-      .reserveConnection(anyString(), anyString())
+      .reserveConnection(anyString(), anyString(), any())
     plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     firebaseDeviceTableModel = mock()
@@ -81,7 +85,7 @@ class FirebaseItemManagerTest {
       FirebaseItemManager(
         projectRule.project,
         firebaseDeviceTableModel,
-        projectRule.project.coroutineScope,
+        session.scope,
         uiDispatcher
       )
     // Wait
@@ -108,7 +112,7 @@ class FirebaseItemManagerTest {
       FirebaseItemManager(
         projectRule.project,
         firebaseDeviceTableModel,
-        projectRule.project.coroutineScope,
+        session.scope,
         uiDispatcher
       )
     // Wait

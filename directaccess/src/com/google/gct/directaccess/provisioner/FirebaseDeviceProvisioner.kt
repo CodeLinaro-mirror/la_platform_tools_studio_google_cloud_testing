@@ -34,6 +34,7 @@ import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.login.LoginState
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
@@ -42,10 +43,12 @@ import com.intellij.openapi.project.Project
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -61,9 +64,9 @@ private val defaultDeviceInfoProvider = {
  * templates and activating / deactivating them.
  */
 class FirebaseDeviceProvisioner(
-  scope: CoroutineScope,
-  project: Project,
-  deviceInfoProvider: () -> List<DeviceInfo> = defaultDeviceInfoProvider
+  private val scope: CoroutineScope,
+  private val project: Project,
+  private val deviceInfoProvider: () -> List<DeviceInfo> = defaultDeviceInfoProvider
 ) : DeviceProvisionerPlugin {
   private val logger = Logger.getInstance(FirebaseDeviceProvisioner::class.java)
 
@@ -76,42 +79,64 @@ class FirebaseDeviceProvisioner(
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
   init {
-    // Update templates every 5 minutes.
+    // This scope will not be cancelled on login changes. Only the inner child scope will be
+    // cancelled.
     scope.launch {
-      while (true) {
-        val oldTemplates =
-          templates.value.groupBy { (it as FirebaseDeviceTemplate).deviceInfo }.mapValues {
-            it.value[0]
+      var childScope: CoroutineScope? = null
+      LoginState.loggedIn.distinctUntilChanged().collect { isLoggedIn ->
+        // This cancellation will cause all child scopes created from this childScope to be
+        // cancelled.
+        // This includes cancellation of scopes in template, handle, connection.
+        childScope?.cancel()
+        childScope = scope.createChildScope(isSupervisor = true)
+        if (isLoggedIn) {
+          childScope?.launch { periodicUpdateReservation() }
+          childScope?.launch {
+            // Fetch reservations with new templates.
+            templates.collect { updateReservations(project, templates) }
           }
-        try {
-          deviceInfoProvider()
-            .map { info ->
-              oldTemplates[info]
-                ?: FirebaseDeviceTemplate(
-                  project,
-                  info,
-                  _devices,
-                  createChildScope(isSupervisor = true)
-                )
-            }
-            .let { result -> _templates.value = result }
-        } catch (ignore: NotLoggedInException) {
-          // do nothing
-        } catch (e: Exception) {
-          logger.warn(e)
+          childScope?.launch { periodicUpdateTemplates(this) }
         }
-        delay(TimeUnit.MINUTES.toMillis(5))
       }
     }
+  }
 
-    // Fetch reservations with new templates.
-    scope.launch { templates.collect { updateReservations(project, templates) } }
-    // Fetch reservations periodically in case a Reservation is created elsewhere.
-    scope.launch {
-      while (true) {
-        updateReservations(project, templates)
-        delay(TimeUnit.MINUTES.toMillis(1))
+  // Update templates every 5 minutes.
+  private suspend fun periodicUpdateTemplates(parentScope: CoroutineScope) {
+    while (true) {
+      val oldTemplates =
+        templates.value.groupBy { (it as FirebaseDeviceTemplate).deviceInfo }.mapValues {
+          it.value[0]
+        }
+      try {
+        deviceInfoProvider()
+          .map { info ->
+            // Create a child scope for every template to isolate them in terms of scope.
+            // This helps avoid any issues with a given template from propagating to other
+            // templates.
+            oldTemplates[info]
+              ?: FirebaseDeviceTemplate(
+                project,
+                info,
+                _devices,
+                parentScope.createChildScope(isSupervisor = true)
+              )
+          }
+          .let { result -> _templates.value = result }
+      } catch (ignore: NotLoggedInException) {
+        // do nothing
+      } catch (e: Exception) {
+        logger.warn(e)
       }
+      delay(TimeUnit.MINUTES.toMillis(5))
+    }
+  }
+
+  // Fetch reservations periodically in case a Reservation is created elsewhere.
+  private suspend fun periodicUpdateReservation() {
+    while (true) {
+      updateReservations(project, templates)
+      delay(TimeUnit.MINUTES.toMillis(1))
     }
   }
 
@@ -187,7 +212,7 @@ class FirebaseDeviceTemplate(
           val connection =
             project
               .service<DirectAccessService>()
-              .reserveConnection(deviceInfo.codename, deviceInfo.api.toString())
+              .reserveConnection(deviceInfo.codename, deviceInfo.api.toString(), scope)
               ?: return
 
           val deviceProperties =
