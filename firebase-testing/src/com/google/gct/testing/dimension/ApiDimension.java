@@ -15,7 +15,7 @@
  */
 package com.google.gct.testing.dimension;
 
-import com.android.tools.idea.model.AndroidModuleInfo;
+import com.android.tools.idea.model.StudioAndroidModuleInfo;
 import com.google.api.services.testing.model.AndroidDeviceCatalog;
 import com.google.api.services.testing.model.AndroidVersion;
 import com.google.api.services.testing.model.Date;
@@ -42,7 +42,7 @@ public class ApiDimension extends CloudConfigurationDimension {
 
   public ApiDimension(CloudConfigurationImpl googleCloudTestingConfiguration, AndroidFacet facet) {
     super(googleCloudTestingConfiguration);
-    minSdkVersion = AndroidModuleInfo.getInstance(facet).getMinSdkVersion().getApiLevel();
+    minSdkVersion = StudioAndroidModuleInfo.getInstance(facet).getMinSdkVersion().getApiLevel();
     // facet.getManifest().getUsesSdks().get(0).getMinSdkVersion() would read the app's manifest min SDK rather than the global one.
   }
 
