@@ -28,6 +28,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
+import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
@@ -317,7 +318,7 @@ class DirectAccessDeviceHandle(
     project.messageBus
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
-    val properties = device.deviceProperties().allReadonly()
+    val properties = device.deviceProperties().all().asMap()
     val deviceProperties =
       DirectAccessDeviceProperties.build {
         readCommonProperties(properties)
