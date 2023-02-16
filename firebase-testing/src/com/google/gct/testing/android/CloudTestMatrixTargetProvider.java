@@ -36,7 +36,6 @@ import com.intellij.openapi.project.Project;
 import java.util.List;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
   public static final class State extends DeployTargetState {
@@ -106,9 +105,8 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
                                                cloudTargetState.SELECTED_CLOUD_MATRIX_PROJECT_ID);
       }
 
-      @Nullable
       @Override
-      public DeviceFutures getDevices(@NotNull Project project) {
+      public @NotNull DeviceFutures getDevices(@NotNull Project project) {
         // This runs when a developer debugs (not runs) an Android instrumented test. Use the device selected in the drop down.
         DeviceAndSnapshotComboBoxTargetProvider provider = new DeviceAndSnapshotComboBoxTargetProvider();
         return provider.getDeployTarget(project).getDevices(project);
