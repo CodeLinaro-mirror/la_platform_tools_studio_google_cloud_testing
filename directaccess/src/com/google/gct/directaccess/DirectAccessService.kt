@@ -47,8 +47,8 @@ class DirectAccessService(val project: Project) : Disposable {
     get() {
       return field
         ?: DirectAccessReservationManager(gcpProject, AndroidCoroutineScope(this), channel) {
-          GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
-        }
+            GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
+          }
           .also {
             field = it
             GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->

@@ -105,8 +105,8 @@ class FirebaseDeviceItem(
         ConnectionState.DISCONNECTED -> {
           if (itemManager.resetAllOtherDevices(handle)) handle.activationAction.activate()
         }
-        ConnectionState.CONNECTING, ConnectionState.CONNECTED ->
-          handle.deactivationAction.deactivate()
+        ConnectionState.CONNECTING,
+        ConnectionState.CONNECTED -> handle.deactivationAction.deactivate()
         ConnectionState.DISCONNECTING -> {}
       }
     }
@@ -154,9 +154,7 @@ class FirebaseDeviceTemplateItem(
       if (newDevice != oldDevice) {
         newDevice?.let { newDeviceHandle ->
           scope.launch {
-            newDeviceHandle
-              .connection
-              .state
+            newDeviceHandle.connection.state
               .combine(newDevice.stateFlow) { remoteState, deviceState ->
                 if (remoteState.reservation.sessionState.isClosed()) {
                   deviceItem = null
@@ -199,15 +197,13 @@ class FirebaseItemManager(
 
   init {
     scope.launch {
-      provisionerPlugin
-        .templates
+      provisionerPlugin.templates
         .map { it.filterIsInstance<FirebaseDeviceTemplate>() }
         .distinctUntilChanged()
         .collect { newTemplates -> refreshTemplates(newTemplates) }
     }
     scope.launch {
-      provisionerPlugin
-        .devices
+      provisionerPlugin.devices
         .map { it.filterIsInstance<DirectAccessDeviceHandle>() }
         .distinctUntilChanged()
         .collect { templateItems.forEach { it.updateActiveItem() } }
@@ -221,11 +217,11 @@ class FirebaseItemManager(
         newTemplates.map { template ->
           existingMap[template.deviceInfo]
             ?: FirebaseDeviceTemplateItem(this@FirebaseItemManager, template, scope, uiDispatcher) {
-              val index = templateItems.indexOfFirst { item -> item.template == template }
-              if (index != -1) {
-                model.fireTableRowsUpdated(index, index)
+                val index = templateItems.indexOfFirst { item -> item.template == template }
+                if (index != -1) {
+                  model.fireTableRowsUpdated(index, index)
+                }
               }
-            }
               .also { it.updateActiveItem() }
         }
       model.fireTableDataChanged()
@@ -236,9 +232,7 @@ class FirebaseItemManager(
     if (StudioFlags.DIRECT_ACCESS_MULTIPLE_DEVICES.get()) {
       return true
     }
-    provisionerPlugin
-      .devices
-      .value
+    provisionerPlugin.devices.value
       .filterIsInstance<DirectAccessDeviceHandle>()
       .filter { it != device }
       .forEach {

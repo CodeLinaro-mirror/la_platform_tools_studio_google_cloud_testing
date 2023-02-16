@@ -36,31 +36,40 @@ object CatalogClient {
         ?: throw Exception("Error fetching catalog."))
 
     val eapFilter =
-      StudioFlags.DIRECT_ACCESS_DEVICE_FILTER.get().split(",").filterNot { it.isEmpty() }.groupBy({
-          it.substringBefore("/")
-        }) { it.substringAfter("/") }
+      StudioFlags.DIRECT_ACCESS_DEVICE_FILTER.get()
+        .split(",")
+        .filterNot { it.isEmpty() }
+        .groupBy({ it.substringBefore("/") }) { it.substringAfter("/") }
 
-    return catalog.models.filter { it.form == "PHYSICAL" }.flatMap { model ->
-      model
-        .supportedVersionIds
-        ?.filter { versionId -> versionId?.toIntOrNull()?.let { it >= 26 } == true }
-        ?.map {
-          val type =
-            when (model["formFactor"]) {
-              // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
-              // tablets
-              "PHONE",
-              "TABLET" -> DeviceType.PHONE
-              "WEARABLE" -> DeviceType.WEAR_OS
-              else -> DeviceType.PHONE
-            }
-          DeviceInfo(model.brand, model.name, model.manufacturer, model.codename, it.toInt(), type)
-        }
-        ?.filter {
-          eapFilter.isEmpty() || eapFilter[it.codename]?.contains(it.api.toString()) == true
-        }
-        ?: listOf()
-    }
+    return catalog.models
+      .filter { it.form == "PHYSICAL" }
+      .flatMap { model ->
+        model.supportedVersionIds
+          ?.filter { versionId -> versionId?.toIntOrNull()?.let { it >= 26 } == true }
+          ?.map {
+            val type =
+              when (model["formFactor"]) {
+                // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
+                // tablets
+                "PHONE",
+                "TABLET" -> DeviceType.PHONE
+                "WEARABLE" -> DeviceType.WEAR_OS
+                else -> DeviceType.PHONE
+              }
+            DeviceInfo(
+              model.brand,
+              model.name,
+              model.manufacturer,
+              model.codename,
+              it.toInt(),
+              type
+            )
+          }
+          ?.filter {
+            eapFilter.isEmpty() || eapFilter[it.codename]?.contains(it.api.toString()) == true
+          }
+          ?: listOf()
+      }
   }
 }
 

@@ -89,7 +89,9 @@ class FirebaseDeviceTab : DeviceManagerTab {
             AllIcons.General.ContextHelp,
             "Learn about Firebase Test Lab",
             SimpleTextAttributes.LINK_ATTRIBUTES
-          ) { BrowserUtil.browse("https://firebase.google.com/docs/test-lab") }
+          ) {
+            BrowserUtil.browse("https://firebase.google.com/docs/test-lab")
+          }
         }
 
     return object : JPanel() {

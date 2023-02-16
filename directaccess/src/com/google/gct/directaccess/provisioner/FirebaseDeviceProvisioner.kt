@@ -105,9 +105,9 @@ class FirebaseDeviceProvisioner(
   private suspend fun periodicUpdateTemplates(parentScope: CoroutineScope) {
     while (true) {
       val oldTemplates =
-        templates.value.groupBy { (it as FirebaseDeviceTemplate).deviceInfo }.mapValues {
-          it.value[0]
-        }
+        templates.value
+          .groupBy { (it as FirebaseDeviceTemplate).deviceInfo }
+          .mapValues { it.value[0] }
       try {
         deviceInfoProvider()
           .map { info ->
@@ -286,8 +286,7 @@ class DirectAccessDeviceHandle(
 
       override val label: String = "Connect"
       override val isEnabled: StateFlow<Boolean> =
-        connection
-          .state
+        connection.state
           .map { it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED }
           .stateIn(scope, SharingStarted.Eagerly, true)
     }
@@ -304,8 +303,7 @@ class DirectAccessDeviceHandle(
       override val label: String
         get() = "Disconnect"
       override val isEnabled: StateFlow<Boolean> =
-        connection
-          .state
+        connection.state
           .map { !it.reservation.sessionState.isClosed() }
           .stateIn(scope, SharingStarted.Eagerly, true)
     }
@@ -316,8 +314,7 @@ class DirectAccessDeviceHandle(
       return false
     }
     // Show the device tab in running devices window.
-    project
-      .messageBus
+    project.messageBus
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
     val properties = device.deviceProperties().allReadonly()
