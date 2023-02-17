@@ -31,9 +31,7 @@ object CatalogClient {
     if (!GoogleLogin.instance.isLoggedIn) {
       throw NotLoggedInException()
     }
-    val catalog =
-      (CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint)
-        ?: throw Exception("Error fetching catalog."))
+    val catalog = CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint)
 
     val eapFilter =
       StudioFlags.DIRECT_ACCESS_DEVICE_FILTER.get()

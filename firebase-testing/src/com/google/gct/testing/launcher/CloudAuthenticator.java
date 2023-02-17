@@ -28,6 +28,7 @@ import com.google.api.services.testing.model.AndroidDeviceCatalog;
 import com.google.api.services.toolresults.Toolresults;
 import com.google.gct.login.GoogleLogin;
 import com.google.gct.testing.CloudTestingUtils;
+import java.io.IOException;
 import org.jetbrains.annotations.NotNull;
 
 public class CloudAuthenticator {
@@ -129,8 +130,8 @@ public class CloudAuthenticator {
   /**
    * Get the {@link AndroidDeviceCatalog} for the given FTL {@code endpoint}.
    */
-  @Nullable
-  public AndroidDeviceCatalog getAndroidDeviceCatalogForEnvironment(@Nullable String endpoint) {
+  @NotNull
+  public AndroidDeviceCatalog getAndroidDeviceCatalogForEnvironment(@Nullable String endpoint) throws IOException {
     long currentTimestamp = System.currentTimeMillis();
     try {
       AndroidDeviceCatalog catalog = getTest(endpoint).testEnvironmentCatalog().get("ANDROID").execute().getAndroidDeviceCatalog();
@@ -139,10 +140,6 @@ public class CloudAuthenticator {
         showDeviceCatalogError("Android device catalog is empty for some dimensions", currentTimestamp);
       }
       return catalog;
-    }
-    catch (Exception e) {
-      showDeviceCatalogError("Exception while getting Android device catalog\n\n" + e.getMessage(), currentTimestamp);
-      return null;
     } finally {
       myLastDiscoveryServiceInvocationTimestamp = currentTimestamp;
     }
@@ -153,7 +150,13 @@ public class CloudAuthenticator {
    */
   @Nullable
   public AndroidDeviceCatalog getAndroidDeviceCatalog() {
-    return getAndroidDeviceCatalogForEnvironment(null);
+    try {
+      return getAndroidDeviceCatalogForEnvironment(null);
+    }
+    catch (IOException e) {
+      showDeviceCatalogError("Exception while getting Android device catalog\n\n" + e.getMessage(), System.currentTimeMillis());
+      return null;
+    }
   }
 
   private void showDeviceCatalogError(String errorMessageSuffix, long currentTimestamp) {
