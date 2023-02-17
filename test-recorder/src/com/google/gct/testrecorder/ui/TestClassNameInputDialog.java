@@ -188,6 +188,9 @@ public class TestClassNameInputDialog extends DialogWrapper {
       } else {
         String closestAndroidTestSourcePath =
           androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
+        // Ensure that test path has the same file path prefix as the source root path (b/262355661).
+        closestAndroidTestSourcePath =
+          getFilePathPrefix(launchedActivitySourceRoot.getCanonicalPath(), closestAndroidTestSourcePath) + closestAndroidTestSourcePath;
         VirtualFile parentDirectory = closestContentRoot;
         if (closestContentRoot.getCanonicalPath() == null || !closestAndroidTestSourcePath.startsWith(closestContentRoot.getCanonicalPath())) {
           parentDirectory = findContainingDirectory(launchedActivitySourceRoot, closestAndroidTestSourcePath);
@@ -316,9 +319,11 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return closestAndroidTestSourceIndex;
   }
 
-  private static int computeOverlapSize(String path1, String path2) {
-    char[] pathChars1 = path1.toCharArray();
-    char[] pathChars2 = path2.toCharArray();
+  private static int computeOverlapSize(String sourceRootPath, String androidTestPath) {
+    // Ensure that test path has the same file path prefix as the source root path (b/262355661).
+    androidTestPath = getFilePathPrefix(sourceRootPath, androidTestPath) + androidTestPath;
+    char[] pathChars1 = sourceRootPath.toCharArray();
+    char[] pathChars2 = androidTestPath.toCharArray();
     int overlapSize = 0;
     for (int i = 0; i < Math.min(pathChars1.length, pathChars2.length); i++) {
       if (pathChars1[i] == pathChars2[i]) {
@@ -328,6 +333,15 @@ public class TestClassNameInputDialog extends DialogWrapper {
       }
     }
     return overlapSize;
+  }
+
+  private static String getFilePathPrefix(String sourceRootPath, String androidTestPath) {
+    final String prefixMarker = ":/";
+    int prefixIndex = sourceRootPath.indexOf(prefixMarker);
+    if (prefixIndex != -1 && !androidTestPath.contains(prefixMarker)) {
+      return sourceRootPath.substring(0, prefixIndex + 1);
+    }
+    return "";
   }
 
   private static void collectModulesClosure(@NotNull Module module, List<Module> result) {
