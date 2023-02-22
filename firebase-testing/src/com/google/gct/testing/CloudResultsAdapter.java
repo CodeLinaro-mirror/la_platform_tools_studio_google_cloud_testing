@@ -139,6 +139,13 @@ public class CloudResultsAdapter {
     resultParser.flush();
   }
 
+  public void terminateResultProcessing() {
+    for (String configurationInstance : expectedConfigurationInstances) {
+      resultParser.getTestRunListener().stopTestConfiguration(configurationInstance, ConfigurationStopReason.TRIGGERING_ERROR, -1);
+    }
+    resultParser.flush();
+  }
+
   private byte[] getParserInput(ConfigurationResult result) {
     String resultString = result.getResult();
     if (resultString.indexOf("\r\n") == -1 && resultString.indexOf('\n') != -1) {
