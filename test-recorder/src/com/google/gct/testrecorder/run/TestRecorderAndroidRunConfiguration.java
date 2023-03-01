@@ -54,12 +54,12 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
 
   @Nullable
   @Override
-  protected AppLaunchTask getApplicationLaunchTask(@NotNull ApplicationIdProvider applicationIdProvider,
-                                                   @NotNull AndroidFacet facet,
-                                                   @NotNull String contributorsAmStartOptions,
-                                                   boolean waitForDebugger,
-                                                   @NotNull ApkProvider apkProvider,
-                                                   @NotNull IDevice device) throws ExecutionException {
+  public AppLaunchTask getApplicationLaunchTask(@NotNull ApplicationIdProvider applicationIdProvider,
+                                                @NotNull AndroidFacet facet,
+                                                @NotNull String contributorsAmStartOptions,
+                                                boolean waitForDebugger,
+                                                @NotNull ApkProvider apkProvider,
+                                                @NotNull IDevice device) throws ExecutionException {
     LaunchTask launchTask = super.getApplicationLaunchTask(applicationIdProvider, facet, contributorsAmStartOptions,
                                                            waitForDebugger, apkProvider, device);
     return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
