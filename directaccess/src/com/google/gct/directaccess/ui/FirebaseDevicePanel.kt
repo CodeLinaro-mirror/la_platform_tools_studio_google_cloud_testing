@@ -37,6 +37,7 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
 
   private val table =
     FirebaseDeviceTable(
+      project,
       FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread),
     )
 
