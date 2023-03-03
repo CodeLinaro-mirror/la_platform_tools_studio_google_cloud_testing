@@ -17,10 +17,14 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerFactory
+import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
 
 class FirebaseDeviceProvisionerFactory : DeviceProvisionerFactory {
+  override val isEnabled: Boolean
+    get() = StudioFlags.DIRECT_ACCESS.get()
+
   override fun create(scope: CoroutineScope, project: Project): DeviceProvisionerPlugin =
     FirebaseDeviceProvisioner(scope, project)
 }
