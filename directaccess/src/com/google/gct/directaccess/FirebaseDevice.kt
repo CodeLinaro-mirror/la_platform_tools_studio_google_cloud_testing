@@ -53,13 +53,14 @@ class FirebaseDevice private constructor(builder: Builder) : Device(builder) {
             reservationExpiringMessage(
               TimeUnit.SECONDS.toMillis(remoteState.reservation.expireTime.seconds)
             )
-          ConnectionState.CONNECTING, ConnectionState.CONNECTED -> {
+          ConnectionState.CONNECTING,
+          ConnectionState.CONNECTED -> {
             if (deviceState is Connected) {
               reservationExpiringMessage(
                 TimeUnit.SECONDS.toMillis(remoteState.reservation.expireTime.seconds)
               )
-            } else if (remoteState.reservation.connectionInfo.adbConnectInfo.adbDevicesList
-                .isNotEmpty()
+            } else if (
+              remoteState.reservation.connectionInfo.adbConnectInfo.adbDevicesList.isNotEmpty()
             ) {
               "Connecting to device..."
             } else "Reserving a device..."

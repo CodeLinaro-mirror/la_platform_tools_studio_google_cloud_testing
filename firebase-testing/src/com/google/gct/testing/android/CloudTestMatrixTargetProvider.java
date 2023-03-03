@@ -29,14 +29,13 @@ import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.RunProfile;
 import com.intellij.execution.configurations.RunProfileState;
-import com.intellij.execution.executors.DefaultDebugExecutor;
+import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import java.util.List;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
   public static final class State extends DeployTargetState {
@@ -85,7 +84,7 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
     return new DeployTarget() {
       @Override
       public boolean hasCustomRunProfileState(@NotNull Executor executor) {
-        return !(executor instanceof DefaultDebugExecutor);
+        return DefaultRunExecutor.EXECUTOR_ID.equals(executor.getId());
       }
 
       @Override
@@ -93,9 +92,8 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
                                                 @NotNull ExecutionEnvironment env,
                                                 @NotNull DeployTargetState state) throws ExecutionException {
         RunProfile runProfile = env.getRunProfile();
-        // It is expected to be invoked for test run configurations only.
         if (!(runProfile instanceof AndroidTestRunConfiguration)) {
-          return null;
+          throw new ExecutionException("CloudMatrixTestRunningState is expected to be invoked for test run configurations only.");
         }
 
         AndroidTestRunConfiguration runConfiguration = (AndroidTestRunConfiguration)runProfile;
@@ -106,9 +104,8 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
                                                cloudTargetState.SELECTED_CLOUD_MATRIX_PROJECT_ID);
       }
 
-      @Nullable
       @Override
-      public DeviceFutures getDevices(@NotNull Project project) {
+      public @NotNull DeviceFutures getDevices(@NotNull Project project) {
         // This runs when a developer debugs (not runs) an Android instrumented test. Use the device selected in the drop down.
         DeviceAndSnapshotComboBoxTargetProvider provider = new DeviceAndSnapshotComboBoxTargetProvider();
         return provider.getDeployTarget(project).getDevices(project);

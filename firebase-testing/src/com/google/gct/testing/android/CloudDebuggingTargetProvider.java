@@ -86,7 +86,7 @@ public class CloudDebuggingTargetProvider extends DeployTargetProvider {
       public RunProfileState getRunProfileState(@NotNull Executor executor,
                                                 @NotNull ExecutionEnvironment env,
                                                 @NotNull DeployTargetState state) throws ExecutionException {
-        return null;
+        throw new UnsupportedOperationException();
       }
 
       @Override

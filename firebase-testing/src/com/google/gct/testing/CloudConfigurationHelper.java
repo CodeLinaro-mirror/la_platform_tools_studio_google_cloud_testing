@@ -691,14 +691,19 @@ public final class CloudConfigurationHelper {
           if (testMatrix != null) {
             runningState.getProcessHandler().notifyTextAvailable(prepareProgressString("Validating APKs ...", "\n\n"),
                                                                  ProcessOutputTypes.STDOUT);
-            matrixExecutionCancellator.setCloudProjectId(cloudProjectId);
-            matrixExecutionCancellator.setTestMatrixId(testMatrix.getTestMatrixId());
-            String testRunId = TEST_RUN_ID_PREFIX + bucketPath;
-            CloudResultsAdapter cloudResultsAdapter =
-              new CloudResultsAdapter(cloudProjectId, bucketName, uniquePrefix, runningState.getProcessHandler(), cloudResultParser,
-                                      expectedConfigurationInstances, testRunId, testMatrix, matrixExecutionCancellator);
-            addCloudConfiguration(testRunId, cloudTestingConfiguration);
-            addCloudResultsAdapter(testRunId, cloudResultsAdapter);
+          }
+          matrixExecutionCancellator.setCloudProjectId(cloudProjectId);
+          matrixExecutionCancellator.setTestMatrixId(testMatrix == null ? null : testMatrix.getTestMatrixId());
+          String testRunId = TEST_RUN_ID_PREFIX + bucketPath;
+          CloudResultsAdapter cloudResultsAdapter =
+            new CloudResultsAdapter(cloudProjectId, bucketName, uniquePrefix, runningState.getProcessHandler(), cloudResultParser,
+                                    expectedConfigurationInstances, testRunId, testMatrix, matrixExecutionCancellator);
+          addCloudConfiguration(testRunId, cloudTestingConfiguration);
+          addCloudResultsAdapter(testRunId, cloudResultsAdapter);
+          if (testMatrix == null) {
+            // If the test matrix is null, there was a triggering error.
+            cloudResultsAdapter.terminateResultProcessing();
+          } else {
             cloudResultsAdapter.startPolling();
           }
         }

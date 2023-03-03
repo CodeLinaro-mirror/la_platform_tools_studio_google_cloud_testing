@@ -76,6 +76,7 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.jetbrains.android.sdk.AndroidPlatform;
+import org.jetbrains.android.sdk.AndroidPlatforms;
 import org.jetbrains.android.sdk.AndroidTargetData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -330,7 +331,7 @@ public class TestCodeGenerator {
 
   @Nullable
   private AndroidTargetData getAndroidTargetData() {
-    AndroidPlatform androidPlatform = AndroidPlatform.getInstance(myTestClassModule);
+    AndroidPlatform androidPlatform = AndroidPlatforms.getInstance(myTestClassModule);
     if (androidPlatform == null) {
       return null;
     }

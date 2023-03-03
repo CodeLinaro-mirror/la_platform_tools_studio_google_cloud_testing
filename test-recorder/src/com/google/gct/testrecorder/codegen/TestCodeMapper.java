@@ -34,7 +34,7 @@ import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.ide.common.resources.ResourceItem;
 import com.android.resources.ResourceType;
 import com.android.tools.idea.res.LocalResourceRepository;
-import com.android.tools.idea.res.ResourceRepositoryManager;
+import com.android.tools.idea.res.StudioResourceRepositoryManager;
 import com.android.utils.Pair;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -384,12 +384,12 @@ public class TestCodeMapper {
 
     String testCodeId = "R.id." + parsedId.getSecond();
     if (parsedId.getFirst().equals(myApplicationId)) {
-      LocalResourceRepository projectResources = ResourceRepositoryManager.getInstance(myModule).getProjectResources();
+      LocalResourceRepository projectResources = StudioResourceRepositoryManager.getInstance(myModule).getProjectResources();
       if (!projectResources.hasResources(ResourceNamespace.RES_AUTO, ResourceType.ID, parsedId.getSecond())) {
         // For some reason, library resources are evaluated by debugger as application resources, so find the containing library and
         // use its package name to qualify the resource id.
         for (ResourceItem resource :
-          ResourceRepositoryManager.getInstance(myModule).getResourcesForNamespace(ResourceNamespace.RES_AUTO).getAllResources()) {
+          StudioResourceRepositoryManager.getInstance(myModule).getResourcesForNamespace(ResourceNamespace.RES_AUTO).getAllResources()) {
           if (resource.getType() == ResourceType.ID && parsedId.getSecond().equals(resource.getName())) {
             testCodeId = resource.getRepository().getPackageName() + "." + testCodeId;
             break;
