@@ -21,6 +21,8 @@ import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
 import com.android.sdklib.deviceprovisioner.DeactivationAction
+import com.android.sdklib.deviceprovisioner.DeviceActionDisabledException
+import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
@@ -28,6 +30,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
+import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
@@ -41,6 +44,7 @@ import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -191,9 +195,12 @@ class FirebaseDeviceTemplate(
   var activeDevice: DirectAccessDeviceHandle? = null
     private set
 
-  override val activationAction: ActivationAction =
-    object : ActivationAction {
+  override val activationAction: TemplateActivationAction =
+    object : TemplateActivationAction {
       private val _isEnabled = MutableStateFlow(true)
+
+      // TODO: Pass duration through to the DirectAccessConnectionManager.
+      override val durationUsed = false
 
       /**
        * Creates a [DirectAccessDeviceHandle] with [Disconnected] state.
@@ -207,43 +214,52 @@ class FirebaseDeviceTemplate(
        *
        * TODO (b/246171065): activating multiple devices.
        */
-      override suspend fun activate(params: ActivationParams) {
+      override suspend fun activate(duration: Duration?): DeviceHandle {
         // Disable further activate actions to avoid multiple devices.
-        if (_isEnabled.compareAndSet(expect = true, update = false)) {
-          val connection =
+        if (!_isEnabled.compareAndSet(expect = true, update = false)) {
+          throw DeviceActionDisabledException(this)
+        }
+
+        val connection =
+          try {
             project
               .service<DirectAccessService>()
               .reserveConnection(deviceInfo.codename, deviceInfo.api.toString(), scope)
-              ?: return
+              ?: throw DeviceActionException("Unable to reserve device.")
+          } catch (e: Exception) {
+            // Pass the underlying gRPC exception as a cause
+            // TODO: Perhaps extract more detail if we can get it.
+            throw DeviceActionException("Unable to reserve device.", e)
+          }
 
-          val deviceProperties =
-            DirectAccessDeviceProperties.build {
-              manufacturer = deviceInfo.manufacturer
-              androidVersion = AndroidVersion(deviceInfo.api)
-              model = deviceInfo.name
-            }
-          val deviceScope = scope.createChildScope(isSupervisor = true)
-          // Notify provisioner plugin of the new device.
-          activeDevice =
-            DirectAccessDeviceHandle(
-                project,
-                deviceScope,
-                Disconnected(deviceProperties),
-                connection
-              )
-              .also { device ->
-                devices.update { list -> list + device }
-                deviceScope.launch {
-                  connection.state.collect {
-                    if (it.reservation.sessionState.isClosed()) {
-                      activeDevice = null
-                      _isEnabled.value = true
-                      devices.update { list -> list - device }
-                    }
-                  }
+        val deviceProperties =
+          DirectAccessDeviceProperties.build {
+            manufacturer = deviceInfo.manufacturer
+            androidVersion = AndroidVersion(deviceInfo.api)
+            model = deviceInfo.name
+          }
+        val deviceScope = scope.createChildScope(isSupervisor = true)
+
+        return DirectAccessDeviceHandle(
+            project,
+            deviceScope,
+            Disconnected(deviceProperties),
+            connection
+          )
+          .also { device ->
+            activeDevice = device
+            // Notify provisioner plugin of the new device.
+            devices.update { list -> list + device }
+            deviceScope.launch {
+              connection.state.collect {
+                if (it.reservation.sessionState.isClosed()) {
+                  activeDevice = null
+                  _isEnabled.value = true
+                  devices.update { list -> list - device }
                 }
               }
-        }
+            }
+          }
       }
 
       override val label: String = "Acquire"
