@@ -27,10 +27,8 @@ import com.google.services.firebase.directaccess.client.DirectAccessConnectionMa
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import kotlinx.coroutines.CoroutineScope
 
 @Service
@@ -85,20 +83,20 @@ class DirectAccessService(val project: Project) : Disposable {
     api: String,
     scope: CoroutineScope
   ): DirectAccessConnection? {
+    // These should be present if we are logged in.
+    val reservationManager = reservationManager ?: return null
+    val connectionManager = connectionManager ?: return null
+
     val reservation =
-      reservationManager?.listReservations()?.firstOrNull { reservation ->
+      reservationManager.listReservations().firstOrNull { reservation ->
         !reservation.sessionState.isClosed() &&
           reservation.androidDeviceList.androidDevicesList.any {
             it.androidModelId == codename && it.androidVersionId == api
           }
       }
-        ?: reservationManager?.createReservation(codename, api) ?: return null
+        ?: reservationManager.createReservation(codename, api)
 
-    return connectionManager?.connect(reservation, scope)
-      ?: run {
-        invokeLater { Messages.showWarningDialog("Please log in first", "Log In Required") }
-        return null
-      }
+    return connectionManager.connect(reservation, scope)
   }
 
   override fun dispose() {}

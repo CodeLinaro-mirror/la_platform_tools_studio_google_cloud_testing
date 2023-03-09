@@ -66,6 +66,9 @@ interface FirebaseItem {
   val deviceType: DeviceType
 
   val tooltipText: String
+
+  /** Returns true if the device is online. */
+  val isOnline: Boolean
 }
 
 class FirebaseDeviceItem(
@@ -94,6 +97,9 @@ class FirebaseDeviceItem(
 
   override val deviceType: DeviceType
     get() = device.type
+
+  override val isOnline: Boolean
+    get() = device.isOnline
 
   init {
     scope.launch { handle.connection.state.collect { withContext(uiDispatcher) { onUpdate() } } }
@@ -135,6 +141,9 @@ class FirebaseDeviceTemplateItem(
 
   override val deviceType: DeviceType
     get() = template.deviceInfo.type
+
+  // Template item can never be online.
+  override val isOnline = false
 
   override fun startAction() {
     scope.launch {
