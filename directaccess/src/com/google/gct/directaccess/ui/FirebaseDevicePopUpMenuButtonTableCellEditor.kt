@@ -20,6 +20,7 @@ import com.android.tools.idea.devicemanager.PopUpMenuValue
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.ui.JBMenuItem
 import com.intellij.openapi.ui.JBPopupMenu
+import com.intellij.openapi.ui.Messages
 import com.intellij.ui.PopupMenuListenerAdapter
 import java.awt.Component
 import java.awt.event.ActionEvent
@@ -33,25 +34,40 @@ object FirebaseDevicePopUpMenuButtonTableCellEditor :
 
   private var firebaseDeviceItem: FirebaseDeviceItem? = null
   private val menu =
-    JBPopupMenu().apply {
-      add(getExtendReservationItem(Duration.ofMinutes(30)))
-      add(getExtendReservationItem(Duration.ofMinutes(60)))
-      add(
-        getMenuItem("Force check-in device") {
-          firebaseDeviceItem?.let { deviceItem ->
-            deviceItem.scope.launch { deviceItem.handle.connection.endReservation() }
+    JBPopupMenu()
+      .apply {
+        add(getExtendReservationItem(Duration.ofMinutes(30)))
+        add(getExtendReservationItem(Duration.ofMinutes(60)))
+        add(
+          getMenuItem("Force check-in device") {
+            firebaseDeviceItem?.let { deviceItem ->
+              if (
+                Messages.showYesNoDialog(
+                  null,
+                  "Check in the device immediately?\nAll data will be wiped.",
+                  "Confirm Check-In",
+                  null
+                ) == Messages.YES
+              ) {
+                deviceItem.scope.launch { deviceItem.handle.connection.endReservation() }
+              }
+            }
           }
-        }
-      )
+        )
 
-      addPopupMenuListener(
-        object : PopupMenuListenerAdapter() {
-          override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent?) {
-            fireEditingCanceled()
+        addPopupMenuListener(
+          object : PopupMenuListenerAdapter() {
+            override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent?) {
+              fireEditingCanceled()
+            }
           }
-        }
-      )
-    }
+        )
+      }
+      .also {
+        // Add the menu into the window somewhere. This is only needed so that fakeUi can find it in
+        // tests.
+        myButton.add(it)
+      }
 
   init {
     myButton.addActionListener { menu.show(myButton, 0, myButton.height) }
