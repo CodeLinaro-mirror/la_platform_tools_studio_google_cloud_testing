@@ -22,7 +22,6 @@
   <description>Enables Firebase Direct Access Tab for Device Manager.</description>
 
   <depends>org.jetbrains.android</depends>
-  <depends>com.google.gct.login</depends>
   <depends>com.google.gct.testing</depends>
 
   <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Build+Number+Ranges for description -->
