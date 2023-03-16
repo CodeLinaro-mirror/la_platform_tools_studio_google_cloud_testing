@@ -39,6 +39,7 @@ import com.google.services.firebase.directaccess.client.FakeDirectAccessConnecti
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.studiogrpc.testutils.GrpcConnectionRule
+import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -181,7 +182,7 @@ class FirebaseDeviceProvisionerTest {
   fun createDevicesFromExistingReservations() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
-    updateReservations(projectRule.project, plugin.templates)
+    scope.launch { updateReservations(projectRule.project, plugin.templates) }
     yieldUntil { provisioner.devices.value.isNotEmpty() }
   }
 
@@ -202,5 +203,21 @@ class FirebaseDeviceProvisionerTest {
 
     assertThat(handle.state).isInstanceOf(DirectAccessDeviceHandle.Activating::class.java)
     assertThat(handle.state.properties.disambiguator).isEqualTo("12345")
+  }
+
+  @Test
+  fun extendReservationFromDeviceHandle() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    assertThat(provisioner.devices.value.size).isEqualTo(1)
+
+    val handle = provisioner.devices.value[0]
+    yieldUntil { handle.state.reservation != null }
+    val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
+    assertThat(newEndTime?.epochSecond).isEqualTo(1100)
+    assertThat(handle.state.reservation?.endTime?.epochSecond).isEqualTo(1100)
   }
 }

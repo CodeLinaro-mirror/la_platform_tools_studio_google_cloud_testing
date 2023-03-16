@@ -30,6 +30,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
+import com.android.sdklib.deviceprovisioner.ReservationAction
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.sdklib.deviceprovisioner.asMap
@@ -52,6 +53,7 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,13 +62,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 private val defaultDeviceInfoProvider = {
   CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
 }
+
+private val EXTENSION_TIMEOUT = Duration.ofSeconds(10)
 
 /**
  * Provides access to physical devices run by Firebase. Supports configuring Firebase device
@@ -280,7 +286,7 @@ class FirebaseDeviceTemplate(
 class DirectAccessDeviceHandle(
   private val project: Project,
   override val scope: CoroutineScope,
-  state: DeviceState,
+  initialState: DeviceState,
   reservationName: String
 ) : DeviceHandle {
 
@@ -292,7 +298,7 @@ class DirectAccessDeviceHandle(
     project.service<DirectAccessService>().connectToReservation(reservationName, scope)
       ?: throw RuntimeException("Not logged in.")
 
-  override val stateFlow = MutableStateFlow(state)
+  override val stateFlow = MutableStateFlow(initialState)
 
   init {
     scope.launch {
@@ -332,7 +338,7 @@ class DirectAccessDeviceHandle(
       /** Starts connection to the remote device. */
       override suspend fun activate(params: ActivationParams) {
         withContext(scope.coroutineContext) {
-          stateFlow.update { Activating(it.properties) }
+          stateFlow.update { Activating(it.properties, it.reservation) }
           connection.connect()
           // Add disambiguator field that adds the port on which the device is connected to denote
           // this is a firebase device.
@@ -344,7 +350,8 @@ class DirectAccessDeviceHandle(
                 androidVersion = it.properties.androidVersion
                 model = it.properties.model
                 disambiguator = "${connection.port}"
-              }
+              },
+              it.reservation
             )
           }
         }
@@ -359,12 +366,8 @@ class DirectAccessDeviceHandle(
 
   override val deactivationAction =
     object : DeactivationAction {
-      override suspend fun deactivate() {
-        withContext(scope.coroutineContext + NonCancellable) {
-          connection.endReservation()
-          stateFlow.value = Disconnected(stateFlow.value.properties)
-        }
-      }
+      override suspend fun deactivate() =
+        withContext(scope.coroutineContext + NonCancellable) { connection.endReservation() }
 
       override val label: String
         get() = "Disconnect"
@@ -372,6 +375,36 @@ class DirectAccessDeviceHandle(
         connection.state
           .map { !it.reservation.sessionState.isClosed() }
           .stateIn(scope, SharingStarted.Eagerly, true)
+    }
+
+  override val reservationAction: ReservationAction =
+    object : ReservationAction {
+      override suspend fun reserve(duration: Duration): Instant {
+        val reservation =
+          state.reservation ?: throw DeviceActionException("Reservation not available.")
+        val endTime =
+          reservation.endTime ?: throw DeviceActionException("Reservation end time not available.")
+        connection.extendReservation(duration)
+        // Wait until reservation updates.
+        try {
+          withTimeout(EXTENSION_TIMEOUT.toMillis()) {
+            stateFlow.takeWhile {
+              it.reservation?.endTime?.toEpochMilli() == endTime.toEpochMilli()
+            }
+          }
+        } catch (e: TimeoutCancellationException) {
+          throw DeviceActionException(
+            "Reservation not extended within ${EXTENSION_TIMEOUT.seconds} seconds"
+          )
+        }
+        return state.reservation?.endTime
+          ?: throw DeviceActionException("Extended reservation end time not available.")
+      }
+
+      override val label: String = "Reserve"
+
+      /** [ReservationAction] is enabled through the lifecycle of the device handle. */
+      override val isEnabled: StateFlow<Boolean> = MutableStateFlow(true)
     }
 
   /** Returns true and changes state to [Connected] if [port] matches the [connection] of handle. */
@@ -390,13 +423,17 @@ class DirectAccessDeviceHandle(
         // TODO(b/260153322): Remove once device manager moves to device provisioner framework
         disambiguator = "${connection.port}"
       }
-    stateFlow.value = Connected(deviceProperties, device)
-    device.invokeOnDisconnection { stateFlow.value = Disconnected(deviceProperties) }
+    stateFlow.update { Connected(deviceProperties, device, it.reservation) }
+    device.invokeOnDisconnection {
+      stateFlow.update { Disconnected(deviceProperties, false, it.status, it.reservation) }
+    }
     return true
   }
 
-  class Activating(override val properties: DeviceProperties) :
-    Disconnected(properties, isTransitioning = true, "Connecting")
+  class Activating(
+    override val properties: DeviceProperties,
+    reservation: com.android.sdklib.deviceprovisioner.Reservation?
+  ) : Disconnected(properties, isTransitioning = true, "Connecting", reservation)
 }
 
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
