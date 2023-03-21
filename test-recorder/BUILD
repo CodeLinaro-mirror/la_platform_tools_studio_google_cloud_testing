@@ -25,6 +25,8 @@ iml_module(
         "//tools/studio/google/cloud/testing/test-recorder/lib:uiautomatorviewer",
         "//tools/studio/google/cloud/testing/test-recorder/lib:swt",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
+        "//tools/adt/idea/android-adb:intellij.android.adb[module]",
+        "//tools/adt/idea/android-adb-ui:intellij.android.adb.ui[module]",
         "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
