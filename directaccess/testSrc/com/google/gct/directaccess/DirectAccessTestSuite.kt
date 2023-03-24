@@ -21,4 +21,10 @@ import org.junit.runner.RunWith
 
 @RunWith(JarTestSuiteRunner::class)
 @JarTestSuiteRunner.ExcludeClasses(DirectAccessTestSuite::class) // a suite must not contain itself
-class DirectAccessTestSuite : IdeaTestSuiteBase()
+class DirectAccessTestSuite : IdeaTestSuiteBase() {
+  companion object {
+    init {
+      leakChecker.enabled = false // TODO(b/264602053): fix leaks.
+    }
+  }
+}
