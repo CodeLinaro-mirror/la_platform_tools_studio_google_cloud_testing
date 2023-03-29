@@ -18,9 +18,11 @@ package com.google.gct.testrecorder.ui;
 import static org.apache.commons.lang.StringUtils.isEmpty;
 
 import com.android.annotations.VisibleForTesting;
+import com.android.ddmlib.IDevice;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.execution.common.AndroidSessionInfo;
+import com.android.tools.idea.execution.common.AndroidExecutionTarget;
+import com.android.tools.idea.execution.common.UtilsKt;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
@@ -35,12 +37,14 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.execution.ExecutionException;
+import com.intellij.execution.ExecutionTarget;
 import com.intellij.execution.ExecutionTargetManager;
+import com.intellij.execution.RunManager;
 import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.RunnerAndConfigurationSettings;
-import com.intellij.execution.configurations.LocatableConfigurationBase;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.executors.DefaultDebugExecutor;
+import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
 import com.intellij.openapi.actionSystem.ActionManager;
@@ -156,7 +160,8 @@ public class TestRecorderAction extends AnAction {
   private static void launchTestRecorderOnConfiguration(Project project, RunConfiguration configurationBase, boolean isRecordingTest) {
     try {
       attemptLaunchTestRecorderOnConfiguration(project, configurationBase, isRecordingTest);
-    } catch (Exception e) {
+    }
+    catch (ExecutionException e) {
       String message = isEmpty(e.getMessage()) ? "Unknown error" : e.getMessage();
       Messages.showDialog(project, message, "Could not launch Espresso Test Recorder", new String[]{"OK"}, 0, null);
     }
@@ -191,10 +196,14 @@ public class TestRecorderAction extends AnAction {
       }
     }
 
-    LocatableConfigurationBase testRecorderConfiguration = testRecorderConfigurationProxy.getTestRecorderRunConfiguration();
+    RunnerAndConfigurationSettings settings = RunManager.getInstance(project).findSettings(configurationBase);
 
-    ExecutionEnvironmentBuilder builder = ExecutionEnvironmentBuilder.createOrNull(
-      testRecorderConfiguration.getProject(), DefaultDebugExecutor.getDebugExecutorInstance(), testRecorderConfiguration);
+    if (settings == null) {
+      throw new RuntimeException("Could not find runner and configuration settings");
+    }
+
+    ExecutionEnvironmentBuilder builder =
+      ExecutionEnvironmentBuilder.createOrNull(DefaultDebugExecutor.getDebugExecutorInstance(), settings);
     if (builder == null) {
       throw new RuntimeException("Could not create execution environment builder");
     }
@@ -208,14 +217,15 @@ public class TestRecorderAction extends AnAction {
 
     // Terminate any active Run or Debug session of the to-be-recorded run configuration.
     // Even if it is a Run session, it still needs to be terminated, since the app will have to be restarted in debug mode.
-    AndroidSessionInfo oldSessionInfo = AndroidSessionInfo.findOldSession(
-      module.getProject(), null, configurationBase, ExecutionTargetManager.getInstance(module.getProject()).getActiveTarget());
-    if (oldSessionInfo != null) {
-      oldSessionInfo.getProcessHandler().detachProcess();
+    ExecutionTarget selectedExecutionTarget = ExecutionTargetManager.getActiveTarget(project);
+    if (selectedExecutionTarget instanceof AndroidExecutionTarget) {
+      final List<IDevice> runningDevices = ((AndroidExecutionTarget)selectedExecutionTarget).getRunningDevices().stream().toList();
+      final List<ProcessHandler> runningProcessHandlers = UtilsKt.getProcessHandlersForDevices(settings, project, runningDevices);
+      runningProcessHandlers.forEach(ProcessHandler::destroyProcess);
     }
 
     SessionInitializer sessionInitializer =
-      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration, isRecordingTest);
+      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, configurationBase, isRecordingTest);
     environment.getRunner().execute(environment, descriptor ->
       ApplicationManager.getApplication().executeOnPooledThread(sessionInitializer));
   }
