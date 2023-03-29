@@ -42,7 +42,6 @@ import com.intellij.execution.ExecutionTargetManager;
 import com.intellij.execution.RunManager;
 import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.RunnerAndConfigurationSettings;
-import com.intellij.execution.configurations.LocatableConfigurationBase;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.process.ProcessHandler;
@@ -197,10 +196,14 @@ public class TestRecorderAction extends AnAction {
       }
     }
 
-    LocatableConfigurationBase testRecorderConfiguration = testRecorderConfigurationProxy.getTestRecorderRunConfiguration();
+    RunnerAndConfigurationSettings settings = RunManager.getInstance(project).findSettings(configurationBase);
 
-    ExecutionEnvironmentBuilder builder = ExecutionEnvironmentBuilder.createOrNull(
-      testRecorderConfiguration.getProject(), DefaultDebugExecutor.getDebugExecutorInstance(), testRecorderConfiguration);
+    if (settings == null) {
+      throw new RuntimeException("Could not find runner and configuration settings");
+    }
+
+    ExecutionEnvironmentBuilder builder =
+      ExecutionEnvironmentBuilder.createOrNull(DefaultDebugExecutor.getDebugExecutorInstance(), settings);
     if (builder == null) {
       throw new RuntimeException("Could not create execution environment builder");
     }
@@ -217,13 +220,12 @@ public class TestRecorderAction extends AnAction {
     ExecutionTarget selectedExecutionTarget = ExecutionTargetManager.getActiveTarget(project);
     if (selectedExecutionTarget instanceof AndroidExecutionTarget) {
       final List<IDevice> runningDevices = ((AndroidExecutionTarget)selectedExecutionTarget).getRunningDevices().stream().toList();
-      final RunnerAndConfigurationSettings settings = RunManager.getInstance(project).findSettings(configurationBase);
       final List<ProcessHandler> runningProcessHandlers = UtilsKt.getProcessHandlersForDevices(settings, project, runningDevices);
       runningProcessHandlers.forEach(ProcessHandler::destroyProcess);
     }
 
     SessionInitializer sessionInitializer =
-      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, testRecorderConfiguration, isRecordingTest);
+      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, configurationBase, isRecordingTest);
     environment.getRunner().execute(environment, descriptor ->
       ApplicationManager.getApplication().executeOnPooledThread(sessionInitializer));
   }
