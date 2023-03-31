@@ -99,7 +99,7 @@ class FirebaseTemplateTableCellRenderer : TableCellRenderer {
     val template = value as FirebaseDeviceTemplate
     val foreground = Tables.getForeground(table, selected)
     nameLabel.foreground = foreground
-    nameLabel.text = template.displayName
+    nameLabel.text = template.properties.title
     stateLabel.foreground = foreground
     line2Label.font = UIUtil.getLabelFont(UIUtil.FontSize.SMALL)
     line2Label.foreground = foreground.brighter()

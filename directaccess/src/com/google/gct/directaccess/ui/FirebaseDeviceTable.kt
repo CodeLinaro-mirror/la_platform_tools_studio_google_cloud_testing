@@ -75,7 +75,7 @@ class FirebaseDeviceTable(
         Comparator.comparing { item: FirebaseItem ->
           when (item) {
             is FirebaseDeviceItem -> item.device.name
-            is FirebaseDeviceTemplateItem -> item.template.displayName
+            is FirebaseDeviceTemplateItem -> item.template.properties.title
             else -> ""
           }
         }

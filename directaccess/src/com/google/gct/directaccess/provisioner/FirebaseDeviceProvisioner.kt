@@ -37,6 +37,7 @@ import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
@@ -195,7 +196,7 @@ class FirebaseDeviceTemplate(
   private val devices: MutableStateFlow<List<DeviceHandle>>,
   private val scope: CoroutineScope
 ) : DeviceTemplate {
-  override val displayName: String = "${deviceInfo.manufacturer} ${deviceInfo.name}"
+  override val properties = deviceInfo.toDeviceProperties()
 
   private val isActivationEnabled = MutableStateFlow(true)
 
@@ -259,12 +260,7 @@ class FirebaseDeviceTemplate(
             throw DeviceActionException("Unable to reserve device.", e)
           }
 
-        val deviceProperties =
-          DirectAccessDeviceProperties.build {
-            manufacturer = deviceInfo.manufacturer
-            androidVersion = AndroidVersion(deviceInfo.api)
-            model = deviceInfo.name
-          }
+        val deviceProperties = deviceInfo.toDeviceProperties()
         val deviceScope = scope.createChildScope(isSupervisor = true)
         // Notify provisioner plugin of the new device.
         return DirectAccessDeviceHandle(
@@ -441,6 +437,22 @@ class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by
   companion object {
     fun build(block: Builder.() -> Unit) =
       Builder().apply(block).run { DirectAccessDeviceProperties(buildBase()) }
+  }
+}
+
+fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
+  val info = this
+  return DirectAccessDeviceProperties.build {
+    manufacturer = info.manufacturer
+    model = info.name
+    androidVersion = AndroidVersion(info.api)
+    deviceType =
+      when (info.type) {
+        DeviceType.PHONE -> com.android.sdklib.deviceprovisioner.DeviceType.HANDHELD
+        DeviceType.TV -> com.android.sdklib.deviceprovisioner.DeviceType.TV
+        DeviceType.WEAR_OS -> com.android.sdklib.deviceprovisioner.DeviceType.WEAR
+        DeviceType.AUTOMOTIVE -> com.android.sdklib.deviceprovisioner.DeviceType.AUTOMOTIVE
+      }
   }
 }
 

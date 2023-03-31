@@ -103,9 +103,9 @@ class FirebaseDeviceProvisionerTest {
     yieldUntil { provisioner.templates.value.size == 3 }
 
     // Assert
-    assertThat(provisioner.templates.value[0].displayName).isEqualTo("Google Pixel 5")
-    assertThat(provisioner.templates.value[1].displayName).isEqualTo("Google Pixel 6")
-    assertThat(provisioner.templates.value[2].displayName).isEqualTo("Google Pixel 6 Pro")
+    assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
+    assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
+    assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
   }
 
   @Test
