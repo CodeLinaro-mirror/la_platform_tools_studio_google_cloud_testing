@@ -92,7 +92,7 @@ class FirebaseDevicePopUpMenuButtonTableCellEditorTest {
       val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
       whenever(mockDirectAccessService.reservationManager).thenReturn(reservationManager)
       whenever(mockDirectAccessService.connectToReservation(any(), any())).thenReturn(connection)
-      val handle = DirectAccessDeviceHandle(projectRule.project, child, deviceState, "")
+      val handle = DirectAccessDeviceHandle(projectRule.project, child, mock(), deviceState, "")
       val item = FirebaseDeviceItem(mock(), device, handle, child, AndroidDispatchers.uiThread) {}
 
       val table: FirebaseDeviceTable = mock()

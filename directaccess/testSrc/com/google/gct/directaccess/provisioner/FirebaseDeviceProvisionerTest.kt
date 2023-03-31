@@ -120,6 +120,7 @@ class FirebaseDeviceProvisionerTest {
     assertThat(devices.size).isEqualTo(1)
     val device = devices[0]
     val state = device.stateFlow
+    assertThat(device.sourceTemplate).isEqualTo(template)
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
     val properties = state.value.properties
     assertThat(properties.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)

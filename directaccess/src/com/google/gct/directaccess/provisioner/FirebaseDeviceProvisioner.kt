@@ -266,6 +266,7 @@ class FirebaseDeviceTemplate(
         return DirectAccessDeviceHandle(
             project,
             deviceScope,
+            this@FirebaseDeviceTemplate,
             Disconnected(deviceProperties),
             reservationName
           )
@@ -282,8 +283,9 @@ class FirebaseDeviceTemplate(
 class DirectAccessDeviceHandle(
   private val project: Project,
   override val scope: CoroutineScope,
+  override val sourceTemplate: DeviceTemplate,
   initialState: DeviceState,
-  reservationName: String
+  reservationName: String,
 ) : DeviceHandle {
 
   private val reservationManager: DirectAccessReservationManager =
