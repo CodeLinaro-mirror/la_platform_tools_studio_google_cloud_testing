@@ -113,6 +113,8 @@ class FirebaseDeviceProvisioner(
             templates.collect { updateReservations(project, templates) }
           }
           childScope?.launch { periodicUpdateTemplates(this) }
+        } else {
+          _templates.value = listOf()
         }
       }
     }

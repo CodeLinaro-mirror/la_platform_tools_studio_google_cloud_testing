@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.login.GoogleLogin
+import com.google.gct.login.LoginState
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
@@ -43,6 +44,7 @@ import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
@@ -69,6 +71,7 @@ class FirebaseDeviceProvisionerTest {
   fun setUp() = runBlockingWithTimeout {
     mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
       DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
@@ -106,6 +109,10 @@ class FirebaseDeviceProvisionerTest {
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
+
+    // Log out
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    yieldUntil { provisioner.templates.value.isEmpty() }
   }
 
   @Test
