@@ -37,10 +37,15 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.isClosed
+import com.intellij.notification.NotificationAction
+import com.intellij.notification.NotificationGroup
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.ChronoUnit
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
@@ -57,13 +62,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 private val EXTENSION_TIMEOUT = Duration.ofSeconds(10)
+private val notificationGroup: NotificationGroup
+  get() = NotificationGroup.findRegisteredGroup("Direct Access")!!
 
 class DirectAccessDeviceHandle(
   private val project: Project,
   override val scope: CoroutineScope,
   override val sourceTemplate: DeviceTemplate,
   initialState: DeviceState,
-  reservationName: String
+  private val reservationName: String
 ) : DeviceHandle {
 
   private val reservationManager: DirectAccessReservationManager =
@@ -129,7 +136,33 @@ class DirectAccessDeviceHandle(
   override val deactivationAction =
     object : DeactivationAction {
       override suspend fun deactivate() =
-        withContext(scope.coroutineContext + NonCancellable) { connection.endReservation() }
+        withContext(scope.coroutineContext + NonCancellable) {
+          connection.endReservation(withGracePeriod = true)
+          val reservationExpireTime =
+            reservationManager.fetchReservationFlow(reservationName).value.expireTime.seconds
+          val timeRemaining =
+            Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)
+          val message =
+            when {
+              timeRemaining <= 0 -> return@withContext
+              timeRemaining <= 60 -> getNotificationMessage("less than 1 minute")
+              timeRemaining in 60..90 -> getNotificationMessage("1 minute")
+              else -> getNotificationMessage("${timeRemaining.div(60F).roundToInt()} minutes")
+            }
+          notificationGroup
+            .createNotification("Firebase device stopped", message, NotificationType.INFORMATION)
+            .addAction(
+              NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
+                scope.launch { activationAction.activate() }
+              }
+            )
+            .addAction(
+              NotificationAction.createExpiring("Force check-in device") { _, _ ->
+                scope.launch { withContext(NonCancellable) { connection.endReservation() } }
+              }
+            )
+            .notify(project)
+        }
 
       override val label: String
         get() = "Disconnect"
@@ -137,6 +170,9 @@ class DirectAccessDeviceHandle(
         connection.state
           .map { !it.reservation.sessionState.isClosed() }
           .stateIn(scope, SharingStarted.Eagerly, true)
+
+      private fun getNotificationMessage(phrase: String) =
+        "You can reconnect to the same device for up to $phrase before the device is wiped"
     }
 
   override val reservationAction: ReservationAction =

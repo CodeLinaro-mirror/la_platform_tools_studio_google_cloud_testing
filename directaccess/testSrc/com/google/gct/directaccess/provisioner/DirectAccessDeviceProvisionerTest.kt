@@ -28,8 +28,10 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.testutils.MockitoKt.any
+import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.VirtualTimeScheduler
+import com.android.tools.adbbridge.Reservation
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.AndroidProjectRule
@@ -39,12 +41,17 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
+import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationAction
+import com.intellij.notification.NotificationType
+import com.intellij.notification.NotificationsManager
 import com.studiogrpc.testutils.GrpcConnectionRule
 import java.lang.RuntimeException
 import java.time.Duration
@@ -112,7 +119,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @After
-  fun tearDown() {
+  fun tearDown() = runBlockingWithTimeout {
     scope.cancel()
     session.close()
   }
@@ -227,11 +234,54 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
     assertThat(provisioner.devices.value.size).isEqualTo(1)
 
-    val handle = provisioner.devices.value[0]
+    val handle = (provisioner.devices.value[0])
     yieldUntil { handle.state.reservation != null }
+    val oldEndTime = handle.state.reservation?.endTime
     val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
-    assertThat(newEndTime?.epochSecond).isEqualTo(1100)
-    assertThat(handle.state.reservation?.endTime?.epochSecond).isEqualTo(1100)
+    assertThat(newEndTime?.epochSecond).isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+    assertThat(handle.state.reservation?.endTime?.epochSecond)
+      .isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+  }
+
+  @Test
+  fun testActionsInNotificationOnDisconnectDevice() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+
+    val handle = (template as DirectAccessDeviceTemplate).activeDevice
+    assertThat(handle).isNotNull()
+
+    handle?.deactivationAction?.deactivate()
+    yieldUntil { handle?.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+
+    val firstNotificationsList = getNotifications()
+    assertThat(firstNotificationsList.size).isEqualTo(1)
+
+    firstNotificationsList[0].assertNotification {
+      val reconnectAction = it.actions[0] as NotificationAction
+      reconnectAction.actionPerformed(mock(), it)
+      yieldUntil { handle?.connectionState != DirectAccessConnection.ConnectionState.DISCONNECTED }
+      assertThat(handle?.connectionState)
+        .isEqualTo(DirectAccessConnection.ConnectionState.CONNECTED)
+    }
+
+    // Device will reconnect after previous action. Disconnect again to show notification for force
+    // check-in
+    handle?.deactivationAction?.deactivate()
+
+    val secondNotificationsList = getNotifications()
+    assertThat(secondNotificationsList.size).isEqualTo(1)
+
+    secondNotificationsList[0].assertNotification {
+      val forceCheckInAction = it.actions[1] as NotificationAction
+      forceCheckInAction.actionPerformed(mock(), it)
+      yieldUntil { handle?.reservation?.sessionState != Reservation.SessionState.ACTIVE }
+      assertThat(handle?.connectionState)
+        .isEqualTo(DirectAccessConnection.ConnectionState.DISCONNECTED)
+      yieldUntil { plugin.devices.value.isEmpty() }
+    }
   }
 
   @Test
@@ -284,4 +334,31 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(reserveDeviceDetails.success).isFalse()
     assertThat(reserveDeviceDetails.hasReserveTimeMs()).isFalse()
   }
+
+  private suspend fun Notification.assertNotification(
+    actionAssertBlock: suspend (Notification) -> Unit
+  ) {
+    assertThat(groupId).isEqualTo("Direct Access")
+    assertThat(type).isEqualTo(NotificationType.INFORMATION)
+    assertThat(title).isEqualTo("Firebase device stopped")
+    assertThat(content)
+      .isEqualTo(
+        "You can reconnect to the same device for up to 5 minutes before the device is wiped"
+      )
+    assertThat(actions.size).isEqualTo(2)
+    assertThat(isExpired).isFalse()
+    assertThat(actions[0].templateText).isEqualTo("Reconnect to Device")
+    assertThat(actions[1].templateText).isEqualTo("Force check-in device")
+    actionAssertBlock(this)
+    // Make sure the notification expires as both actions expire it.
+    yieldUntil { isExpired }
+  }
+  private val DirectAccessDeviceHandle.connectionState: DirectAccessConnection.ConnectionState
+    get() = connection.state.value.connection
+  private val DirectAccessDeviceHandle.reservation: Reservation
+    get() = connection.state.value.reservation
+
+  private fun getNotifications() =
+    NotificationsManager.getNotificationsManager()
+      .getNotificationsOfType(Notification::class.java, projectRule.project)
 }

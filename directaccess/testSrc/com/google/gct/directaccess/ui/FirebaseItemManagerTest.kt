@@ -30,9 +30,13 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.login.GoogleLogin
+import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationAction
+import com.intellij.notification.NotificationsManager
 import com.intellij.util.concurrency.EdtExecutorService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import kotlinx.coroutines.CoroutineDispatcher
@@ -153,8 +157,36 @@ class FirebaseItemManagerTest {
     // Assert
     yieldUntil { firebaseItemManager.getItem(0) is FirebaseDeviceItem }
 
-    // Stop the 1st device
+    // When calling startAction() on FirebaseDeviceItem, it checks the connection status. If
+    // connection is DISCONNECTED it implies that the device is disconnected while having a
+    // reservation and tries to connect to device. Instead, we want the device to be connected
+    // so that we can disconnect and revert back to template.
+    // Wait until the connection state is CONNECTED.
+    yieldUntil {
+      (firebaseItemManager.getItem(0) as FirebaseDeviceItem)
+        .handle
+        .connection
+        .state
+        .value
+        .connection == DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    // Stop the 1st device. It will start the grace period. Force check-in the device through
+    // notification
     firebaseItemManager.getItem(0).startAction()
+    yieldUntil {
+      NotificationsManager.getNotificationsManager()
+        .getNotificationsOfType(Notification::class.java, projectRule.project)
+        .isNotEmpty()
+    }
+    val notifications =
+      NotificationsManager.getNotificationsManager()
+        .getNotificationsOfType(Notification::class.java, projectRule.project)
+    assertThat(notifications.size).isEqualTo(1)
+    assertThat(notifications[0].actions.size).isEqualTo(2)
+
+    // Force check-in the device
+    (notifications[0].actions[1] as NotificationAction).actionPerformed(mock(), notifications[0])
     // Wait till the device is released
     yieldUntil { plugin.devices.value.isEmpty() }
     // Wait till the item becomes an active template
