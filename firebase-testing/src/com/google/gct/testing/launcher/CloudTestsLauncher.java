@@ -15,11 +15,20 @@
  */
 package com.google.gct.testing.launcher;
 
+import static com.google.gct.testing.CloudTestingUtils.ANDROID_STUDIO_URL_FLAG;
+
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.services.storage.Storage;
-import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.StorageObject;
-import com.google.api.services.testing.model.*;
+import com.google.api.services.testing.model.AndroidInstrumentationTest;
+import com.google.api.services.testing.model.AndroidMatrix;
+import com.google.api.services.testing.model.ClientInfo;
+import com.google.api.services.testing.model.EnvironmentMatrix;
+import com.google.api.services.testing.model.FileReference;
+import com.google.api.services.testing.model.GoogleCloudStorage;
+import com.google.api.services.testing.model.ResultStorage;
+import com.google.api.services.testing.model.TestMatrix;
+import com.google.api.services.testing.model.TestSpecification;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.gct.testing.CloudConfigurationImpl;
@@ -28,56 +37,26 @@ import com.google.gct.testing.dimension.CloudTestingType;
 import com.google.gct.testing.dimension.DeviceDimension;
 import com.intellij.openapi.application.ApplicationInfo;
 import com.intellij.openapi.ui.Messages;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.message.BasicNameValuePair;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import static com.google.gct.testing.CloudTestingUtils.ANDROID_STUDIO_URL_FLAG;
+import javax.swing.SwingUtilities;
+import org.jetbrains.annotations.Nullable;
 
 
 public class CloudTestsLauncher {
 
-  //public static final String TEST_RUNNER_CLASS = "com.google.android.apps.common.testing.testrunner.GoogleInstrumentationTestRunner";
-  public static final String TEST_RUNNER_CLASS = "android.support.test.runner.AndroidJUnitRunner";
-
-  private static final Function<CloudTestingType, String> TO_CLOUD_TESTING_TYPE_IDS = new Function<CloudTestingType, String>() {
-    @Override
-    public String apply(CloudTestingType type) {
-      return type.getId();
-    }
-  };
+  private static final Function<CloudTestingType, String> TO_CLOUD_TESTING_TYPE_IDS = CloudTestingType::getId;
 
   public CloudTestsLauncher() {
-  }
-
-  public static Bucket createBucket(String projectId, String bucketName) {
-    try {
-      Bucket bucket = new Bucket().setName(bucketName).setLocation("US");
-      Storage.Buckets.Insert insertBucket = CloudAuthenticator.getInstance().getStorage().buckets().insert(projectId, bucket);
-      return insertBucket.execute();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   /**
    * Returns {@code StorageObject} for the uploaded file (i.e., the file in the bucket).
    */
   public static StorageObject uploadFile(String bucketName, String uniquePrefix, File file) {
-    InputStreamContent mediaContent = null;
+    InputStreamContent mediaContent;
     try {
       mediaContent = new InputStreamContent("application/octet-stream", new FileInputStream(file));
     }
@@ -101,12 +80,6 @@ public class CloudTestsLauncher {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private static String removeTrailingSlash(String s) {
-    return s.endsWith("/")
-           ? s.substring(0, s.length() - 1)
-           : s;
   }
 
   /**
@@ -167,12 +140,8 @@ public class CloudTestsLauncher {
             final String userMessage = "<html>" + message.substring(0, urlPrefixIndex) + "<br>" +
                                        message.substring(urlPrefixIndex, urlIndex) + "<a href='" + url + ANDROID_STUDIO_URL_FLAG + "'>" +
                                        url + "</a></html>";
-            SwingUtilities.invokeLater(new Runnable() {
-              @Override
-              public void run() {
-                Messages.showDialog(userMessage, "Project not registered", new String[]{Messages.OK_BUTTON}, 0, null);
-              }
-            });
+            SwingUtilities.invokeLater(
+              () -> Messages.showDialog(userMessage, "Project not registered", new String[]{Messages.OK_BUTTON}, 0, null));
             return null;
           }
         }
@@ -192,54 +161,4 @@ public class CloudTestsLauncher {
     }
     return false;
   }
-
-  /**
-   * Not used, left as an example.
-   */
-  public static void triggerJenkinsJob(
-    String jenkinsUrl, String cloudProjectId, String applicationName, String bucketName, String testSpecification, String matrixFilter,
-    String appPackage, String testPackage) {
-
-    String gsBucketName = "gs://" + bucketName;
-
-    String json = "{\"parameter\": " +
-               "[ " +
-               "{\"name\": \"CLOUD_PROJECT\",      \"value\": \"" + cloudProjectId + "\"}, " +
-               "{\"name\": \"APPLICATION\",        \"value\": \"" + applicationName + "\"}, " +
-               "{\"name\": \"BUCKET\",             \"value\": \"" + gsBucketName + "\"}, " +
-               "{\"name\": \"APP_PACKAGE_ID\",     \"value\": \"" + appPackage + "\"}, " +
-               "{\"name\": \"TEST_PACKAGE_ID\",    \"value\": \"" + testPackage + "\"}, " +
-               "{\"name\": \"TEST_SPECIFICATION\", \"value\": \"" + testSpecification + "\"}, " +
-               "{\"name\": \"TEST_RUNNER_CLASS\",  \"value\": \"" + TEST_RUNNER_CLASS + "\"}, " +
-               "{\"name\": \"FILTER\",             \"value\": \"" + matrixFilter + "\"}" +
-               "], " +
-               "}";
-
-    sendPostRequest(removeTrailingSlash(jenkinsUrl) + "/job/matrix-test-multi/build", json);
-  }
-
-  public static void sendPostRequest(String targetURL, String json) {
-    CloseableHttpClient httpClient = HttpClientBuilder.create().build();
-    try {
-      List<NameValuePair> params = new ArrayList<NameValuePair>();
-      params.add(new BasicNameValuePair("json", json));
-
-      HttpPost request = new HttpPost(targetURL);
-      request.addHeader("content-type", "application/x-www-form-urlencoded");
-      request.setEntity(new UrlEncodedFormEntity(params));
-      CloseableHttpResponse response = httpClient.execute(request);
-      //response.getEntity().writeTo(System.out);
-      // handle response here...
-    } catch (Exception ex) {
-      throw new RuntimeException(ex);
-    } finally {
-      try {
-        httpClient.close();
-      }
-      catch (IOException e) {
-        // ignore
-      }
-    }
-  }
-
 }

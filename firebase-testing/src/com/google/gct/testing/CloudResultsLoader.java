@@ -407,7 +407,6 @@ public class CloudResultsLoader {
     }
 
     Iterable<BucketFileMetadata> files = Iterables.transform(storageObjects, TO_BUCKET_FILE);
-    //ArrayList<ScreenshotDownloadThread> downloadThreads = new ArrayList<ScreenshotDownloadThread>();
     for (BucketFileMetadata file : files) {
       if (file.getType() == SCREENSHOT && !isIgnoredScreenshot(file)) {
         ConfigurationResult result = results.get(file.getEncodedConfigurationInstance());
@@ -417,35 +416,6 @@ public class CloudResultsLoader {
         }
       }
     }
-
-    // TODO: Replace with a pool of worker threads.
-    //final int capParallelThreads = 10;
-    //int currentParallelThreads = 0;
-    //for (int i = 0; i < downloadThreads.size(); i++) {
-    //  if (loadedScreenshotSize > MAX_SCREENSHOT_DOWNLOAD_SIZE) {
-    //    joinCurrentParallelThreads(downloadThreads, currentParallelThreads, i);
-    //    return;
-    //  }
-    //  ScreenshotDownloadThread newDownloadThread = downloadThreads.get(i);
-    //  loadedScreenshotSize += newDownloadThread.getFileSize();
-    //  newDownloadThread.start();
-    //  currentParallelThreads++;
-    //  if (currentParallelThreads == capParallelThreads) {
-    //    // Join the existing threads before proceeding to avoid going over the limit.
-    //    joinCurrentParallelThreads(downloadThreads, currentParallelThreads, i);
-    //    currentParallelThreads = 0;
-    //  }
-    //}
-    //
-    //// Join any remaining threads.
-    //for (int i = downloadThreads.size() - currentParallelThreads; i < downloadThreads.size(); i++){
-    //  try {
-    //    downloadThreads.get(i).join();
-    //  }
-    //  catch (InterruptedException e) {
-    //    //ignore
-    //  }
-    //}
   }
 
   private boolean isIgnoredScreenshot(BucketFileMetadata file) {
@@ -453,59 +423,6 @@ public class CloudResultsLoader {
            || file.getName().startsWith("TestRunner-prepareVirtualDevice-beforeunlock-") // Ignore screenshot that we take before unlocking.
            || file.getName().startsWith("TestRunner-prepareVirtualDevice-afterunlock-"); // Ignore screenshot that we take after unlocking.
   }
-
-  //private void joinCurrentParallelThreads(ArrayList<ScreenshotDownloadThread> downloadThreads, int currentParallelThreads,
-  //                                        int lastStartedThreadIndex) {
-  //  for (int j = lastStartedThreadIndex - currentParallelThreads + 1; j <= lastStartedThreadIndex; j++){
-  //    try {
-  //      downloadThreads.get(j).join();
-  //    }
-  //    catch (InterruptedException e) {
-  //      //ignore
-  //    }
-  //  }
-  //}
-
-  //private class ScreenshotDownloadThread extends Thread {
-  //
-  //  private final BucketFileMetadata file;
-  //  private final ConfigurationResult result;
-  //
-  //  private ScreenshotDownloadThread(BucketFileMetadata file, ConfigurationResult result) {
-  //    this.file = file;
-  //    this.result = result;
-  //  }
-  //
-  //  public long getFileSize() {
-  //    try {
-  //      return getStorage().objects().get(bucketName, file.getPath()).executeCloudMatrixTests().getSize().longValue();
-  //    }
-  //    catch (IOException e) {
-  //      System.err.println("Failed to estimate a cloud file size: " + file.getName());
-  //      return 0;
-  //    }
-  //  }
-  //
-  //  @Override
-  //  public void run() {
-  //    Optional<byte[]> optionalFileBytes = getFileBytes(file);
-  //    if (optionalFileBytes.isPresent()) {
-  //      BufferedImage image = null;
-  //      try {
-  //        image = ImageIO.read(new ByteArrayInputStream(optionalFileBytes.get()));
-  //      }
-  //      catch (IOException e) {
-  //        System.out.println("Failed to create an image for screenshot: " + e.getMessage());
-  //        return;
-  //      }
-  //      image.flush();
-  //      result.addScreenshotMetadata(file.getName(), image);
-  //      // Mark that the new data was received as the last statement to ensure that no failures can follow after that
-  //      // (to avoid infinite failure mode).
-  //      newDataReceived = true;
-  //    }
-  //  }
-  //}
 
   private Optional<String> toOptionalString(Optional<byte[]> optionalBytes) {
     return optionalBytes.isPresent()

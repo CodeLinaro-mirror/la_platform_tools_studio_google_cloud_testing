@@ -27,7 +27,6 @@ import com.android.ddmlib.ScreenRecorderOptions
 import com.android.ddmlib.SyncService
 import com.android.ddmlib.log.LogReceiver
 import com.android.sdklib.AndroidVersion
-import com.google.api.services.testing.model.Device
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.io.File
@@ -41,18 +40,6 @@ data class GhostCloudDevice(
   val locale: String,
   val orientation: String
 ) : IDevice {
-
-  constructor (device: Device) : this(
-    deviceId = device.id,
-    androidModelId = device.androidDevice.androidModelId,
-    androidVersion = try {
-      AndroidVersion(device.androidDevice.androidVersionId.toInt(), null)
-    } catch (e: NumberFormatException) {
-      error("Unexpected error: Build API level '${device.androidDevice.androidVersionId}' is not an integer: ")
-    },
-    locale = device.androidDevice.locale,
-    orientation = device.androidDevice.orientation
-  )
 
   override fun getSerialNumber(): String = "N/A"
 

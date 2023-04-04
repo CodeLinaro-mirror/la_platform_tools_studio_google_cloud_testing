@@ -24,8 +24,4 @@ class TwoPanelTreeDimensionSelectionEvent {
   public TwoPanelTreeDimensionSelectionEvent(CloudConfigurationDimension currentDimension) {
     this.currentDimension = currentDimension;
   }
-
-  public CloudConfigurationDimension getCurrentDimension() {
-    return currentDimension;
-  }
 }

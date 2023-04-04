@@ -20,7 +20,6 @@ import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.gct.testing.android.CloudConfiguration;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
-import com.intellij.icons.AllIcons;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationListener;
 import com.intellij.notification.NotificationType;
@@ -70,17 +69,10 @@ public class CloudTestingUtils {
   public static final String TEST_CONFIGURATION_FINISHED = "testConfigurationFinished";
 
   public static Icon CLOUD_DEVICE_ICON;
-  public static Icon CLOUD_DEBUG_ICON;
 
   private static final Logger LOG = Logger.getInstance(CloudTestingUtils.class.getName());
 
   static {
-    try {
-      CLOUD_DEBUG_ICON = new ImageIcon(ImageIO.read(CloudTestingUtils.class.getResourceAsStream("CloudDebug.png")));
-    }
-    catch (Exception e) { // If something goes wrong, just use the original debug icon.
-      CLOUD_DEBUG_ICON = AllIcons.Actions.StartDebugger;
-    }
     try {
       CLOUD_DEVICE_ICON = new ImageIcon(ImageIO.read(CloudTestingUtils.class.getResourceAsStream("CloudDevice.png")));
     } catch (Exception e) { // If something goes wrong, just use the default device icon.
@@ -122,38 +114,11 @@ public class CloudTestingUtils {
     }
   }
 
-  /**
-   * Returns {@code false} iff the Java version is too old for launching firebase devices (i.e., < 1.8).
-   *
-   */
-  public static boolean checkJavaVersion() {
-    String javaVersion = System.getProperty("java.version");
-    String[] versionParts = javaVersion.split("\\.");
-    if (Double.parseDouble(versionParts[0] + "." + versionParts[1]) < 1.8) {
-      final String message = "<html>You are using Java <b>" + javaVersion + "</b>.<br>"
-                             + "Due to security reasons, to launch firebase devices, you need to upgrade to Java <b>1.8</b> or higher.<br>"
-                             + "You can download the latest Java release from <a href='https://java.com'>here</a>.</html>";
-      final Project project = null;
-      SwingUtilities.invokeLater(new Runnable() {
-        @Override
-        public void run() {
-          Messages
-            .showDialog(project, message, "Your Java is too old for launching firebase devices!", new String[]{Messages.CANCEL_BUTTON}, 0, null);
-        }
-      });
-      return false;
-    }
-    return true;
-  }
-
   public static void showBalloonMessage(final Project project, final String message, final MessageType type, final int delaySeconds) {
-    SwingUtilities.invokeLater(new Runnable() {
-      @Override
-      public void run() {
-        StatusBar statusBar = WindowManager.getInstance().getStatusBar(project);
-        JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(message, type, null).setFadeoutTime(delaySeconds * 1000).createBalloon()
-          .show(RelativePoint.getCenterOf(statusBar.getComponent()), Balloon.Position.atRight);
-      }
+    SwingUtilities.invokeLater(() -> {
+      StatusBar statusBar = WindowManager.getInstance().getStatusBar(project);
+      JBPopupFactory.getInstance().createHtmlTextBalloonBuilder(message, type, null).setFadeoutTime(delaySeconds * 1000).createBalloon()
+        .show(RelativePoint.getCenterOf(statusBar.getComponent()), Balloon.Position.atRight);
     });
   }
 
@@ -215,24 +180,6 @@ public class CloudTestingUtils {
 
     gbc.insets = (x == 0 && y == 0) ? new Insets(5, 7, 5, 5) : new Insets(5, 5, 5, 5);
     gbc.weightx = (x == 0) ? 0.1 : 1.0;
-    gbc.weighty = 0.0;
-    return gbc;
-  }
-
-  public static GridBagConstraints createCloudTestOptionGbc(int x, int y, boolean isExtendedDeviceChooserDialog) {
-    GridBagConstraints gbc = new GridBagConstraints();
-    gbc.gridx = x;
-    gbc.gridy = y;
-    gbc.gridwidth = 1;
-    gbc.gridheight = 1;
-
-    gbc.anchor = (x == 0) ? GridBagConstraints.WEST : GridBagConstraints.WEST;
-    gbc.fill = (x == 0) ? GridBagConstraints.BOTH : GridBagConstraints.BOTH;
-
-    int leftFirstInsets = isExtendedDeviceChooserDialog ? 21 : 20;
-    int leftSecondInsets = isExtendedDeviceChooserDialog ? 49 : 58;
-    gbc.insets = (x == 0) ? new Insets(0, leftFirstInsets, 0, 0) : new Insets(0, leftSecondInsets, 0, 0);
-    gbc.weightx = (x == 0) ? 0.0 : 1.0;
     gbc.weighty = 0.0;
     return gbc;
   }

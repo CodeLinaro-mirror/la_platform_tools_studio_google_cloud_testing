@@ -28,18 +28,6 @@ public class StrokeBorder extends AbstractBorder {
   private final Paint paint;
 
   /**
-   * Creates a border of the specified {@code stroke}.
-   * The component's foreground color will be used to render the border.
-   *
-   * @param stroke  the {@link java.awt.BasicStroke} object used to stroke a shape
-   *
-   * @throws NullPointerException if the specified {@code stroke} is {@code null}
-   */
-  public StrokeBorder(BasicStroke stroke) {
-    this(stroke, null);
-  }
-
-  /**
    * Creates a border of the specified {@code stroke} and {@code paint}.
    * If the specified {@code paint} is {@code null},
    * the component's foreground color will be used to render the border.
@@ -112,26 +100,5 @@ public class StrokeBorder extends AbstractBorder {
     int size = (int) Math.ceil(this.stroke.getLineWidth());
     insets.set(size, size, size, size);
     return insets;
-  }
-
-  /**
-   * Returns the {@link java.awt.BasicStroke} object used to stroke a shape
-   * during the border rendering.
-   *
-   * @return the {@link java.awt.BasicStroke} object
-   */
-  public BasicStroke getStroke() {
-    return this.stroke;
-  }
-
-  /**
-   * Returns the {@link java.awt.Paint} object used to generate a color
-   * during the border rendering.
-   *
-   * @return the {@link java.awt.Paint} object or {@code null}
-   *         if the {@code paint} parameter is not set
-   */
-  public Paint getPaint() {
-    return this.paint;
   }
 }

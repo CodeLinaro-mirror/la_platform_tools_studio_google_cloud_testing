@@ -31,7 +31,7 @@ public abstract class CloudConfigurationDimension {
   /**
    * Map dimension -> last update timestamp.
    */
-  private static final Map<String, Long> lastDiscoveryTestApiUpdateTimestampMap = new HashMap<String, Long>();
+  private static final Map<String, Long> lastDiscoveryTestApiUpdateTimestampMap = new HashMap<>();
 
   /**
    * The list of types that are currently enabled (use List rather than Set for comparison consistency).
@@ -143,10 +143,6 @@ public abstract class CloudConfigurationDimension {
     if (!enabledTypes.contains(type)) {
       enabledTypes.add(type);
     }
-  }
-
-  public void clear() {
-    enabledTypes.clear();
   }
 
   public void enableAll() {

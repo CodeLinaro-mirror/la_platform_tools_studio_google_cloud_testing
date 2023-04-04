@@ -15,20 +15,22 @@
  */
 package com.google.gct.testing;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.gct.testing.android.CloudConfiguration;
-import com.google.gct.testing.dimension.*;
-import org.jetbrains.android.facet.AndroidFacet;
-
-import javax.swing.*;
+import com.google.gct.testing.dimension.ApiDimension;
+import com.google.gct.testing.dimension.CloudConfigurationDimension;
+import com.google.gct.testing.dimension.CloudTestingType;
+import com.google.gct.testing.dimension.ConfigurationChangeEvent;
+import com.google.gct.testing.dimension.ConfigurationChangeListener;
+import com.google.gct.testing.dimension.DeviceDimension;
+import com.google.gct.testing.dimension.LanguageDimension;
+import com.google.gct.testing.dimension.OrientationDimension;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import javax.swing.Icon;
+import org.jetbrains.android.facet.AndroidFacet;
 
 public class CloudConfigurationImpl extends CloudConfiguration {
 
@@ -75,19 +77,6 @@ public class CloudConfigurationImpl extends CloudConfiguration {
     this(nextAvailableID++, name, kind, icon, facet);
   }
 
-  @VisibleForTesting
-  CloudConfigurationImpl(String name, Kind kind, int minSdkVersion, List<String> locales) {
-    id = nextAvailableID++;
-    this.name = name;
-    this.kind = kind;
-    facet = null;
-    isEditable = true;
-    deviceDimension = new DeviceDimension(this);
-    apiDimension = new ApiDimension(this, minSdkVersion);
-    languageDimension = new LanguageDimension(this, locales);
-    orientationDimension = new OrientationDimension(this);
-  }
-
   public CloudConfigurationImpl(AndroidFacet facet, Kind kind) {
     id = nextAvailableID++;
     name = "Unnamed";
@@ -111,27 +100,6 @@ public class CloudConfigurationImpl extends CloudConfiguration {
 
   public Kind getKind() {
     return kind;
-  }
-
-  /**
-   * A single number representation of a matrix configuration.
-   */
-  private int getHash() {
-    return (name + FluentIterable.from(getDimensions()).transform(new Function<CloudConfigurationDimension, String>() {
-      @Override
-      public String apply(CloudConfigurationDimension dimension) {
-        return getStringRepresentation(dimension);
-      }
-    }).toString()).hashCode();
-  }
-
-  private String getStringRepresentation(CloudConfigurationDimension dimension) {
-    StringBuffer sb = new StringBuffer();
-    sb.append(dimension.getId());
-    for (CloudTestingType type : dimension.getEnabledTypes()) {
-      sb.append(type.getId());
-    }
-    return sb.toString();
   }
 
   @Override
@@ -207,20 +175,6 @@ public class CloudConfigurationImpl extends CloudConfiguration {
     return product;
   }
 
-  public int countCombinationsCollapsingOrientation() {
-    int product = 1;
-
-    for (CloudConfigurationDimension dimension : getDimensions()) {
-      if (dimension instanceof OrientationDimension) {
-        product *= Math.min(dimension.getEnabledTypes().size(), 1);
-      } else {
-        product *= dimension.getEnabledTypes().size();
-      }
-    }
-
-    return product;
-  }
-
   @Override
   public boolean isEditable() {
     return isEditable;
@@ -244,36 +198,10 @@ public class CloudConfigurationImpl extends CloudConfiguration {
   }
 
   /**
-   * Precondition: getDeviceConfigurationCount() > 0.
-   */
-  public String prepareMatrixTestRequest() {
-    Preconditions.checkState(getDeviceConfigurationCount() > 0, "There should be at least one combination in a matrix test request!");
-
-    StringBuffer bf = new StringBuffer();
-
-    boolean firstDim = true;
-    for (CloudConfigurationDimension dimension : getDimensions()) {
-      if(!firstDim) {
-        bf.append(" && ");
-      }
-      firstDim = false;
-      StringBuffer dimensionRequest = prepareDimensionRequest(dimension);
-      if (dimension.getEnabledTypes().size() > 1) {
-        bf.append("(").append(dimensionRequest).append(")");
-      } else {
-        bf.append(dimensionRequest);
-      }
-    }
-    return bf.toString();
-
-    //String s= "(DEVICE=='nexus5' || DEVICE=='nexus7') && OSVERSION=='jellybean' && LANGUAGE=='english'";
-  }
-
-  /**
    * TODO: Use an enum rather than delimiter to decide what presentation (and delimiter) to use (i.e., id or display name).
    */
   public List<String> computeConfigurationInstances(String delimiter) {
-    List<String> configurationInstances = new LinkedList<String>();
+    List<String> configurationInstances = new LinkedList<>();
     computeConfigurationInstancesRecursively(delimiter, "", 0, configurationInstances);
     return configurationInstances;
   }
@@ -297,19 +225,6 @@ public class CloudConfigurationImpl extends CloudConfiguration {
       computeConfigurationInstancesRecursively(
         delimiter, partialConfigurationInstance + separator + typeName, dimensionIndex + 1, configurationInstances);
     }
-  }
-
-  private StringBuffer prepareDimensionRequest(CloudConfigurationDimension dimension) {
-    StringBuffer bf = new StringBuffer();
-    boolean firstType = true;
-    for (CloudTestingType type : dimension.getEnabledTypes()) {
-      if (!firstType) {
-        bf.append(" || ");
-      }
-      firstType = false;
-      bf.append(dimension.getId() + "=='" + type.getId() + "'");
-    }
-    return bf;
   }
 
   @Override
@@ -341,7 +256,7 @@ public class CloudConfigurationImpl extends CloudConfiguration {
   }
 
   private List<String> getEnabledTypes(CloudConfigurationDimension dimension) {
-    List<String> enabledTypes = new LinkedList<String>();
+    List<String> enabledTypes = new LinkedList<>();
     for (CloudTestingType type : dimension.getEnabledTypes()) {
       enabledTypes.add(type.getId());
     }

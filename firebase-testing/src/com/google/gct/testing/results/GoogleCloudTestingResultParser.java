@@ -197,13 +197,13 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
    * Stores key-value pairs under INSTRUMENTATION_RESULT header, these are printed at the
    * end of a test run, if applicable
    */
-  private Map<String, String> mInstrumentationResultBundle = new HashMap<String, String>();
+  private Map<String, String> mInstrumentationResultBundle = new HashMap<>();
 
   /**
    * Stores key-value pairs of metrics emitted during the execution of each test case.  Note that
    * standard keys that are stored in the TestResults class are filtered out of this Map.
    */
-  private Map<String, String> mTestMetrics = new HashMap<String, String>();
+  private Map<String, String> mTestMetrics = new HashMap<>();
 
   private static final String LOG_TAG = "InstrumentationResultParser";
 
@@ -314,7 +314,6 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
         } else if (mCurrentKey.equals(StatusKeys.SHORTMSG)) {
           // Test run in this permutation must have failed, but do not stop the process since we expect results from many permutations
           // and thus, will rely on other mechanisms to decide when we are done.
-          //handleTestRunFailed(String.format("Instrumentation run failed due to '%1$s'", statusValue));
         }
       }
       else {
@@ -355,7 +354,7 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
    */
   private Map<String, String> getAndResetTestMetrics() {
     Map<String, String> retVal = mTestMetrics;
-    mTestMetrics = new HashMap<String, String>();
+    mTestMetrics = new HashMap<>();
     return retVal;
   }
 
@@ -428,21 +427,14 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
   }
 
   /**
-   * Requests cancellation of test run.
-   */
-  public void cancel() {
-    mIsCancelled = true;
-  }
-
-  /**
-   * Reports a test result to the test run listener. Must be called when a individual test
+   * Reports a test result to the test run listener. Must be called when an individual test
    * result has been fully parsed.
    *
    * @param statusMap key-value status pairs of test result
    */
   private void reportResult(TestResult testInfo) {
     if (!testInfo.isComplete()) {
-      Log.w(LOG_TAG, "invalid instrumentation status bundle " + testInfo.toString());
+      Log.w(LOG_TAG, "invalid instrumentation status bundle " + testInfo);
       return;
     }
     reportTestRunStarted(testInfo);

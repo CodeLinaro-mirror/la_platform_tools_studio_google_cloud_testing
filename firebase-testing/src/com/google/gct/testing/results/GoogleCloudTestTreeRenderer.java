@@ -33,7 +33,6 @@ public class GoogleCloudTestTreeRenderer extends ColoredTreeCellRenderer {
   @NonNls private static final String SPACE_STRING = " ";
 
   private final TestConsoleProperties myConsoleProperties;
-  private GoogleCloudTestingRootTestProxyFormatter myAdditionalRootFormatter;
   private String myDurationText;
   private Color myDurationColor;
   private int myDurationWidth;
@@ -63,9 +62,6 @@ public class GoogleCloudTestTreeRenderer extends ColoredTreeCellRenderer {
           GoogleCloudTestsPresentationUtil.formatRootNodeWithoutChildren(rootTestProxy, this);
         } else {
           GoogleCloudTestsPresentationUtil.formatRootNodeWithChildren(rootTestProxy, this);
-        }
-        if (myAdditionalRootFormatter != null) {
-          myAdditionalRootFormatter.format(rootTestProxy, this);
         }
       } else {
         GoogleCloudTestsPresentationUtil.formatTestProxy(testProxy, this);
@@ -100,14 +96,6 @@ public class GoogleCloudTestTreeRenderer extends ColoredTreeCellRenderer {
 
   public TestConsoleProperties getConsoleProperties() {
     return myConsoleProperties;
-  }
-
-  public void setAdditionalRootFormatter(@NotNull GoogleCloudTestingRootTestProxyFormatter formatter) {
-    myAdditionalRootFormatter = formatter;
-  }
-
-  public void removeAdditionalRootFormatter() {
-    myAdditionalRootFormatter = null;
   }
 
   @Override

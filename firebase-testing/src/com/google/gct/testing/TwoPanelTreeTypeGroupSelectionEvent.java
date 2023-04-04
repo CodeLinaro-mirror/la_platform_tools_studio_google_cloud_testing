@@ -29,10 +29,6 @@ class TwoPanelTreeTypeGroupSelectionEvent {
     this.clickedGroup = clickedGroup;
   }
 
-  public CloudConfigurationDimension getCurrentDimension() {
-    return currentDimension;
-  }
-
   public CloudTestingTypeGroup getGroup() {
     return clickedGroup;
   }

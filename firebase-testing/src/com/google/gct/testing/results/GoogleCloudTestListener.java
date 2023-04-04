@@ -50,16 +50,7 @@ public class GoogleCloudTestListener implements IGoogleCloudTestRunListener {
 
   @Override
   public void testRunEnded(long elapsedTime, Map<String, String> runMetrics) {
-    //if (myTestClassName != null) {
-    //  testSuiteFinished();
-    //}
-    //if (myConfiguration != null) {
-    //  testConfigurationFinished(myConfiguration);
-    //  myConfiguration = null;
-    //}
-    final ProcessHandler handler = getProcessHandler();
-    //handler.notifyTextAvailable("Finish\n", ProcessOutputTypes.STDOUT);
-    handler.destroyProcess();
+    getProcessHandler().destroyProcess();
   }
 
   @Override
@@ -131,29 +122,6 @@ public class GoogleCloudTestListener implements IGoogleCloudTestRunListener {
     builder.addAttribute("name", configurationName);
     getProcessHandler().notifyTextAvailable(builder.toString() + '\n', ProcessOutputTypes.STDOUT);
   }
-
-  //private void testSuiteStarted() {
-  //  myTestSuiteStartingTime = System.currentTimeMillis();
-  //  ServiceMessageBuilder builder = new ServiceMessageBuilder("testSuiteStarted");
-  //  builder.addAttribute("name", myTestClassName);
-  //  builder.addAttribute("locationHint", AndroidTestLocationProvider.PROTOCOL_ID + "://" +
-  //                                       myRunningState.getModule().getName() + ':' + myTestClassName);
-  //  getProcessHandler().notifyTextAvailable(builder.toString() + '\n', ProcessOutputTypes.STDOUT);
-  //}
-
-  public void testConfigurationFinished(String configurationName) {
-    ServiceMessageBuilder builder = new ServiceMessageBuilder(CloudTestingUtils.TEST_CONFIGURATION_FINISHED);
-    builder.addAttribute("name", configurationName);
-    getProcessHandler().notifyTextAvailable(builder.toString() + '\n', ProcessOutputTypes.STDOUT);
-  }
-
-  //private void testSuiteFinished() {
-  //  ServiceMessageBuilder builder = new ServiceMessageBuilder("testSuiteFinished");
-  //  builder.addAttribute("name", myTestClassName);
-  //  builder.addAttribute("duration", Long.toString(System.currentTimeMillis() - myTestSuiteStartingTime));
-  //  getProcessHandler().notifyTextAvailable(builder.toString() + '\n', ProcessOutputTypes.STDOUT);
-  //  myTestClassName = null;
-  //}
 
   @Override
   public void testFailed(GoogleCloudTestIdentifier test, String stackTrace) {

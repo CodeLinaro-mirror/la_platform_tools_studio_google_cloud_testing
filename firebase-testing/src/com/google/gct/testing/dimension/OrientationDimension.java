@@ -20,7 +20,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gct.testing.CloudConfigurationImpl;
 import com.google.gct.testing.launcher.CloudAuthenticator;
-import icons.AndroidIcons;
 
 import icons.StudioIcons;
 import javax.swing.*;
@@ -30,9 +29,6 @@ import java.util.List;
 public class OrientationDimension extends CloudConfigurationDimension {
 
   public static final String DISPLAY_NAME = "Orientation";
-
-  //public static final Orientation PORTRAIT = new Orientation("portrait", "Portrait");
-  //public static final Orientation LANDSCAPE = new Orientation("landscape", "Landscape");
 
   private static ImmutableList<Orientation> FULL_DOMAIN;
   private static Orientation defaultOrientation;

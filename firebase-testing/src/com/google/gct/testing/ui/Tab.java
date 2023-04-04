@@ -37,9 +37,6 @@ import static javax.swing.JFrame.EXIT_ON_CLOSE;
 
 public class Tab extends GradientJPanel {
 
-  //private static final Color BOTTOM_COLOR = new Color(204, 204, 204);
-  //private static final Color TOP_COLOR = new Color(245, 245, 245);
-
   private static final Color TOP_COLOR = UIUtil.getPanelBackground();
   private static final Color BOTTOM_COLOR = CloudTestingUtils.makeDarker(UIUtil.getPanelBackground(), 2);
 
