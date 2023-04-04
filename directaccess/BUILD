@@ -37,7 +37,7 @@ iml_module(
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
         "//tools/adt/idea/.idea/libraries:jetbrains.kotlinx.coroutines.test[test]",
         "//tools/base/fakeadbserver:studio.android.sdktools.fakeadbserver[module, test]",
-        "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-testing-v1-revsnapshot-1.20.0",
+        "//prebuilts/tools/common/m2:google-api-services-testing-v1-rev82-1.22.0",
         "//tools/base/studio-grpc-testutils:studio.studio-grpc-testutils[module, test]",
         "//tools/adt/idea/device-file-explorer-toolwindow:intellij.android.device-file-explorer-toolwindow[module]",
         "//tools/adt/idea/device-explorer:intellij.android.device-explorer[module]",
