@@ -21,9 +21,14 @@ import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
+import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
+import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.findOrCreateReservation
+import com.google.services.firebase.directaccess.client.waitUntilActive
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import java.time.Duration
@@ -91,18 +96,31 @@ class DirectAccessDeviceTemplate(
         val reservationManager =
           project.service<DirectAccessService>().reservationManager
             ?: throw DeviceActionException("Unable to access ReservationManager.")
-
-        val reservationName =
+        val reservationResult =
           try {
-            reservationManager
-              .findOrCreateReservation(deviceInfo.codename, deviceInfo.api.toString())
-              .name
+            reservationManager.findOrCreateReservation(
+              deviceInfo.codename,
+              deviceInfo.api.toString()
+            )
           } catch (e: Exception) {
+            // TODO(b/277240160): Add correct failure reason
+            DirectAccessUsageTracker.trackReserveDevice(
+              false,
+              null,
+              null,
+              deviceInfo.toMetricsDeviceInfo(),
+              DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
+            )
             // Pass the underlying gRPC exception as a cause
             // TODO: Perhaps extract more detail if we can get it.
             throw DeviceActionException("Unable to reserve device.", e)
           }
-
+        if (reservationResult.second != 0L) {
+          scope.logReserveMetricWhenReservationActive(
+            reservationManager.fetchReservationFlow(reservationResult.first),
+            reservationResult.second
+          )
+        }
         val deviceProperties = deviceInfo.toDeviceProperties()
         val deviceScope = scope.createChildScope(isSupervisor = true)
         // Notify provisioner plugin of the new device.
@@ -111,7 +129,7 @@ class DirectAccessDeviceTemplate(
             deviceScope,
             this@DirectAccessDeviceTemplate,
             DeviceState.Disconnected(deviceProperties),
-            reservationName
+            reservationResult.first
           )
           .also { activeDevice = it }
       }
@@ -121,4 +139,17 @@ class DirectAccessDeviceTemplate(
     }
 
   override val editAction = null
+
+  private fun CoroutineScope.logReserveMetricWhenReservationActive(
+    reservationFlow: StateFlow<Reservation>,
+    reserveStartTime: Long
+  ) = launch {
+    reservationFlow.waitUntilActive()
+    DirectAccessUsageTracker.trackReserveDevice(
+      true,
+      System.currentTimeMillis() - reserveStartTime,
+      reservationFlow.value.name,
+      deviceInfo.toMetricsDeviceInfo()
+    )
+  }
 }

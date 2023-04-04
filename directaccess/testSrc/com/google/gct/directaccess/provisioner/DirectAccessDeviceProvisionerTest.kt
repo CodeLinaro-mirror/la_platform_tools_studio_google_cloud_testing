@@ -23,11 +23,15 @@ import com.android.adblib.scope
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.whenever
+import com.android.testutils.VirtualTimeScheduler
+import com.android.tools.analytics.TestUsageTracker
+import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -39,6 +43,8 @@ import com.google.services.firebase.directaccess.client.DirectAccessReservationM
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
+import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.studiogrpc.testutils.GrpcConnectionRule
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +71,7 @@ class DirectAccessDeviceProvisionerTest {
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
   private lateinit var fakeConnection: FakeDirectAccessConnection
   private lateinit var scope: CoroutineScope
+  private lateinit var tracker: TestUsageTracker
   private lateinit var mockGoogleLogin: GoogleLogin
 
   @Before
@@ -88,6 +95,8 @@ class DirectAccessDeviceProvisionerTest {
       }
       .whenever(mockDirectAccessService)
       .connectToReservation(any(), any())
+    tracker = TestUsageTracker(VirtualTimeScheduler())
+    UsageTracker.setWriterForTest(tracker)
     plugin =
       DirectAccessDeviceProvisionerPlugin(
         session.scope,
@@ -232,5 +241,56 @@ class DirectAccessDeviceProvisionerTest {
     val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
     assertThat(newEndTime?.epochSecond).isEqualTo(1100)
     assertThat(handle.state.reservation?.endTime?.epochSecond).isEqualTo(1100)
+  }
+
+  @Test
+  fun logReservationSuccessMetricsWhenSuccessReservingDevice() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil { tracker.usages.isNotEmpty() }
+
+    val studioEvent = tracker.usages[0].studioEvent
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type)
+      .isEqualTo(DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val reserveDeviceDetails = directAccessEvent.reserveDeviceDetails
+    assertThat(reserveDeviceDetails.success).isTrue()
+    assertThat(reserveDeviceDetails.reserveTimeMs).isNotNull()
+    assertThat(reserveDeviceDetails.reserveTimeMs).isNotEqualTo(0)
+  }
+
+  @Test
+  fun logReservationFailMetricWhenErrorReservingDevice() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+    // Shutdown FakeDirectAccessGrpcService to get error when reserving device.
+    grpcConnectionRule.channel.shutdownNow()
+
+    // Activate device
+    try {
+      template.activationAction.activate()
+    } catch (ignore: DeviceActionException) {
+      // This is an expected exception.
+    }
+    yieldUntil { tracker.usages.isNotEmpty() }
+
+    val studioEvent = tracker.usages[0].studioEvent
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type)
+      .isEqualTo(DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isFalse()
+    assertThat(directAccessEvent.failureReason)
+      .isEqualTo(DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE)
+
+    val reserveDeviceDetails = directAccessEvent.reserveDeviceDetails
+    assertThat(reserveDeviceDetails.success).isFalse()
+    assertThat(reserveDeviceDetails.hasReserveTimeMs()).isFalse()
   }
 }

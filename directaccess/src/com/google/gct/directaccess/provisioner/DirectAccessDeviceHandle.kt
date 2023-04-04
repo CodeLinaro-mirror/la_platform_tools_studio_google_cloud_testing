@@ -63,7 +63,7 @@ class DirectAccessDeviceHandle(
   override val scope: CoroutineScope,
   override val sourceTemplate: DeviceTemplate,
   initialState: DeviceState,
-  reservationName: String,
+  reservationName: String
 ) : DeviceHandle {
 
   private val reservationManager: DirectAccessReservationManager =
