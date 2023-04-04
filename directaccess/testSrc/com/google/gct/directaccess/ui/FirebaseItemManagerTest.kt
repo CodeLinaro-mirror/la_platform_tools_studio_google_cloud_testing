@@ -28,7 +28,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
-import com.google.gct.directaccess.provisioner.FirebaseDeviceProvisioner
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
@@ -56,7 +56,7 @@ class FirebaseItemManagerTest {
   private val session = FakeAdbSession()
   private lateinit var firebaseDeviceTableModel: FirebaseDeviceTableModel
   private lateinit var uiDispatcher: CoroutineDispatcher
-  private lateinit var plugin: FirebaseDeviceProvisioner
+  private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var scope: CoroutineScope
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
@@ -78,7 +78,12 @@ class FirebaseItemManagerTest {
       val deviceScope = it.arguments[1] as CoroutineScope
       FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
     }
-    plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
+    plugin =
+      DirectAccessDeviceProvisionerPlugin(
+        session.scope,
+        projectRule.project,
+        deviceInfoListProvider
+      )
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     firebaseDeviceTableModel = mock()
     val mockDeviceProvisionerService =

@@ -53,14 +53,14 @@ import org.junit.Test
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
-class FirebaseDeviceProvisionerTest {
+class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
   @get:Rule val projectRule = AndroidProjectRule.inMemory()
   @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
 
   private val session = FakeAdbSession()
-  private lateinit var plugin: FirebaseDeviceProvisioner
+  private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
   private lateinit var fakeConnection: FakeDirectAccessConnection
@@ -88,7 +88,12 @@ class FirebaseDeviceProvisionerTest {
       }
       .whenever(mockDirectAccessService)
       .connectToReservation(any(), any())
-    plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
+    plugin =
+      DirectAccessDeviceProvisionerPlugin(
+        session.scope,
+        projectRule.project,
+        deviceInfoListProvider
+      )
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }

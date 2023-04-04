@@ -16,7 +16,7 @@
 package com.google.gct.directaccess.ui
 
 import com.android.tools.idea.devicemanager.Tables
-import com.google.gct.directaccess.provisioner.FirebaseDeviceTemplate
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.scale.JBUIScale
@@ -96,7 +96,7 @@ class FirebaseTemplateTableCellRenderer : TableCellRenderer {
     viewRowIndex: Int,
     viewColumnIndex: Int
   ): Component {
-    val template = value as FirebaseDeviceTemplate
+    val template = value as DirectAccessDeviceTemplate
     val foreground = Tables.getForeground(table, selected)
     nameLabel.foreground = foreground
     nameLabel.text = template.properties.title

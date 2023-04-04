@@ -21,10 +21,10 @@ import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
 
-class FirebaseDeviceProvisionerFactory : DeviceProvisionerFactory {
+class DirectAccessDeviceProvisionerFactory : DeviceProvisionerFactory {
   override val isEnabled: Boolean
     get() = StudioFlags.DIRECT_ACCESS.get()
 
-  override fun create(scope: CoroutineScope, project: Project): DeviceProvisionerPlugin =
-    FirebaseDeviceProvisioner(scope, project)
+  override fun create(coroutineScope: CoroutineScope, project: Project): DeviceProvisionerPlugin =
+    DirectAccessDeviceProvisionerPlugin(coroutineScope, project)
 }

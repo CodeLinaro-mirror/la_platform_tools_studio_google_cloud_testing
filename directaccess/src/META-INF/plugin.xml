@@ -32,6 +32,6 @@
   </extensions>
 
   <extensions defaultExtensionNs="com.android.tools.idea">
-    <deviceProvisioner implementation="com.google.gct.directaccess.provisioner.FirebaseDeviceProvisionerFactory"/>
+    <deviceProvisioner implementation="com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerFactory"/>
   </extensions>
 </idea-plugin>

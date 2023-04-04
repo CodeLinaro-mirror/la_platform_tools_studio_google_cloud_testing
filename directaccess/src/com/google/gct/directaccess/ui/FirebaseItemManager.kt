@@ -23,10 +23,9 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.FirebaseDevice
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
-import com.google.gct.directaccess.provisioner.FirebaseDeviceTemplate
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.provisioner.isClosed
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
-import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.MessageDialogBuilder
@@ -122,7 +121,7 @@ class FirebaseDeviceItem(
 
 class FirebaseDeviceTemplateItem(
   private val itemManager: FirebaseItemManager,
-  val template: FirebaseDeviceTemplate,
+  val template: DirectAccessDeviceTemplate,
   private val scope: CoroutineScope,
   private val uiDispatcher: CoroutineDispatcher,
   override val onUpdate: () -> Unit
@@ -208,7 +207,7 @@ class FirebaseItemManager(
   init {
     scope.launch {
       provisionerPlugin.templates
-        .map { it.filterIsInstance<FirebaseDeviceTemplate>() }
+        .map { it.filterIsInstance<DirectAccessDeviceTemplate>() }
         .distinctUntilChanged()
         .collect { newTemplates -> refreshTemplates(newTemplates) }
     }
@@ -220,7 +219,7 @@ class FirebaseItemManager(
     }
   }
 
-  private suspend fun refreshTemplates(newTemplates: List<FirebaseDeviceTemplate>) {
+  private suspend fun refreshTemplates(newTemplates: List<DirectAccessDeviceTemplate>) {
     withContext(uiDispatcher) {
       val existingMap = templateItems.associateBy { it.template.deviceInfo }
       templateItems =
