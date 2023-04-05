@@ -37,10 +37,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.assertj.core.util.VisibleForTesting
 
-private val defaultDeviceInfoProvider = {
-  CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
-}
-
 /**
  * Provides direct access to physical devices run by Firebase. Supports configuring direct access
  * device templates and activating / deactivating them.
@@ -48,7 +44,12 @@ private val defaultDeviceInfoProvider = {
 class DirectAccessDeviceProvisionerPlugin(
   private val scope: CoroutineScope,
   private val project: Project,
-  private val deviceInfoProvider: () -> List<DeviceInfo> = defaultDeviceInfoProvider
+  private val deviceInfoProvider: () -> List<DeviceInfo> = {
+    CatalogClient.getAvailableDevices(
+      "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
+      project.service<DirectAccessService>().gcpProject
+    )
+  }
 ) : DeviceProvisionerPlugin {
   private val logger = Logger.getInstance(DirectAccessDeviceProvisionerPlugin::class.java)
 

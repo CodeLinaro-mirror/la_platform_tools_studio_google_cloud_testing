@@ -18,6 +18,8 @@ package com.google.gct.testing.launcher;
 import com.android.annotations.Nullable;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
@@ -123,10 +125,18 @@ public class CloudAuthenticator {
    * Get the {@link AndroidDeviceCatalog} for the given FTL {@code endpoint}.
    */
   @NotNull
-  public AndroidDeviceCatalog getAndroidDeviceCatalogForEnvironment(@Nullable String endpoint) throws IOException {
+  public AndroidDeviceCatalog getAndroidDeviceCatalogForEnvironment(@Nullable String endpoint, @Nullable String gcpProject)
+    throws IOException {
     long currentTimestamp = System.currentTimeMillis();
     try {
-      AndroidDeviceCatalog catalog = getTest(endpoint).testEnvironmentCatalog().get("ANDROID").execute().getAndroidDeviceCatalog();
+      Testing.TestEnvironmentCatalog.Get getter = getTest(endpoint)
+        .testEnvironmentCatalog()
+        .get("ANDROID");
+      getter.setProjectId(gcpProject);
+      getter.getRequestHeaders().set("X-Goog-User-Project", gcpProject);
+      AndroidDeviceCatalog catalog = getter
+        .execute()
+        .getAndroidDeviceCatalog();
       if (catalog.getVersions().isEmpty() || catalog.getModels().isEmpty() || catalog.getRuntimeConfiguration().getLocales().isEmpty()
         || catalog.getRuntimeConfiguration().getOrientations().isEmpty()) {
         showDeviceCatalogError("Android device catalog is empty for some dimensions", currentTimestamp);
@@ -143,7 +153,7 @@ public class CloudAuthenticator {
   @Nullable
   public AndroidDeviceCatalog getAndroidDeviceCatalog() {
     try {
-      return getAndroidDeviceCatalogForEnvironment(null);
+      return getAndroidDeviceCatalogForEnvironment(null, null);
     }
     catch (IOException e) {
       showDeviceCatalogError("Exception while getting Android device catalog\n\n" + e.getMessage(), System.currentTimeMillis());

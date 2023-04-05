@@ -18,11 +18,11 @@ iml_module(
         "no_test_windows",
     ],
     visibility = ["//visibility:public"],
-    exports = ["//prebuilts/tools/common/m2:google_api_services_testing"],
+    exports = ["//tools/studio/google/cloud/testing/firebase-testing:google_api_services_testing"],
     # do not sort: must match IML order
     deps = [
         "//prebuilts/studio/intellij-sdk:studio-sdk",
-        "//prebuilts/tools/common/m2:google_api_services_testing",
+        "//tools/studio/google/cloud/testing/firebase-testing:google_api_services_testing",
         "//prebuilts/tools/common/m2:JSch",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
         "//tools/adt/idea/android-common:intellij.android.common[module]",
@@ -48,3 +48,14 @@ iml_module(
 )
 
 load("//tools/base/bazel:jvm_import.bzl", "jvm_import")
+
+# managed by go/iml_to_build
+jvm_import(
+    name = "google_api_services_testing",
+    # do not sort: must match IML order
+    jars = [
+        "//prebuilts/tools/common/m2:google_api_services_testing_files",
+        "lib/google-api-services-testing-v1-revsnapshot-1.25.0.jar",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -31,7 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 
 @Service
 class DirectAccessService(val project: Project) : Disposable {
-  private val gcpProject: String
+  val gcpProject: String
     get() = StudioFlags.DIRECT_ACCESS_PROJECT.get()
 
   private val channel =
