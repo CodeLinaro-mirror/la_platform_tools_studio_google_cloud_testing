@@ -32,6 +32,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import java.time.Duration
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,14 +77,11 @@ class DirectAccessDeviceTemplate(
       override val durationUsed = false
 
       /**
-       * Creates a [DirectAccessDeviceHandle] with [Disconnected] state.
+       * Creates a [DirectAccessDeviceHandle] and starts a connection to it.
        *
-       * This method first finds or create a [Reservation] that matches its [deviceInfo]. Then a
-       * [DirectAccessDeviceHandle] is created with a [DirectAccessConnection] to the [Reservation].
-       * Connection is not started until the activationAction of device handle get called. The
-       * device handle is added to the devices flow of the provisioner and will be removed after
-       * [Reservation] closed. This method is disabled when a device handle is activating or
-       * activated. At most one device is available for each template.
+       * The returned device handle prioritizes connecting to an existing reservation over
+       * requesting a new one. This method is disabled when a device handle is active or being
+       * created. At most one device is available for each template.
        *
        * TODO (b/246171065): activating multiple devices.
        */
@@ -93,45 +91,14 @@ class DirectAccessDeviceTemplate(
           throw DeviceActionDisabledException(this)
         }
 
-        val reservationManager =
-          project.service<DirectAccessService>().reservationManager
-            ?: throw DeviceActionException("Unable to access ReservationManager.")
-        val reservationResult =
-          try {
-            reservationManager.findOrCreateReservation(
-              deviceInfo.codename,
-              deviceInfo.api.toString()
-            )
-          } catch (e: Exception) {
-            // TODO(b/277240160): Add correct failure reason
-            DirectAccessUsageTracker.trackReserveDevice(
-              false,
-              null,
-              null,
-              deviceInfo.toMetricsDeviceInfo(),
-              DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
-            )
-            // Pass the underlying gRPC exception as a cause
-            // TODO: Perhaps extract more detail if we can get it.
-            throw DeviceActionException("Unable to reserve device.", e)
-          }
-        if (reservationResult.second != 0L) {
-          scope.logReserveMetricWhenReservationActive(
-            reservationManager.fetchReservationFlow(reservationResult.first),
-            reservationResult.second
-          )
+        try {
+          return createDeviceHandle().also { it.activationAction?.activate() }
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          isActivationEnabled.value = true
+          throw DeviceActionException("Unable to reserve device.", e)
         }
-        val deviceProperties = deviceInfo.toDeviceProperties()
-        val deviceScope = scope.createChildScope(isSupervisor = true)
-        // Notify provisioner plugin of the new device.
-        return DirectAccessDeviceHandle(
-            project,
-            deviceScope,
-            this@DirectAccessDeviceTemplate,
-            DeviceState.Disconnected(deviceProperties),
-            reservationResult.first
-          )
-          .also { activeDevice = it }
       }
 
       override val label: String = "Acquire"
@@ -139,6 +106,68 @@ class DirectAccessDeviceTemplate(
     }
 
   override val editAction = null
+
+  /**
+   * Creates a [DirectAccessDeviceHandle] with Disconnected state.
+   *
+   * The returned device handle prioritizes connecting to an existing reservation over requesting a
+   * new one. This method is disabled when a device handle is active or being created. At most one
+   * device is available for each template.
+   *
+   * TODO (b/246171065): activating multiple devices.
+   */
+  fun createDeviceHandleIfAbsent() {
+    if (isActivationEnabled.compareAndSet(expect = true, update = false)) {
+      createDeviceHandle()
+    }
+  }
+
+  /**
+   * Creates a [DirectAccessDeviceHandle] matching the [deviceInfo].
+   *
+   * A direct access device is represented by a reservation, which can be created by other means
+   * with the same user and project. If there is an existing reservation when calling this method,
+   * the existing reservation will be reused to create a [DeviceHandle]. Otherwise, a new
+   * reservation will be requested with a wiped device.
+   */
+  private fun createDeviceHandle(): DeviceHandle {
+    val reservationManager =
+      project.service<DirectAccessService>().reservationManager
+        ?: throw RuntimeException("Unable to access ReservationManager.")
+
+    val reservationResult =
+      try {
+        reservationManager.findOrCreateReservation(deviceInfo.codename, deviceInfo.api.toString())
+      } catch (e: Exception) {
+        // TODO(b/277240160): Add correct failure reason
+        DirectAccessUsageTracker.trackReserveDevice(
+          false,
+          null,
+          null,
+          deviceInfo.toMetricsDeviceInfo(),
+          DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
+        )
+        throw e
+      }
+    if (reservationResult.second != 0L) {
+      scope.logReserveMetricWhenReservationActive(
+        reservationManager.fetchReservationFlow(reservationResult.first),
+        reservationResult.second
+      )
+    }
+
+    val deviceProperties = deviceInfo.toDeviceProperties()
+    val deviceScope = scope.createChildScope(isSupervisor = true)
+    // Notify provisioner plugin of the new device.
+    return DirectAccessDeviceHandle(
+        project,
+        deviceScope,
+        this@DirectAccessDeviceTemplate,
+        DeviceState.Disconnected(deviceProperties),
+        reservationResult.first
+      )
+      .also { activeDevice = it }
+  }
 
   private fun CoroutineScope.logReserveMetricWhenReservationActive(
     reservationFlow: StateFlow<Reservation>,

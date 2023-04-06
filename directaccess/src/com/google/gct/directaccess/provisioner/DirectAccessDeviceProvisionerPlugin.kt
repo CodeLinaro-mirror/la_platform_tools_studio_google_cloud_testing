@@ -153,6 +153,6 @@ suspend fun updateReservations(project: Project, templates: StateFlow<List<Devic
         reservation.androidDeviceList.androidDevicesList[0].let {
           "${it.androidModelId} ${it.androidVersionId}"
         }
-      templateMap[key]?.firstOrNull()?.activationAction?.activate()
+      templateMap[key]?.firstOrNull()?.createDeviceHandleIfAbsent()
     }
 }
