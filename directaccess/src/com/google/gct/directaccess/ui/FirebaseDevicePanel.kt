@@ -21,7 +21,6 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.devicemanager.DetailsPanel
 import com.android.tools.idea.devicemanager.DevicePanel
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
-import com.google.gct.directaccess.provisioner.updateReservations
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
@@ -30,7 +29,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.ui.scale.JBUIScale
 import javax.swing.GroupLayout
 import javax.swing.JTable
-import kotlinx.coroutines.launch
 
 class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(project) {
   private val scope = AndroidCoroutineScope(parent)
@@ -40,16 +38,6 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
       project,
       FirebaseDeviceTableModel(project, scope, AndroidDispatchers.uiThread),
     )
-
-  private val reloadButton =
-    CommonButton(AllIcons.Actions.Refresh).apply {
-      addActionListener {
-        AndroidCoroutineScope(parent).launch {
-          val service = project.service<DeviceProvisionerService>()
-          updateReservations(project, service.deviceProvisioner.templates)
-        }
-      }
-    }
 
   private val helpButton = CommonButton(AllIcons.Actions.Help)
 
@@ -79,22 +67,13 @@ class FirebaseDevicePanel(project: Project, parent: Disposable) : DevicePanel(pr
       layout
         .createParallelGroup()
         .addGroup(
-          layout
-            .createSequentialGroup()
-            .addGap(JBUIScale.scale(5))
-            .addComponent(reloadButton)
-            .addComponent(helpButton)
+          layout.createSequentialGroup().addGap(JBUIScale.scale(5)).addComponent(helpButton)
         )
         .addComponent(myDetailsPanelPanel)
     val verticalGroup: GroupLayout.Group =
       layout
         .createSequentialGroup()
-        .addGroup(
-          layout
-            .createParallelGroup(GroupLayout.Alignment.CENTER)
-            .addComponent(reloadButton)
-            .addComponent(helpButton)
-        )
+        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.CENTER).addComponent(helpButton))
         .addComponent(myDetailsPanelPanel)
     layout.setHorizontalGroup(horizontalGroup)
     layout.setVerticalGroup(verticalGroup)

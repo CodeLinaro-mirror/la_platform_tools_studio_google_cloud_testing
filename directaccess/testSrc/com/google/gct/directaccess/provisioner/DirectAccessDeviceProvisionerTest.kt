@@ -46,6 +46,7 @@ import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.studiogrpc.testutils.GrpcConnectionRule
+import java.lang.RuntimeException
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -73,6 +74,7 @@ class DirectAccessDeviceProvisionerTest {
   private lateinit var scope: CoroutineScope
   private lateinit var tracker: TestUsageTracker
   private lateinit var mockGoogleLogin: GoogleLogin
+  private var isOAuthTokenAvailable: Boolean = false
 
   @Before
   fun setUp() = runBlockingWithTimeout {
@@ -80,8 +82,10 @@ class DirectAccessDeviceProvisionerTest {
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+    isOAuthTokenAvailable = true
     directAccessReservationManager =
       DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
+        if (!isOAuthTokenAvailable) throw RuntimeException()
         "testToken"
       }
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
@@ -126,6 +130,12 @@ class DirectAccessDeviceProvisionerTest {
 
     // Log out
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    yieldUntil { provisioner.templates.value.isEmpty() }
+
+    // Login again without access.
+    isOAuthTokenAvailable = false
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
+    plugin.updateTemplates(scope)
     yieldUntil { provisioner.templates.value.isEmpty() }
   }
 
@@ -204,7 +214,7 @@ class DirectAccessDeviceProvisionerTest {
   fun createDevicesFromExistingReservations() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
-    scope.launch { updateReservations(projectRule.project, plugin.templates) }
+    plugin.updateReservations()
     yieldUntil { provisioner.devices.value.isNotEmpty() }
   }
 

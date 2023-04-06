@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import org.assertj.core.util.VisibleForTesting
 
 private val defaultDeviceInfoProvider = {
   CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/")
@@ -59,6 +60,14 @@ class DirectAccessDeviceProvisionerPlugin(
   private val _templates = MutableStateFlow(emptyList<DeviceTemplate>())
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
+  private val reservations: List<com.android.tools.adbbridge.Reservation>?
+    get() =
+      try {
+        project.service<DirectAccessService>().reservationManager?.listReservations()
+      } catch (e: Exception) {
+        null
+      }
+
   init {
     // This scope will not be cancelled on login changes. Only the inner child scope will be
     // cancelled.
@@ -74,7 +83,7 @@ class DirectAccessDeviceProvisionerPlugin(
           childScope?.launch { periodicUpdateReservation() }
           childScope?.launch {
             // Fetch reservations with new templates.
-            templates.collect { updateReservations(project, templates) }
+            templates.collect { updateReservations() }
           }
           childScope?.launch { periodicUpdateTemplates(this) }
         } else {
@@ -87,40 +96,72 @@ class DirectAccessDeviceProvisionerPlugin(
   // Update templates every 5 minutes.
   private suspend fun periodicUpdateTemplates(parentScope: CoroutineScope) {
     while (true) {
-      val oldTemplates =
-        templates.value
-          .groupBy { (it as DirectAccessDeviceTemplate).deviceInfo }
-          .mapValues { it.value[0] }
-      try {
-        deviceInfoProvider()
-          .map { info ->
-            // Create a child scope for every template to isolate them in terms of scope.
-            // This helps avoid any issues with a given template from propagating to other
-            // templates.
-            oldTemplates[info]
-              ?: DirectAccessDeviceTemplate(
-                project,
-                info,
-                _devices,
-                parentScope.createChildScope(isSupervisor = true)
-              )
-          }
-          .let { result -> _templates.value = result }
-      } catch (ignore: NotLoggedInException) {
-        // do nothing
-      } catch (e: Exception) {
-        logger.warn(e)
-      }
+      updateTemplates(parentScope)
       delay(TimeUnit.MINUTES.toMillis(5))
     }
   }
 
-  // Fetch reservations periodically in case a Reservation is created elsewhere.
+  @VisibleForTesting
+  fun updateTemplates(parentScope: CoroutineScope) {
+    // Start a reservation query to determine if the user has access.
+    if (reservations == null) {
+      _templates.value = listOf()
+      return
+    }
+
+    val oldTemplates =
+      templates.value
+        .groupBy { (it as DirectAccessDeviceTemplate).deviceInfo }
+        .mapValues { it.value[0] }
+    try {
+      deviceInfoProvider()
+        .map { info ->
+          // Create a child scope for every template to isolate them in terms of scope.
+          // This helps avoid any issues with a given template from propagating to other
+          // templates.
+          oldTemplates[info]
+            ?: DirectAccessDeviceTemplate(
+              project,
+              info,
+              _devices,
+              parentScope.createChildScope(isSupervisor = true)
+            )
+        }
+        .let { result -> _templates.value = result }
+    } catch (ignore: NotLoggedInException) {
+      // do nothing
+    } catch (e: Exception) {
+      logger.warn(e)
+    }
+  }
+
+  /** Fetch reservations periodically in case a Reservation is created elsewhere. */
   private suspend fun periodicUpdateReservation() {
     while (true) {
-      updateReservations(project, templates)
+      updateReservations()
       delay(TimeUnit.MINUTES.toMillis(1))
     }
+  }
+
+  @VisibleForTesting
+  fun updateReservations() {
+    val templateMap =
+      templates.value.filterIsInstance<DirectAccessDeviceTemplate>().groupBy { template ->
+        template.deviceInfo.let { "${it.codename} ${it.api}" }
+      }
+
+    reservations
+      ?.filter { reservation ->
+        !reservation.sessionState.isClosed() &&
+          reservation.androidDeviceList.androidDevicesList.isNotEmpty()
+      }
+      ?.forEach { reservation ->
+        val key =
+          reservation.androidDeviceList.androidDevicesList[0].let {
+            "${it.androidModelId} ${it.androidVersionId}"
+          }
+        templateMap[key]?.firstOrNull()?.createDeviceHandleIfAbsent()
+      }
   }
 
   override suspend fun claim(device: ConnectedDevice): DeviceHandle? {
@@ -133,26 +174,4 @@ class DirectAccessDeviceProvisionerPlugin(
     }
     return null
   }
-}
-
-suspend fun updateReservations(project: Project, templates: StateFlow<List<DeviceTemplate>>) {
-  val templateMap =
-    templates.value.filterIsInstance<DirectAccessDeviceTemplate>().groupBy { template ->
-      template.deviceInfo.let { "${it.codename} ${it.api}" }
-    }
-  project
-    .service<DirectAccessService>()
-    .reservationManager
-    ?.listReservations()
-    ?.filter { reservation ->
-      !reservation.sessionState.isClosed() &&
-        reservation.androidDeviceList.androidDevicesList.isNotEmpty()
-    }
-    ?.forEach { reservation ->
-      val key =
-        reservation.androidDeviceList.androidDevicesList[0].let {
-          "${it.androidModelId} ${it.androidVersionId}"
-        }
-      templateMap[key]?.firstOrNull()?.createDeviceHandleIfAbsent()
-    }
 }
