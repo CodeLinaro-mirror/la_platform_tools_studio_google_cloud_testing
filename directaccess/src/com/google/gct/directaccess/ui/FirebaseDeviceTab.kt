@@ -18,7 +18,6 @@ package com.google.gct.directaccess.ui
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.devicemanager.DeviceManagerTab
 import com.android.tools.idea.devicemanager.DevicePanel
-import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.provisioner.NotLoggedInException
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
@@ -37,7 +36,7 @@ import kotlinx.coroutines.launch
 
 class FirebaseDeviceTab : DeviceManagerTab {
 
-  override fun isApplicable() = StudioFlags.DIRECT_ACCESS.get()
+  override fun isApplicable() = false
 
   override fun getName() = "Firebase"
 

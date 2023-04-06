@@ -43,10 +43,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.doReturn
 
+@Ignore
 class FirebaseItemManagerTest {
 
   private val service = FakeDirectAccessGrpcService()

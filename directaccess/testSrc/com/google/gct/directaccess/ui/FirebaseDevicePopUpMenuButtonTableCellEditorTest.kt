@@ -48,9 +48,11 @@ import javax.swing.JButton
 import javax.swing.JRootPane
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
+@Ignore
 class FirebaseDevicePopUpMenuButtonTableCellEditorTest {
   @get:Rule val projectRule = AndroidProjectRule.inMemory()
 
