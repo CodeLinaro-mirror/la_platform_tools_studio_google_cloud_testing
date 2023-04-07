@@ -209,25 +209,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  fun disambiguatorAddedAfterDeviceConnects() = runBlockingWithTimeout {
-    val template = plugin.templates.value[0]
-
-    // Activate device
-    template.activationAction.activate()
-    yieldUntil { provisioner.devices.value.isNotEmpty() }
-    assertThat(provisioner.devices.value.size).isEqualTo(1)
-
-    val handle = provisioner.devices.value[0]
-    assertThat(handle.state.properties.disambiguator).isNull()
-
-    handle.activationAction?.activate()
-    yieldUntil { handle.state.properties.disambiguator != null }
-
-    assertThat(handle.state).isInstanceOf(DirectAccessDeviceHandle.Activating::class.java)
-    assertThat(handle.state.properties.disambiguator).isEqualTo("12345")
-  }
-
-  @Test
   fun extendReservationFromDeviceHandle() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
 

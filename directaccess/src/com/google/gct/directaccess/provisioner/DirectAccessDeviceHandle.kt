@@ -116,20 +116,6 @@ class DirectAccessDeviceHandle(
         withContext(scope.coroutineContext) {
           stateFlow.update { Activating(it.properties, it.reservation) }
           connection.connect()
-          // Add disambiguator field that adds the port on which the device is connected to denote
-          // this is a firebase device.
-          // TODO(b/260153322): Remove once device manager moves to device provisioner framework
-          stateFlow.update {
-            Activating(
-              DirectAccessDeviceProperties.build {
-                manufacturer = it.properties.manufacturer
-                androidVersion = it.properties.androidVersion
-                model = it.properties.model
-                disambiguator = "${connection.port}"
-              },
-              it.reservation
-            )
-          }
         }
       }
 
