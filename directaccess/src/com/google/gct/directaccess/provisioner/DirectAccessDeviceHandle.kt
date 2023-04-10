@@ -34,9 +34,13 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
+import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.isClosed
+import com.google.services.firebase.directaccess.client.waitUntilActive
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroup
 import com.intellij.notification.NotificationType
@@ -45,6 +49,8 @@ import com.intellij.openapi.project.Project
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.CancellationException
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -82,6 +88,9 @@ class DirectAccessDeviceHandle(
       ?: throw RuntimeException("Not logged in.")
 
   override val stateFlow: MutableStateFlow<DeviceState>
+
+  /** Tracks reconnect to device */
+  private var hasConnectedToDeviceOnce = false
 
   init {
     val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
@@ -143,6 +152,21 @@ class DirectAccessDeviceHandle(
               .copy(isTransitioning = true)
               .withReservation(reservation)
           }
+          scope.trackConnectTime()
+          try {
+            connection.connect()
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            // TODO(b/277240160): Add correct failure reason
+            trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+          }
+          stateFlow.update {
+            val reservation = it.reservation ?: return@withContext
+            DeviceState.Disconnected(it.properties)
+              .copy(isTransitioning = true)
+              .withReservation(reservation)
+          }
           connection.connect()
         }
       }
@@ -152,6 +176,39 @@ class DirectAccessDeviceHandle(
         connection.state
           .map { it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED }
           .stateIn(scope, SharingStarted.Eagerly, true)
+
+      private fun CoroutineScope.trackConnectTime() = launch {
+        reservationManager.fetchReservationFlow(reservationName).waitUntilActive()
+        val connectStartTime = System.currentTimeMillis()
+        try {
+          withTimeout(TimeUnit.SECONDS.toMillis(20)) {
+            connection.state
+              .takeWhile { it.connection != DirectAccessConnection.ConnectionState.CONNECTED }
+              .collect()
+          }
+          trackConnectMetrics(true, System.currentTimeMillis() - connectStartTime)
+          hasConnectedToDeviceOnce = true
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          // TODO(b/277240160): Add correct failure reason
+          trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+        }
+      }
+
+      private fun trackConnectMetrics(
+        wasSuccessful: Boolean,
+        timeToConnectMs: Long? = null,
+        failureReason: FailureReason? = null
+      ) =
+        DirectAccessUsageTracker.trackConnectDevice(
+          wasSuccessful,
+          hasConnectedToDeviceOnce,
+          timeToConnectMs,
+          reservationName,
+          (sourceTemplate as DirectAccessDeviceTemplate).deviceInfo.toMetricsDeviceInfo(),
+          failureReason
+        )
     }
 
   override val deactivationAction =

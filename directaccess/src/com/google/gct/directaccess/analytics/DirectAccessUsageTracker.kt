@@ -21,6 +21,8 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DeviceInfo as MetricsDeviceInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
 
 object DirectAccessUsageTracker {
   fun trackReserveDevice(
@@ -31,20 +33,40 @@ object DirectAccessUsageTracker {
     failReason: DirectAccessUsageEvent.FailureReason? = null
   ) {
     val event =
-      DirectAccessUsageEvent.newBuilder()
-        .apply {
-          type = DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
-          deviceSession?.let { deviceSessionId = AnonymizerUtil.anonymizeUtf8(it) }
-          reserveDeviceDetails =
-            reserveDeviceDetailsBuilder
-              .apply {
-                success = wasSuccessful
-                timeToReserveMs?.let { reserveTimeMs = it.toInt() }
-              }
-              .build()
-          failReason?.let { failureReason = failReason }
-        }
-        .build()
+      createDirectAccessUsageEvent(deviceSession, failReason) {
+        type = RESERVE_DEVICE
+        reserveDeviceDetails =
+          reserveDeviceDetailsBuilder
+            .apply {
+              success = wasSuccessful
+              timeToReserveMs?.let { reserveTimeMs = it.toInt() }
+            }
+            .build()
+      }
+    track(deviceInfo, event)
+  }
+
+  fun trackConnectDevice(
+    wasSuccessful: Boolean,
+    wasReconnect: Boolean,
+    timeToConnectMs: Long?,
+    deviceSession: String?,
+    deviceInfo: MetricsDeviceInfo,
+    failReason: DirectAccessUsageEvent.FailureReason? = null
+  ) {
+    val event =
+      createDirectAccessUsageEvent(deviceSession, failReason) {
+        type = CONNECT_DEVICE
+        connectDeviceDetails =
+          connectDeviceDetailsBuilder
+            .apply {
+              success = wasSuccessful
+              reconnect = wasReconnect
+              timeToConnectMs?.let { connectTimeMs = it.toInt() }
+            }
+            .build()
+      }
+
     track(deviceInfo, event)
   }
 
@@ -57,6 +79,19 @@ object DirectAccessUsageTracker {
       }
     )
   }
+
+  private fun createDirectAccessUsageEvent(
+    deviceSession: String?,
+    failReason: DirectAccessUsageEvent.FailureReason? = null,
+    eventBuilder: DirectAccessUsageEvent.Builder.() -> Unit
+  ) =
+    DirectAccessUsageEvent.newBuilder()
+      .apply {
+        deviceSession?.let { deviceSessionId = AnonymizerUtil.anonymizeUtf8(it) }
+        eventBuilder()
+        failReason?.let { failureReason = it }
+      }
+      .build()
 }
 
 fun DeviceInfo.toMetricsDeviceInfo(): MetricsDeviceInfo =
