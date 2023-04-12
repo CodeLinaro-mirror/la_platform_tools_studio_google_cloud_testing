@@ -34,33 +34,36 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.login.GoogleLogin
+import com.google.gct.login.LoginState
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.studiogrpc.testutils.GrpcConnectionRule
+import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.anyString
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
-class FirebaseDeviceProvisionerTest {
+class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
   @get:Rule val projectRule = AndroidProjectRule.inMemory()
   @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
 
   private val session = FakeAdbSession()
-  private val fakeConnection = FakeDirectAccessConnection()
-  private lateinit var plugin: FirebaseDeviceProvisioner
+  private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
   private lateinit var provisioner: DeviceProvisioner
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
+  private lateinit var fakeConnection: FakeDirectAccessConnection
   private lateinit var scope: CoroutineScope
   private lateinit var mockGoogleLogin: GoogleLogin
 
@@ -68,17 +71,29 @@ class FirebaseDeviceProvisionerTest {
   fun setUp() = runBlockingWithTimeout {
     mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
       DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
         "testToken"
       }
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
-    doReturn(fakeConnection)
-      .whenever(mockDirectAccessService)
-      .reserveConnection(anyString(), anyString(), any())
     doReturn(directAccessReservationManager).whenever(mockDirectAccessService).reservationManager
-    plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
+    doAnswer {
+        val reservationName = it.arguments[0] as String
+        val deviceScope = it.arguments[1] as CoroutineScope
+        fakeConnection =
+          FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
+        fakeConnection
+      }
+      .whenever(mockDirectAccessService)
+      .connectToReservation(any(), any())
+    plugin =
+      DirectAccessDeviceProvisionerPlugin(
+        session.scope,
+        projectRule.project,
+        deviceInfoListProvider
+      )
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
@@ -96,9 +111,13 @@ class FirebaseDeviceProvisionerTest {
     yieldUntil { provisioner.templates.value.size == 3 }
 
     // Assert
-    assertThat(provisioner.templates.value[0].displayName).isEqualTo("Google Pixel 5")
-    assertThat(provisioner.templates.value[1].displayName).isEqualTo("Google Pixel 6")
-    assertThat(provisioner.templates.value[2].displayName).isEqualTo("Google Pixel 6 Pro")
+    assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
+    assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
+    assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
+
+    // Log out
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    yieldUntil { provisioner.templates.value.isEmpty() }
   }
 
   @Test
@@ -113,6 +132,7 @@ class FirebaseDeviceProvisionerTest {
     assertThat(devices.size).isEqualTo(1)
     val device = devices[0]
     val state = device.stateFlow
+    assertThat(device.sourceTemplate).isEqualTo(template)
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
     val properties = state.value.properties
     assertThat(properties.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
@@ -175,7 +195,7 @@ class FirebaseDeviceProvisionerTest {
   fun createDevicesFromExistingReservations() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
-    updateReservations(projectRule.project, plugin.templates)
+    scope.launch { updateReservations(projectRule.project, plugin.templates) }
     yieldUntil { provisioner.devices.value.isNotEmpty() }
   }
 
@@ -196,5 +216,21 @@ class FirebaseDeviceProvisionerTest {
 
     assertThat(handle.state).isInstanceOf(DirectAccessDeviceHandle.Activating::class.java)
     assertThat(handle.state.properties.disambiguator).isEqualTo("12345")
+  }
+
+  @Test
+  fun extendReservationFromDeviceHandle() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    assertThat(provisioner.devices.value.size).isEqualTo(1)
+
+    val handle = provisioner.devices.value[0]
+    yieldUntil { handle.state.reservation != null }
+    val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
+    assertThat(newEndTime?.epochSecond).isEqualTo(1100)
+    assertThat(handle.state.reservation?.endTime?.epochSecond).isEqualTo(1100)
   }
 }
