@@ -29,13 +29,6 @@ import java.util.regex.Pattern;
 
 public class ConfigurationInstance {
 
-  //public static final Function<CloudTestingType,String> GET_CONFIGURATION_DIALOG_DISPLAY_NAME =
-  //  new Function<CloudTestingType, String>() {
-  //    @Override
-  //    public String apply(CloudTestingType input) {
-  //      return input.getConfigurationDialogDisplayName();
-  //    }
-  //  };
   public static final Function<CloudTestingType,String> GET_RESULTS_VIEWER_DISPLAY_NAME =
     new Function<CloudTestingType, String>() {
       @Override
@@ -116,10 +109,6 @@ public class ConfigurationInstance {
     return getRepresentationString(GET_ENCODED_NAME, ENCODED_NAME_DELIMITER);
   }
 
-  //public String getConfigurationDialogDisplayString() {
-  //  return getRepresentationString(GET_CONFIGURATION_DIALOG_DISPLAY_NAME, DISPLAY_NAME_DELIMITER);
-  //}
-  //
   public String getResultsViewerDisplayString() {
     return getRepresentationString(GET_RESULTS_VIEWER_DISPLAY_NAME, DISPLAY_NAME_DELIMITER);
   }

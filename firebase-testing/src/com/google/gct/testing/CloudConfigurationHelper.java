@@ -15,21 +15,17 @@
  */
 package com.google.gct.testing;
 
+import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getSingleApkOrParentFolderForRunConfiguration;
+
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
 import com.android.sdklib.AndroidVersion;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
-import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.api.client.util.Maps;
-import com.google.api.client.util.Sets;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.cloudresourcemanager.model.ListProjectsResponse;
-import com.google.api.services.storage.Storage;
-import com.google.api.services.storage.model.StorageObject;
-import com.google.api.services.testing.model.AndroidDevice;
-import com.google.api.services.testing.model.Device;
 import com.google.api.services.testing.model.TestMatrix;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -41,16 +37,17 @@ import com.google.gct.testing.android.CloudConfiguration;
 import com.google.gct.testing.android.CloudMatrixTestRunningState;
 import com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurable;
 import com.google.gct.testing.config.GoogleCloudTestingDeveloperSettings;
-import com.google.gct.testing.dimension.*;
+import com.google.gct.testing.dimension.ApiDimension;
+import com.google.gct.testing.dimension.CloudTestingType;
+import com.google.gct.testing.dimension.DeviceDimension;
+import com.google.gct.testing.dimension.LanguageDimension;
+import com.google.gct.testing.dimension.OrientationDimension;
 import com.google.gct.testing.launcher.CloudAuthenticator;
 import com.google.gct.testing.launcher.CloudTestsLauncher;
 import com.google.gct.testing.results.GoogleCloudTestConsoleProperties;
 import com.google.gct.testing.results.GoogleCloudTestListener;
 import com.google.gct.testing.results.GoogleCloudTestResultsConnectionUtil;
 import com.google.gct.testing.results.GoogleCloudTestingResultParser;
-import com.google.gct.testing.vnc.BlankVncViewer;
-import com.google.gct.testing.vnc.BlankVncViewerCallback;
-import com.google.gct.testing.vnc.VncKeepAliveThreadImpl;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
@@ -62,62 +59,42 @@ import com.intellij.execution.ui.ConsoleView;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.KeyPair;
-import com.jcraft.jsch.Session;
-import icons.AndroidIcons;
 import icons.StudioIcons;
+import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import javax.swing.Icon;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.util.*;
-
-import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getSingleApkOrParentFolderForRunConfiguration;
-import static com.google.gct.testing.CloudTestingUtils.checkJavaVersion;
-import static com.jcraft.jsch.KeyPair.RSA;
-
 public final class CloudConfigurationHelper {
   private static final String TEST_RUN_ID_PREFIX = "GoogleCloudTest:";
-  private static final Map<String, CloudConfigurationImpl> testRunIdToCloudConfiguration = new HashMap<String, CloudConfigurationImpl>();
-  private static final Map<String, CloudResultsAdapter> testRunIdToCloudResultsAdapter = new HashMap<String, CloudResultsAdapter>();
+  private static final Map<String, CloudConfigurationImpl> testRunIdToCloudConfiguration = new HashMap<>();
+  private static final Map<String, CloudResultsAdapter> testRunIdToCloudResultsAdapter = new HashMap<>();
   // Do not use MultiMap to ensure proper reuse of serial numbers (IP:port).
   private static final Map<String, String> serialNumberToConfigurationInstance = Maps.newHashMap();
 
   public static final Icon DEFAULT_ICON = StudioIcons.Shell.Filetree.ANDROID_FILE;
 
   public static final Function<CloudConfiguration, CloudConfigurationImpl> CLONE_CONFIGURATIONS =
-    new Function<CloudConfiguration, CloudConfigurationImpl>() {
-      @Override
-      public CloudConfigurationImpl apply(CloudConfiguration configuration) {
-        return ((CloudConfigurationImpl) configuration).clone();
-      }
-    };
+    configuration -> ((CloudConfigurationImpl) configuration).clone();
 
   public static final Function<CloudConfiguration, CloudConfigurationImpl> CAST_CONFIGURATIONS =
-    new Function<CloudConfiguration, CloudConfigurationImpl>() {
-      @Override
-      public CloudConfigurationImpl apply(CloudConfiguration configuration) {
-        return (CloudConfigurationImpl) configuration;
-      }
-    };
+    configuration -> (CloudConfigurationImpl) configuration;
 
-
-  private static volatile String lastCloudProjectId;
-
-  private static final Set<GhostCloudDevice> ghostCloudDevices = Sets.newHashSet();
 
   private CloudConfigurationHelper() { } // Not instantiable.
 
   public static Map<String, List<? extends CloudTestingType>> getAllDimensionTypes() {
-    Map<String, List<? extends CloudTestingType>> dimensionTypes = new HashMap<String, List<? extends CloudTestingType>>();
+    Map<String, List<? extends CloudTestingType>> dimensionTypes = new HashMap<>();
     dimensionTypes.put(DeviceDimension.DISPLAY_NAME, DeviceDimension.getFullDomain());
     dimensionTypes.put(ApiDimension.DISPLAY_NAME, ApiDimension.getFullDomain());
     dimensionTypes.put(LanguageDimension.DISPLAY_NAME, LanguageDimension.getFullDomain());
@@ -253,20 +230,12 @@ public final class CloudConfigurationHelper {
     List<? extends CloudConfiguration> testingConfigurations = getCloudConfigurations(currentFacet, selectedConfigurationKind);
 
     List<CloudConfigurationImpl> castDefaultConfigurations =
-      Lists.newArrayList(Iterables.transform(Iterables.filter(testingConfigurations, new Predicate<CloudConfiguration>(){
-        @Override
-        public boolean apply(CloudConfiguration testingConfiguration) {
-          return !testingConfiguration.isEditable();
-        }
-      }), CAST_CONFIGURATIONS));
+      Lists.newArrayList(Iterables.transform(Iterables.filter(testingConfigurations,
+                                                              (Predicate<CloudConfiguration>)testingConfiguration -> !testingConfiguration.isEditable()), CAST_CONFIGURATIONS));
 
     List<CloudConfigurationImpl> copyCustomConfigurations =
-      Lists.newArrayList(Iterables.transform(Iterables.filter(testingConfigurations, new Predicate<CloudConfiguration>(){
-        @Override
-        public boolean apply(CloudConfiguration testingConfiguration) {
-          return testingConfiguration.isEditable();
-        }
-      }), CLONE_CONFIGURATIONS));
+      Lists.newArrayList(Iterables.transform(Iterables.filter(testingConfigurations,
+                                                              (Predicate<CloudConfiguration>)testingConfiguration -> testingConfiguration.isEditable()), CLONE_CONFIGURATIONS));
 
     CloudConfigurationChooserDialog dialog =
       new CloudConfigurationChooserDialog(currentModule, copyCustomConfigurations, castDefaultConfigurations,
@@ -279,21 +248,12 @@ public final class CloudConfigurationHelper {
 
       // Keep all un-edited configurations (i.e., configurations of other kinds).
       customState.myCloudPersistentConfigurations =
-        Lists.newArrayList(Iterables.filter(customState.myCloudPersistentConfigurations, new Predicate<CloudPersistentConfiguration>() {
-          @Override
-          public boolean apply(@Nullable CloudPersistentConfiguration configuration) {
-            return configuration != null && configuration.kind != selectedConfigurationKind;
-          }
-        }));
+        Lists.newArrayList(Iterables.filter(customState.myCloudPersistentConfigurations,
+                                            configuration -> configuration != null && configuration.kind != selectedConfigurationKind));
 
       // Persist the edited configurations.
       customState.myCloudPersistentConfigurations.addAll(Lists.newArrayList(
-        Iterables.transform(copyCustomConfigurations, new Function<CloudConfigurationImpl, CloudPersistentConfiguration>() {
-          @Override
-          public CloudPersistentConfiguration apply(CloudConfigurationImpl configuration) {
-            return configuration.getPersistentConfiguration();
-          }
-        })));
+        Iterables.transform(copyCustomConfigurations, CloudConfigurationImpl::getPersistentConfiguration)));
 
       persistentConfigurations.loadState(customState);
 
@@ -328,205 +288,6 @@ public final class CloudConfigurationHelper {
     return "as-build_" + new SimpleDateFormat("yyyy-mm-dd_HH:mm:ss.SSS").format(new Date()) + "_" + suffix;
   }
 
-  public static void launchCloudDevice(int selectedConfigurationId, @NotNull String cloudProjectId, @NotNull AndroidFacet facet) {
-    UsageTracker.log(AndroidStudioEvent.newBuilder()
-                                     .setCategory(EventCategory.CLOUD_TESTING)
-                                     .setKind(EventKind.CLOUD_TESTING_LAUNCH_CLOUD_DEVICE));
-
-    CloudConfigurationImpl cloudConfiguration = CloudTestingUtils.getConfigurationById(selectedConfigurationId, facet);
-
-    if (cloudConfiguration == null || cloudConfiguration.getKind() != CloudConfiguration.Kind.SINGLE_DEVICE) {
-      // Should handle only single device configurations.
-      return;
-    }
-
-    lastCloudProjectId = cloudProjectId;
-    String configurationInstance = cloudConfiguration.computeConfigurationInstances(ConfigurationInstance.ENCODED_NAME_DELIMITER).get(0);
-    launchCloudDevice(configurationInstance);
-  }
-
-  public static void launchCloudDevice(String configurationInstance) {
-    if (!checkJavaVersion()) {
-      return;
-    }
-
-    String publicKey;
-    JSch jsch = new JSch();
-    try {
-      publicKey = generateSshKeys(jsch);
-    } catch (Exception e) {
-      CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
-                                                                                 "Exception while generating ssh keys\n\n" +
-                                                                                 e.getMessage());
-      return;
-    }
-
-    final String cloudProjectId = lastCloudProjectId;
-    String[] dimensionValues = configurationInstance.split("-");
-    Device device = new Device().setAndroidDevice(
-      new AndroidDevice()
-        .setAndroidModelId(dimensionValues[0])
-        .setAndroidVersionId(dimensionValues[1])
-        .setLocale(dimensionValues[2])
-        .setOrientation(dimensionValues[3]));
-
-    Device createdDevice;
-    try {
-      createdDevice =
-        CloudAuthenticator.getInstance().getTest().projects().devices().create(cloudProjectId, device).setSshPublicKey(publicKey).execute();
-    } catch (Exception e) {
-      CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
-                                                                                 "Exception while launching a firebase device\n\n" +
-                                                                                 e.getMessage());
-      return;
-    }
-    if (createdDevice == null) {
-      CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
-                                                                                 "Could not access firebase device\n\n");
-      return;
-    }
-
-    final String deviceId = createdDevice.getId();
-    final GhostCloudDevice ghostCloudDevice = new GhostCloudDevice(createdDevice);
-    synchronized (ghostCloudDevices) {
-      ghostCloudDevices.add(ghostCloudDevice);
-    }
-    String configurationName =
-      ConfigurationInstance.parseFromEncodedString(ghostCloudDevice.getEncodedConfigurationInstance()).getResultsViewerDisplayString();
-    BlankVncViewer blankVncViewer = BlankVncViewer.showBlankVncViewer(configurationName, new BlankVncViewerCallback() {
-      @Override
-      public void viewerClosed() {
-        try {
-          CloudAuthenticator.getInstance().getTest().projects().devices().delete(cloudProjectId, deviceId).execute();
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-        synchronized (ghostCloudDevices) {
-          ghostCloudDevices.remove(ghostCloudDevice);
-        }
-      }
-    });
-    final long POLLING_INTERVAL = 10 * 1000; // 10 seconds
-    final long INITIAL_TIMEOUT = 10 * 60 * 1000; // 10 minutes
-    long stopTime = System.currentTimeMillis() + INITIAL_TIMEOUT;
-    File androidSdkPath = IdeSdks.getInstance().getAndroidSdkPath();
-    assert androidSdkPath != null;
-    String sdkPath = androidSdkPath.getAbsolutePath() + "/platform-tools";
-    File workingDir = new File(sdkPath);
-    try {
-      while (System.currentTimeMillis() < stopTime) {
-        synchronized (ghostCloudDevices) {
-          if (!ghostCloudDevices.contains(ghostCloudDevice)) {
-            // Blank VNC Viewer was closed, so stop waiting for the device.
-            return;
-          }
-        }
-        createdDevice = CloudAuthenticator.getInstance().getTest().projects().devices().get(cloudProjectId, deviceId).execute();
-        System.out.println("Polling for device... (time: " + System.currentTimeMillis() + ", status: " + createdDevice.getState() + ")");
-        if (createdDevice.getState().equals("DEVICE_ERROR")) {
-          CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
-                                                                                     "The polled firebase device has ERROR state\n\n");
-          return;
-        }
-        if (createdDevice.getState().equals("READY")) {
-          String ipAddress = createdDevice.getDeviceDetails().getConnectionInfo().getIpAddress();
-          Integer adbPort = createdDevice.getDeviceDetails().getConnectionInfo().getAdbPort();
-          Integer vncPort = createdDevice.getDeviceDetails().getConnectionInfo().getVncPort();
-          Integer sshPort = createdDevice.getDeviceDetails().getConnectionInfo().getSshPort();
-          String vncPassword = createdDevice.getDeviceDetails().getConnectionInfo().getVncPassword();
-
-          Session session;
-          try {
-            session = connectSession(jsch, ipAddress, sshPort);
-          } catch (Exception e) {
-            CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
-                                                                                       "Exception while connecting through SSH\n\n" +
-                                                                                       e.getMessage());
-            return;
-          }
-
-          int adbLocalPort;
-          try {
-            adbLocalPort = session.setPortForwardingL(0, "localhost", adbPort);
-          } catch (Exception e) {
-            CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
-                                                                                       "Exception while tunneling through SSH\n\n" +
-                                                                                       e.getMessage());
-            return;
-          }
-
-          int vncLocalPort;
-          try {
-            vncLocalPort = session.setPortForwardingL(0, "localhost", vncPort);
-          } catch (Exception e) {
-            CloudTestingUtils.showErrorMessage(null, "Error launching a firebase device", "Failed to launch a firebase device!\n" +
-                                                                                       "Exception while tunneling through SSH\n\n" +
-                                                                                       e.getMessage());
-            return;
-          }
-
-          String deviceAddress = "localhost:" + adbLocalPort;
-          System.out.println("Device ready with IP address:port " + deviceAddress);
-          File adbFile = new File(workingDir, System.getProperty("os.name").toLowerCase().indexOf("win") != -1 ? "adb.exe" : "adb");
-          Runtime runtime = Runtime.getRuntime();
-          Process connect = runtime.exec(new String[]{adbFile.getAbsolutePath(), "connect", deviceAddress}, null, workingDir);
-          connect.waitFor();
-          serialNumberToConfigurationInstance.put(deviceAddress, configurationInstance);
-          // Do not wait for "finally" to remove the ghost device
-          // to minimize the time both a ghost device and an actual firebase device are present in the devices table.
-          synchronized (ghostCloudDevices) {
-            ghostCloudDevices.remove(ghostCloudDevice);
-          }
-          // Do not wait for "finally" to close the blank window to avoid showing both blank and real VNC windows at the same time.
-          try { // Use try just in case something goes wrong.
-            blankVncViewer.closeWindow();
-            blankVncViewer = null;
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-          // Make sure the device is unlocked.
-          Process unlock = runtime.exec(
-            new String[]{adbFile.getAbsolutePath(), "-s", deviceAddress, "wait-for-device", "shell", "input", "keyevent", "82"}, null, workingDir);
-          unlock.waitFor();
-          // Open the VNC window for the firebase device.
-          String[] viewerArgs = new String[]{"-port=" + vncLocalPort, "-host=localhost", "-password=" + vncPassword, "-fullScreen=false"};
-          VncKeepAliveThreadImpl.startVnc(viewerArgs, configurationName, cloudProjectId, deviceId, deviceAddress, workingDir);
-          return;
-        }
-        Thread.sleep(POLLING_INTERVAL);
-      }
-      CloudTestingUtils.showErrorMessage(null, "Timed out connecting to a firebase device", "Timed out connecting to a firebase device!\n" +
-                                                                                         "Timed out connecting to a firebase device:\n\n" +
-                                                                                         deviceId);
-    } catch (Exception e) {
-      showCloudDevicePollingError(e, deviceId);
-    } finally {
-      synchronized (ghostCloudDevices) {
-        ghostCloudDevices.remove(ghostCloudDevice);
-      }
-      if (blankVncViewer != null) {
-        try { // Use try just in case something goes wrong.
-          blankVncViewer.closeWindow();
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    }
-  }
-
-  public static String getConfigurationInstanceForSerialNumber(String serialNumber) {
-    return serialNumberToConfigurationInstance.get(serialNumber);
-  }
-
-  @NotNull
-  public static Collection<IDevice> getLaunchingCloudDevices() {
-    synchronized (ghostCloudDevices) {
-      HashSet<IDevice> launchingCloudDevices = Sets.newHashSet();
-      launchingCloudDevices.addAll(ghostCloudDevices);
-      return launchingCloudDevices;
-    }
-  }
-
   @Nullable
   public static Icon getCloudDeviceIcon() {
     return CloudTestingUtils.CLOUD_DEVICE_ICON;
@@ -541,13 +302,6 @@ public final class CloudConfigurationHelper {
       return ConfigurationInstance.parseFromEncodedString(encodedConfigurationInstance).getResultsViewerDisplayString();
     }
     return null;
-  }
-
-  private static void showCloudDevicePollingError(Exception e, String deviceId) {
-    CloudTestingUtils.showErrorMessage(null, "Error polling for a firebase device", "Failed to connect to a firebase device!\n" +
-                                                                                 "Exception while polling for a firebase device\n\n" +
-                                                                                 deviceId +
-                                                                                 e.getMessage());
   }
 
   public static ExecutionResult executeCloudMatrixTests(
@@ -572,13 +326,11 @@ public final class CloudConfigurationHelper {
       return null;
     }
 
-    lastCloudProjectId = cloudProjectId;
-
     AndroidTestRunConfiguration testRunConfiguration = runningState.getConfiguration();
     GoogleCloudTestConsoleProperties properties = new GoogleCloudTestConsoleProperties(testRunConfiguration, executor);
     CloudMatrixExecutionCancellator matrixExecutionCancellator = new CloudMatrixExecutionCancellator();
     ConsoleView console = GoogleCloudTestResultsConnectionUtil.createAndAttachConsole(
-      "Firebase Testing", runningState.getProcessHandler(), properties, runningState.getEnvironment(), matrixExecutionCancellator);
+      "Firebase Testing", runningState.getProcessHandler(), properties, matrixExecutionCancellator);
     Disposer.register(project, console);
 
     GoogleCloudTestingResultParser
@@ -749,7 +501,7 @@ public final class CloudConfigurationHelper {
 
   public static List<CloudConfigurationImpl> deserializeConfigurations(
     final List<CloudPersistentConfiguration> persistentConfigurations, boolean isEditable, AndroidFacet facet) {
-    List<CloudConfigurationImpl> googleCloudTestingConfigurations = new LinkedList<CloudConfigurationImpl>();
+    List<CloudConfigurationImpl> googleCloudTestingConfigurations = new LinkedList<>();
     for (CloudPersistentConfiguration persistentConfiguration : persistentConfigurations) {
       Icon icon = getIcon(persistentConfiguration.name, isEditable);
       CloudConfigurationImpl configuration =
@@ -774,51 +526,5 @@ public final class CloudConfigurationHelper {
       return StudioIcons.Avd.DEVICE_MOBILE;
     }
     return StudioIcons.Avd.DEVICE_PHONE;
-  }
-
-  private static String generateSshKeys(JSch jsch) throws JSchException {
-    KeyPair keyPair = KeyPair.genKeyPair(jsch, RSA, 2048);
-
-    // Setting 'comment' is by convention only. Pass an empty string if this code breaks on some OS.
-    String comment = System.getProperty("user.home");
-    if (comment == null) {
-      comment = "";
-    } else {
-      try {
-        comment = comment + InetAddress.getLocalHost().getHostName();
-      }
-      catch (Exception e) {
-        // ignore
-      }
-    }
-
-    ByteArrayOutputStream privateKeyArray = new ByteArrayOutputStream();
-    keyPair.writePrivateKey(privateKeyArray);
-    ByteArrayOutputStream publicKeyArray = new ByteArrayOutputStream();
-    keyPair.writePublicKey(publicKeyArray, comment);
-
-    jsch.addIdentity("root", privateKeyArray.toByteArray(), publicKeyArray.toByteArray(), null);
-
-    keyPair.dispose();
-
-    return "root:" + new String(publicKeyArray.toByteArray());
-  }
-
-  /**
-   * Returns the session after connecting.
-   */
-  private static Session connectSession(JSch jsch, String rhost, int sshPort) throws Exception {
-    Session session = jsch.getSession("root", rhost, sshPort);
-    Properties config = new Properties();
-    config.setProperty("StrictHostKeyChecking", "no");
-    session.setConfig(config);
-    session.setTimeout(30*1000); // 30 seconds.
-
-    try {
-      session.connect();
-    } catch (JSchException e) {
-      throw new RuntimeException(String.format("%s@%s:%d: Error connecting to session.", "root", rhost, sshPort), e);
-    }
-    return session;
   }
 }

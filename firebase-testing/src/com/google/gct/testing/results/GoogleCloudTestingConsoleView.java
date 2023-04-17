@@ -18,7 +18,6 @@ package com.google.gct.testing.results;
 import com.google.gct.testing.CloudTestingUtils;
 import com.intellij.execution.filters.HyperlinkInfo;
 import com.intellij.execution.process.ProcessHandler;
-import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.testframework.*;
 import com.intellij.execution.testframework.sm.runner.ui.AttachToProcessListener;
 import com.intellij.execution.testframework.ui.BaseTestsOutputConsoleView;
@@ -32,23 +31,16 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public class GoogleCloudTestingConsoleView extends BaseTestsOutputConsoleView {
-  private final ExecutionEnvironment myEnvironment;
   private GoogleCloudTestingResultsForm myResultsViewer;
   @Nullable private final String mySplitterProperty;
   private final List<AttachToProcessListener> myAttachToProcessListeners = ContainerUtil.createLockFreeCopyOnWriteList();
-
-  public GoogleCloudTestingConsoleView(final TestConsoleProperties consoleProperties, final ExecutionEnvironment environment) {
-    this(consoleProperties, environment, null);
-  }
 
   /**
    * @param splitterProperty               Key to store(project level) latest value of testTree/consoleTab splitter. E.g. "RSpec.Splitter.Proportion"
    */
   public GoogleCloudTestingConsoleView(final TestConsoleProperties consoleProperties,
-                                       final ExecutionEnvironment environment,
                                        @Nullable final String splitterProperty) {
     super(consoleProperties, null);
-    myEnvironment = environment;
     mySplitterProperty = splitterProperty;
   }
 
@@ -78,12 +70,7 @@ public class GoogleCloudTestingConsoleView extends BaseTestsOutputConsoleView {
         }
 
         // print selected content
-        CloudTestingUtils.runInEventDispatchThread(new Runnable() {
-          @Override
-          public void run() {
-            getPrinter().updateOnTestSelected(selectedTestProxy);
-          }
-        }, ModalityState.NON_MODAL);
+        CloudTestingUtils.runInEventDispatchThread(() -> getPrinter().updateOnTestSelected(selectedTestProxy), ModalityState.NON_MODAL);
       }
     });
   }
@@ -100,12 +87,7 @@ public class GoogleCloudTestingConsoleView extends BaseTestsOutputConsoleView {
    */
   @Override
   public void print(@NotNull final String s, @NotNull final ConsoleViewContentType contentType) {
-    myResultsViewer.getRoot().addLast(new Printable() {
-      @Override
-      public void printOn(final Printer printer) {
-        printer.print(s, contentType);
-      }
-    });
+    myResultsViewer.getRoot().addLast(printer -> printer.print(s, contentType));
   }
 
   /**
@@ -129,10 +111,6 @@ public class GoogleCloudTestingConsoleView extends BaseTestsOutputConsoleView {
 
   public void addAttachToProcessListener(@NotNull AttachToProcessListener listener) {
     myAttachToProcessListeners.add(listener);
-  }
-
-  public void remoteAttachToProcessListener(@NotNull AttachToProcessListener listener) {
-    myAttachToProcessListeners.remove(listener);
   }
 
   @Override

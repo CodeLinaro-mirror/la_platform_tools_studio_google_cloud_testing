@@ -15,112 +15,27 @@
  */
 package com.google.gct.testing.results;
 
+import static com.intellij.execution.testframework.sm.runner.states.TestStateInfo.Magnitude.NOT_RUN_INDEX;
+
 import com.intellij.execution.testframework.PoolOfTestIcons;
 import com.intellij.execution.testframework.TestConsoleProperties;
-import com.intellij.execution.testframework.TestsUIUtil;
 import com.intellij.execution.testframework.sm.SmRunnerBundle;
 import com.intellij.execution.testframework.sm.runner.states.TestStateInfo;
 import com.intellij.execution.testframework.sm.runner.ui.SMPoolOfTestIcons;
 import com.intellij.execution.testframework.ui.TestsProgressAnimator;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.ui.ColoredTableCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
-import java.util.List;
-import java.util.Set;
-
-import static com.intellij.execution.testframework.sm.runner.states.TestStateInfo.Magnitude.NOT_RUN_INDEX;
-
 public class GoogleCloudTestsPresentationUtil {
-  @NonNls private static final String DOUBLE_SPACE = "  ";
-  @NonNls private static final String SECONDS_SUFFIX = " s";
-  @NonNls private static final String MILLISECONDS_SUFFIX = " ms";
-  @NonNls private static final String WORLD_CREATION_TIME = "0" + SECONDS_SUFFIX;
-  @NonNls private static final String DURATION_UNKNOWN = "Unknown";
-  @NonNls private static final String DURATION_NO_TESTS = "No tests";
-  @NonNls private static final String DURATION_NOT_RUN = "Not run";
-  @NonNls private static final String DURATION_RUNNING_PREFIX = "Running tests...";
-  @NonNls private static final String DURATION_TERMINATED_PREFIX = "Terminated";
-  @NonNls private static final String COLON = ": ";
-  public static final SimpleTextAttributes PASSED_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, TestsUIUtil.PASSED_COLOR);
-  public static final SimpleTextAttributes DEFFECT_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, Color.RED);
-  public static final SimpleTextAttributes TERMINATED_ATTRIBUTES = new SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, Color.ORANGE);
-  @NonNls private static final String RESULTS_NO_TESTS = "No tests were found";
   @NonNls private static final String NO_NAME_TEST = "<no name>";
-  @NonNls private static final String UNKNOWN_TESTS_COUNT = "<...>";
-  @NonNls static final String DEFAULT_TESTS_CATEGORY = "Tests";
 
 
   private GoogleCloudTestsPresentationUtil() {
-  }
-
-  public static String getProgressStatus_Text(final long startTime,
-                                              final long endTime,
-                                              final int testsTotal,
-                                              final int testsCount,
-                                              final int failuresCount,
-                                              @Nullable final Set<String> allCategories,
-                                              final boolean isFinished) {
-    final StringBuilder sb = new StringBuilder();
-    if (endTime == 0) {
-      sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.running"));
-    } else {
-      sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.done"));
-    }
-
-    if (allCategories != null) {
-      // if all categories is just one default tests category - let's do not add prefixes
-
-      if (allCategories.size() > 1
-          || (allCategories.size() == 1 && !DEFAULT_TESTS_CATEGORY.equals(allCategories.iterator().next()))) {
-
-        sb.append(' ');
-        boolean first = true;
-        for (String category : allCategories) {
-          if (StringUtil.isEmpty(category)) {
-            continue;
-          }
-
-          // separator
-          if (!first) {
-            sb.append(", ");
-
-          }
-
-          // first symbol - to lower case
-          final char firstChar = category.charAt(0);
-          sb.append(first ? firstChar : Character.toLowerCase(firstChar));
-
-          sb.append(category.substring(1));
-          first = false;
-        }
-      }
-    }
-
-    sb.append(' ').append(testsCount).append(' ');
-    sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.of"));
-    sb.append(' ').append(testsTotal != 0 ? testsTotal
-                                          : !isFinished ? UNKNOWN_TESTS_COUNT : 0);
-
-    if (failuresCount > 0) {
-      sb.append(DOUBLE_SPACE);
-      sb.append(SmRunnerBundle.message("sm.test.runner.ui.tests.tree.presentation.labels.failed"));
-      sb.append(' ').append(failuresCount);
-    }
-    if (endTime != 0) {
-      final long time = endTime - startTime;
-      sb.append(DOUBLE_SPACE);
-      sb.append('(').append(convertToSecondsOrMs(time)).append(')');
-    }
-    sb.append(DOUBLE_SPACE);
-
-    return sb.toString();
   }
 
   public static void formatRootNodeWithChildren(final GoogleCloudTestProxy.GoogleCloudRootTestProxy testProxy,
@@ -276,190 +191,5 @@ public class GoogleCloudTestsPresentationUtil {
         return hasErrors ? SMPoolOfTestIcons.TERMINATED_E_ICON : PoolOfTestIcons.TERMINATED_ICON;
     }
     return null;
-  }
-
-  @Nullable
-  public static String getTestStatusPresentation(final GoogleCloudTestProxy proxy) {
-    return proxy.getMagnitudeInfo().getTitle();
-  }
-
-  public static void appendSuiteStatusColorPresentation(final GoogleCloudTestProxy proxy,
-                                                        final ColoredTableCellRenderer renderer) {
-    int passedCount = 0;
-    int errorsCount = 0;
-    int failedCount = 0;
-    int ignoredCount = 0;
-
-    if (proxy.isLeaf()) {
-      // If suite is empty show <no tests> label and exit from method
-      renderer.append(RESULTS_NO_TESTS, proxy.wasLaunched() ? PASSED_ATTRIBUTES : DEFFECT_ATTRIBUTES);
-      return;
-    }
-
-    final List<GoogleCloudTestProxy> allTestCases = proxy.getAllTests();
-    for (GoogleCloudTestProxy testOrSuite : allTestCases) {
-      // we should ignore test suites
-      if (testOrSuite.isSuite()) {
-        continue;
-      }
-      // if test check it state
-      switch (testOrSuite.getMagnitudeInfo()) {
-        case COMPLETE_INDEX:
-        case PASSED_INDEX:
-          passedCount++;
-          break;
-        case ERROR_INDEX:
-          errorsCount++;
-          break;
-        case FAILED_INDEX:
-          failedCount++;
-          break;
-        case IGNORED_INDEX:
-        case SKIPPED_INDEX:
-          ignoredCount++;
-          break;
-        case SCHEDULED_INDEX:
-        case NOT_RUN_INDEX:
-        case TERMINATED_INDEX:
-        case RUNNING_INDEX:
-        case TIMEOUT_INDEX:
-        case INFRASTRUCTURE_FAILURE_INDEX:
-        case TRIGGERING_ERROR_INDEX:
-          //Do nothing
-          break;
-      }
-    }
-
-    final String separator = " ";
-
-    if (failedCount > 0) {
-      renderer.append(SmRunnerBundle.message(
-          "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.failed",
-                                      failedCount) + separator,
-                      DEFFECT_ATTRIBUTES);
-    }
-
-    if (errorsCount > 0) {
-      renderer.append(SmRunnerBundle.message(
-          "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.errors",
-                                      errorsCount) + separator,
-                      DEFFECT_ATTRIBUTES);
-    }
-
-    if (ignoredCount > 0) {
-      renderer.append(SmRunnerBundle.message(
-          "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.ignored",
-                                      ignoredCount) + separator,
-                      SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES);
-    }
-
-    if (passedCount > 0) {
-      renderer.append(SmRunnerBundle.message(
-          "sm.test.runner.ui.tabs.statistics.columns.results.count.msg.passed",
-                                      passedCount),
-                      PASSED_ATTRIBUTES);
-    }
-  }
-
-  /**
-   * @param proxy Test or Suite
-   * @return Duration presentation for given proxy
-   */
-  @Nullable
-  public static String getDurationPresentation(final GoogleCloudTestProxy proxy) {
-    switch (proxy.getMagnitudeInfo()) {
-      case COMPLETE_INDEX:
-      case PASSED_INDEX:
-      case FAILED_INDEX:
-      case ERROR_INDEX:
-      case IGNORED_INDEX:
-      case SKIPPED_INDEX:
-        return getDurationTimePresentation(proxy);
-
-      case NOT_RUN_INDEX:
-        return DURATION_NOT_RUN;
-
-      case RUNNING_INDEX:
-        return getDurationWithPrefixPresentation(proxy, DURATION_RUNNING_PREFIX);
-
-      case TERMINATED_INDEX:
-        return getDurationWithPrefixPresentation(proxy, DURATION_TERMINATED_PREFIX);
-
-      default:
-        return DURATION_UNKNOWN;
-    }
-  }
-
-  private static String getDurationWithPrefixPresentation(final GoogleCloudTestProxy proxy,
-                                                          final String prefix) {
-    // If duration is known
-    if (proxy.getDuration() != null) {
-      return prefix + COLON + getDurationTimePresentation(proxy);
-    }
-
-    return '<' + prefix + '>';
-  }
-
-  private static String getDurationTimePresentation(final GoogleCloudTestProxy proxy) {
-    final Long duration = proxy.getDuration();
-
-    if (duration == null) {
-      // if suite without children
-      return proxy.isSuite() && proxy.isLeaf()
-             ? DURATION_NO_TESTS
-             : DURATION_UNKNOWN;
-    } else {
-      return convertToSecondsOrMs(duration.longValue());
-    }
-  }
-
-  /**
-   * @param duration In milliseconds
-   * @return Value in seconds or millisecond depending on its value
-   */
-  private static String convertToSecondsOrMs(@NotNull final Long duration) {
-    if (duration == 0) {
-      return WORLD_CREATION_TIME;
-    } else if (duration < 100) {
-      return String.valueOf(duration) + MILLISECONDS_SUFFIX;
-    } else {
-      return String.valueOf(duration.floatValue() / 1000) + SECONDS_SUFFIX;
-    }
-  }
-
-  public static void appendTestStatusColorPresentation(final GoogleCloudTestProxy proxy,
-                                                       final ColoredTableCellRenderer renderer) {
-    final String title = getTestStatusPresentation(proxy);
-
-    final TestStateInfo.Magnitude info = proxy.getMagnitudeInfo();
-    switch (info) {
-      case COMPLETE_INDEX:
-      case PASSED_INDEX:
-        renderer.append(title, PASSED_ATTRIBUTES);
-        break;
-      case RUNNING_INDEX:
-        renderer.append(title, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
-        break;
-      case NOT_RUN_INDEX:
-        renderer.append(title, SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES);
-        break;
-      case IGNORED_INDEX:
-      case SKIPPED_INDEX:
-        renderer.append(title, SimpleTextAttributes.EXCLUDED_ATTRIBUTES);
-        break;
-      case ERROR_INDEX:
-      case FAILED_INDEX:
-        renderer.append(title, DEFFECT_ATTRIBUTES);
-        break;
-      case TERMINATED_INDEX:
-        renderer.append(title, TERMINATED_ATTRIBUTES);
-        break;
-      case SCHEDULED_INDEX:
-      case TIMEOUT_INDEX:
-      case INFRASTRUCTURE_FAILURE_INDEX:
-      case TRIGGERING_ERROR_INDEX:
-        //Do nothing
-        break;
-    }
   }
 }

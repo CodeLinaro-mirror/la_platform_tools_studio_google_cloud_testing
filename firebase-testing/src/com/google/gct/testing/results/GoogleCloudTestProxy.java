@@ -29,7 +29,6 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.pom.Navigatable;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.util.containers.ContainerUtilRt;
 import com.intellij.util.io.URLUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -228,7 +227,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
 
   public void addChild(final GoogleCloudTestProxy child) {
     if (myChildren == null) {
-      myChildren = new ArrayList<GoogleCloudTestProxy>();
+      myChildren = new ArrayList<>();
     }
 
     myChildren.add(child);
@@ -360,7 +359,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
 
   @Override
   public List<GoogleCloudTestProxy> getAllTests() {
-    final List<GoogleCloudTestProxy> allTests = new ArrayList<GoogleCloudTestProxy>();
+    final List<GoogleCloudTestProxy> allTests = new ArrayList<>();
 
     allTests.add(this);
 
@@ -527,24 +526,6 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
     myParent = parent;
   }
 
-  public List<? extends GoogleCloudTestProxy> collectChildren(@Nullable final Filter<GoogleCloudTestProxy> filter) {
-    return filterChildren(filter, collectChildren());
-  }
-
-  public List<? extends GoogleCloudTestProxy> collectChildren() {
-    final List<? extends GoogleCloudTestProxy> allChildren = getChildren();
-
-    final List<GoogleCloudTestProxy> result = ContainerUtilRt.newArrayList();
-
-    result.addAll(allChildren);
-
-    for (GoogleCloudTestProxy p: allChildren) {
-      result.addAll(p.collectChildren());
-    }
-
-    return result;
-  }
-
   public List<? extends GoogleCloudTestProxy> getChildren(@Nullable final Filter<? super GoogleCloudTestProxy> filter) {
     final List<? extends GoogleCloudTestProxy> allChildren = getChildren();
 
@@ -557,7 +538,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
       return allChildren;
     }
 
-    final List<GoogleCloudTestProxy> selectedChildren = new ArrayList<GoogleCloudTestProxy>();
+    final List<GoogleCloudTestProxy> selectedChildren = new ArrayList<>();
     for (GoogleCloudTestProxy child : allChildren) {
       if (filter.shouldAccept(child)) {
         selectedChildren.add(child);
@@ -585,12 +566,9 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
     super.printOn(rightPrinter);
     final AbstractState oldState = myState;
 
-    CompositePrintable.invokeInAlarm(new Runnable() {
-      @Override
-      public void run() {
-        //Tests State, that provide and formats additional output
-        oldState.printOn(rightPrinter);
-      }
+    CompositePrintable.invokeInAlarm(() -> {
+      //Tests State, that provide and formats additional output
+      oldState.printOn(rightPrinter);
     });
   }
 
@@ -618,21 +596,11 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
   }
 
   private Printable printableFromString(final String text, final Key outputType) {
-    return new Printable() {
-        @Override
-        public void printOn(final Printer printer) {
-          printer.print(text, ConsoleViewContentType.getConsoleViewType(outputType));
-        }
-      };
+    return printer -> printer.print(text, ConsoleViewContentType.getConsoleViewType(outputType));
   }
 
   public void addStdErr(final String output, boolean shouldFireEvent) {
-    Printable printable = new Printable() {
-      @Override
-      public void printOn(final Printer printer) {
-        printer.print(output, ConsoleViewContentType.ERROR_OUTPUT);
-      }
-    };
+    Printable printable = printer -> printer.print(output, ConsoleViewContentType.ERROR_OUTPUT);
     if (shouldFireEvent) {
       addLast(printable);
     } else {
@@ -663,21 +631,11 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
     myHasCriticalErrors = isCritical;
     setStacktraceIfNotSet(stackTrace);
 
-    addLast(new Printable() {
-      @Override
-      public void printOn(final Printer printer) {
-        new TestFailedState(output, stackTrace).printOn(printer);
-      }
-    });
+    addLast(printer -> new TestFailedState(output, stackTrace).printOn(printer));
   }
 
   public void addSystemOutput(final String output) {
-    addLast(new Printable() {
-      @Override
-      public void printOn(final Printer printer) {
-        printer.print(output, ConsoleViewContentType.SYSTEM_OUTPUT);
-      }
-    });
+    addLast(printer -> printer.print(output, ConsoleViewContentType.SYSTEM_OUTPUT));
   }
 
   @NotNull
@@ -733,7 +691,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
     if (myState.isFinal()) {
       return;
     }
-    myState = new GoogleCloudTestingTimeoutState(this);
+    myState = new GoogleCloudTestingTimeoutState();
     for (GoogleCloudTestProxy child : getChildren()) {
       child.setTimeout();
     }
@@ -763,10 +721,6 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
       child.setTriggeringError();
     }
     fireOnNewPrintable(myState);
-  }
-
-  public boolean wasTerminated() {
-    return myState.wasTerminated();
   }
 
   @Override
@@ -824,7 +778,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
         if (containsTerminatedChildren()) { // Terminated has precedence over time out and infrastructure failure.
           state = TerminatedState.INSTANCE;
         } else if (containsTimeoutChildren()) { // Timeout has precedence over infrastructure failure.
-          state = new GoogleCloudTestingTimeoutState(this);
+          state = new GoogleCloudTestingTimeoutState();
         } else if (containsInfrastructureFailureChildren()) {
           state = new GoogleCloudTestingInfrastructureFailureState(this);
         } else

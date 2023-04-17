@@ -42,10 +42,6 @@ public class GoogleCloudTestFinishedEvent extends TestFinishedEvent {
     this.className = className;
   }
 
-  public GoogleCloudTestFinishedEvent(@NotNull String name, int duration, @NotNull String configuration, @NotNull String className) {
-    this(name, null, duration, configuration, className);
-  }
-
   @Override
   protected void appendToStringInfo(@NotNull StringBuilder buf) {
     super.appendToStringInfo(buf);

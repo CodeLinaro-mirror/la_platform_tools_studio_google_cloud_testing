@@ -63,14 +63,6 @@ public class CloudAuthenticator {
     instance = testInstance;
   }
 
-  public Storage getPublicStorage() {
-    if (myHttpTransport == null) {
-      myHttpTransport = createHttpTransport();
-    }
-    // A storage accessible to anyone without authentication and authorization (null credential).
-    return new Storage.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), null).setApplicationName(APPLICATION_NAME).build();
-  }
-
   @NotNull
   public Storage getStorage() {
     prepareCredential();

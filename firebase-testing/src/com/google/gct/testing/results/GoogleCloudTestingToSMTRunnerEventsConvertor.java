@@ -47,9 +47,9 @@ import static com.google.gct.testing.CloudTestingUtils.PRICING_LINK;
 public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTestEventsProcessor {
   private static final Logger LOG = Logger.getInstance(GoogleCloudTestingToSMTRunnerEventsConvertor.class.getName());
 
-  private final Map<String, GoogleCloudTestProxy> myRunningTestsFullNameToProxy = new HashMap<String, GoogleCloudTestProxy>();
+  private final Map<String, GoogleCloudTestProxy> myRunningTestsFullNameToProxy = new HashMap<>();
 
-  private final Set<AbstractTestProxy> myFailedTestsSet = new HashSet<AbstractTestProxy>();
+  private final Set<AbstractTestProxy> myFailedTestsSet = new HashSet<>();
 
   private final List<GoogleCloudTestEventsListener> myEventsListeners = ContainerUtil.createLockFreeCopyOnWriteList();
   private final GoogleCloudTestProxy.GoogleCloudRootTestProxy myTestsRootNode;
@@ -77,25 +77,17 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
 
   @Override
   public void onStartTesting() {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        myTestsRootNode.setScheduled();
-        lastUpdatedTest = null;
-        //fire
-        fireOnTestingStarted(true);
-      }
+    addToInvokeLater(() -> {
+      myTestsRootNode.setScheduled();
+      lastUpdatedTest = null;
+      //fire
+      fireOnTestingStarted(true);
     });
   }
 
   @Override
   public void onTestsReporterAttached() {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        myTestsRootNode.setTestsReporterAttached();
-      }
-    });
+    addToInvokeLater(() -> myTestsRootNode.setTestsReporterAttached());
   }
 
   @Override
@@ -142,46 +134,43 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
 
   @Override
   public void onTestStarted(@NotNull final GoogleCloudTestStartedEvent testStartedEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configuration = testStartedEvent.getConfiguration();
-        final String className = testStartedEvent.getClassName();
-        final String testName = testStartedEvent.getName();
-        final String locationUrl = testStartedEvent.getLocationUrl();
-        final String fullName = getFullTestName(configuration, className, testName);
+    addToInvokeLater(() -> {
+      final String configuration = testStartedEvent.getConfiguration();
+      final String className = testStartedEvent.getClassName();
+      final String testName = testStartedEvent.getName();
+      final String locationUrl = testStartedEvent.getLocationUrl();
+      final String fullName = getFullTestName(configuration, className, testName);
 
-        if (myRunningTestsFullNameToProxy.containsKey(fullName)) {
-          //Duplicated event
-          logProblem("Test [" + fullName + "] has been already started");
+      if (myRunningTestsFullNameToProxy.containsKey(fullName)) {
+        //Duplicated event
+        logProblem("Test [" + fullName + "] has been already started");
 
-          if (GoogleCloudTestResultsConnectionUtil.isInDebugMode()) {
-            return;
-          }
+        if (GoogleCloudTestResultsConnectionUtil.isInDebugMode()) {
+          return;
         }
-
-        GoogleCloudTestProxy parentSuite = findOrCreateChildNode(myTestsRootNode, configuration, true);
-        parentSuite = findOrCreateChildNode(parentSuite, className, true);
-
-        // creates test
-        GoogleCloudTestProxy testProxy = new GoogleCloudTestProxy(testName, false, locationUrl);
-        if (myLocator != null) {
-          testProxy.setLocator(myLocator);
-        }
-
-        lastUpdatedTest = testProxy;
-
-        parentSuite.addChild(testProxy);
-
-        // adds to running tests map
-        myRunningTestsFullNameToProxy.put(fullName, testProxy);
-
-        //Progress started
-        testProxy.setStarted();
-
-        //fire events
-        fireOnTestStarted(testProxy);
       }
+
+      GoogleCloudTestProxy parentSuite = findOrCreateChildNode(myTestsRootNode, configuration, true);
+      parentSuite = findOrCreateChildNode(parentSuite, className, true);
+
+      // creates test
+      GoogleCloudTestProxy testProxy = new GoogleCloudTestProxy(testName, false, locationUrl);
+      if (myLocator != null) {
+        testProxy.setLocator(myLocator);
+      }
+
+      lastUpdatedTest = testProxy;
+
+      parentSuite.addChild(testProxy);
+
+      // adds to running tests map
+      myRunningTestsFullNameToProxy.put(fullName, testProxy);
+
+      //Progress started
+      testProxy.setStarted();
+
+      //fire events
+      fireOnTestStarted(testProxy);
     });
   }
 
@@ -205,38 +194,13 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
   }
 
   private Predicate<GoogleCloudTestProxy> getNodeNamed(final String nodeName) {
-    return new Predicate<GoogleCloudTestProxy>() {
-      @Override
-      public boolean apply(GoogleCloudTestProxy testProxy) {
-        return testProxy.getName().equals(nodeName);
-      }
-    };
+    return testProxy -> testProxy.getName().equals(nodeName);
   }
 
   @Override
   public void onSuiteStarted(@NotNull final TestSuiteStartedEvent suiteStartedEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        throw new RuntimeException("Unsupported event 'onSuiteStarted'");
-        //final String suiteName = suiteStartedEvent.getName();
-        //final String locationUrl = suiteStartedEvent.getLocationUrl();
-        //final GoogleCloudTestProxy parentSuite = getCurrentSuite();
-        ////new suite
-        //GoogleCloudTestProxy newSuite = new GoogleCloudTestProxy(suiteName, true, locationUrl);
-        //if (myLocator != null) {
-        //  newSuite.setLocator(myLocator);
-        //}
-        //parentSuite.addChild(newSuite);
-        //
-        ////mySuitesStack.pushSuite(newSuite);
-        //
-        ////Progress started
-        //newSuite.setStarted();
-        //
-        ////fire event
-        //fireOnSuiteStarted(newSuite);
-      }
+    addToInvokeLater(() -> {
+      throw new RuntimeException("Unsupported event 'onSuiteStarted'");
     });
   }
 
@@ -255,90 +219,78 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
 
   @Override
   public void onConfigurationStopped(@NotNull final TestConfigurationStoppedEvent configurationStoppedEvent)  {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configurationName = configurationStoppedEvent.getName();
-          for (GoogleCloudTestProxy configuration : myTestsRootNode.getChildren()) {
-            if (configuration.getName().equals(configurationName)) {
-              List<GoogleCloudTestProxy> suiteTests = configuration.getAllTests();
-              // Should process children first for the correct status propagation, so remove itself from the list.
-              suiteTests.remove(configuration);
-              for (GoogleCloudTestProxy suiteTest : suiteTests) {
-                stopTest(suiteTest, configurationStoppedEvent.getStopReason());
-              }
-              stopTest(configuration, configurationStoppedEvent.getStopReason());
-              configuration.setDuration(configurationStoppedEvent.getTestDuration());
-              return;
+    addToInvokeLater(() -> {
+      final String configurationName = configurationStoppedEvent.getName();
+        for (GoogleCloudTestProxy configuration : myTestsRootNode.getChildren()) {
+          if (configuration.getName().equals(configurationName)) {
+            List<GoogleCloudTestProxy> suiteTests = configuration.getAllTests();
+            // Should process children first for the correct status propagation, so remove itself from the list.
+            suiteTests.remove(configuration);
+            for (GoogleCloudTestProxy suiteTest : suiteTests) {
+              stopTest(suiteTest, configurationStoppedEvent.getStopReason());
             }
+            stopTest(configuration, configurationStoppedEvent.getStopReason());
+            configuration.setDuration(configurationStoppedEvent.getTestDuration());
+            return;
           }
-          throw new IllegalStateException("Could not find configuration: " + configurationName);
-      }
+        }
+        throw new IllegalStateException("Could not find configuration: " + configurationName);
     });
   }
 
   @Override
   public void onConfigurationStarted(@NotNull final TestConfigurationStartedEvent configurationStartedEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configurationName = configurationStartedEvent.getName();
-        GoogleCloudTestProxy newConfiguration = findOrCreateChildNode(myTestsRootNode, configurationName, false);
-        if (myLocator != null) {
-          newConfiguration.setLocator(myLocator);
-        }
+    addToInvokeLater(() -> {
+      final String configurationName = configurationStartedEvent.getName();
+      GoogleCloudTestProxy newConfiguration = findOrCreateChildNode(myTestsRootNode, configurationName, false);
+      if (myLocator != null) {
+        newConfiguration.setLocator(myLocator);
+      }
 
-        //Progress started
-        newConfiguration.setStarted();
+      //Progress started
+      newConfiguration.setStarted();
 
-        //fire event
-        fireOnSuiteStarted(newConfiguration);
+      //fire event
+      fireOnSuiteStarted(newConfiguration);
 
-        // Scheduled -> Pending for root node as soon as a configuration becomes pending.
-        if (!myTestsRootNode.isInProgress()) {
-          myTestsRootNode.setStarted();
-          fireOnTestingStarted(false);
-        }
+      // Scheduled -> Pending for root node as soon as a configuration becomes pending.
+      if (!myTestsRootNode.isInProgress()) {
+        myTestsRootNode.setStarted();
+        fireOnTestingStarted(false);
       }
     });
   }
 
   @Override
   public void onConfigurationProgress(@NotNull final TestConfigurationProgressEvent configurationProgressEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configurationName = configurationProgressEvent.getName();
-        final String progressText = configurationProgressEvent.getText();
+    addToInvokeLater(() -> {
+      final String configurationName = configurationProgressEvent.getName();
+      final String progressText = configurationProgressEvent.getText();
 
-        GoogleCloudTestProxy configurationProxy = Iterables.find(myTestsRootNode.getChildren(), getNodeNamed(configurationName), null);
-        if (configurationProxy == null) {
-          throw new IllegalStateException("Could not report progress for non-existing configuration: " + configurationName);
-        }
-        configurationProxy.addStdOutput(progressText, ProcessOutputTypes.STDOUT, true);
+      GoogleCloudTestProxy configurationProxy = Iterables.find(myTestsRootNode.getChildren(), getNodeNamed(configurationName), null);
+      if (configurationProxy == null) {
+        throw new IllegalStateException("Could not report progress for non-existing configuration: " + configurationName);
       }
+      configurationProxy.addStdOutput(progressText, ProcessOutputTypes.STDOUT, true);
     });
   }
 
   @Override
   public void onConfigurationScheduled(@NotNull final TestConfigurationScheduledEvent configurationScheduledEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configurationName = configurationScheduledEvent.getName();
-        final String locationUrl = configurationScheduledEvent.getLocationUrl();
+    addToInvokeLater(() -> {
+      final String configurationName = configurationScheduledEvent.getName();
+      final String locationUrl = configurationScheduledEvent.getLocationUrl();
 
-        GoogleCloudTestProxy newConfiguration = new GoogleCloudTestProxy(configurationName, true, locationUrl);
-        if (myLocator != null) {
-          newConfiguration.setLocator(myLocator);
-        }
-        myTestsRootNode.addChild(newConfiguration);
-
-        newConfiguration.setScheduled();
-
-        //fire event
-        fireOnSuiteStarted(newConfiguration);
+      GoogleCloudTestProxy newConfiguration = new GoogleCloudTestProxy(configurationName, true, locationUrl);
+      if (myLocator != null) {
+        newConfiguration.setLocator(myLocator);
       }
+      myTestsRootNode.addChild(newConfiguration);
+
+      newConfiguration.setScheduled();
+
+      //fire event
+      fireOnSuiteStarted(newConfiguration);
     });
   }
 
@@ -362,82 +314,56 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
 
   @Override
   public void onTestFinished(@NotNull final GoogleCloudTestFinishedEvent testFinishedEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configuration = testFinishedEvent.getConfiguration();
-        final String className = testFinishedEvent.getClassName();
-        final String testName = testFinishedEvent.getName();
-        final long duration = testFinishedEvent.getDuration() == null ? -1 : testFinishedEvent.getDuration();
-        final String fullTestName = getFullTestName(configuration, className, testName);
-        final GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
+    addToInvokeLater(() -> {
+      final String configuration = testFinishedEvent.getConfiguration();
+      final String className = testFinishedEvent.getClassName();
+      final String testName = testFinishedEvent.getName();
+      final long duration = testFinishedEvent.getDuration() == null ? -1 : testFinishedEvent.getDuration();
+      final String fullTestName = getFullTestName(configuration, className, testName);
+      final GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
 
-        if (testProxy == null) {
-          logProblem("Test wasn't started! TestFinished event: name = {" + testName + "}. " +
-                     cannotFindFullTestNameMsg(fullTestName));
-          return;
-        }
-
-        lastUpdatedTest = testProxy;
-
-        testProxy.setDuration(duration);
-        testProxy.setFinished();
-        myRunningTestsFullNameToProxy.remove(fullTestName);
-
-        //fire events
-        fireOnTestFinished(testProxy);
+      if (testProxy == null) {
+        logProblem("Test wasn't started! TestFinished event: name = {" + testName + "}. " +
+                   cannotFindFullTestNameMsg(fullTestName));
+        return;
       }
+
+      lastUpdatedTest = testProxy;
+
+      testProxy.setDuration(duration);
+      testProxy.setFinished();
+      myRunningTestsFullNameToProxy.remove(fullTestName);
+
+      //fire events
+      fireOnTestFinished(testProxy);
     });
   }
 
   @Override
   public void onSuiteFinished(@NotNull final TestSuiteFinishedEvent suiteFinishedEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        throw new RuntimeException("Unsupported event 'onSuiteFinished'");
-        //final GoogleCloudTestProxy mySuite = mySuitesStack.popSuite(suiteFinishedEvent.getName());
-        //if (mySuite != null) {
-        //  mySuite.setFinished();
-        //  //fire events
-        //  fireOnSuiteFinished(mySuite);
-        //}
-      }
+    addToInvokeLater(() -> {
+      throw new RuntimeException("Unsupported event 'onSuiteFinished'");
     });
   }
 
   @Override
   public void onConfigurationFinished(@NotNull final TestConfigurationFinishedEvent configurationFinishedEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        throw new RuntimeException("Unsupported event 'onConfigurationFinished'");
-        //final String configurationName = configurationFinishedEvent.getName();
-        //final GoogleCloudTestProxy mySuite = mySuitesStack.popSuite(configurationName);
-        //if (mySuite != null) {
-        //  mySuite.setFinished();
-        //  //fire events
-        //  //TODO: Is it really safe not to fire these events?
-        //  //fireOnSuiteFinished(mySuite);
-        //}
-      }
+    addToInvokeLater(() -> {
+      throw new RuntimeException("Unsupported event 'onConfigurationFinished'");
     });
   }
 
   @Override
   public void onUncapturedOutput(@NotNull final String text, final Key outputType) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final GoogleCloudTestProxy currentProxy = findCurrentTestOrSuite();
+    addToInvokeLater(() -> {
+      final GoogleCloudTestProxy currentProxy = findCurrentTestOrSuite();
 
-        if (ProcessOutputTypes.STDERR.equals(outputType)) {
-          currentProxy.addStdErr(text, true);
-        } else if (ProcessOutputTypes.SYSTEM.equals(outputType)) {
-          currentProxy.addSystemOutput(text);
-        } else {
-          currentProxy.addStdOutput(text, outputType, true);
-        }
+      if (ProcessOutputTypes.STDERR.equals(outputType)) {
+        currentProxy.addStdErr(text, true);
+      } else if (ProcessOutputTypes.SYSTEM.equals(outputType)) {
+        currentProxy.addSystemOutput(text);
+      } else {
+        currentProxy.addStdOutput(text, outputType, true);
       }
     });
   }
@@ -446,226 +372,171 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
   public void onError(@NotNull final String localizedMessage,
                       @Nullable final String stackTrace,
                       final boolean isCritical) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final GoogleCloudTestProxy currentProxy = findCurrentTestOrSuite();
-        currentProxy.addError(localizedMessage, stackTrace, isCritical);
-      }
+    addToInvokeLater(() -> {
+      final GoogleCloudTestProxy currentProxy = findCurrentTestOrSuite();
+      currentProxy.addError(localizedMessage, stackTrace, isCritical);
     });
   }
 
   @Override
   public void onCustomProgressTestsCategory(@Nullable final String categoryName,
                                             final int testCount) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        fireOnCustomProgressTestsCategory(categoryName, testCount);
-      }
-    });
+    addToInvokeLater(() -> fireOnCustomProgressTestsCategory(categoryName, testCount));
   }
 
   @Override
   public void onCustomProgressTestStarted() {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        fireOnCustomProgressTestStarted();
-      }
-    });
+    addToInvokeLater(() -> fireOnCustomProgressTestStarted());
   }
 
   @Override
   public void onCustomProgressTestFailed() {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        fireOnCustomProgressTestFailed();
-      }
-    });
+    addToInvokeLater(() -> fireOnCustomProgressTestFailed());
   }
 
   @Override
   public void onTestFailure(@NotNull final GoogleCloudTestFailedEvent testFailedEvent) {
-    addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configuration = testFailedEvent.getConfiguration();
-        final String className = testFailedEvent.getClassName();
-        final String testName = ObjectUtils.assertNotNull(testFailedEvent.getName());
-        final String localizedMessage = testFailedEvent.getLocalizedFailureMessage();
-        final String stackTrace = testFailedEvent.getStacktrace();
-        final boolean isTestError = testFailedEvent.isTestError();
-        final String comparisionFailureActualText = testFailedEvent.getComparisonFailureActualText();
-        final String comparisionFailureExpectedText = testFailedEvent.getComparisonFailureExpectedText();
-        final boolean inDebugMode = GoogleCloudTestResultsConnectionUtil.isInDebugMode();
+    addToInvokeLater(() -> {
+      final String configuration = testFailedEvent.getConfiguration();
+      final String className = testFailedEvent.getClassName();
+      final String testName = ObjectUtils.assertNotNull(testFailedEvent.getName());
+      final String localizedMessage = testFailedEvent.getLocalizedFailureMessage();
+      final String stackTrace = testFailedEvent.getStacktrace();
+      final boolean isTestError = testFailedEvent.isTestError();
+      final String comparisonFailureActualText = testFailedEvent.getComparisonFailureActualText();
+      final String comparisonFailureExpectedText = testFailedEvent.getComparisonFailureExpectedText();
+      final boolean inDebugMode = GoogleCloudTestResultsConnectionUtil.isInDebugMode();
 
-        final String fullTestName = getFullTestName(configuration, className, testName);
-        GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
-        if (testProxy == null) {
-          logProblem("Test wasn't started! TestFailure event: name = {" + testName + "}" +
-                             ", message = {" + localizedMessage + "}" +
-                             ", stackTrace = {" + stackTrace + "}. " +
-                             cannotFindFullTestNameMsg(fullTestName));
+      final String fullTestName = getFullTestName(configuration, className, testName);
+      GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
+      if (testProxy == null) {
+        logProblem("Test wasn't started! TestFailure event: name = {" + testName + "}" +
+                           ", message = {" + localizedMessage + "}" +
+                           ", stackTrace = {" + stackTrace + "}. " +
+                           cannotFindFullTestNameMsg(fullTestName));
+        if (inDebugMode) {
+          return;
+        } else {
+          // try to fix the problem:
+          // 1. report
+          //TODO: Get the actual configuration and class name through the test failed event.
+          onTestStarted(new GoogleCloudTestStartedEvent(testName, null, configuration, className));
+          // 2. add failure
+          testProxy = getProxyByFullTestName(fullTestName);
+        }
+      }
+
+      if (testProxy == null) {
+        return;
+      }
+
+      lastUpdatedTest = testProxy;
+
+      if (comparisonFailureActualText != null && comparisonFailureExpectedText != null) {
+        if (myFailedTestsSet.contains(testProxy)) {
+          // duplicate message
+          logProblem("Duplicate failure for test [" + fullTestName + "]: msg = " + localizedMessage + ", stacktrace = " + stackTrace);
+
           if (inDebugMode) {
             return;
-          } else {
-            // try to fix the problem:
-            // 1. report
-            //TODO: Get the actual configuration and class name through the test failed event.
-            onTestStarted(new GoogleCloudTestStartedEvent(testName, null, configuration, className));
-            // 2. add failure
-            testProxy = getProxyByFullTestName(fullTestName);
           }
         }
 
-        if (testProxy == null) {
-          return;
-        }
-
-        lastUpdatedTest = testProxy;
-
-        if (comparisionFailureActualText != null && comparisionFailureExpectedText != null) {
-          if (myFailedTestsSet.contains(testProxy)) {
-            // duplicate message
-            logProblem("Duplicate failure for test [" + fullTestName + "]: msg = " + localizedMessage + ", stacktrace = " + stackTrace);
-
-            if (inDebugMode) {
-              return;
-            }
-          }
-
-          testProxy.setTestComparisonFailed(localizedMessage, stackTrace,
-                                            comparisionFailureActualText, comparisionFailureExpectedText);
-        } else if (comparisionFailureActualText == null && comparisionFailureExpectedText == null) {
-          testProxy.setTestFailed(localizedMessage, stackTrace, isTestError);
-        } else {
-          logProblem("Comparison failure actual and expected texts should be both null or not null.\n"
-                     + "Expected:\n"
-                     + comparisionFailureExpectedText + "\n"
-                     + "Actual:\n"
-                     + comparisionFailureActualText);
-        }
-
-        myFailedTestsSet.add(testProxy);
-
-        // fire event
-        fireOnTestFailed(testProxy);
+        testProxy.setTestComparisonFailed(localizedMessage, stackTrace,
+                                          comparisonFailureActualText, comparisonFailureExpectedText);
+      } else if (comparisonFailureActualText == null && comparisonFailureExpectedText == null) {
+        testProxy.setTestFailed(localizedMessage, stackTrace, isTestError);
+      } else {
+        logProblem("Comparison failure actual and expected texts should be both null or not null.\n"
+                   + "Expected:\n"
+                   + comparisonFailureExpectedText + "\n"
+                   + "Actual:\n"
+                   + comparisonFailureActualText);
       }
+
+      myFailedTestsSet.add(testProxy);
+
+      // fire event
+      fireOnTestFailed(testProxy);
     });
   }
 
   @Override
   public void onTestIgnored(@NotNull final GoogleCloudTestIgnoredEvent testIgnoredEvent) {
-     addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configuration = testIgnoredEvent.getConfiguration();
-        final String className = testIgnoredEvent.getClassName();
-        final String testName = ObjectUtils.assertNotNull(testIgnoredEvent.getName());
-        String ignoreComment = testIgnoredEvent.getIgnoreComment();
-        if (StringUtil.isEmpty(ignoreComment)) {
-          ignoreComment = SmRunnerBundle.message("sm.test.runner.states.test.is.ignored");
-        }
-        final String stackTrace = testIgnoredEvent.getStacktrace();
-        final String fullTestName = getFullTestName(configuration, className, testName);
-        GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
-        if (testProxy == null) {
-          final boolean debugMode = GoogleCloudTestResultsConnectionUtil.isInDebugMode();
-          logProblem("Test wasn't started! " +
-                     "TestIgnored event: name = {" + testName + "}, " +
-                     "message = {" + ignoreComment + "}. " +
-                     cannotFindFullTestNameMsg(fullTestName));
-          if (debugMode) {
-            return;
-          } else {
-            // try to fix
-            // 1. report test opened
-            //TODO: Get the actual configuration and class name through the test failed event.
-            onTestStarted(new GoogleCloudTestStartedEvent(testName, null, configuration, className));
+     addToInvokeLater(() -> {
+       final String configuration = testIgnoredEvent.getConfiguration();
+       final String className = testIgnoredEvent.getClassName();
+       final String testName = ObjectUtils.assertNotNull(testIgnoredEvent.getName());
+       String ignoreComment = testIgnoredEvent.getIgnoreComment();
+       if (StringUtil.isEmpty(ignoreComment)) {
+         ignoreComment = SmRunnerBundle.message("sm.test.runner.states.test.is.ignored");
+       }
+       final String stackTrace = testIgnoredEvent.getStacktrace();
+       final String fullTestName = getFullTestName(configuration, className, testName);
+       GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
+       if (testProxy == null) {
+         final boolean debugMode = GoogleCloudTestResultsConnectionUtil.isInDebugMode();
+         logProblem("Test wasn't started! " +
+                    "TestIgnored event: name = {" + testName + "}, " +
+                    "message = {" + ignoreComment + "}. " +
+                    cannotFindFullTestNameMsg(fullTestName));
+         if (debugMode) {
+           return;
+         } else {
+           // try to fix
+           // 1. report test opened
+           //TODO: Get the actual configuration and class name through the test failed event.
+           onTestStarted(new GoogleCloudTestStartedEvent(testName, null, configuration, className));
 
-            // 2. report failure
-            testProxy = getProxyByFullTestName(fullTestName);
-          }
+           // 2. report failure
+           testProxy = getProxyByFullTestName(fullTestName);
+         }
 
-        }
-        if (testProxy == null) {
-          return;
-        }
+       }
+       if (testProxy == null) {
+         return;
+       }
 
-        lastUpdatedTest = testProxy;
+       lastUpdatedTest = testProxy;
 
-        testProxy.setTestIgnored(ignoreComment, stackTrace);
+       testProxy.setTestIgnored(ignoreComment, stackTrace);
 
-        // fire event
-        fireOnTestIgnored(testProxy);
-      }
-    });
+       // fire event
+       fireOnTestIgnored(testProxy);
+     });
   }
 
   @Override
   public void onTestOutput(@NotNull final GoogleCloudTestOutputEvent testOutputEvent) {
-     addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        final String configuration = testOutputEvent.getConfiguration();
-        final String className = testOutputEvent.getClassName();
-        final String testName = testOutputEvent.getName();
-        final String text = testOutputEvent.getText();
-        final boolean stdOut = (testOutputEvent.getOutputType() == ProcessOutputTypes.STDOUT);
-        final String fullTestName = getFullTestName(configuration, className, testName);
-        final GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
-        if (testProxy == null) {
-          logProblem("Test wasn't started! TestOutput event: name = {" + testName + "}, " +
-                     "isStdOut = " + stdOut + ", " +
-                     "text = {" + text + "}. " +
-                     cannotFindFullTestNameMsg(fullTestName));
-          return;
-        }
+     addToInvokeLater(() -> {
+       final String configuration = testOutputEvent.getConfiguration();
+       final String className = testOutputEvent.getClassName();
+       final String testName = testOutputEvent.getName();
+       final String text = testOutputEvent.getText();
+       final boolean stdOut = (testOutputEvent.getOutputType() == ProcessOutputTypes.STDOUT);
+       final String fullTestName = getFullTestName(configuration, className, testName);
+       final GoogleCloudTestProxy testProxy = getProxyByFullTestName(fullTestName);
+       if (testProxy == null) {
+         logProblem("Test wasn't started! TestOutput event: name = {" + testName + "}, " +
+                    "isStdOut = " + stdOut + ", " +
+                    "text = {" + text + "}. " +
+                    cannotFindFullTestNameMsg(fullTestName));
+         return;
+       }
 
-        lastUpdatedTest = testProxy;
+       lastUpdatedTest = testProxy;
 
-        if (stdOut) {
-          testProxy.addStdOutput(text, ProcessOutputTypes.STDOUT, true);
-        } else {
-          testProxy.addStdErr(text, true);
-        }
-      }
-    });
+       if (stdOut) {
+         testProxy.addStdOutput(text, ProcessOutputTypes.STDOUT, true);
+       } else {
+         testProxy.addStdErr(text, true);
+       }
+     });
   }
 
   @Override
   public void onTestsCountInSuite(final int count) {
-     addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        fireOnTestsCountInSuite(count);
-      }
-    });
-  }
-
-  //@NotNull
-  //protected final GoogleCloudTestProxy getCurrentSuite() {
-  //  final GoogleCloudTestProxy currentSuite = mySuitesStack.getCurrentSuite();
-  //
-  //  if (currentSuite != null) {
-  //    return currentSuite;
-  //  }
-  //
-  //  // current suite shouldn't be null otherwise test runner isn't correct
-  //  // or may be we are in debug mode
-  //  logProblem("Current suite is undefined. Root suite will be used.");
-  //  return myTestsRootNode;
-  //
-  //}
- 
-  protected int getRunningTestsQuantity() {
-    return myRunningTestsFullNameToProxy.size();
-  }
-
-  protected Set<AbstractTestProxy> getFailedTestsSet() {
-    return Collections.unmodifiableSet(myFailedTestsSet);
+     addToInvokeLater(() -> fireOnTestsCountInSuite(count));
   }
 
   @Nullable
@@ -738,13 +609,6 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
     }
   }
 
-  private void fireOnSuiteFinished(final GoogleCloudTestProxy suite) {
-    for (GoogleCloudTestEventsListener listener : myEventsListeners) {
-      listener.onSuiteFinished(suite);
-    }
-  }
-
-
   private void fireOnCustomProgressTestsCategory(@Nullable final String categoryName, int testCount) {
     for (GoogleCloudTestEventsListener listener : myEventsListeners) {
       listener.onCustomProgressTestsCategory(categoryName, testCount);
@@ -769,21 +633,18 @@ public class GoogleCloudTestingToSMTRunnerEventsConvertor extends GoogleCloudTes
   @Override
   public void dispose() {
     super.dispose();
-     addToInvokeLater(new Runnable() {
-      @Override
-      public void run() {
-        myEventsListeners.clear();
+     addToInvokeLater(() -> {
+       myEventsListeners.clear();
 
-        if (!myRunningTestsFullNameToProxy.isEmpty()) {
-          final Application application = ApplicationManager.getApplication();
-          if (!application.isHeadlessEnvironment() && !application.isUnitTestMode()) {
-            logProblem("Not all events were processed! " + dumpRunningTestsNames());
-          }
-        }
-        myRunningTestsFullNameToProxy.clear();
-        //mySuitesStack.clear();
-      }
-    });
+       if (!myRunningTestsFullNameToProxy.isEmpty()) {
+         final Application application = ApplicationManager.getApplication();
+         if (!application.isHeadlessEnvironment() && !application.isUnitTestMode()) {
+           logProblem("Not all events were processed! " + dumpRunningTestsNames());
+         }
+       }
+       myRunningTestsFullNameToProxy.clear();
+       //mySuitesStack.clear();
+     });
   }
 
   private GoogleCloudTestProxy findCurrentTestOrSuite() {

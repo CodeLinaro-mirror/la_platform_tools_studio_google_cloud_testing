@@ -19,12 +19,6 @@ import com.intellij.execution.testframework.sm.runner.states.AbstractState;
 import org.jetbrains.annotations.NotNull;
 
 public class GoogleCloudTestingTimeoutState extends AbstractState {
-  private final GoogleCloudTestProxy myTestProxy;
-
-  public GoogleCloudTestingTimeoutState(@NotNull final GoogleCloudTestProxy testProxy) {
-    myTestProxy = testProxy;
-  }
-
   @Override
   public boolean wasLaunched() {
     return true;

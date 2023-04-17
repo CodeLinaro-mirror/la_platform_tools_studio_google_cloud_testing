@@ -37,16 +37,6 @@ public class GoogleCloudTestOutputEvent extends TestOutputEvent {
     this.className = className;
   }
 
-  public GoogleCloudTestOutputEvent(@NotNull String testName,
-                                    @NotNull String text,
-                                    boolean stdOut,
-                                    @NotNull String configuration,
-                                    @NotNull String className) {
-    super(testName, text, stdOut);
-    this.configuration = configuration;
-    this.className = className;
-  }
-
   @Override
   protected void appendToStringInfo(@NotNull StringBuilder buf) {
     super.appendToStringInfo(buf);

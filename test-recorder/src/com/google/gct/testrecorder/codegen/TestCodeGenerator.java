@@ -77,7 +77,7 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.jetbrains.android.sdk.AndroidPlatforms;
-import org.jetbrains.android.sdk.AndroidTargetData;
+import com.android.tools.sdk.AndroidTargetData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

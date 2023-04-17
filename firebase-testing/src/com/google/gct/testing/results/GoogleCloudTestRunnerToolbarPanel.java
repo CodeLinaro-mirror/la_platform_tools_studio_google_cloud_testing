@@ -16,7 +16,6 @@
 package com.google.gct.testing.results;
 
 
-import com.google.gct.testing.DebugConfigurationAction;
 import com.google.gct.testing.ShowScreenshotsAction;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.TestFrameworkRunningModel;
@@ -61,9 +60,6 @@ public class GoogleCloudTestRunnerToolbarPanel extends SMTRunnerToolbarPanel {
 
   private void addCloudActions(DefaultActionGroup actionGroup) {
     actionGroup.addAction(new ShowScreenshotsAction());
-    if (Boolean.getBoolean("enable.google.cloud.debugging")) {
-      actionGroup.addAction(new DebugConfigurationAction());
-    }
     actionGroup.addSeparator();
   }
 

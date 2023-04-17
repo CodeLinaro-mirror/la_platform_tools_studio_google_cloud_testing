@@ -18,7 +18,14 @@ package com.google.gct.testing.results;
 import com.google.gct.testing.CloudTestingUtils;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RunProfile;
-import com.intellij.execution.testframework.*;
+import com.intellij.execution.testframework.AbstractTestProxy;
+import com.intellij.execution.testframework.Filter;
+import com.intellij.execution.testframework.LvcsHelper;
+import com.intellij.execution.testframework.TestConsoleProperties;
+import com.intellij.execution.testframework.TestFrameworkRunningModel;
+import com.intellij.execution.testframework.TestTreeView;
+import com.intellij.execution.testframework.TestsUIUtil;
+import com.intellij.execution.testframework.ToolbarPanel;
 import com.intellij.execution.testframework.sm.runner.ui.TestsPresentationUtil;
 import com.intellij.execution.testframework.ui.AbstractTestTreeBuilder;
 import com.intellij.execution.testframework.ui.TestResultsPanel;
@@ -29,24 +36,25 @@ import com.intellij.openapi.progress.util.ColorProgressBar;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.wm.IdeFocusManager;
 import com.intellij.ui.JBColor;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.text.DateFormatUtil;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.event.TreeSelectionEvent;
-import javax.swing.event.TreeSelectionListener;
-import java.awt.*;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import javax.swing.AbstractAction;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class GoogleCloudTestingResultsForm extends TestResultsPanel
   implements TestFrameworkRunningModel, GoogleCloudTestResultsViewer, GoogleCloudTestEventsListener {
@@ -81,14 +89,8 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
 
   // custom progress
   private String myCurrentCustomProgressCategory;
-  private final Set<String> myMentionedCategories = new LinkedHashSet<String>();
+  private final Set<String> myMentionedCategories = new LinkedHashSet<>();
   private boolean myTestsRunning = true;
-
-  public GoogleCloudTestingResultsForm(final RunProfile runProfile,
-                                       @NotNull final JComponent console,
-                                       final TestConsoleProperties consoleProperties) {
-    this(runProfile, console, AnAction.EMPTY_ARRAY, consoleProperties, null);
-  }
 
   public GoogleCloudTestingResultsForm(final RunProfile runProfile,
                                        @NotNull final JComponent console,
@@ -102,19 +104,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     myProject = ((RunConfiguration)runProfile).getProject();
 
     //Create tests common suite root
-    //noinspection HardCodedStringLiteral
     myTestsRootNode = new GoogleCloudTestProxy.GoogleCloudRootTestProxy();
-    //todo myTestsRootNode.setOutputFilePath(runConfiguration.getOutputFilePath());
-
-    // Fire selection changed and move focus on SHIFT+ENTER
-    //TODO[romeo] improve
-    /*
-    final ArrayList<Component> components = new ArrayList<Component>();
-    components.add(myTreeView);
-    components.add(myTabs.getComponent());
-    myContentPane.setFocusTraversalPolicy(new MyFocusTraversalPolicy(components));
-    myContentPane.setFocusCycleRoot(true);
-    */
   }
 
   @Override
@@ -164,20 +154,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
   }
 
   /**
-   * Is used for navigation from tree view to other UI components
-   *
-   * @param handler
-   */
-  @Override
-  public void setShowStatisticForProxyHandler(final GoogleCloudTestingPropagateSelectionHandler handler) {
-    myShowStatisticForProxyHandler = handler;
-  }
-
-  /**
    * Returns root node, fake parent suite for all tests and suites
-   *
-   * @param testsRoot
-   * @return
    */
   @Override
   public void onTestingStarted(@NotNull GoogleCloudTestProxy.GoogleCloudRootTestProxy testsRoot, boolean printTestingStartedTime) {
@@ -219,12 +196,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
 
     LvcsHelper.addLabel(this);
 
-    selectAndNotify(myTestsRootNode, new Runnable() {
-      @Override
-      public void run() {
-        myTestsRunning = false;
-      }
-    });
+    selectAndNotify(myTestsRootNode, () -> myTestsRunning = false);
 
     fireOnTestingFinished();
   }
@@ -313,10 +285,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     final GoogleCloudTestTreeStructure treeStructure = myTreeBuilder.getGoogleCloudTestTreeStructure();
     treeStructure.setFilter(filter);
 
-    // TODO - show correct info if no children are available
-    // (e.g no tests found or all tests passed, etc.)
-    // treeStructure.getChildElements(treeStructure.getRootElement()).length == 0
-
     myTreeBuilder.queueUpdate();
   }
 
@@ -372,17 +340,14 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
   @Override
   public void addEventsListener(final EventsListener listener) {
     myEventListeners.add(listener);
-    addTestsTreeSelectionListener(new TreeSelectionListener() {
-      @Override
-      public void valueChanged(final TreeSelectionEvent e) {
-        //We should fire event only if it was generated by this component,
-        //e.g. it is focused. Otherwise it is side effect of selecting proxy in
-        //try by other component
-        //if (myTreeView.isFocusOwner()) {
-        @Nullable final GoogleCloudTestProxy selectedProxy = (GoogleCloudTestProxy)getTreeView().getSelectedTest();
-        listener.onSelected(selectedProxy, GoogleCloudTestingResultsForm.this, GoogleCloudTestingResultsForm.this);
-        //}
-      }
+    addTestsTreeSelectionListener(e -> {
+      //We should fire event only if it was generated by this component,
+      //e.g. it is focused. Otherwise it is side effect of selecting proxy in
+      //try by other component
+      //if (myTreeView.isFocusOwner()) {
+      @Nullable final GoogleCloudTestProxy selectedProxy = (GoogleCloudTestProxy)getTreeView().getSelectedTest();
+      listener.onSelected(selectedProxy, GoogleCloudTestingResultsForm.this, GoogleCloudTestingResultsForm.this);
+      //}
     });
   }
 
@@ -405,42 +370,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     if (selectedProxy instanceof GoogleCloudTestProxy && myShowStatisticForProxyHandler != null) {
       myShowStatisticForProxyHandler.handlePropagateSelectionRequest((GoogleCloudTestProxy)selectedProxy, this, requestFocus);
     }
-  }
-
-  protected int getTotalTestCount() {
-    return myTotalTestCount;
-  }
-
-  protected int getStartedTestCount() {
-    return myStartedTestCount;
-  }
-
-  protected int getFinishedTestCount() {
-    return myFinishedTestCount;
-  }
-
-  protected int getFailedTestCount() {
-    return myFailedTestCount;
-  }
-
-  protected int getIgnoredTestCount() {
-    return myIgnoredTestCount;
-  }
-
-  protected Color getTestsStatusColor() {
-    return myStatusLine.getStatusColor();
-  }
-
-  public Set<String> getMentionedCategories() {
-    return myMentionedCategories;
-  }
-
-  protected long getStartTime() {
-    return myStartTime;
-  }
-
-  protected long getEndTime() {
-    return myEndTime;
   }
 
   private void _addTestOrSuite(@NotNull final GoogleCloudTestProxy newTestOrSuite) {
@@ -478,14 +407,11 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
       return;
     }
 
-    CloudTestingUtils.runInEventDispatchThread(new Runnable() {
-      @Override
-      public void run() {
-        if (myTreeBuilder.isDisposed()) {
-          return;
-        }
-        myTreeBuilder.select(testProxy, onDone);
+    CloudTestingUtils.runInEventDispatchThread(() -> {
+      if (myTreeBuilder.isDisposed()) {
+        return;
       }
+      myTreeBuilder.select(testProxy, onDone);
     }, ModalityState.NON_MODAL);
   }
 
@@ -506,7 +432,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
       // else color will be according failed/passed tests
     }
 
-    // launchedAndFinished - is launched and not in progress. If we remove "launched' that onTestingStarted() before
+    // launchedAndFinished - is launched and not in progress. If we remove "launched" that onTestingStarted() before
     // initializing will be "launchedAndFinished"
     final boolean launchedAndFinished = myTestsRootNode.wasLaunched() && !myTestsRootNode.isInProgress();
     if (!TestsPresentationUtil.hasNonDefaultCategories(myMentionedCategories)) {
@@ -527,13 +453,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     }
   }
 
-  /**
-   * for java unit tests
-   */
-  public void performUpdate() {
-    myTreeBuilder.performUpdate();
-  }
-
   private void updateIconProgress() {
     final int totalTestCount, doneTestCount;
     if (myTotalTestCount == 0) {
@@ -547,34 +466,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     TestsUIUtil.showIconProgress(myProject, doneTestCount, totalTestCount, myFailedTestCount, true);
   }
 
-  /**
-   * On event change selection and probably requests focus. Is used when we want
-   * navigate from other component to this
-   *
-   * @return Listener
-   */
-  public GoogleCloudTestingPropagateSelectionHandler createSelectMeListener() {
-    return new GoogleCloudTestingPropagateSelectionHandler() {
-      @Override
-      public void handlePropagateSelectionRequest(@Nullable final GoogleCloudTestProxy selectedTestProxy, @NotNull final Object sender,
-                                                  final boolean requestFocus) {
-        CloudTestingUtils.addToInvokeLater(new Runnable() {
-          @Override
-          public void run() {
-            selectWithoutNotify(selectedTestProxy, null);
-
-            // Request focus if necessary
-            if (requestFocus) {
-              //myTreeView.requestFocusInWindow();
-              IdeFocusManager.getInstance(myProject).requestFocus(myTreeView, true);
-            }
-          }
-        });
-      }
-    };
-  }
-
-
   private static class MyAnimator extends TestsProgressAnimator {
     public MyAnimator(final AbstractTestTreeBuilder builder) {
       super(builder);
@@ -585,7 +476,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     if (!isModeConsistent(isCustomMessage)) return;
 
     //This is for better support groups of TestSuites
-    //Each group notifies about it's size
+    //Each group notifies about its size
     myTotalTestCount += count;
     updateStatusLabel(false);
   }

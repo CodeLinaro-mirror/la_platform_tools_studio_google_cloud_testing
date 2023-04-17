@@ -27,16 +27,6 @@ public class GoogleCloudTestIgnoredEvent extends TestIgnoredEvent {
 
   private final String className;
 
-  public GoogleCloudTestIgnoredEvent(@NotNull String testName,
-                                     @NotNull String ignoreComment,
-                                     @Nullable String stacktrace,
-                                     @NotNull String configuration,
-                                     @NotNull String className) {
-    super(testName, ignoreComment, stacktrace);
-    this.configuration = configuration;
-    this.className = className;
-  }
-
   public GoogleCloudTestIgnoredEvent(@NotNull TestIgnored testIgnored, @Nullable String stacktrace) {
     super(testIgnored, stacktrace);
     configuration = testIgnored.getAttributes().get("configuration");

@@ -19,7 +19,6 @@ import com.intellij.execution.testframework.sm.runner.events.TestFailedEvent;
 import com.intellij.execution.testframework.sm.runner.events.TreeNodeEvent;
 import jetbrains.buildServer.messages.serviceMessages.TestFailed;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class GoogleCloudTestFailedEvent extends TestFailedEvent {
 
@@ -31,19 +30,6 @@ public class GoogleCloudTestFailedEvent extends TestFailedEvent {
     super(testFailed, testError);
     configuration = testFailed.getAttributes().get("configuration");
     className = testFailed.getAttributes().get("className");
-  }
-
-  public GoogleCloudTestFailedEvent(@NotNull String testName,
-                                    @NotNull String localizedFailureMessage,
-                                    @Nullable String stackTrace,
-                                    boolean testError,
-                                    @Nullable String comparisonFailureActualText,
-                                    @Nullable String comparisonFailureExpectedText,
-                                    @NotNull String configuration,
-                                    @NotNull String className) {
-    super(testName, localizedFailureMessage, stackTrace, testError, comparisonFailureActualText, comparisonFailureExpectedText);
-    this.configuration = configuration;
-    this.className = className;
   }
 
   @Override

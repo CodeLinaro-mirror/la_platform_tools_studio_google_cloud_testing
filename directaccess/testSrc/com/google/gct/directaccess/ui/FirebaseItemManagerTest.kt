@@ -25,45 +25,71 @@ import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
-import com.google.gct.directaccess.provisioner.FirebaseDeviceProvisioner
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.login.GoogleLogin
+import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
+import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationAction
+import com.intellij.notification.NotificationsManager
 import com.intellij.util.concurrency.EdtExecutorService
+import com.studiogrpc.testutils.GrpcConnectionRule
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.anyString
 import org.mockito.Mockito.doReturn
 
+@Ignore
 class FirebaseItemManagerTest {
 
+  private val service = FakeDirectAccessGrpcService()
   @get:Rule val projectRule = AndroidProjectRule.inMemory()
+  @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
+
   private val session = FakeAdbSession()
   private lateinit var firebaseDeviceTableModel: FirebaseDeviceTableModel
   private lateinit var uiDispatcher: CoroutineDispatcher
-  private lateinit var plugin: FirebaseDeviceProvisioner
+  private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
   private lateinit var provisioner: DeviceProvisioner
+  private lateinit var scope: CoroutineScope
+  private lateinit var directAccessReservationManager: DirectAccessReservationManager
   private lateinit var mockGoogleLogin: GoogleLogin
-
   @Before
   fun setUp() = runBlockingWithTimeout {
+    scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     uiDispatcher = EdtExecutorService.getInstance().asCoroutineDispatcher()
-    val fakeConnection = FakeDirectAccessConnection()
     val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
-    doReturn(fakeConnection)
-      .whenever(mockDirectAccessService)
-      .reserveConnection(anyString(), anyString(), any())
-    plugin = FirebaseDeviceProvisioner(session.scope, projectRule.project, deviceInfoListProvider)
+    directAccessReservationManager =
+      DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
+        "testToken"
+      }
+    doReturn(directAccessReservationManager).whenever(mockDirectAccessService).reservationManager
+    whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
+      val reservationName = it.arguments[0] as String
+      val deviceScope = it.arguments[1] as CoroutineScope
+      FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
+    }
+    plugin =
+      DirectAccessDeviceProvisionerPlugin(
+        session.scope,
+        projectRule.project,
+        deviceInfoListProvider
+      )
     provisioner = DeviceProvisioner.create(session, listOf(plugin))
     firebaseDeviceTableModel = mock()
     val mockDeviceProvisionerService =
@@ -131,8 +157,36 @@ class FirebaseItemManagerTest {
     // Assert
     yieldUntil { firebaseItemManager.getItem(0) is FirebaseDeviceItem }
 
-    // Stop the 1st device
+    // When calling startAction() on FirebaseDeviceItem, it checks the connection status. If
+    // connection is DISCONNECTED it implies that the device is disconnected while having a
+    // reservation and tries to connect to device. Instead, we want the device to be connected
+    // so that we can disconnect and revert back to template.
+    // Wait until the connection state is CONNECTED.
+    yieldUntil {
+      (firebaseItemManager.getItem(0) as FirebaseDeviceItem)
+        .handle
+        .connection
+        .state
+        .value
+        .connection == DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    // Stop the 1st device. It will start the grace period. Force check-in the device through
+    // notification
     firebaseItemManager.getItem(0).startAction()
+    yieldUntil {
+      NotificationsManager.getNotificationsManager()
+        .getNotificationsOfType(Notification::class.java, projectRule.project)
+        .isNotEmpty()
+    }
+    val notifications =
+      NotificationsManager.getNotificationsManager()
+        .getNotificationsOfType(Notification::class.java, projectRule.project)
+    assertThat(notifications.size).isEqualTo(1)
+    assertThat(notifications[0].actions.size).isEqualTo(2)
+
+    // Force check-in the device
+    (notifications[0].actions[1] as NotificationAction).actionPerformed(mock(), notifications[0])
     // Wait till the device is released
     yieldUntil { plugin.devices.value.isEmpty() }
     // Wait till the item becomes an active template

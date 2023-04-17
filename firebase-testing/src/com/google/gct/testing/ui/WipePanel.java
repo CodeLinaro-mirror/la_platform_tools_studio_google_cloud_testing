@@ -66,7 +66,6 @@ public class WipePanel extends JPanel {
       this.setSize(width, fullHeight);
 
       g.clearRect(0, 0, fullWidth, fullHeight);
-      //((Graphics2D) g).setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, percentRevealed));
       g.drawImage(buffer, 0, 0, this);
     } else {
       this.setVisible(true);

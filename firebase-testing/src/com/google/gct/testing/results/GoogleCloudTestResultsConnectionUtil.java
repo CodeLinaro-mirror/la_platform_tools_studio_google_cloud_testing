@@ -71,22 +71,19 @@ public class GoogleCloudTestResultsConnectionUtil {
   public static BaseTestsOutputConsoleView createAndAttachConsole(@NotNull final String testFrameworkName,
                                                                   @NotNull final ProcessHandler processHandler,
                                                                   @NotNull final TestConsoleProperties consoleProperties,
-                                                                  ExecutionEnvironment environment,
                                                                   @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator
   ) {
-    BaseTestsOutputConsoleView console = createConsole(testFrameworkName, consoleProperties, environment, matrixExecutionCancellator);
+    BaseTestsOutputConsoleView console = createConsole(testFrameworkName, consoleProperties, matrixExecutionCancellator);
     console.attachToProcess(processHandler);
     return console;
   }
 
   public static BaseTestsOutputConsoleView createConsoleWithCustomLocator(@NotNull final String testFrameworkName,
                                                                           @NotNull final TestConsoleProperties consoleProperties,
-                                                                          ExecutionEnvironment environment,
                                                                           @Nullable final TestLocationProvider locator,
                                                                           @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
     return createConsoleWithCustomLocator(testFrameworkName,
                                           consoleProperties,
-                                          environment,
                                           new CompositeTestLocationProvider(locator),
                                           false,
                                           null,
@@ -95,14 +92,12 @@ public class GoogleCloudTestResultsConnectionUtil {
 
   public static GoogleCloudTestingConsoleView createConsoleWithCustomLocator(@NotNull final String testFrameworkName,
                                                                     @NotNull final TestConsoleProperties consoleProperties,
-                                                                    ExecutionEnvironment environment,
                                                                     @Nullable final SMTestLocator locator,
                                                                     final boolean idBasedTreeConstruction,
                                                                     @Nullable final TestProxyFilterProvider filterProvider,
                                                                     @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
     String splitterPropertyName = getSplitterPropertyName(testFrameworkName);
     GoogleCloudTestingConsoleView consoleView = new GoogleCloudTestingConsoleView(consoleProperties,
-                                                                environment,
                                                                 splitterPropertyName);
     initConsoleView(consoleView, testFrameworkName, locator, idBasedTreeConstruction, filterProvider, matrixExecutionCancellator);
     return consoleView;
@@ -143,10 +138,9 @@ public class GoogleCloudTestResultsConnectionUtil {
 
   public static BaseTestsOutputConsoleView createConsole(@NotNull final String testFrameworkName,
                                                          @NotNull final TestConsoleProperties consoleProperties,
-                                                         ExecutionEnvironment environment,
                                                          @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
 
-    return createConsoleWithCustomLocator(testFrameworkName, consoleProperties, environment, null, matrixExecutionCancellator);
+    return createConsoleWithCustomLocator(testFrameworkName, consoleProperties, null, matrixExecutionCancellator);
   }
 
   /**
