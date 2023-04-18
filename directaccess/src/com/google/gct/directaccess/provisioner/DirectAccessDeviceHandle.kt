@@ -99,29 +99,42 @@ class DirectAccessDeviceHandle(
             }
           com.android.sdklib.deviceprovisioner.Reservation(
             reservationState,
-            "None",
+            "",
             Instant.ofEpochSecond(it.createTime.seconds),
             Instant.ofEpochSecond(it.expireTime.seconds)
           )
         }
-        .collect { reservation ->
-          stateFlow.update { state ->
-            when (state) {
-              is DeviceState.Connected -> state.copy(reservation = reservation)
-              is DeviceState.Disconnected -> state.copy(reservation = reservation)
-              else -> state
-            }
-          }
-        }
+        .collect { reservation -> stateFlow.update { state -> state.withReservation(reservation) } }
     }
   }
+
+  private fun DeviceState.withReservation(
+    reservation: com.android.sdklib.deviceprovisioner.Reservation
+  ): DeviceState =
+    when (this) {
+      is DeviceState.Connected -> copy(reservation = reservation)
+      is DeviceState.Disconnected -> {
+        val newStatus =
+          when {
+            !isTransitioning -> status
+            reservation.state == ReservationState.ACTIVE -> "Connecting to device..."
+            else -> "Reserving a device..."
+          }
+        copy(status = newStatus, reservation = reservation)
+      }
+    }
 
   override val activationAction =
     object : ActivationAction {
       /** Starts connection to the remote device. */
       override suspend fun activate(params: ActivationParams) {
         withContext(scope.coroutineContext) {
-          stateFlow.update { Activating(it.properties, it.reservation) }
+          stateFlow.update {
+            val reservation = it.reservation ?: return@withContext
+            DeviceState.Disconnected(it.properties)
+              .copy(isTransitioning = true)
+              .withReservation(reservation)
+          }
           connection.connect()
         }
       }
@@ -229,11 +242,6 @@ class DirectAccessDeviceHandle(
     }
     return true
   }
-
-  class Activating(
-    override val properties: DeviceProperties,
-    reservation: com.android.sdklib.deviceprovisioner.Reservation?
-  ) : DeviceState.Disconnected(properties, isTransitioning = true, "Connecting", reservation)
 }
 
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
