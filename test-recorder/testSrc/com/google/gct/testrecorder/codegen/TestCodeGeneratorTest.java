@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,94 +15,98 @@
  */
 package com.google.gct.testrecorder.codegen;
 
-import com.google.gct.testrecorder.util.ResourceHelper;
-import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
-import com.intellij.codeInsight.actions.ReformatCodeProcessor;
+import static com.android.tools.idea.testing.TestProjectPaths.ETR_WITHOUT_ANDROIDX;
+import static com.android.tools.idea.testing.TestProjectPaths.ETR_WITH_ANDROIDX;
+
+import com.android.tools.idea.gradle.project.build.invoker.GradleInvocationResult;
+import com.android.tools.idea.testing.AndroidGradleTestCase;
+import com.google.gct.testrecorder.util.ActionsCreator;
 import com.intellij.ide.fileTemplates.JavaTemplateUtil;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
+import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.*;
-import org.apache.commons.io.FileUtils;
-import org.jetbrains.android.AndroidTestCase;
-
+import com.intellij.psi.JavaDirectoryService;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiDirectory;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiManager;
 import java.io.File;
 
-import static com.google.gct.testrecorder.util.ActionsCreator.createActions;
+public class TestCodeGeneratorTest extends AndroidGradleTestCase {
 
-public class TestCodeGeneratorTest extends AndroidTestCase {
+  private String ANDROIDX_PROJECT_NAME = "etrwithandroidx";
+  private String WITHOUT_ANDROIDX_PROJECT_NAME = "etrtestproject";
+
+  @Override
+  protected boolean shouldRunTest() {
+    // Do not run tests on Windows (see http://b.android.com/222904)
+    return !SystemInfo.isWindows && super.shouldRunTest();
+  }
 
   public void testJavaCodeGeneration() {
-    performJavaCodeGenerationTest(false);
+    performCodeGenerationTest(false, false);
   }
 
   public void testJavaAndroidxCodeGeneration() {
-    performJavaCodeGenerationTest(true);
-  }
-
-  public void performJavaCodeGenerationTest(boolean isAndroidx) {
-    PsiClass testClass = createTestClass(false);
-
-    TestCodeGenerator testCodeGenerator =
-      new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createActions(System.currentTimeMillis()),
-                            "p1.p2.MyActivity", false, false, isAndroidx);
-
-    String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
-    VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
-
-    ApplicationManager.getApplication().runWriteAction(() -> testCodeGenerator.writeCode(testVirtualFile));
-    Project project = myModule.getProject();
-
-    testVirtualFile.refresh(false, true, () -> {
-      PsiDocumentManager.getInstance(project).commitAllDocuments();
-
-      //TODO: Figure out why OptimizeImportsProcessor does not optimize imports in a test.
-      //new OptimizeImportsProcessor(project, testClass.getContainingFile()).run();
-      new ReformatCodeProcessor(project, testClass.getContainingFile(), null, false).run();
-
-      String actualTestClassContent = FileDocumentManager.getInstance().getDocument(testVirtualFile).getText();
-      assertEquals(getExpectedTestClassContent(false, isAndroidx), actualTestClassContent);
-    });
+    performCodeGenerationTest(true, false);
   }
 
   public void testKotlinCodeGeneration() {
-    performKotlinCodeGenerationTest(false);
+    performCodeGenerationTest(false, true);
   }
 
   public void testKotlinAndroidxCodeGeneration() {
-    performKotlinCodeGenerationTest(true);
+    performCodeGenerationTest(true, true);
   }
 
-  public void performKotlinCodeGenerationTest(boolean isAndroidx) {
-    PsiClass testClass = createTestClass(true);
 
-    TestCodeGenerator testCodeGenerator =
-      new TestCodeGenerator("resourcePackage", "applicationId", myFacet.getModule(), testClass, createActions(System.currentTimeMillis()),
-                            "p1.p2.MyActivity", false, true, isAndroidx);
+  public void performCodeGenerationTest(boolean isAndroidx, boolean isKotlin) {
+    loadProjectHelper(isAndroidx);
+    PsiClass testClass = createTestClass(isAndroidx, isKotlin);
+
+    TestCodeGenerator testCodeGenerator = getTestCodeGenerator(testClass, isAndroidx, isKotlin);
 
     String testFilePath = testClass.getContainingFile().getVirtualFile().getPath();
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
 
     ApplicationManager.getApplication().runWriteAction(() -> testCodeGenerator.writeCode(testVirtualFile));
-    Project project = myModule.getProject();
+    Project project = getProject();
 
     testVirtualFile.refresh(false, true, () -> {
-      PsiDocumentManager.getInstance(project).commitAllDocuments();
-
       // Do not apply import optimizer and code reformatter as they do not handle Kotlin code in test mode.
-
-      String actualTestClassContent = FileDocumentManager.getInstance().getDocument(testVirtualFile).getText();
-      assertEquals(getExpectedTestClassContent(true, isAndroidx).replaceAll("\\s", ""), actualTestClassContent.replaceAll("\\s", ""));
+      PsiDocumentManager.getInstance(project).commitAllDocuments();
     });
+    try {
+      GradleInvocationResult result = invokeGradleTasks(getProject(), "assembleAndroidTest");
+      if (result.isBuildSuccessful() != true) {
+        fail("Test failed to build");
+      }
+    }
+    catch (Exception e) {
+      fail(e.getMessage());
+    }
   }
 
-  private PsiClass createTestClass(boolean isKotlinTestClass) {
-    PsiDirectory containingDirectory = PsiManager.getInstance(myModule.getProject()).findDirectory(myModule.getProject().getBaseDir());
+  private PsiClass createTestClass(boolean isAndroidx, boolean isKotlinTestClass) {
+    String androidTestFolderName = getProject().getBasePath() + "/app/src/androidTest/java/com/example/";
+    if (isAndroidx) {
+      androidTestFolderName += "etrwithandroidx";
+    }
+    else {
+      androidTestFolderName += "etrtestproject";
+    }
+    VirtualFile androidTestFolder =
+      VfsUtil.findFileByIoFile(new File(androidTestFolderName), false);
+    if (androidTestFolder == null) {
+      throw new RuntimeException("Failed to find androidTest folder, please check if the folder exists in test environment.");
+    }
+    PsiDirectory containingDirectory = PsiManager.getInstance(getProject()).findDirectory(androidTestFolder);
 
-    PsiClass testClass = ApplicationManager.getApplication().runWriteAction(new Computable<PsiClass>() {
+    PsiClass testClass = ApplicationManager.getApplication().runWriteAction(new Computable<>() {
       @Override
       public PsiClass compute() {
         PsiClass testClass = JavaDirectoryService.getInstance()
@@ -113,7 +117,7 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
         }
 
         // To avoid concurrent modification warning which will break the test with a NullPointerException.
-        PsiManager.getInstance(myModule.getProject()).reloadFromDisk(testClass.getContainingFile());
+        PsiManager.getInstance(getProject()).reloadFromDisk(testClass.getContainingFile());
 
         return testClass;
       }
@@ -126,16 +130,38 @@ public class TestCodeGeneratorTest extends AndroidTestCase {
     return testClass;
   }
 
-  private String getExpectedTestClassContent(boolean isKotlinTestClass, boolean isAndroidx) {
-    String expectedFileName = isKotlinTestClass
-                              ? isAndroidx ? "ExpectedKotlinAndroidxTestClass.txt" : "ExpectedKotlinTestClass.txt"
-                              : isAndroidx ? "ExpectedJavaAndroidxTestClass.txt" : "ExpectedJavaTestClass.txt";
-    File expectedTestClass = ResourceHelper.getFileForResource(this, expectedFileName, "expected_test_class_", "txt");
-    try {
-      return FileUtils.readFileToString(expectedTestClass).replace("\r", ""); // Fix Windows line terminators
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to read the expected test class content " + expectedTestClass.getAbsolutePath(), e);
+  private TestCodeGenerator getTestCodeGenerator(PsiClass testClass, boolean isAndroidx, boolean isKotlin) {
+    String resourcePackageName, applicationId, launchedActivityName;
+    resourcePackageName = applicationId = launchedActivityName = "com.example.";
+    if (isAndroidx) {
+      resourcePackageName += ANDROIDX_PROJECT_NAME;
+      applicationId += ANDROIDX_PROJECT_NAME;
+      launchedActivityName += ANDROIDX_PROJECT_NAME;
     }
+    else {
+      resourcePackageName += WITHOUT_ANDROIDX_PROJECT_NAME;
+      applicationId += WITHOUT_ANDROIDX_PROJECT_NAME;
+      launchedActivityName += WITHOUT_ANDROIDX_PROJECT_NAME;
+    }
+    launchedActivityName += ".MainActivity";
+    return new TestCodeGenerator(resourcePackageName, applicationId, getModule("app"), testClass,
+                                 ActionsCreator.createActions(System.currentTimeMillis()),
+                                 launchedActivityName, false, isKotlin, isAndroidx);
   }
 
+  private void loadProjectHelper(boolean isAndroidx) {
+    try {
+      if (isAndroidx) {
+        loadProject(ETR_WITH_ANDROIDX);
+      }
+      else {
+        loadProject(ETR_WITHOUT_ANDROIDX);
+      }
+    }
+    catch (Exception e) {
+      e.printStackTrace(System.err);
+      throw new RuntimeException(
+        "Failed to load project, please check if all project dependencies are present in BUILD file: cause is\n" + e.getMessage());
+    }
+  }
 }

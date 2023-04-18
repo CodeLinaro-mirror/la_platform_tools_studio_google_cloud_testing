@@ -25,7 +25,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "resourceId1",
+            "resourceId": "R.id.resourceId1",
             "contentDescription": "content description 1",
             "text": ""
           },
@@ -34,7 +34,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 1,
-            "resourceId": "parentResourceId1",
+            "resourceId": "R.id.parentResourceId1",
             "contentDescription": "",
             "text": ""
           },
@@ -43,7 +43,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 2,
-            "resourceId": "parentResourceId2",
+            "resourceId": "R.id.parentResourceId2",
             "contentDescription": "parent content description 1",
             "text": ""
           }
@@ -88,7 +88,7 @@
             "recyclerViewChildPosition": 5,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "elementResourceId",
+            "resourceId": "R.id.elementResourceId",
             "contentDescription": "",
             "text": ""
           },
@@ -97,7 +97,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "gridResourceId",
+            "resourceId": "R.id.gridResourceId",
             "contentDescription": "",
             "text": ""
           },
@@ -106,7 +106,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "gridParentResourceId",
+            "resourceId": "R.id.gridParentResourceId",
             "contentDescription": "",
             "text": ""
           }
@@ -124,7 +124,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": -1,
-            "resourceId": "resourceId2",
+            "resourceId": "R.id.resourceId2",
             "contentDescription": "content description 2",
             "text": ""
           }
@@ -142,7 +142,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 2,
-            "resourceId": "resourceId3",
+            "resourceId": "R.id.resourceId3",
             "contentDescription": "",
             "text": ""
           },
@@ -151,7 +151,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "parentResourceId3",
+            "resourceId": "R.id.parentResourceId3",
             "contentDescription": "",
             "text": ""
           },
@@ -160,7 +160,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 1,
-            "resourceId": "parentResourceId4",
+            "resourceId": "R.id.parentResourceId4",
             "contentDescription": "",
             "text": ""
           }
@@ -195,7 +195,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 1,
-            "resourceId": "resourceId4",
+            "resourceId": "R.id.resourceId4",
             "contentDescription": "content description 3",
             "text": "original text"
           },
@@ -204,7 +204,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "parentResourceId5",
+            "resourceId": "R.id.parentResourceId5",
             "contentDescription": "",
             "text": ""
           },
@@ -213,7 +213,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 2,
-            "resourceId": "parentResourceId6",
+            "resourceId": "R.id.parentResourceId6",
             "contentDescription": "parent content description 2",
             "text": ""
           }
@@ -231,7 +231,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 1,
-            "resourceId": "resourceId4",
+            "resourceId": "R.id.resourceId4",
             "contentDescription": "content description 3",
             "text": "replacement \n\ntext\n"
           },
@@ -240,7 +240,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "parentResourceId5",
+            "resourceId": "R.id.parentResourceId5",
             "contentDescription": "",
             "text": ""
           },
@@ -249,7 +249,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 2,
-            "resourceId": "parentResourceId6",
+            "resourceId": "R.id.parentResourceId6",
             "contentDescription": "parent content description 2",
             "text": ""
           }
@@ -268,7 +268,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 0,
-            "resourceId": "resourceId5",
+            "resourceId": "R.id.resourceId5",
             "contentDescription": "content description 4",
             "text": ""
           },
@@ -277,7 +277,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": 1,
-            "resourceId": "parentResourceId7",
+            "resourceId": "R.id.parentResourceId7",
             "contentDescription": "",
             "text": "parent text"
           }
@@ -316,7 +316,7 @@
             "recyclerViewChildPosition": -1,
             "adapterViewChildPosition": -1,
             "groupViewChildPosition": -1,
-            "resourceId": "list",
+            "resourceId": "R.id.list",
             "contentDescription": "",
             "text": ""
           }
