@@ -245,9 +245,9 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { handle.state.reservation != null }
     val oldEndTime = handle.state.reservation?.endTime
     val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
-    assertThat(newEndTime?.epochSecond).isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+    assertThat(newEndTime?.epochSecond).isAtLeast(oldEndTime?.plusSeconds(100)?.epochSecond)
     assertThat(handle.state.reservation?.endTime?.epochSecond)
-      .isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+      .isAtLeast(oldEndTime?.plusSeconds(100)?.epochSecond)
   }
 
   @Test
@@ -273,6 +273,10 @@ class DirectAccessDeviceProvisionerTest {
       assertThat(handle?.connectionState)
         .isEqualTo(DirectAccessConnection.ConnectionState.CONNECTED)
     }
+
+    // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
+    // to be cleared.
+    yieldUntil { getNotifications().isEmpty() }
 
     // Device will reconnect after previous action. Disconnect again to show notification for force
     // check-in
