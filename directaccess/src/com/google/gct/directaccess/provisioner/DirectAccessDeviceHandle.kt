@@ -21,6 +21,7 @@ import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
 import com.android.sdklib.deviceprovisioner.DeactivationAction
+import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProperties
@@ -41,11 +42,13 @@ import com.google.services.firebase.directaccess.client.DirectAccessReservationM
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
+import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroup
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import icons.StudioIcons
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -171,11 +174,16 @@ class DirectAccessDeviceHandle(
         }
       }
 
-      override val label: String = "Connect"
-      override val isEnabled: StateFlow<Boolean> =
+      private val defaultPresentation =
+        DeviceAction.Presentation("Connect", StudioIcons.Avd.RUN, false)
+      override val presentation: StateFlow<DeviceAction.Presentation> =
         connection.state
-          .map { it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED }
-          .stateIn(scope, SharingStarted.Eagerly, true)
+          .map {
+            defaultPresentation.copy(
+              enabled = (it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED)
+            )
+          }
+          .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
 
       private fun CoroutineScope.trackConnectTime() = launch {
         reservationManager.fetchReservationFlow(reservationName).waitUntilActive()
@@ -242,12 +250,13 @@ class DirectAccessDeviceHandle(
             .notify(project)
         }
 
-      override val label: String
-        get() = "Disconnect"
-      override val isEnabled: StateFlow<Boolean> =
+      private val defaultPresentation =
+        DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, false)
+
+      override val presentation: StateFlow<DeviceAction.Presentation> =
         connection.state
-          .map { !it.reservation.sessionState.isClosed() }
-          .stateIn(scope, SharingStarted.Eagerly, true)
+          .map { defaultPresentation.copy(enabled = !it.reservation.sessionState.isClosed()) }
+          .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
 
       private fun getNotificationMessage(phrase: String) =
         "You can reconnect to the same device for up to $phrase before the device is wiped"
@@ -277,10 +286,9 @@ class DirectAccessDeviceHandle(
           ?: throw DeviceActionException("Extended reservation end time not available.")
       }
 
-      override val label: String = "Reserve"
-
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
-      override val isEnabled: StateFlow<Boolean> = MutableStateFlow(true)
+      override val presentation: StateFlow<DeviceAction.Presentation> =
+        MutableStateFlow(DeviceAction.Presentation("Reserve", AllIcons.Actions.Resume, true))
     }
 
   /** Returns true and changes state to [Connected] if [port] matches the [connection] of handle. */

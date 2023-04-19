@@ -209,7 +209,7 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { plugin.devices.value.isEmpty() }
     session.hostServices.devices = DeviceList(listOf(), listOf())
     yieldUntil { state.value is Disconnected }
-    yieldUntil { template.activationAction.isEnabled.value }
+    yieldUntil { template.activationAction.presentation.value.enabled }
   }
 
   @Test
