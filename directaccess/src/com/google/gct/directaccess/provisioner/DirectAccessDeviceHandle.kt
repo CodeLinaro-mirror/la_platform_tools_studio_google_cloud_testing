@@ -81,31 +81,39 @@ class DirectAccessDeviceHandle(
     project.service<DirectAccessService>().connectToReservation(reservationName, scope)
       ?: throw RuntimeException("Not logged in.")
 
-  override val stateFlow = MutableStateFlow(initialState)
+  override val stateFlow: MutableStateFlow<DeviceState>
 
   init {
+    val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
+
+    stateFlow =
+      MutableStateFlow(initialState.withReservation(mapReservation(reservationFlow.value)))
+
     scope.launch {
-      // Map Reservation to its device provisioner format.
-      reservationManager
-        .fetchReservationFlow(reservationName)
-        .map {
-          val reservationState =
-            when (it.sessionState) {
-              Reservation.SessionState.REQUESTED,
-              Reservation.SessionState.PENDING -> ReservationState.PENDING
-              Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
-              Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
-              else -> ReservationState.ERROR
-            }
-          com.android.sdklib.deviceprovisioner.Reservation(
-            reservationState,
-            "",
-            Instant.ofEpochSecond(it.createTime.seconds),
-            Instant.ofEpochSecond(it.expireTime.seconds)
-          )
-        }
-        .collect { reservation -> stateFlow.update { state -> state.withReservation(reservation) } }
+      reservationFlow.map(this@DirectAccessDeviceHandle::mapReservation).collect { reservation ->
+        stateFlow.update { state -> state.withReservation(reservation) }
+      }
     }
+  }
+
+  /** Map Reservation to its device provisioner format. */
+  private fun mapReservation(
+    reservation: Reservation
+  ): com.android.sdklib.deviceprovisioner.Reservation {
+    val reservationState =
+      when (reservation.sessionState) {
+        Reservation.SessionState.REQUESTED,
+        Reservation.SessionState.PENDING -> ReservationState.PENDING
+        Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
+        Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
+        else -> ReservationState.ERROR
+      }
+    return com.android.sdklib.deviceprovisioner.Reservation(
+      reservationState,
+      "",
+      Instant.ofEpochSecond(reservation.createTime.seconds),
+      Instant.ofEpochSecond(reservation.expireTime.seconds)
+    )
   }
 
   private fun DeviceState.withReservation(
