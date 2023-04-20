@@ -26,7 +26,6 @@ import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceState
-import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.ReservationAction
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.asMap
@@ -77,7 +76,7 @@ private val notificationGroup: NotificationGroup
 class DirectAccessDeviceHandle(
   private val project: Project,
   override val scope: CoroutineScope,
-  override val sourceTemplate: DeviceTemplate,
+  override val sourceTemplate: DirectAccessDeviceTemplate,
   initialState: DeviceState,
   private val reservationName: String
 ) : DeviceHandle {
@@ -214,7 +213,7 @@ class DirectAccessDeviceHandle(
           hasConnectedToDeviceOnce,
           timeToConnectMs,
           reservationName,
-          (sourceTemplate as DirectAccessDeviceTemplate).deviceInfo.toMetricsDeviceInfo(),
+          sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
           failureReason
         )
     }
@@ -277,18 +276,27 @@ class DirectAccessDeviceHandle(
           state.reservation ?: throw DeviceActionException("Reservation not available.")
         val endTime =
           reservation.endTime ?: throw DeviceActionException("Reservation end time not available.")
-        connection.extendReservation(duration)
-        // Wait until reservation updates.
         try {
+          connection.extendReservation(duration)
+          // Wait until reservation updates.
           withTimeout(EXTENSION_TIMEOUT.toMillis()) {
             stateFlow
               .takeWhile { it.reservation?.endTime?.toEpochMilli() == endTime.toEpochMilli() }
               .collect()
           }
+          trackExtendReservation(true, duration)
         } catch (e: TimeoutCancellationException) {
+          // TODO(b/277240160): Add correct failure reason here as well as below
+          trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw DeviceActionException(
             "Reservation not extended within ${EXTENSION_TIMEOUT.seconds} seconds"
           )
+        } catch (e: CancellationException) {
+          trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
+          throw e
+        } catch (e: Exception) {
+          trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
+          throw DeviceActionException("Could not extend reservation", e)
         }
         return state.reservation?.endTime
           ?: throw DeviceActionException("Extended reservation end time not available.")
@@ -297,6 +305,19 @@ class DirectAccessDeviceHandle(
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
       override val presentation: StateFlow<DeviceAction.Presentation> =
         MutableStateFlow(DeviceAction.Presentation("Reserve", AllIcons.Actions.Resume, true))
+
+      private fun trackExtendReservation(
+        wasSuccessful: Boolean,
+        duration: Duration,
+        failReason: FailureReason? = null
+      ) =
+        DirectAccessUsageTracker.trackExtendReservation(
+          wasSuccessful,
+          duration,
+          reservationName,
+          sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
+          failReason
+        )
     }
 
   /** Returns true and changes state to [Connected] if [port] matches the [connection] of handle. */

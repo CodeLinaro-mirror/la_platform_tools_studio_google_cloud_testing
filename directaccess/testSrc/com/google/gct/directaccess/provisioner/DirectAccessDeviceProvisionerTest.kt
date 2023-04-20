@@ -51,7 +51,9 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
@@ -424,6 +426,80 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(connectDeviceDetails.success).isFalse()
     assertThat(connectDeviceDetails.reconnect).isFalse()
     assertThat(connectDeviceDetails.hasConnectTimeMs()).isFalse()
+  }
+
+  @Test
+  fun trackExtendSuccessfulMetricWhenReservationExtendSucceeds() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+
+    val studioEvent = findUsageEvent(EXTEND_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(EXTEND_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val extendReservationDetails = directAccessEvent.extendReservationDetails
+    assertThat(extendReservationDetails.success).isTrue()
+    assertThat(extendReservationDetails.extendReservationDuration)
+      .isEqualTo(ExtendReservationDuration.THIRTY_MINUTES)
+
+    tracker.usages.clear()
+
+    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(60))
+    val sixtyMinuteEvent = findUsageEvent(EXTEND_RESERVATION)
+    assertThat(
+        sixtyMinuteEvent.directAccessUsageEvent.extendReservationDetails.extendReservationDuration
+      )
+      .isEqualTo(ExtendReservationDuration.SIXTY_MINUTES)
+  }
+
+  @Test
+  fun trackExtendFailMetricWhenErrorExtendingReservation() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun extendReservation(duration: Duration) = throw Exception()
+      }
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    try {
+      template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+    } catch (e: Exception) {
+      // This is an expected exception.
+    }
+
+    val studioEvent = findUsageEvent(EXTEND_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(EXTEND_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason)
+      .isEqualTo(DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE)
+
+    val extendReservationDetails = directAccessEvent.extendReservationDetails
+    assertThat(extendReservationDetails.success).isFalse()
+    assertThat(extendReservationDetails.extendReservationDuration)
+      .isEqualTo(ExtendReservationDuration.THIRTY_MINUTES)
   }
 
   private suspend fun Notification.assertNotification(
