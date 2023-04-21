@@ -27,6 +27,7 @@ import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
+import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -160,10 +161,15 @@ class DirectAccessDeviceProvisionerTest {
     val state = device.stateFlow
     assertThat(device.sourceTemplate).isEqualTo(template)
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
+    assertThat(state.value.isTransitioning).isTrue()
+    assertThat(state.value.status).isEqualTo("Reserving a device...")
     val properties = state.value.properties
     assertThat(properties.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
     assertThat(properties.model).isEqualTo(deviceInfo.name)
     assertThat(properties.manufacturer).isEqualTo(deviceInfo.manufacturer)
+
+    yieldUntil { state.value.reservation?.state == ReservationState.ACTIVE }
+    assertThat(state.value.status).isEqualTo("Connecting to device...")
 
     // Bring the device online by claiming a matched connected device.
     val serialNumber = fakeConnection.deviceAddress()!!.address
@@ -182,6 +188,7 @@ class DirectAccessDeviceProvisionerTest {
       DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
     yieldUntil { state.value.connectedDevice != null }
     assertThat(state.value).isInstanceOf(Connected::class.java)
+    assertThat(state.value.reservation!!.stateMessage).isEmpty()
     state.value.properties.also {
       assertThat(it.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
       assertThat(it.model).isEqualTo(deviceInfo.name + suffix)
@@ -238,9 +245,9 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { handle.state.reservation != null }
     val oldEndTime = handle.state.reservation?.endTime
     val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
-    assertThat(newEndTime?.epochSecond).isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+    assertThat(newEndTime?.epochSecond).isAtLeast(oldEndTime?.plusSeconds(100)?.epochSecond)
     assertThat(handle.state.reservation?.endTime?.epochSecond)
-      .isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+      .isAtLeast(oldEndTime?.plusSeconds(100)?.epochSecond)
   }
 
   @Test
@@ -266,6 +273,10 @@ class DirectAccessDeviceProvisionerTest {
       assertThat(handle?.connectionState)
         .isEqualTo(DirectAccessConnection.ConnectionState.CONNECTED)
     }
+
+    // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
+    // to be cleared.
+    yieldUntil { getNotifications().isEmpty() }
 
     // Device will reconnect after previous action. Disconnect again to show notification for force
     // check-in

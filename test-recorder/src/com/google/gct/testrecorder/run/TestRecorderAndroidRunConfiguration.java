@@ -20,7 +20,6 @@ import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProvider;
 import com.android.tools.idea.run.ApkProvisionException;
-import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.configuration.execution.ExecutionUtils;
 import com.android.tools.idea.run.tasks.AppLaunchTask;
 import com.android.tools.idea.run.tasks.LaunchContext;
@@ -54,13 +53,13 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
 
   @Nullable
   @Override
-  public AppLaunchTask getApplicationLaunchTask(@NotNull ApplicationIdProvider applicationIdProvider,
+  public AppLaunchTask getApplicationLaunchTask(@NotNull String packageName,
                                                 @NotNull AndroidFacet facet,
                                                 @NotNull String contributorsAmStartOptions,
                                                 boolean waitForDebugger,
                                                 @NotNull ApkProvider apkProvider,
                                                 @NotNull IDevice device) throws ExecutionException {
-    LaunchTask launchTask = super.getApplicationLaunchTask(applicationIdProvider, facet, contributorsAmStartOptions,
+    LaunchTask launchTask = super.getApplicationLaunchTask(packageName, facet, contributorsAmStartOptions,
                                                            waitForDebugger, apkProvider, device);
     return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
   }
