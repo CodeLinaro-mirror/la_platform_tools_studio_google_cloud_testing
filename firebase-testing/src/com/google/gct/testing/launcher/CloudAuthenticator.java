@@ -19,9 +19,8 @@ import com.android.annotations.Nullable;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.repackaged.com.google.common.annotations.VisibleForTesting;
-import com.google.api.services.cloudresourcemanager.CloudResourceManager;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.testing.Testing;
 import com.google.api.services.testing.model.AndroidDeviceCatalog;
@@ -30,6 +29,7 @@ import com.google.gct.login.GoogleLogin;
 import com.google.gct.testing.CloudTestingUtils;
 import java.io.IOException;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.VisibleForTesting;
 
 public class CloudAuthenticator {
 
@@ -68,7 +68,7 @@ public class CloudAuthenticator {
     prepareCredential();
     if (myStorage == null) {
       myStorage =
-        new Storage.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME).build();
+        new Storage.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME).build();
     }
     return myStorage;
   }
@@ -76,10 +76,10 @@ public class CloudAuthenticator {
   public void recreateTestAndToolResults(String testBackendUrl, String toolResultsBackendUrl) {
     prepareCredential();
     myTest =
-      new Testing.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
+      new Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
         .setRootUrl(testBackendUrl).build();
     myToolresults =
-      new ToolResults.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
+      new ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
         .setRootUrl(toolResultsBackendUrl).build();
   }
 
@@ -88,7 +88,7 @@ public class CloudAuthenticator {
     prepareCredential();
     if (myCloudResourceManager == null) {
       myCloudResourceManager =
-        new CloudResourceManager.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential)
+        new CloudResourceManager.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential)
           .setApplicationName(APPLICATION_NAME).build();
     }
     return myCloudResourceManager;
@@ -110,7 +110,7 @@ public class CloudAuthenticator {
     prepareCredential();
     if (myTest == null) {
       Testing.Builder builder =
-        new Testing.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME);
+        new Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME);
       if (endpoint != null) {
         builder.setRootUrl(endpoint);
       }
@@ -164,7 +164,7 @@ public class CloudAuthenticator {
     prepareCredential();
     if (myToolresults == null) {
       myToolresults =
-        new ToolResults.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
+        new ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
           .build();
     }
     return myToolresults;

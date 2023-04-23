@@ -24,8 +24,8 @@ import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.api.client.util.Maps;
-import com.google.api.services.cloudresourcemanager.CloudResourceManager;
-import com.google.api.services.cloudresourcemanager.model.ListProjectsResponse;
+import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
+import com.google.api.services.cloudresourcemanager.v3.model.ListProjectsResponse;
 import com.google.api.services.testing.model.TestMatrix;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -109,10 +109,10 @@ public final class CloudConfigurationHelper {
     try {
       ListProjectsResponse response = listProjects(null);
       while (response != null && response.getProjects() != null) {
-        for (com.google.api.services.cloudresourcemanager.model.Project pantheonProject : response.getProjects()) {
+        for (com.google.api.services.cloudresourcemanager.v3.model.Project pantheonProject : response.getProjects()) {
           if (!Strings.isNullOrEmpty(pantheonProject.getProjectId())
               // Ignore any projects scheduled for deletion.
-              && !"DELETE_REQUESTED".equals(pantheonProject.getLifecycleState())) {
+              && Strings.isNullOrEmpty(pantheonProject.getDeleteTime())) {
             cloudProjects.add(pantheonProject.getProjectId());
           }
         }
