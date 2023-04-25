@@ -60,6 +60,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -178,19 +179,19 @@ class DirectAccessDeviceHandle(
               .copy(isTransitioning = true)
               .withReservation(reservation)
           }
-          connection.connect()
           // Reservation end time restored after connecting to device again.
           hasUserEndedReservation = false
         }
       }
 
       private val defaultPresentation =
-        DeviceAction.Presentation("Connect", StudioIcons.Avd.RUN, false)
+        DeviceAction.Presentation("Connect", AllIcons.Actions.Resume, false)
+
       override val presentation: StateFlow<DeviceAction.Presentation> =
-        connection.state
+        stateFlow
           .map {
             defaultPresentation.copy(
-              enabled = (it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED)
+              enabled = it is DeviceState.Disconnected && !it.isTransitioning
             )
           }
           .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
@@ -284,12 +285,9 @@ class DirectAccessDeviceHandle(
         }
 
       private val defaultPresentation =
-        DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, false)
+        DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, true)
 
-      override val presentation: StateFlow<DeviceAction.Presentation> =
-        connection.state
-          .map { defaultPresentation.copy(enabled = !it.reservation.sessionState.isClosed()) }
-          .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
+      override val presentation = MutableStateFlow(defaultPresentation).asStateFlow()
 
       private fun getNotificationMessage(phrase: String) =
         "You can reconnect to the same device for up to $phrase before the device is wiped"

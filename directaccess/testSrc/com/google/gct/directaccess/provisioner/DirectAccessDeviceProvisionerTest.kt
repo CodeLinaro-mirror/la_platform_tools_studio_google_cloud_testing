@@ -57,6 +57,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccess
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration
+import com.intellij.icons.AllIcons
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
@@ -234,8 +235,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(state.value.isTransitioning).isFalse()
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
     val activationPresentation = device.activationAction!!.presentation
-    assertThat(activationPresentation.value.enabled).isTrue()
-    assertThat(activationPresentation.value.icon).isEqualTo(StudioIcons.Avd.RUN)
+    yieldUntil { activationPresentation.value.enabled }
   }
 
   @Test
@@ -325,6 +325,59 @@ class DirectAccessDeviceProvisionerTest {
         .isEqualTo(DirectAccessConnection.ConnectionState.DISCONNECTED)
       yieldUntil { plugin.devices.value.isEmpty() }
     }
+  }
+
+  @Test
+  fun testActionPresentationsWithReconnection() = runBlockingWithTimeout {
+    val deviceInfo = deviceInfoListProvider()[0]
+    directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
+    plugin.updateReservations()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+
+    val handle = provisioner.devices.value[0] as DirectAccessDeviceHandle
+    assertThat(handle).isNotNull()
+
+    val activationPresentation = handle.activationAction.presentation
+    val deactivationPresentation = handle.deactivationAction.presentation
+    yieldUntil { activationPresentation.value.enabled }
+    activationPresentation.value.let {
+      assertThat(it.label).isEqualTo("Connect")
+      assertThat(it.icon).isEqualTo(AllIcons.Actions.Resume)
+    }
+
+    deactivationPresentation.value.let {
+      assertThat(it.label).isEqualTo("Disconnect")
+      assertThat(it.enabled).isTrue()
+      assertThat(it.icon).isEqualTo(StudioIcons.Avd.STOP)
+    }
+
+    handle.activationAction.activate()
+    yieldUntil { !activationPresentation.value.enabled }
+    assertThat(deactivationPresentation.value.enabled).isTrue()
+
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = handle.connection.deviceAddress()!!.address
+    // We intentionally add a suffix to verify if the properties have been updated.
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
+      )
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    yieldUntil { handle.state is Connected }
+    assertThat(activationPresentation.value.enabled).isFalse()
+    assertThat(deactivationPresentation.value.enabled).isTrue()
+
+    handle.deactivationAction.deactivate()
+    session.hostServices.devices = DeviceList(listOf(), listOf())
+    yieldUntil { handle.state is Disconnected }
+
+    yieldUntil { activationPresentation.value.enabled }
   }
 
   @Test
