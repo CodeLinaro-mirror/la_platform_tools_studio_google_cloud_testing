@@ -60,14 +60,6 @@ class DirectAccessDeviceProvisionerPlugin(
   private val _templates = MutableStateFlow(emptyList<DeviceTemplate>())
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
-  private val reservations: List<com.android.tools.adbbridge.Reservation>?
-    get() =
-      try {
-        project.service<DirectAccessService>().reservationManager?.listReservations()
-      } catch (e: Exception) {
-        null
-      }
-
   init {
     // This scope will not be cancelled on login changes. Only the inner child scope will be
     // cancelled.
@@ -93,6 +85,14 @@ class DirectAccessDeviceProvisionerPlugin(
     }
   }
 
+  private fun fetchReservations(): List<com.android.tools.adbbridge.Reservation>? =
+    try {
+      project.service<DirectAccessService>().reservationManager?.listReservations()
+    } catch (e: Exception) {
+      logger.warn("Fetching reservations failed", e)
+      null
+    }
+
   // Update templates every 5 minutes.
   private suspend fun periodicUpdateTemplates(parentScope: CoroutineScope) {
     while (true) {
@@ -104,7 +104,7 @@ class DirectAccessDeviceProvisionerPlugin(
   @VisibleForTesting
   fun updateTemplates(parentScope: CoroutineScope) {
     // Start a reservation query to determine if the user has access.
-    if (reservations == null) {
+    if (fetchReservations() == null) {
       _templates.value = listOf()
       return
     }
@@ -150,7 +150,7 @@ class DirectAccessDeviceProvisionerPlugin(
         template.deviceInfo.let { "${it.codename} ${it.api}" }
       }
 
-    reservations
+    fetchReservations()
       ?.filter { reservation ->
         !reservation.sessionState.isClosed() &&
           reservation.androidDeviceList.androidDevicesList.isNotEmpty()
