@@ -57,6 +57,7 @@ import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
 import com.intellij.notification.NotificationsManager
 import com.studiogrpc.testutils.GrpcConnectionRule
+import icons.StudioIcons
 import java.lang.RuntimeException
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
@@ -210,6 +211,26 @@ class DirectAccessDeviceProvisionerTest {
     session.hostServices.devices = DeviceList(listOf(), listOf())
     yieldUntil { state.value is Disconnected }
     yieldUntil { template.activationAction.presentation.value.enabled }
+  }
+
+  @Test
+  fun deactivateBeforeConnected() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    // Activate a new device before it becomes online
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val device = provisioner.devices.value[0]
+    val state = device.stateFlow
+    assertThat(state.value.isTransitioning).isTrue()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+
+    device.deactivationAction!!.deactivate()
+    assertThat(state.value.isTransitioning).isFalse()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+    val activationPresentation = device.activationAction!!.presentation
+    assertThat(activationPresentation.value.enabled).isTrue()
+    assertThat(activationPresentation.value.icon).isEqualTo(StudioIcons.Avd.RUN)
   }
 
   @Test

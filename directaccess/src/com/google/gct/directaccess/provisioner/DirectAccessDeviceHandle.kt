@@ -224,6 +224,14 @@ class DirectAccessDeviceHandle(
       override suspend fun deactivate() =
         withContext(scope.coroutineContext + NonCancellable) {
           connection.endReservation(withGracePeriod = true)
+          stateFlow.update {
+            when (it) {
+              // Reset isTransitioning to false if the connection is not established yet.
+              is DeviceState.Disconnected -> it.copy(isTransitioning = false)
+              // Let it.connectedDevice update the state for disconnection.
+              is DeviceState.Connected -> it
+            }
+          }
           val reservationExpireTime =
             reservationManager.fetchReservationFlow(reservationName).value.expireTime.seconds
           val timeRemaining =
