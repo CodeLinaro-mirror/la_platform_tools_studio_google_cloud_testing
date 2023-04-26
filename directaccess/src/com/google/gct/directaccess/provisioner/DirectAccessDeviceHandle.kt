@@ -93,6 +93,8 @@ class DirectAccessDeviceHandle(
 
   /** Tracks reconnect to device */
   private var hasConnectedToDeviceOnce = false
+  /** Tracks reservation ended by user */
+  private var hasUserEndedReservation = false
 
   init {
     val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
@@ -105,6 +107,13 @@ class DirectAccessDeviceHandle(
         stateFlow.update { state -> state.withReservation(reservation) }
       }
     }
+    scope
+      .launch { reservationFlow.takeWhile { !it.sessionState.isClosed() }.collect() }
+      .invokeOnCompletion { throwable ->
+        if ((throwable == null || throwable is CancellationException) && !hasUserEndedReservation) {
+          trackEndReservation(true)
+        }
+      }
   }
 
   /** Map Reservation to its device provisioner format. */
@@ -170,6 +179,8 @@ class DirectAccessDeviceHandle(
               .withReservation(reservation)
           }
           connection.connect()
+          // Reservation end time restored after connecting to device again.
+          hasUserEndedReservation = false
         }
       }
 
@@ -222,7 +233,13 @@ class DirectAccessDeviceHandle(
     object : DeactivationAction {
       override suspend fun deactivate() =
         withContext(scope.coroutineContext + NonCancellable) {
-          connection.endReservation(withGracePeriod = true)
+          hasUserEndedReservation = true
+          try {
+            connection.endReservation(withGracePeriod = true)
+          } catch (e: Exception) {
+            trackEndReservation(false)
+            throw e
+          }
           stateFlow.update {
             when (it) {
               // Reset isTransitioning to false if the connection is not established yet.
@@ -251,7 +268,17 @@ class DirectAccessDeviceHandle(
             )
             .addAction(
               NotificationAction.createExpiring("Force check-in device") { _, _ ->
-                scope.launch { withContext(NonCancellable) { connection.endReservation() } }
+                scope.launch {
+                  withContext(NonCancellable) {
+                    try {
+                      connection.endReservation()
+                      trackEndReservation(true)
+                    } catch (e: Exception) {
+                      trackEndReservation(false)
+                      throw DeviceActionException("Could not end reservation", e)
+                    }
+                  }
+                }
               }
             )
             .notify(project)
@@ -338,6 +365,22 @@ class DirectAccessDeviceHandle(
       }
     }
     return true
+  }
+
+  private fun trackEndReservation(wasSuccessful: Boolean) =
+    DirectAccessUsageTracker.trackEndReservation(
+      wasSuccessful,
+      hasUserEndedReservation,
+      getTotalReservationTime(),
+      connection.averageLatency.toInt(),
+      reservationName,
+      sourceTemplate.deviceInfo.toMetricsDeviceInfo()
+    )
+
+  private fun getTotalReservationTime(): Long {
+    val reservationStartTime =
+      reservationManager.fetchReservationFlow(reservationName).value.createTime.seconds
+    return Instant.now().epochSecond - reservationStartTime
   }
 }
 
