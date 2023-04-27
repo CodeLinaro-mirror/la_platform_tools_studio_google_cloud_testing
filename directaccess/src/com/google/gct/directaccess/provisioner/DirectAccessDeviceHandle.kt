@@ -309,12 +309,7 @@ class DirectAccessDeviceHandle(
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
     val properties = device.deviceProperties().all().asMap()
-    val deviceProperties =
-      DirectAccessDeviceProperties.build {
-        readCommonProperties(properties)
-        // TODO(b/260153322): Remove once device manager moves to device provisioner framework
-        disambiguator = "${connection.port}"
-      }
+    val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
     device.invokeOnDisconnection {
       stateFlow.update {
