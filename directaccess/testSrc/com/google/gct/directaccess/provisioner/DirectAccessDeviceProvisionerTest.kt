@@ -49,6 +49,9 @@ import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcServ
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
@@ -65,7 +68,6 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
 class DirectAccessDeviceProvisionerTest {
@@ -96,17 +98,9 @@ class DirectAccessDeviceProvisionerTest {
         if (!isOAuthTokenAvailable) throw RuntimeException()
         "testToken"
       }
-    val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
-    doReturn(directAccessReservationManager).whenever(mockDirectAccessService).reservationManager
-    doAnswer {
-        val reservationName = it.arguments[0] as String
-        val deviceScope = it.arguments[1] as CoroutineScope
-        fakeConnection =
-          FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
-        fakeConnection
-      }
-      .whenever(mockDirectAccessService)
-      .connectToReservation(any(), any())
+    setupConnection { reservationName, deviceScope ->
+      FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
+    }
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
     plugin =
@@ -123,6 +117,18 @@ class DirectAccessDeviceProvisionerTest {
   fun tearDown() = runBlockingWithTimeout {
     scope.cancel()
     session.close()
+  }
+
+  private fun setupConnection(
+    createConnection: (String, CoroutineScope) -> FakeDirectAccessConnection
+  ) {
+    val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
+    whenever(mockDirectAccessService.reservationManager).thenReturn(directAccessReservationManager)
+    whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
+      val reservationName = it.arguments[0] as String
+      val deviceScope = it.arguments[1] as CoroutineScope
+      createConnection(reservationName, deviceScope).also { conn -> fakeConnection = conn }
+    }
   }
 
   @Test
@@ -203,7 +209,7 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { plugin.devices.value.isEmpty() }
     session.hostServices.devices = DeviceList(listOf(), listOf())
     yieldUntil { state.value is Disconnected }
-    yieldUntil { template.activationAction.isEnabled.value }
+    yieldUntil { template.activationAction.presentation.value.enabled }
   }
 
   @Test
@@ -301,14 +307,12 @@ class DirectAccessDeviceProvisionerTest {
 
     // Activate device
     template.activationAction.activate()
-    yieldUntil { tracker.usages.isNotEmpty() }
 
-    val studioEvent = tracker.usages[0].studioEvent
+    val studioEvent = findUsageEvent(RESERVE_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
 
     val directAccessEvent = studioEvent.directAccessUsageEvent
-    assertThat(directAccessEvent.type)
-      .isEqualTo(DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE)
+    assertThat(directAccessEvent.type).isEqualTo(RESERVE_DEVICE)
     assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
 
     val reserveDeviceDetails = directAccessEvent.reserveDeviceDetails
@@ -329,14 +333,12 @@ class DirectAccessDeviceProvisionerTest {
     } catch (ignore: DeviceActionException) {
       // This is an expected exception.
     }
-    yieldUntil { tracker.usages.isNotEmpty() }
 
-    val studioEvent = tracker.usages[0].studioEvent
+    val studioEvent = findUsageEvent(RESERVE_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
 
     val directAccessEvent = studioEvent.directAccessUsageEvent
-    assertThat(directAccessEvent.type)
-      .isEqualTo(DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE)
+    assertThat(directAccessEvent.type).isEqualTo(RESERVE_DEVICE)
     assertThat(directAccessEvent.hasDeviceSessionId()).isFalse()
     assertThat(directAccessEvent.failureReason)
       .isEqualTo(DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE)
@@ -344,6 +346,63 @@ class DirectAccessDeviceProvisionerTest {
     val reserveDeviceDetails = directAccessEvent.reserveDeviceDetails
     assertThat(reserveDeviceDetails.success).isFalse()
     assertThat(reserveDeviceDetails.hasReserveTimeMs()).isFalse()
+  }
+
+  @Test
+  fun trackConnectionSuccessfulMetricWhenSuccessConnectingDevice() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    val studioEvent = findUsageEvent(CONNECT_DEVICE)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(CONNECT_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val connectDeviceDetails = directAccessEvent.connectDeviceDetails
+    assertThat(connectDeviceDetails.success).isTrue()
+    assertThat(connectDeviceDetails.reconnect).isFalse()
+    assertThat(connectDeviceDetails.connectTimeMs).isNotNull()
+  }
+
+  @Test
+  fun trackConnectionFailMetricWhenErrorConnectingDevice() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun connect() = throw Exception()
+      }
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    try {
+      template.activationAction.activate()
+    } catch (ignore: Exception) {
+      // This is an expected exception.
+    }
+
+    val studioEvent = findUsageEvent(CONNECT_DEVICE)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(CONNECT_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason)
+      .isEqualTo(DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE)
+
+    val connectDeviceDetails = directAccessEvent.connectDeviceDetails
+    assertThat(connectDeviceDetails.success).isFalse()
+    assertThat(connectDeviceDetails.reconnect).isFalse()
+    assertThat(connectDeviceDetails.hasConnectTimeMs()).isFalse()
   }
 
   private suspend fun Notification.assertNotification(
@@ -372,4 +431,12 @@ class DirectAccessDeviceProvisionerTest {
   private fun getNotifications() =
     NotificationsManager.getNotificationsManager()
       .getNotificationsOfType(Notification::class.java, projectRule.project)
+
+  private suspend fun findUsageEvent(type: DirectAccessUsageEventType): AndroidStudioEvent {
+    yieldUntil { tracker.usages.any { it.studioEvent.isEventOfType(type) } }
+    return tracker.usages.first { it.studioEvent.isEventOfType(type) }.studioEvent
+  }
+
+  private fun AndroidStudioEvent.isEventOfType(type: DirectAccessUsageEventType) =
+    directAccessUsageEvent.type == type
 }

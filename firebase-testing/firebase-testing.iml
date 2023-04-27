@@ -21,36 +21,9 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="intellij.android.common" />
     <orderEntry type="module" module-name="intellij.android.core" />
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib/google-api-services-storage-v1-rev1-1.18.0-rc.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib/google-api-services-testing-v1-revsnapshot-1.20.0.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
     <orderEntry type="module" module-name="google-cloud-tools-core-as" />
     <orderEntry type="module" module-name="google-login-as" />
     <orderEntry type="library" name="tightvnc" level="project" />
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib/google-api-services-toolresults-v1beta3-rev20151013-1.20.0.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
     <orderEntry type="module" module-name="analytics-tracker" />
     <orderEntry type="module" module-name="intellij.android.testFramework" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="mockito" level="project" />
@@ -61,5 +34,33 @@
     <orderEntry type="library" name="studio-analytics-proto" level="project" />
     <orderEntry type="module" module-name="intellij.android.projectSystem" />
     <orderEntry type="module" module-name="intellij.android.adb" />
+    <orderEntry type="module" module-name="intellij.android.render-resources" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/google/apis/google-api-services-testing/v1-rev82-1.22.0/google-api-services-testing-v1-rev82-1.22.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/google/apis/google-api-services-toolresults/v1beta3-rev82-1.22.0/google-api-services-toolresults-v1beta3-rev82-1.22.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/google/apis/google-api-services-storage/v1-rev82-1.22.0/google-api-services-storage-v1-rev82-1.22.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>

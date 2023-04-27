@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionDisabledException
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
@@ -31,11 +32,15 @@ import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import icons.StudioIcons
 import java.time.Duration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -101,8 +106,12 @@ class DirectAccessDeviceTemplate(
         }
       }
 
-      override val label: String = "Acquire"
-      override val isEnabled: StateFlow<Boolean> = isActivationEnabled
+      private val defaultPresentation =
+        DeviceAction.Presentation("Acquire", StudioIcons.Avd.RUN, false)
+      override val presentation: StateFlow<DeviceAction.Presentation> =
+        isActivationEnabled
+          .map { enabled -> defaultPresentation.copy(enabled = enabled) }
+          .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
     }
 
   override val editAction = null

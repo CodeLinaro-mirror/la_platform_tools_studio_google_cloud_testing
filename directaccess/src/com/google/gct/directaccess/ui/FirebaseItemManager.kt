@@ -83,11 +83,12 @@ class FirebaseDeviceItem(
 
   override val icon: Icon
     get() =
-      if (handle.activationAction.isEnabled.value) StudioIcons.Avd.RUN else StudioIcons.Avd.STOP
+      if (handle.activationAction.presentation.value.enabled) StudioIcons.Avd.RUN
+      else StudioIcons.Avd.STOP
   override val tooltipText: String
     get() =
       when {
-        handle.activationAction.isEnabled.value -> "Connect to a firebase device"
+        handle.activationAction.presentation.value.enabled -> "Connect to a firebase device"
         isActive -> "Disconnect this firebase device"
         else -> "Firebase device disconnecting"
       }
@@ -133,7 +134,7 @@ class FirebaseDeviceTemplateItem(
   private var deviceItem: FirebaseDeviceItem? = null
 
   override val isActive: Boolean
-    get() = template.activationAction.isEnabled.value
+    get() = template.activationAction.presentation.value.enabled
 
   override val icon: Icon = StudioIcons.Avd.RUN
 

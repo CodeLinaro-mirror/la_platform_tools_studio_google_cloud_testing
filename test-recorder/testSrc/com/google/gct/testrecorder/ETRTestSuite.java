@@ -16,10 +16,36 @@
 package com.google.gct.testrecorder;
 
 import com.android.testutils.JarTestSuiteRunner;
+import com.android.testutils.TestUtils;
+import com.android.tools.tests.GradleDaemonsRule;
 import com.android.tools.tests.IdeaTestSuiteBase;
+import org.junit.ClassRule;
 import org.junit.runner.RunWith;
 
 // This class is required to run the tests in bazel
 @RunWith(JarTestSuiteRunner.class)
 @JarTestSuiteRunner.ExcludeClasses(ETRTestSuite.class)
-public class ETRTestSuite extends IdeaTestSuiteBase {}
+public class ETRTestSuite extends IdeaTestSuiteBase {
+  @ClassRule public static GradleDaemonsRule gradle = new GradleDaemonsRule();
+
+  public static final String DATA_BINDING_RUNTIME_ZIP = "tools/data-binding/data_binding_runtime.zip";
+
+  static {
+    try {
+      unzipIntoOfflineMavenRepo("tools/base/build-system/android_gradle_plugin.zip");
+      linkIntoOfflineMavenRepo("tools/base/build-system/android_gradle_plugin_runtime_dependencies.manifest");
+      linkIntoOfflineMavenRepo("tools/studio/google/cloud/testing/test-recorder/test_deps.manifest");
+      linkIntoOfflineMavenRepo("tools/base/build-system/integration-test/kotlin_gradle_plugin_prebuilts.manifest");
+      // When using iml_module's split_test_target attribute, not all bazel targets will include this dependency.
+      // Only bazel targets which rely on data_binding_runtime.zip will include this runtime dependency.
+      if (TestUtils.workspaceFileExists(DATA_BINDING_RUNTIME_ZIP)) {
+        unzipIntoOfflineMavenRepo(DATA_BINDING_RUNTIME_ZIP);
+      }
+    }
+    catch (Throwable e) {
+      // See b/143359533 for why we are handling errors here
+      System.err.println("ERROR: Error initializing test suite, tests will likely fail following this error");
+      e.printStackTrace();
+    }
+  }
+}

@@ -25,7 +25,7 @@ import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.testing.Testing;
 import com.google.api.services.testing.model.AndroidDeviceCatalog;
-import com.google.api.services.toolresults.Toolresults;
+import com.google.api.services.toolresults.ToolResults;
 import com.google.gct.login.GoogleLogin;
 import com.google.gct.testing.CloudTestingUtils;
 import java.io.IOException;
@@ -43,7 +43,7 @@ public class CloudAuthenticator {
   private Storage myStorage;
   private CloudResourceManager myCloudResourceManager;
   private Testing myTest;
-  private Toolresults myToolresults;
+  private ToolResults myToolresults;
   private long myLastDiscoveryServiceInvocationTimestamp = -1;
 
 
@@ -79,7 +79,7 @@ public class CloudAuthenticator {
       new Testing.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
         .setRootUrl(testBackendUrl).build();
     myToolresults =
-      new Toolresults.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
+      new ToolResults.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
         .setRootUrl(toolResultsBackendUrl).build();
   }
 
@@ -160,11 +160,11 @@ public class CloudAuthenticator {
   }
 
   @NotNull
-  public Toolresults getToolresults() {
+  public ToolResults getToolresults() {
     prepareCredential();
     if (myToolresults == null) {
       myToolresults =
-        new Toolresults.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
+        new ToolResults.Builder(myHttpTransport, JacksonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME)
           .build();
     }
     return myToolresults;
@@ -201,9 +201,7 @@ public class CloudAuthenticator {
     if (credential == null) {
       googleLogin.logIn();
       credential = googleLogin.getCredential();
-      if (credential == null) {
-        return false;
-      }
+      return credential != null;
     }
     return true;
   }

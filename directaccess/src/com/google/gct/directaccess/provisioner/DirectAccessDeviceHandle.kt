@@ -21,6 +21,7 @@ import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.ActivationParams
 import com.android.sdklib.deviceprovisioner.DeactivationAction
+import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProperties
@@ -34,17 +35,25 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
+import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.isClosed
+import com.google.services.firebase.directaccess.client.waitUntilActive
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
+import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroup
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import icons.StudioIcons
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.CancellationException
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -81,31 +90,42 @@ class DirectAccessDeviceHandle(
     project.service<DirectAccessService>().connectToReservation(reservationName, scope)
       ?: throw RuntimeException("Not logged in.")
 
-  override val stateFlow = MutableStateFlow(initialState)
+  override val stateFlow: MutableStateFlow<DeviceState>
+
+  /** Tracks reconnect to device */
+  private var hasConnectedToDeviceOnce = false
 
   init {
+    val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
+
+    stateFlow =
+      MutableStateFlow(initialState.withReservation(mapReservation(reservationFlow.value)))
+
     scope.launch {
-      // Map Reservation to its device provisioner format.
-      reservationManager
-        .fetchReservationFlow(reservationName)
-        .map {
-          val reservationState =
-            when (it.sessionState) {
-              Reservation.SessionState.REQUESTED,
-              Reservation.SessionState.PENDING -> ReservationState.PENDING
-              Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
-              Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
-              else -> ReservationState.ERROR
-            }
-          com.android.sdklib.deviceprovisioner.Reservation(
-            reservationState,
-            "",
-            Instant.ofEpochSecond(it.createTime.seconds),
-            Instant.ofEpochSecond(it.expireTime.seconds)
-          )
-        }
-        .collect { reservation -> stateFlow.update { state -> state.withReservation(reservation) } }
+      reservationFlow.map(this@DirectAccessDeviceHandle::mapReservation).collect { reservation ->
+        stateFlow.update { state -> state.withReservation(reservation) }
+      }
     }
+  }
+
+  /** Map Reservation to its device provisioner format. */
+  private fun mapReservation(
+    reservation: Reservation
+  ): com.android.sdklib.deviceprovisioner.Reservation {
+    val reservationState =
+      when (reservation.sessionState) {
+        Reservation.SessionState.REQUESTED,
+        Reservation.SessionState.PENDING -> ReservationState.PENDING
+        Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
+        Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
+        else -> ReservationState.ERROR
+      }
+    return com.android.sdklib.deviceprovisioner.Reservation(
+      reservationState,
+      "",
+      Instant.ofEpochSecond(reservation.createTime.seconds),
+      Instant.ofEpochSecond(reservation.expireTime.seconds)
+    )
   }
 
   private fun DeviceState.withReservation(
@@ -135,15 +155,68 @@ class DirectAccessDeviceHandle(
               .copy(isTransitioning = true)
               .withReservation(reservation)
           }
+          scope.trackConnectTime()
+          try {
+            connection.connect()
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            // TODO(b/277240160): Add correct failure reason
+            trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+          }
+          stateFlow.update {
+            val reservation = it.reservation ?: return@withContext
+            DeviceState.Disconnected(it.properties)
+              .copy(isTransitioning = true)
+              .withReservation(reservation)
+          }
           connection.connect()
         }
       }
 
-      override val label: String = "Connect"
-      override val isEnabled: StateFlow<Boolean> =
+      private val defaultPresentation =
+        DeviceAction.Presentation("Connect", StudioIcons.Avd.RUN, false)
+      override val presentation: StateFlow<DeviceAction.Presentation> =
         connection.state
-          .map { it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED }
-          .stateIn(scope, SharingStarted.Eagerly, true)
+          .map {
+            defaultPresentation.copy(
+              enabled = (it.connection == DirectAccessConnection.ConnectionState.DISCONNECTED)
+            )
+          }
+          .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
+
+      private fun CoroutineScope.trackConnectTime() = launch {
+        reservationManager.fetchReservationFlow(reservationName).waitUntilActive()
+        val connectStartTime = System.currentTimeMillis()
+        try {
+          withTimeout(TimeUnit.SECONDS.toMillis(20)) {
+            connection.state
+              .takeWhile { it.connection != DirectAccessConnection.ConnectionState.CONNECTED }
+              .collect()
+          }
+          trackConnectMetrics(true, System.currentTimeMillis() - connectStartTime)
+          hasConnectedToDeviceOnce = true
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          // TODO(b/277240160): Add correct failure reason
+          trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+        }
+      }
+
+      private fun trackConnectMetrics(
+        wasSuccessful: Boolean,
+        timeToConnectMs: Long? = null,
+        failureReason: FailureReason? = null
+      ) =
+        DirectAccessUsageTracker.trackConnectDevice(
+          wasSuccessful,
+          hasConnectedToDeviceOnce,
+          timeToConnectMs,
+          reservationName,
+          (sourceTemplate as DirectAccessDeviceTemplate).deviceInfo.toMetricsDeviceInfo(),
+          failureReason
+        )
     }
 
   override val deactivationAction =
@@ -177,12 +250,13 @@ class DirectAccessDeviceHandle(
             .notify(project)
         }
 
-      override val label: String
-        get() = "Disconnect"
-      override val isEnabled: StateFlow<Boolean> =
+      private val defaultPresentation =
+        DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, false)
+
+      override val presentation: StateFlow<DeviceAction.Presentation> =
         connection.state
-          .map { !it.reservation.sessionState.isClosed() }
-          .stateIn(scope, SharingStarted.Eagerly, true)
+          .map { defaultPresentation.copy(enabled = !it.reservation.sessionState.isClosed()) }
+          .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
 
       private fun getNotificationMessage(phrase: String) =
         "You can reconnect to the same device for up to $phrase before the device is wiped"
@@ -212,10 +286,9 @@ class DirectAccessDeviceHandle(
           ?: throw DeviceActionException("Extended reservation end time not available.")
       }
 
-      override val label: String = "Reserve"
-
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
-      override val isEnabled: StateFlow<Boolean> = MutableStateFlow(true)
+      override val presentation: StateFlow<DeviceAction.Presentation> =
+        MutableStateFlow(DeviceAction.Presentation("Reserve", AllIcons.Actions.Resume, true))
     }
 
   /** Returns true and changes state to [Connected] if [port] matches the [connection] of handle. */
