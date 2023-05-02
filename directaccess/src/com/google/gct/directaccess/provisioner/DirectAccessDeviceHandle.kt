@@ -271,8 +271,7 @@ class DirectAccessDeviceHandle(
                 scope.launch {
                   withContext(NonCancellable) {
                     try {
-                      connection.endReservation()
-                      trackEndReservation(true)
+                      reservationAction.endReservation()
                     } catch (e: Exception) {
                       trackEndReservation(false)
                       throw DeviceActionException("Could not end reservation", e)
@@ -327,6 +326,12 @@ class DirectAccessDeviceHandle(
         }
         return state.reservation?.endTime
           ?: throw DeviceActionException("Extended reservation end time not available.")
+      }
+
+      override suspend fun endReservation() {
+        hasUserEndedReservation = true
+        connection.endReservation()
+        trackEndReservation(true)
       }
 
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
