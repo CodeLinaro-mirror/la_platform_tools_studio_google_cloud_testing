@@ -277,9 +277,9 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { handle.state.reservation != null }
     val oldEndTime = handle.state.reservation?.endTime
     val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
-    assertThat(newEndTime?.epochSecond).isAtLeast(oldEndTime?.plusSeconds(100)?.epochSecond)
+    assertThat(newEndTime?.epochSecond).isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
     assertThat(handle.state.reservation?.endTime?.epochSecond)
-      .isAtLeast(oldEndTime?.plusSeconds(100)?.epochSecond)
+      .isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
   }
 
   @Test
