@@ -39,6 +39,7 @@ iml_module(
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
         "//tools/adt/idea/android-adb:intellij.android.adb[module]",
         "//tools/adt/idea/render-resources:intellij.android.render-resources[module]",
+        "//tools/adt/idea/execution/common:intellij.android.execution.common[module]",
         "//prebuilts/tools/common/m2:google-api-services-testing-v1-rev82-1.22.0",
         "//prebuilts/tools/common/m2:google-api-services-toolresults-v1beta3-rev82-1.22.0",
         "//prebuilts/tools/common/m2:google-api-services-storage-v1-rev82-1.22.0",

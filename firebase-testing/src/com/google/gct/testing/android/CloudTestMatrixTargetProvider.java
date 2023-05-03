@@ -112,4 +112,10 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
       }
     };
   }
+
+  @Override
+  public boolean canDeployToLocalDevice() {
+    // When a user debugs (not runs) and Android instrumented test, the test is run on a local device instead of on a cloud device.
+    return true;
+  }
 }

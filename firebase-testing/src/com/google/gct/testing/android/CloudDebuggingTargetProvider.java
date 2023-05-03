@@ -105,6 +105,11 @@ public class CloudDebuggingTargetProvider extends DeployTargetProvider {
   }
 
   @Override
+  public boolean canDeployToLocalDevice() {
+    return false;
+  }
+
+  @Override
   protected boolean isApplicable(boolean testConfiguration) {
     return false;
   }
