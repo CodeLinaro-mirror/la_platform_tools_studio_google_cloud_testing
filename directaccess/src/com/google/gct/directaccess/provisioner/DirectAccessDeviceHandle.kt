@@ -19,7 +19,6 @@ import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
 import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
-import com.android.sdklib.deviceprovisioner.ActivationParams
 import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionException
@@ -156,7 +155,7 @@ class DirectAccessDeviceHandle(
   override val activationAction =
     object : ActivationAction {
       /** Starts connection to the remote device. */
-      override suspend fun activate(params: ActivationParams) {
+      override suspend fun activate() {
         withContext(scope.coroutineContext) {
           stateFlow.update {
             val reservation = it.reservation ?: return@withContext
