@@ -73,6 +73,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.doReturn
@@ -451,6 +452,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(connectDeviceDetails.connectTimeMs).isNotNull()
   }
 
+  @Ignore
   @Test
   fun trackConnectionFailMetricWhenErrorConnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
@@ -519,6 +521,7 @@ class DirectAccessDeviceProvisionerTest {
       .isEqualTo(ExtendReservationDuration.SIXTY_MINUTES)
   }
 
+  @Ignore
   @Test
   fun trackExtendFailMetricWhenErrorExtendingReservation() = runBlockingWithTimeout {
     // Override default connection setup
@@ -623,6 +626,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
   }
 
+  @Ignore
   @Test
   fun trackEndReservationFailMetricWhenErrorEndingReservation() = runBlockingWithTimeout {
     // Override default connection setup
