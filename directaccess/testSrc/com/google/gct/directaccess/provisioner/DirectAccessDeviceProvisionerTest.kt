@@ -47,16 +47,22 @@ import com.google.services.firebase.directaccess.client.DirectAccessReservationM
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
+import com.google.services.firebase.directaccess.client.isClosed
+import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.END_RESERVATION
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
 import com.intellij.notification.NotificationsManager
 import com.studiogrpc.testutils.GrpcConnectionRule
+import icons.StudioIcons
 import java.lang.RuntimeException
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
@@ -210,6 +216,26 @@ class DirectAccessDeviceProvisionerTest {
     session.hostServices.devices = DeviceList(listOf(), listOf())
     yieldUntil { state.value is Disconnected }
     yieldUntil { template.activationAction.presentation.value.enabled }
+  }
+
+  @Test
+  fun deactivateBeforeConnected() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    // Activate a new device before it becomes online
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val device = provisioner.devices.value[0]
+    val state = device.stateFlow
+    assertThat(state.value.isTransitioning).isTrue()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+
+    device.deactivationAction!!.deactivate()
+    assertThat(state.value.isTransitioning).isFalse()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+    val activationPresentation = device.activationAction!!.presentation
+    assertThat(activationPresentation.value.enabled).isTrue()
+    assertThat(activationPresentation.value.icon).isEqualTo(StudioIcons.Avd.RUN)
   }
 
   @Test
@@ -403,6 +429,183 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(connectDeviceDetails.success).isFalse()
     assertThat(connectDeviceDetails.reconnect).isFalse()
     assertThat(connectDeviceDetails.hasConnectTimeMs()).isFalse()
+  }
+
+  @Test
+  fun trackExtendSuccessfulMetricWhenReservationExtendSucceeds() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+
+    val studioEvent = findUsageEvent(EXTEND_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(EXTEND_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val extendReservationDetails = directAccessEvent.extendReservationDetails
+    assertThat(extendReservationDetails.success).isTrue()
+    assertThat(extendReservationDetails.extendReservationDuration)
+      .isEqualTo(ExtendReservationDuration.THIRTY_MINUTES)
+
+    tracker.usages.clear()
+
+    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(60))
+    val sixtyMinuteEvent = findUsageEvent(EXTEND_RESERVATION)
+    assertThat(
+        sixtyMinuteEvent.directAccessUsageEvent.extendReservationDetails.extendReservationDuration
+      )
+      .isEqualTo(ExtendReservationDuration.SIXTY_MINUTES)
+  }
+
+  @Test
+  fun trackExtendFailMetricWhenErrorExtendingReservation() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun extendReservation(duration: Duration) = throw Exception()
+      }
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    try {
+      template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+    } catch (e: Exception) {
+      // This is an expected exception.
+    }
+
+    val studioEvent = findUsageEvent(EXTEND_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(EXTEND_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason)
+      .isEqualTo(DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE)
+
+    val extendReservationDetails = directAccessEvent.extendReservationDetails
+    assertThat(extendReservationDetails.success).isFalse()
+    assertThat(extendReservationDetails.extendReservationDuration)
+      .isEqualTo(ExtendReservationDuration.THIRTY_MINUTES)
+  }
+
+  @Test
+  fun trackEndReservationSuccessMetricWhenSuccessEndingReservation() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+    handle.deactivationAction.deactivate()
+    yieldUntil { handle.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+
+    val notifications = getNotifications()
+    assertThat(notifications.size).isEqualTo(1)
+
+    (notifications[0].actions[1] as NotificationAction).actionPerformed(mock(), notifications[0])
+
+    val studioEvent = findUsageEvent(END_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(END_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val endReservationDetails = directAccessEvent.endReservationDetails
+    assertThat(endReservationDetails.success).isTrue()
+    assertThat(endReservationDetails.userEnded).isTrue()
+    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+  }
+
+  @Test
+  fun trackEndReservationSuccessMetricWhenAutoEndReservation() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+    // Cancel reservation to simulate reservation expiry
+    directAccessReservationManager.cancelReservation(handle.reservation.name)
+    yieldUntil {
+      directAccessReservationManager
+        .fetchReservationFlow(handle.reservation.name)
+        .value
+        .sessionState
+        .isClosed()
+    }
+
+    val studioEvent = findUsageEvent(END_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(END_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val endReservationDetails = directAccessEvent.endReservationDetails
+    assertThat(endReservationDetails.success).isTrue()
+    assertThat(endReservationDetails.userEnded).isFalse()
+    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+  }
+
+  @Test
+  fun trackEndReservationFailMetricWhenErrorEndingReservation() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun endReservation(withGracePeriod: Boolean) = throw Exception()
+      }
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+
+    try {
+      handle.deactivationAction.deactivate()
+    } catch (ignore: Exception) {
+      // This is an expected exception.
+    }
+
+    val studioEvent = findUsageEvent(END_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(END_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val endReservationDetails = directAccessEvent.endReservationDetails
+    assertThat(endReservationDetails.success).isFalse()
+    assertThat(endReservationDetails.userEnded).isTrue()
+    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
   }
 
   private suspend fun Notification.assertNotification(

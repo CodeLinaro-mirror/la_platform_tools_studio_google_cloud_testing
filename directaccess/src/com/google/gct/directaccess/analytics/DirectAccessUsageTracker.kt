@@ -22,7 +22,11 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DeviceInfo as MetricsDeviceInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.END_RESERVATION
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration
+import java.time.Duration
 
 object DirectAccessUsageTracker {
   fun trackReserveDevice(
@@ -67,6 +71,58 @@ object DirectAccessUsageTracker {
             .build()
       }
 
+    track(deviceInfo, event)
+  }
+
+  fun trackEndReservation(
+    wasSuccessful: Boolean,
+    wasUserEnded: Boolean,
+    reservationTimeSec: Long,
+    avgLatencyMs: Int,
+    deviceSession: String?,
+    deviceInfo: MetricsDeviceInfo,
+    failReason: DirectAccessUsageEvent.FailureReason? = null
+  ) {
+    val event =
+      createDirectAccessUsageEvent(deviceSession, failReason) {
+        type = END_RESERVATION
+        endReservationDetails =
+          endReservationDetailsBuilder
+            .apply {
+              success = wasSuccessful
+              userEnded = wasUserEnded
+              totalReservationTimeSec = reservationTimeSec.toInt()
+              averageConnectionLatencyMs = avgLatencyMs
+            }
+            .build()
+      }
+    track(deviceInfo, event)
+  }
+
+  fun trackExtendReservation(
+    wasSuccessful: Boolean,
+    extendDuration: Duration,
+    deviceSession: String?,
+    deviceInfo: MetricsDeviceInfo,
+    failReason: DirectAccessUsageEvent.FailureReason? = null
+  ) {
+    val event =
+      createDirectAccessUsageEvent(deviceSession, failReason) {
+        type = EXTEND_RESERVATION
+        extendReservationDetails =
+          extendReservationDetailsBuilder
+            .apply {
+              success = wasSuccessful
+              extendReservationDuration =
+                if (extendDuration.toMinutes() == 30L) {
+                  ExtendReservationDuration.THIRTY_MINUTES
+                } else {
+                  ExtendReservationDuration.SIXTY_MINUTES
+                }
+              failReason?.let { failureReason = it }
+            }
+            .build()
+      }
     track(deviceInfo, event)
   }
 
