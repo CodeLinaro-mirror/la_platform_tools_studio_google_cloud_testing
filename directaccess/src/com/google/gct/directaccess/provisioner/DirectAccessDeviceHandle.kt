@@ -234,6 +234,10 @@ class DirectAccessDeviceHandle(
       override suspend fun deactivate() =
         withContext(scope.coroutineContext + NonCancellable) {
           hasUserEndedReservation = true
+          val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
+          // Check here if notification is needed. endReservation might change the sessionState
+          val shouldShowNotification =
+            reservationFlow.value.sessionState == Reservation.SessionState.ACTIVE
           try {
             connection.endReservation(withGracePeriod = true)
           } catch (e: Exception) {
@@ -248,40 +252,47 @@ class DirectAccessDeviceHandle(
               is DeviceState.Connected -> it
             }
           }
-          val reservationExpireTime =
-            reservationManager.fetchReservationFlow(reservationName).value.expireTime.seconds
-          val timeRemaining =
-            Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)
-          val message =
-            when {
-              timeRemaining <= 0 -> return@withContext
-              timeRemaining <= 60 -> getNotificationMessage("less than 1 minute")
-              timeRemaining in 60..90 -> getNotificationMessage("1 minute")
-              else -> getNotificationMessage("${timeRemaining.div(60F).roundToInt()} minutes")
+          if (shouldShowNotification) {
+            getNotificationPhrase(reservationFlow.value.expireTime.seconds)?.let {
+              showNotification(getNotificationMessage(it))
             }
-          notificationGroup
-            .createNotification("Firebase device stopped", message, NotificationType.INFORMATION)
-            .addAction(
-              NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
-                scope.launch { activationAction.activate() }
-              }
-            )
-            .addAction(
-              NotificationAction.createExpiring("Force check-in device") { _, _ ->
-                scope.launch {
-                  withContext(NonCancellable) {
-                    try {
-                      reservationAction.endReservation()
-                    } catch (e: Exception) {
-                      trackEndReservation(false)
-                      throw DeviceActionException("Could not end reservation", e)
-                    }
+          }
+        }
+
+      private fun getNotificationPhrase(reservationExpireTime: Long): String? {
+        val timeRemaining =
+          Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)
+        return when {
+          timeRemaining <= 0 -> null
+          timeRemaining < 60 -> "less than 1 minute"
+          timeRemaining < 120 -> "up to 2 minutes"
+          else -> "up to ${timeRemaining.div(60F).roundToInt()} minutes"
+        }
+      }
+
+      private fun showNotification(message: String) =
+        notificationGroup
+          .createNotification("Firebase device stopped", message, NotificationType.INFORMATION)
+          .addAction(
+            NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
+              scope.launch { activationAction.activate() }
+            }
+          )
+          .addAction(
+            NotificationAction.createExpiring("Force check-in device") { _, _ ->
+              scope.launch {
+                withContext(NonCancellable) {
+                  try {
+                    reservationAction.endReservation()
+                  } catch (e: Exception) {
+                    trackEndReservation(false)
+                    throw DeviceActionException("Could not end reservation", e)
                   }
                 }
               }
-            )
-            .notify(project)
-        }
+            }
+          )
+          .notify(project)
 
       private val defaultPresentation =
         DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, true)
@@ -289,7 +300,7 @@ class DirectAccessDeviceHandle(
       override val presentation = MutableStateFlow(defaultPresentation).asStateFlow()
 
       private fun getNotificationMessage(phrase: String) =
-        "You can reconnect to the same device for up to $phrase before the device is wiped"
+        "You can reconnect to the same device for $phrase before the device is wiped"
     }
 
   override val reservationAction: ReservationAction =

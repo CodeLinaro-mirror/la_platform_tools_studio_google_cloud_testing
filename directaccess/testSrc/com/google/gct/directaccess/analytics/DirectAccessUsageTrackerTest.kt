@@ -338,6 +338,7 @@ class DirectAccessUsageTrackerTest {
 
       // Activate device
       val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
       CoroutineTestUtils.yieldUntil {
         template.activeDevice?.connection?.state?.value?.connection ==
           DirectAccessConnection.ConnectionState.CONNECTED
@@ -378,6 +379,7 @@ class DirectAccessUsageTrackerTest {
 
       // Activate device
       val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
       CoroutineTestUtils.yieldUntil {
         template.activeDevice?.connection?.state?.value?.connection ==
           DirectAccessConnection.ConnectionState.CONNECTED

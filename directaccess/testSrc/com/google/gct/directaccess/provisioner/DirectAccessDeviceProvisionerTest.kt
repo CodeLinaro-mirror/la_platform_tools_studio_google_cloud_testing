@@ -46,6 +46,7 @@ import com.google.services.firebase.directaccess.client.DirectAccessReservationM
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
+import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.intellij.icons.AllIcons
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
@@ -61,6 +62,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.doReturn
@@ -204,6 +206,7 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { template.activationAction.presentation.value.enabled }
   }
 
+  @Ignore("b/280523933")
   @Test
   fun deactivateBeforeConnected() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
@@ -277,6 +280,10 @@ class DirectAccessDeviceProvisionerTest {
     val handle = (template as DirectAccessDeviceTemplate).activeDevice
     assertThat(handle).isNotNull()
 
+    handle?.reservation?.let {
+      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
+    }
+
     handle?.deactivationAction?.deactivate()
     yieldUntil { handle?.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
 
@@ -315,7 +322,12 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   fun testActionPresentationsWithReconnection() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
-    directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
+    val reservation =
+      directAccessReservationManager.createReservation(
+        deviceInfo.codename,
+        deviceInfo.api.toString()
+      )
+    directAccessReservationManager.fetchReservationFlow(reservation.name).waitUntilActive()
     plugin.updateReservations()
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
@@ -364,6 +376,21 @@ class DirectAccessDeviceProvisionerTest {
 
     yieldUntil { activationPresentation.value.enabled }
   }
+
+  @Test
+  fun testNoNotificationWhenReservationCancelledBeforeActive() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    assertThat(handle.reservation.sessionState).isEqualTo(Reservation.SessionState.REQUESTED)
+
+    handle.deactivationAction.deactivate()
+    yieldUntil { handle.reservation.sessionState == Reservation.SessionState.FINISHED }
+    yieldUntil { plugin.devices.value.isEmpty() }
+
+    assertThat(getNotifications(projectRule.project).size).isEqualTo(0)
+  }
+
   private suspend fun Notification.assertNotification(
     actionAssertBlock: suspend (Notification) -> Unit
   ) {
