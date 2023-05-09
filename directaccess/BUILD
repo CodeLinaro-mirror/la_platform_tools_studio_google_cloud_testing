@@ -43,5 +43,6 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
         "//tools/analytics-library/testing:android.sdktools.analytics-testing[module, test]",
         "//tools/adt/idea/.idea/libraries:google-api-client",
+        "//tools/vendor/google/firebase[module]",
     ],
 )

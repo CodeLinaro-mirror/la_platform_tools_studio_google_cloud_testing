@@ -23,6 +23,7 @@
 
   <depends>org.jetbrains.android</depends>
   <depends>com.google.gct.testing</depends>
+  <depends>com.google.services.firebase</depends>
 
   <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Build+Number+Ranges for description -->
   <idea-version since-build="107.107"/>
@@ -34,4 +35,10 @@
   <extensions defaultExtensionNs="com.intellij">
     <notificationGroup id="Direct Access" displayType="BALLOON"/>
   </extensions>
+
+  <actions>
+    <action id="SelectProjectAction" class="com.google.gct.directaccess.ui.actions.SelectProjectAction">
+      <add-to-group group-id="Android.DeviceManager.TypeSpecificActions"/>
+    </action>
+  </actions>
 </idea-plugin>

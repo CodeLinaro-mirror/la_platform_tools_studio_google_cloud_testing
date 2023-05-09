@@ -24,6 +24,7 @@ import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
@@ -31,8 +32,16 @@ import kotlinx.coroutines.CoroutineScope
 
 @Service
 class DirectAccessService(val project: Project) : Disposable {
-  val gcpProject: String
-    get() = StudioFlags.DIRECT_ACCESS_PROJECT.get()
+  val gcpProjectListeners = mutableListOf<() -> Unit>()
+
+  var gcpProject: String?
+    get() = PropertiesComponent.getInstance(project).getValue("direct.access.project")
+    set(value) {
+      PropertiesComponent.getInstance(project).setValue("direct.access.project", value)
+      reservationManager = null
+      connectionManager = null
+      gcpProjectListeners.forEach { it() }
+    }
 
   private val channel =
     NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
@@ -42,15 +51,17 @@ class DirectAccessService(val project: Project) : Disposable {
   var reservationManager: DirectAccessReservationManager? = null
     get() {
       return field
-        ?: DirectAccessReservationManager(gcpProject, AndroidCoroutineScope(this), channel) {
-            GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
-          }
-          .also {
-            field = it
-            GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->
-              if (!loggedIn) field = null
+        ?: gcpProject?.let { project ->
+          DirectAccessReservationManager(project, AndroidCoroutineScope(this), channel) {
+              GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
             }
-          }
+            .also {
+              field = it
+              GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->
+                if (!loggedIn) field = null
+              }
+            }
+        }
     }
     private set
 

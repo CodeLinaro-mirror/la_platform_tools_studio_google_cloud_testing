@@ -62,6 +62,13 @@ class DirectAccessDeviceProvisionerPlugin(
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
   init {
+    project.service<DirectAccessService>().gcpProjectListeners.add {
+      scope.launch {
+        updateTemplates(this)
+        updateReservations()
+      }
+    }
+
     // This scope will not be cancelled on login changes. Only the inner child scope will be
     // cancelled.
     scope.launch {

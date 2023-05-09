@@ -40,5 +40,6 @@
     <orderEntry type="library" name="studio-analytics-proto" level="project" />
     <orderEntry type="module" module-name="android.sdktools.analytics-testing" scope="TEST" />
     <orderEntry type="library" name="google-api-client" level="project" />
+    <orderEntry type="module" module-name="firebase" />
   </component>
 </module>
