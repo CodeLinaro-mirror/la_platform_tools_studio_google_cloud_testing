@@ -15,16 +15,10 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
 import com.google.gct.directaccess.provisioner.DeviceInfo
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
-import com.google.services.firebase.directaccess.client.DirectAccessConnection
-import com.intellij.notification.Notification
-import com.intellij.notification.NotificationsManager
-import com.intellij.openapi.project.Project
 
 object TestUtils {
   val deviceInfoListProvider = {
@@ -70,13 +64,4 @@ object TestUtils {
 
   val androidDeviceCatalog =
     AndroidDeviceCatalog().apply { models = listOf(phone, wearable, tablet) }
-
-  val DirectAccessDeviceHandle.connectionState: DirectAccessConnection.ConnectionState
-    get() = connection.state.value.connection
-  val DirectAccessDeviceHandle.reservation: Reservation
-    get() = connection.state.value.reservation
-
-  fun getNotifications(project: Project): Array<Notification> =
-    NotificationsManager.getNotificationsManager()
-      .getNotificationsOfType(Notification::class.java, project)
 }
