@@ -290,7 +290,7 @@ class DirectAccessDeviceProvisionerTest {
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
 
-    firstNotificationsList[0].assertNotification {
+    firstNotificationsList[0].assertNotification(template.properties.title) {
       val reconnectAction = it.actions[0] as NotificationAction
       reconnectAction.actionPerformed(mock(), it)
       yieldUntil { handle?.connectionState != DirectAccessConnection.ConnectionState.DISCONNECTED }
@@ -309,7 +309,7 @@ class DirectAccessDeviceProvisionerTest {
     val secondNotificationsList = getNotifications(projectRule.project)
     assertThat(secondNotificationsList.size).isEqualTo(1)
 
-    secondNotificationsList[0].assertNotification {
+    secondNotificationsList[0].assertNotification(template.properties.title) {
       val forceCheckInAction = it.actions[1] as NotificationAction
       forceCheckInAction.actionPerformed(mock(), it)
       yieldUntil { handle?.reservation?.sessionState != Reservation.SessionState.ACTIVE }
@@ -392,14 +392,15 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   private suspend fun Notification.assertNotification(
+    deviceName: String,
     actionAssertBlock: suspend (Notification) -> Unit
   ) {
     assertThat(groupId).isEqualTo("Direct Access")
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
-    assertThat(title).isEqualTo("Firebase device stopped")
+    assertThat(title).isEqualTo("$deviceName on Firebase stopped")
     assertThat(content)
       .isEqualTo(
-        "You can reconnect to the same device for up to 5 minutes before the device is wiped"
+        "You can reconnect to the same $deviceName for up to 5 minutes before the device is wiped"
       )
     assertThat(actions.size).isEqualTo(2)
     assertThat(isExpired).isFalse()

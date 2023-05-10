@@ -254,7 +254,7 @@ class DirectAccessDeviceHandle(
           }
           if (shouldShowNotification) {
             getNotificationPhrase(reservationFlow.value.expireTime.seconds)?.let {
-              showNotification(getNotificationMessage(it))
+              showNotification(sourceTemplate.properties.title, it)
             }
           }
         }
@@ -270,9 +270,13 @@ class DirectAccessDeviceHandle(
         }
       }
 
-      private fun showNotification(message: String) =
+      private fun showNotification(deviceName: String, phrase: String) =
         notificationGroup
-          .createNotification("Firebase device stopped", message, NotificationType.INFORMATION)
+          .createNotification(
+            "$deviceName on Firebase stopped",
+            getNotificationMessage(deviceName, phrase),
+            NotificationType.INFORMATION
+          )
           .addAction(
             NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
               scope.launch { activationAction.activate() }
@@ -299,8 +303,8 @@ class DirectAccessDeviceHandle(
 
       override val presentation = MutableStateFlow(defaultPresentation).asStateFlow()
 
-      private fun getNotificationMessage(phrase: String) =
-        "You can reconnect to the same device for $phrase before the device is wiped"
+      private fun getNotificationMessage(deviceName: String, phrase: String) =
+        "You can reconnect to the same $deviceName for $phrase before the device is wiped"
     }
 
   override val reservationAction: ReservationAction =
