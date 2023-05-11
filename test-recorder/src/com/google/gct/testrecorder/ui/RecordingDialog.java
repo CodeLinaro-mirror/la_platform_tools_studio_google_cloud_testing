@@ -488,11 +488,11 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   private static String getLatestDependencyVersion(GoogleMavenArtifactId artifactId, String fallbackVersion) {
-    String latestDependencyCoordinate = RepositoryUrlManager.get().getArtifactStringCoordinate(artifactId, true);
-    if (latestDependencyCoordinate != null) {
-      GradleCoordinate gradleCoordinate = GradleCoordinate.parseCoordinateString(latestDependencyCoordinate);
-      if (gradleCoordinate != null) {
-        return gradleCoordinate.getRevision();
+    String latestIdentifier = RepositoryUrlManager.get().getArtifactComponentIdentifier(artifactId, true);
+    if (latestIdentifier != null) {
+      com.android.ide.common.gradle.Component component = com.android.ide.common.gradle.Component.Companion.tryParse(latestIdentifier);
+      if (component != null) {
+        return component.getVersion().toString();
       }
     }
 
