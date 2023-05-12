@@ -361,6 +361,7 @@ class DirectAccessDeviceHandle(
       DirectAccessDeviceProperties.build {
         resolution = Resolution.readFromDevice(device)
         readCommonProperties(properties)
+        icon = StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
       }
 
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
@@ -436,6 +437,13 @@ fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
       }
     resolution = Resolution(info.screenX, info.screenY)
     density = info.screenDensity
+    icon =
+      when (type) {
+        DeviceType.WEAR_OS -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
+        DeviceType.TV -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
+        DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
+        else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
+      }
   }
 }
 

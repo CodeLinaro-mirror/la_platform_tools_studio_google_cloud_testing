@@ -28,6 +28,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
+import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -109,7 +110,7 @@ class DirectAccessDeviceProvisionerTest {
         projectRule.project,
         deviceInfoListProvider
       )
-    provisioner = DeviceProvisioner.create(session, listOf(plugin))
+    provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
 
@@ -158,6 +159,8 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
     assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
+    assertThat(provisioner.templates.value[0].properties.icon)
+      .isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
     assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
     assertThat(provisioner.templates.value[1].properties.density).isEqualTo(400)
@@ -219,6 +222,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(state.value).isInstanceOf(Connected::class.java)
     assertThat(state.value.reservation!!.stateMessage).isEmpty()
     state.value.properties.also {
+      assertThat(it.icon).isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
       assertThat(it.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
       assertThat(it.model).isEqualTo(deviceInfo.name + suffix)
       assertThat(it.manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
