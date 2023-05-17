@@ -167,14 +167,13 @@ class DirectAccessDeviceTemplate(
       )
     }
 
-    val deviceProperties = deviceInfo.toDeviceProperties()
     val deviceScope = scope.createChildScope(isSupervisor = true)
     // Notify provisioner plugin of the new device.
     return DirectAccessDeviceHandle(
         project,
         deviceScope,
         this@DirectAccessDeviceTemplate,
-        DeviceState.Disconnected(deviceProperties),
+        DeviceState.Disconnected(properties),
         reservationResult.first
       )
       .also { activeDevice = it }

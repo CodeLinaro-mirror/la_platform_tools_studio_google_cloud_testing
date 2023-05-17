@@ -65,7 +65,10 @@ object CatalogClient {
               model.manufacturer,
               model.codename,
               it.toInt(),
-              type
+              type,
+              model.screenX,
+              model.screenY,
+              model.screenDensity
             )
           }
           ?: listOf()

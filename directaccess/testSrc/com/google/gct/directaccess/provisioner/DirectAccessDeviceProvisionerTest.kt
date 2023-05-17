@@ -27,6 +27,7 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.ReservationState
+import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -133,8 +134,14 @@ class DirectAccessDeviceProvisionerTest {
 
     // Assert
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
+    assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
+    assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
+    assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
+    assertThat(provisioner.templates.value[1].properties.density).isEqualTo(400)
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
+    assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
+    assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
 
     // Log out
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
