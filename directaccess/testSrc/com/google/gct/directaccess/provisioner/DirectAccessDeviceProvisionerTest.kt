@@ -32,7 +32,7 @@ import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adbbridge.Reservation
-import com.android.tools.idea.testing.testRootDisposable
+import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
@@ -57,7 +57,6 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
-import java.lang.RuntimeException
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -91,7 +90,7 @@ class DirectAccessDeviceProvisionerTest {
     mockGoogleLogin = mock()
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     ApplicationManager.getApplication()
-      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.testRootDisposable)
+      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
 
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
@@ -133,7 +132,7 @@ class DirectAccessDeviceProvisionerTest {
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
-      projectRule.testRootDisposable
+      projectRule.disposable
     )
   }
 
