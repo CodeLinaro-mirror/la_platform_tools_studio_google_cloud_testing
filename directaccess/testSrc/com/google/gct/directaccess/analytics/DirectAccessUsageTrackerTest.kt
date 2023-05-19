@@ -24,6 +24,7 @@ import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.VirtualTimeScheduler
+import com.android.tools.adbbridge.Reservation
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.disposable
@@ -32,7 +33,6 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
-import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
@@ -51,10 +51,12 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccess
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.END_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType.ERROR
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType.EXPIRE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType.FORCE_CHECK_IN
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.SIXTY_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.THIRTY_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
-import com.intellij.notification.NotificationAction
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
@@ -64,6 +66,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import org.junit.After
 import org.junit.Before
 import org.junit.Ignore
@@ -317,18 +320,12 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
     yieldUntil {
       template.activeDevice?.connection?.state?.value?.connection ==
         DirectAccessConnection.ConnectionState.CONNECTED
     }
-    handle.deactivationAction.deactivate()
+    handle.reservationAction.endReservation()
     yieldUntil { handle.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
-
-    val notifications = getNotifications(projectRule.project)
-    assertThat(notifications.size).isEqualTo(1)
-
-    (notifications[0].actions[1] as NotificationAction).actionPerformed(mock(), notifications[0])
 
     val studioEvent = findUsageEvent(END_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -339,8 +336,8 @@ class DirectAccessUsageTrackerTest {
 
     val endReservationDetails = directAccessEvent.endReservationDetails
     assertThat(endReservationDetails.success).isTrue()
-    assertThat(endReservationDetails.userEnded).isTrue()
     assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.endReservationType).isEqualTo(FORCE_CHECK_IN)
   }
 
   @Test
@@ -349,12 +346,10 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
     yieldUntil {
       template.activeDevice?.connection?.state?.value?.connection ==
         DirectAccessConnection.ConnectionState.CONNECTED
     }
-    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
     // Cancel reservation to simulate reservation expiry
     directAccessReservationManager.cancelReservation(handle.reservation.name)
     yieldUntil {
@@ -374,8 +369,38 @@ class DirectAccessUsageTrackerTest {
 
     val endReservationDetails = directAccessEvent.endReservationDetails
     assertThat(endReservationDetails.success).isTrue()
-    assertThat(endReservationDetails.userEnded).isFalse()
     assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.endReservationType).isEqualTo(EXPIRE)
+  }
+
+  @Test
+  fun trackEndReservationFailMetricWhenReservationEndsDueToError() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+    val reservationFlow =
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    (reservationFlow as MutableStateFlow).update {
+      it.toBuilder().apply { sessionState = Reservation.SessionState.ERROR }.build()
+    }
+
+    val studioEvent = findUsageEvent(END_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(END_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason).isEqualTo(UNKNOWN_FAILURE)
+
+    val endReservationDetails = directAccessEvent.endReservationDetails
+    assertThat(endReservationDetails.success).isFalse()
+    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.endReservationType).isEqualTo(ERROR)
   }
 
   @Ignore
@@ -399,7 +424,7 @@ class DirectAccessUsageTrackerTest {
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
     try {
-      handle.deactivationAction.deactivate()
+      handle.reservationAction.endReservation()
     } catch (ignore: Exception) {
       // This is an expected exception.
     }
@@ -410,10 +435,10 @@ class DirectAccessUsageTrackerTest {
     val directAccessEvent = studioEvent.directAccessUsageEvent
     assertThat(directAccessEvent.type).isEqualTo(END_RESERVATION)
     assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason).isEqualTo(UNKNOWN_FAILURE)
 
     val endReservationDetails = directAccessEvent.endReservationDetails
     assertThat(endReservationDetails.success).isFalse()
-    assertThat(endReservationDetails.userEnded).isTrue()
     assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
   }
 

@@ -25,6 +25,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccess
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.END_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration
 import java.time.Duration
 
@@ -76,12 +77,12 @@ object DirectAccessUsageTracker {
 
   fun trackEndReservation(
     wasSuccessful: Boolean,
-    wasUserEnded: Boolean,
+    endType: EndReservationType,
     reservationTimeSec: Long,
     avgLatencyMs: Int,
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
-    failReason: DirectAccessUsageEvent.FailureReason? = null
+    failReason: DirectAccessUsageEvent.FailureReason?
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -90,7 +91,7 @@ object DirectAccessUsageTracker {
           endReservationDetailsBuilder
             .apply {
               success = wasSuccessful
-              userEnded = wasUserEnded
+              endReservationType = endType
               totalReservationTimeSec = reservationTimeSec.toInt()
               averageConnectionLatencyMs = avgLatencyMs
             }
