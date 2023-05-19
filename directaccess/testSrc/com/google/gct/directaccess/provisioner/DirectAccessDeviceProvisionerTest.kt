@@ -32,7 +32,7 @@ import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adbbridge.Reservation
-import com.android.tools.idea.testing.AndroidProjectRule
+import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
@@ -52,9 +52,11 @@ import com.intellij.icons.AllIcons
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.testFramework.ProjectRule
+import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
-import java.lang.RuntimeException
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -71,7 +73,7 @@ import org.mockito.Mockito.doReturn
 class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
-  @get:Rule val projectRule = AndroidProjectRule.inMemory()
+  @get:Rule val projectRule = ProjectRule()
   @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
 
   private val session = FakeAdbSession()
@@ -85,8 +87,11 @@ class DirectAccessDeviceProvisionerTest {
 
   @Before
   fun setUp() = runBlockingWithTimeout {
-    mockGoogleLogin = projectRule.mockService(GoogleLogin::class.java)
+    mockGoogleLogin = mock()
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
+    ApplicationManager.getApplication()
+      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
+
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     isOAuthTokenAvailable = true
@@ -117,13 +122,18 @@ class DirectAccessDeviceProvisionerTest {
   private fun setupConnection(
     createConnection: (String, CoroutineScope) -> FakeDirectAccessConnection
   ) {
-    val mockDirectAccessService = projectRule.mockProjectService(DirectAccessService::class.java)
+    val mockDirectAccessService = mock<DirectAccessService>()
     whenever(mockDirectAccessService.reservationManager).thenReturn(directAccessReservationManager)
     whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
       val reservationName = it.arguments[0] as String
       val deviceScope = it.arguments[1] as CoroutineScope
       createConnection(reservationName, deviceScope).also { conn -> fakeConnection = conn }
     }
+    projectRule.project.replaceService(
+      DirectAccessService::class.java,
+      mockDirectAccessService,
+      projectRule.disposable
+    )
   }
 
   @Test
