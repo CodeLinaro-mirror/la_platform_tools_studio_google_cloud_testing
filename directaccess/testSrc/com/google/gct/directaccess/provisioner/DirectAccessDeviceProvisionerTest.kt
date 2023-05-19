@@ -27,6 +27,7 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.ReservationState
+import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -133,8 +134,14 @@ class DirectAccessDeviceProvisionerTest {
 
     // Assert
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
+    assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
+    assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
+    assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
+    assertThat(provisioner.templates.value[1].properties.density).isEqualTo(400)
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
+    assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
+    assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
 
     // Log out
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
@@ -290,7 +297,7 @@ class DirectAccessDeviceProvisionerTest {
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
 
-    firstNotificationsList[0].assertNotification {
+    firstNotificationsList[0].assertNotification(template.properties.title) {
       val reconnectAction = it.actions[0] as NotificationAction
       reconnectAction.actionPerformed(mock(), it)
       yieldUntil { handle?.connectionState != DirectAccessConnection.ConnectionState.DISCONNECTED }
@@ -309,7 +316,7 @@ class DirectAccessDeviceProvisionerTest {
     val secondNotificationsList = getNotifications(projectRule.project)
     assertThat(secondNotificationsList.size).isEqualTo(1)
 
-    secondNotificationsList[0].assertNotification {
+    secondNotificationsList[0].assertNotification(template.properties.title) {
       val forceCheckInAction = it.actions[1] as NotificationAction
       forceCheckInAction.actionPerformed(mock(), it)
       yieldUntil { handle?.reservation?.sessionState != Reservation.SessionState.ACTIVE }
@@ -392,14 +399,15 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   private suspend fun Notification.assertNotification(
+    deviceName: String,
     actionAssertBlock: suspend (Notification) -> Unit
   ) {
     assertThat(groupId).isEqualTo("Direct Access")
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
-    assertThat(title).isEqualTo("Firebase device stopped")
+    assertThat(title).isEqualTo("$deviceName on Firebase stopped")
     assertThat(content)
       .isEqualTo(
-        "You can reconnect to the same device for up to 5 minutes before the device is wiped"
+        "You can reconnect to the same $deviceName for up to 5 minutes before the device is wiped"
       )
     assertThat(actions.size).isEqualTo(2)
     assertThat(isExpired).isFalse()

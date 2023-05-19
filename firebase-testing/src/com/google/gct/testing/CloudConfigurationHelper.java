@@ -24,8 +24,8 @@ import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.api.client.util.Maps;
-import com.google.api.services.cloudresourcemanager.CloudResourceManager;
-import com.google.api.services.cloudresourcemanager.model.ListProjectsResponse;
+import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
+import com.google.api.services.cloudresourcemanager.v3.model.SearchProjectsResponse;
 import com.google.api.services.testing.model.TestMatrix;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -107,12 +107,12 @@ public final class CloudConfigurationHelper {
     List<String> cloudProjects = Lists.newArrayList();
 
     try {
-      ListProjectsResponse response = listProjects(null);
+      SearchProjectsResponse response = listProjects(null);
       while (response != null && response.getProjects() != null) {
-        for (com.google.api.services.cloudresourcemanager.model.Project pantheonProject : response.getProjects()) {
+        for (com.google.api.services.cloudresourcemanager.v3.model.Project pantheonProject : response.getProjects()) {
           if (!Strings.isNullOrEmpty(pantheonProject.getProjectId())
               // Ignore any projects scheduled for deletion.
-              && !"DELETE_REQUESTED".equals(pantheonProject.getLifecycleState())) {
+              && Strings.isNullOrEmpty(pantheonProject.getDeleteTime())) {
             cloudProjects.add(pantheonProject.getProjectId());
           }
         }
@@ -130,9 +130,9 @@ public final class CloudConfigurationHelper {
     return cloudProjects;
   }
 
-  private static ListProjectsResponse listProjects(String pageToken) throws IOException {
-    CloudResourceManager.Projects.List listProjects =
-      CloudAuthenticator.getInstance().getCloudResourceManager().projects().list().setPageSize(1000);
+  private static SearchProjectsResponse listProjects(String pageToken) throws IOException {
+    CloudResourceManager.Projects.Search listProjects =
+      CloudAuthenticator.getInstance().getCloudResourceManager().projects().search().setPageSize(1000);
     if (pageToken != null) {
       listProjects.setPageToken(pageToken);
     }

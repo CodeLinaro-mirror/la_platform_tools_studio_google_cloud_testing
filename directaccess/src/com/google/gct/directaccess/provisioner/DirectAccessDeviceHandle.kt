@@ -27,6 +27,7 @@ import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.ReservationAction
 import com.android.sdklib.deviceprovisioner.ReservationState
+import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
 import com.android.tools.adbbridge.Reservation
@@ -254,7 +255,7 @@ class DirectAccessDeviceHandle(
           }
           if (shouldShowNotification) {
             getNotificationPhrase(reservationFlow.value.expireTime.seconds)?.let {
-              showNotification(getNotificationMessage(it))
+              showNotification(sourceTemplate.properties.title, it)
             }
           }
         }
@@ -270,9 +271,13 @@ class DirectAccessDeviceHandle(
         }
       }
 
-      private fun showNotification(message: String) =
+      private fun showNotification(deviceName: String, phrase: String) =
         notificationGroup
-          .createNotification("Firebase device stopped", message, NotificationType.INFORMATION)
+          .createNotification(
+            "$deviceName on Firebase stopped",
+            getNotificationMessage(deviceName, phrase),
+            NotificationType.INFORMATION
+          )
           .addAction(
             NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
               scope.launch { activationAction.activate() }
@@ -299,8 +304,8 @@ class DirectAccessDeviceHandle(
 
       override val presentation = MutableStateFlow(defaultPresentation).asStateFlow()
 
-      private fun getNotificationMessage(phrase: String) =
-        "You can reconnect to the same device for $phrase before the device is wiped"
+      private fun getNotificationMessage(deviceName: String, phrase: String) =
+        "You can reconnect to the same $deviceName for $phrase before the device is wiped"
     }
 
   override val reservationAction: ReservationAction =
@@ -418,6 +423,8 @@ fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
         DeviceType.WEAR_OS -> com.android.sdklib.deviceprovisioner.DeviceType.WEAR
         DeviceType.AUTOMOTIVE -> com.android.sdklib.deviceprovisioner.DeviceType.AUTOMOTIVE
       }
+    resolution = Resolution(info.screenX, info.screenY)
+    density = info.screenDensity
   }
 }
 

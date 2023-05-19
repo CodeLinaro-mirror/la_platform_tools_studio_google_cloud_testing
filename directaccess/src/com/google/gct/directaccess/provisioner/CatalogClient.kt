@@ -16,34 +16,39 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.tools.idea.devicemanager.DeviceType
-import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
+import com.intellij.openapi.application.ApplicationInfo
+import com.intellij.openapi.util.BuildNumber
 
 object CatalogClient {
 
-  /**
-   * Returns available devices to be access directly.
-   *
-   * TODO: apply real filters when available
-   */
-  fun getAvailableDevices(endpoint: String): List<DeviceInfo> {
+  /** Returns available devices to be accessed directly. */
+  fun getAvailableDevices(endpoint: String, cloudProject: String?): List<DeviceInfo> {
     if (!GoogleLogin.instance.isLoggedIn) {
       throw NotLoggedInException()
     }
-    val catalog = CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint)
 
-    val eapFilter =
-      StudioFlags.DIRECT_ACCESS_DEVICE_FILTER.get()
-        .split(",")
-        .filterNot { it.isEmpty() }
-        .groupBy({ it.substringBefore("/") }) { it.substringAfter("/") }
+    val catalog =
+      CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint, cloudProject)
 
     return catalog.models
       .filter { it.form == "PHYSICAL" }
       .flatMap { model ->
         model.supportedVersionIds
-          ?.filter { versionId -> versionId?.toIntOrNull()?.let { it >= 26 } == true }
+          ?.filter { versionId ->
+            versionId?.toIntOrNull()?.let { it >= 26 } == true &&
+              model.perVersionInfo?.any {
+                it.versionId == versionId &&
+                  it.directAccessVersionInfo?.directAccessSupported == true &&
+                  BuildNumber.fromString(it.directAccessVersionInfo.minimumAndroidStudioVersion)
+                    .let { catalogBuildNumber ->
+                      catalogBuildNumber == null ||
+                        catalogBuildNumber <= ApplicationInfo.getInstance().build
+                    }
+              }
+                ?: false
+          }
           ?.map {
             val type =
               when (model["formFactor"]) {
@@ -60,11 +65,11 @@ object CatalogClient {
               model.manufacturer,
               model.codename,
               it.toInt(),
-              type
+              type,
+              model.screenX,
+              model.screenY,
+              model.screenDensity
             )
-          }
-          ?.filter {
-            eapFilter.isEmpty() || eapFilter[it.codename]?.contains(it.api.toString()) == true
           }
           ?: listOf()
       }

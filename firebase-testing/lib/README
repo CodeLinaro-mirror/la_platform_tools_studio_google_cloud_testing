@@ -1,0 +1,10 @@
+google-api-services-testing-v1-revsnapshot-1.25.0.jar is a temporary
+custom-built version of com.google.apis:google-api-services-testing
+with some additional APIs enabled: direct_access_version_info and 
+direct_access_supported.
+After making those changes, the jar was built by changing the 
+"testing.v1_external_java" target to a java_apiary_library rule.
+
+google-api-services-testing-v1-revsnapshot-1.25.0.jar should be replaced
+by the maven version of com.google.apis:google-api-services-testing
+when direct_access_version_info is included there. (b/283120787).

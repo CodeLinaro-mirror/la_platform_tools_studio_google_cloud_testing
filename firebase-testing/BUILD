@@ -18,9 +18,11 @@ iml_module(
         "no_test_windows",
     ],
     visibility = ["//visibility:public"],
+    exports = ["//tools/studio/google/cloud/testing/firebase-testing:google_api_services_testing"],
     # do not sort: must match IML order
     deps = [
         "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "//tools/studio/google/cloud/testing/firebase-testing:google_api_services_testing",
         "//prebuilts/tools/common/m2:JSch",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
         "//tools/adt/idea/android-common:intellij.android.common[module]",
@@ -40,10 +42,20 @@ iml_module(
         "//tools/adt/idea/android-adb:intellij.android.adb[module]",
         "//tools/adt/idea/render-resources:intellij.android.render-resources[module]",
         "//tools/adt/idea/execution/common:intellij.android.execution.common[module]",
-        "//prebuilts/tools/common/m2:google-api-services-testing-v1-rev82-1.22.0",
-        "//prebuilts/tools/common/m2:google-api-services-toolresults-v1beta3-rev82-1.22.0",
-        "//prebuilts/tools/common/m2:google-api-services-storage-v1-rev82-1.22.0",
+        "//tools/adt/idea/.idea/libraries:google-api-client",
+        "//tools/adt/idea/.idea/libraries:cloudresourcemanager",
     ],
 )
 
 load("//tools/base/bazel:jvm_import.bzl", "jvm_import")
+
+# managed by go/iml_to_build
+jvm_import(
+    name = "google_api_services_testing",
+    # do not sort: must match IML order
+    jars = [
+        "//prebuilts/tools/common/m2:google_api_services_testing_files",
+        "lib/google-api-services-testing-v1-revsnapshot-1.25.0.jar",
+    ],
+    visibility = ["//visibility:public"],
+)

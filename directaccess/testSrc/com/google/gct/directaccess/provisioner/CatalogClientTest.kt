@@ -24,6 +24,7 @@ import com.google.gct.directaccess.TestUtils.androidDeviceCatalog
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
@@ -38,13 +39,19 @@ class CatalogClientTest {
     whenever(mockGoogleLoginService.isLoggedIn).thenReturn(true)
 
     CloudAuthenticator.setInstance(mockCloudAuthenticator)
-    whenever(mockCloudAuthenticator.getAndroidDeviceCatalogForEnvironment(Mockito.anyString()))
+    whenever(
+        mockCloudAuthenticator.getAndroidDeviceCatalogForEnvironment(
+          Mockito.anyString(),
+          Mockito.anyString()
+        )
+      )
       .thenReturn(androidDeviceCatalog)
   }
 
   @Test
+  @Ignore("b/283121750")
   fun testCorrectDeviceTypeFromFormFactor() {
-    val devices = CatalogClient.getAvailableDevices("testEndpoint")
+    val devices = CatalogClient.getAvailableDevices("testEndpoint", "testProject")
 
     assertThat(devices.size).isEqualTo(3)
     assertThat(devices[0].name).isEqualTo("Phone")

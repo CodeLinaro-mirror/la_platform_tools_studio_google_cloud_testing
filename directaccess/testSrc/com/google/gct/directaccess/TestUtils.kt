@@ -29,9 +29,19 @@ import com.intellij.openapi.project.Project
 object TestUtils {
   val deviceInfoListProvider = {
     listOf(
-      DeviceInfo("Google", "Pixel 5", "Google", "codename1", 31, DeviceType.PHONE),
-      DeviceInfo("Google", "Pixel 6", "Google", "codename2", 32, DeviceType.PHONE),
-      DeviceInfo("Google", "Pixel 6 Pro", "Google", "codename3", 33, DeviceType.PHONE)
+      DeviceInfo("Google", "Pixel 5", "Google", "codename1", 31, DeviceType.PHONE, 100, 200, 300),
+      DeviceInfo("Google", "Pixel 6", "Google", "codename2", 32, DeviceType.PHONE, 200, 300, 400),
+      DeviceInfo(
+        "Google",
+        "Pixel 6 Pro",
+        "Google",
+        "codename3",
+        33,
+        DeviceType.PHONE,
+        300,
+        400,
+        500
+      )
     )
   }
 
@@ -44,6 +54,9 @@ object TestUtils {
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
       set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
     }
 
   private val wearable =
@@ -55,6 +68,9 @@ object TestUtils {
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
       set("formFactor", "WEARABLE")
+      screenX = 10
+      screenY = 20
+      screenDensity = 30
     }
 
   private val tablet =
@@ -66,6 +82,9 @@ object TestUtils {
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
       set("formFactor", "TABLET")
+      screenX = 1000
+      screenY = 2000
+      screenDensity = 3000
     }
 
   val androidDeviceCatalog =
