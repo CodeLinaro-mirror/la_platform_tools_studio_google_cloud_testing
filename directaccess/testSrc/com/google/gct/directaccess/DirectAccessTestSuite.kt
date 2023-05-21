@@ -19,4 +19,6 @@ import com.android.testutils.JarTestSuiteRunner
 import com.android.tools.tests.IdeaTestSuiteBase
 import org.junit.runner.RunWith
 
-@RunWith(JarTestSuiteRunner::class) class DirectAccessTestSuite : IdeaTestSuiteBase()
+@RunWith(JarTestSuiteRunner::class)
+@JarTestSuiteRunner.ExcludeClasses(DirectAccessTestSuite::class) // a suite must not contain itself
+class DirectAccessTestSuite : IdeaTestSuiteBase()

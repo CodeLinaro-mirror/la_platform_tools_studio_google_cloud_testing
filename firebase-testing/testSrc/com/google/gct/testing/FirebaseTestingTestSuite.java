@@ -20,5 +20,6 @@ import com.android.tools.tests.IdeaTestSuiteBase;
 import org.junit.runner.RunWith;
 
 @RunWith(JarTestSuiteRunner.class)
+@JarTestSuiteRunner.ExcludeClasses(FirebaseTestingTestSuite.class) // A test suite should not contain itself.
 public class FirebaseTestingTestSuite extends IdeaTestSuiteBase {
 }
