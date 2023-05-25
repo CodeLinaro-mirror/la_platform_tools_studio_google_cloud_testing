@@ -21,7 +21,7 @@ import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
 import com.android.sdklib.AndroidVersion;
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.api.client.util.Maps;
 import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
@@ -394,8 +394,7 @@ public final class CloudConfigurationHelper {
             return;
           }
 
-          // TODO: Resolve direct AndroidGradleModel dep (b/22596984)
-          AndroidModuleModel androidModel = AndroidModuleModel.get(runningState.getFacet());
+          AndroidModel androidModel = AndroidModel.get(runningState.getFacet());
           Module module = runningState.getFacet().getModule();
           if (androidModel == null) {
             CloudTestingUtils.showErrorMessage(module.getProject(), "Error uploading APKs",

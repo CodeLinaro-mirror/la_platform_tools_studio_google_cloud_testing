@@ -16,21 +16,20 @@
 package com.google.gct.testrecorder.run;
 
 import com.android.ddmlib.IDevice;
+import com.android.tools.deployer.model.App;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProvider;
 import com.android.tools.idea.run.ApkProvisionException;
 import com.android.tools.idea.run.configuration.execution.ExecutionUtils;
-import com.android.tools.idea.run.tasks.AppLaunchTask;
-import com.android.tools.idea.run.tasks.LaunchContext;
-import com.android.tools.idea.run.tasks.LaunchTask;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.intellij.execution.ExecutionException;
+import com.intellij.execution.ui.ConsoleView;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.EmptyProgressIndicator;
 import org.jdom.Element;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration {
   private static final Logger LOGGER = Logger.getInstance(TestRecorderAndroidRunConfiguration.class);
@@ -43,7 +42,8 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
     try {
       baseConfiguration.writeExternal(element);
       this.readExternal(element);
-    } catch (Exception e) {
+    }
+    catch (Exception e) {
       LOGGER.error(e);
     }
 
@@ -51,61 +51,24 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
     this.setBeforeRunTasks(baseConfiguration.getBeforeRunTasks());
   }
 
-  @Nullable
   @Override
-  public AppLaunchTask getApplicationLaunchTask(@NotNull String packageName,
-                                                @NotNull AndroidFacet facet,
-                                                @NotNull String contributorsAmStartOptions,
-                                                boolean waitForDebugger,
-                                                @NotNull ApkProvider apkProvider,
-                                                @NotNull IDevice device) throws ExecutionException {
-    LaunchTask launchTask = super.getApplicationLaunchTask(packageName, facet, contributorsAmStartOptions,
-                                                           waitForDebugger, apkProvider, device);
-    return launchTask == null ? null : new TestRecorderLaunchTask(launchTask, facet);
-  }
-
-  private static class TestRecorderLaunchTask extends AppLaunchTask {
-    private static final String ID = "TEST_RECORDER";
-
-    private final LaunchTask myDefaultLaunchTask;
-    private final AndroidFacet myFacet;
-
-    TestRecorderLaunchTask(@NotNull LaunchTask defaultLaunchTask, AndroidFacet facet) {
-      myDefaultLaunchTask = defaultLaunchTask;
-      myFacet = facet;
-    }
-
-    @NotNull
-    @Override
-    public String getDescription() {
-      return myDefaultLaunchTask.getDescription();
-    }
-
-    @Override
-    public int getDuration() {
-      return myDefaultLaunchTask.getDuration();
-    }
-
-    @Override
-    public void run(@NotNull LaunchContext launchContext) throws ExecutionException {
-      if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
-        String command;
-        try {
-          command = "pm clear " + ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
-        }
-        catch (ApkProvisionException e) {
-          throw new ExecutionException(e);
-        }
-        ExecutionUtils.executeShellCommand(launchContext.getDevice(), command, launchContext.getConsoleView(),
-                                           launchContext.getProgressIndicator());
+  public void launch(@NotNull App app,
+                     @NotNull IDevice device,
+                     @NotNull AndroidFacet facet,
+                     @NotNull String contributorsAmStartOptions,
+                     boolean isDebug,
+                     @NotNull ApkProvider apkProvider,
+                     @NotNull ConsoleView consoleView) throws ExecutionException {
+    if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
+      String command;
+      try {
+        command = "pm clear " + ProjectSystemUtil.getModuleSystem(facet).getApplicationIdProvider().getPackageName();
       }
-      myDefaultLaunchTask.run(launchContext);
+      catch (ApkProvisionException e) {
+        throw new ExecutionException(e);
+      }
+      ExecutionUtils.executeShellCommand(device, command, consoleView, new EmptyProgressIndicator());
     }
-
-    @NotNull
-    @Override
-    public String getId() {
-      return ID;
-    }
+    super.launch(app, device, facet, contributorsAmStartOptions, isDebug, apkProvider, consoleView);
   }
 }

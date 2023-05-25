@@ -24,7 +24,6 @@ import org.junit.runner.RunWith;
 
 // This class is required to run the tests in bazel
 @RunWith(JarTestSuiteRunner.class)
-@JarTestSuiteRunner.ExcludeClasses(ETRTestSuite.class)
 public class ETRTestSuite extends IdeaTestSuiteBase {
   @ClassRule public static GradleDaemonsRule gradle = new GradleDaemonsRule();
 

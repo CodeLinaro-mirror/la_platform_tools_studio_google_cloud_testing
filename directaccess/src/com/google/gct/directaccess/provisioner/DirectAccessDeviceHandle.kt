@@ -40,6 +40,7 @@ import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationAction
@@ -94,8 +95,8 @@ class DirectAccessDeviceHandle(
 
   /** Tracks reconnect to device */
   private var hasConnectedToDeviceOnce = false
-  /** Tracks reservation ended by user */
-  private var hasUserEndedReservation = false
+  /** Tracks device force check in */
+  private var hasUserForceCheckedInDevice = false
 
   init {
     val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
@@ -108,11 +109,20 @@ class DirectAccessDeviceHandle(
         stateFlow.update { state -> state.withReservation(reservation) }
       }
     }
+
     scope
       .launch { reservationFlow.takeWhile { !it.sessionState.isClosed() }.collect() }
       .invokeOnCompletion { throwable ->
-        if ((throwable == null || throwable is CancellationException) && !hasUserEndedReservation) {
-          trackEndReservation(true)
+        // If user has force checked in device, it has already been tracked.
+        if (hasUserForceCheckedInDevice) {
+          return@invokeOnCompletion
+        }
+        if (throwable == null || throwable is CancellationException) {
+          if (reservationFlow.value.sessionState == Reservation.SessionState.FINISHED) {
+            trackEndReservation(true, EndReservationType.EXPIRE)
+          } else {
+            trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
+          }
         }
       }
   }
@@ -179,8 +189,6 @@ class DirectAccessDeviceHandle(
               .copy(isTransitioning = true)
               .withReservation(reservation)
           }
-          // Reservation end time restored after connecting to device again.
-          hasUserEndedReservation = false
         }
       }
 
@@ -234,17 +242,12 @@ class DirectAccessDeviceHandle(
     object : DeactivationAction {
       override suspend fun deactivate() =
         withContext(scope.coroutineContext + NonCancellable) {
-          hasUserEndedReservation = true
           val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
           // Check here if notification is needed. endReservation might change the sessionState
           val shouldShowNotification =
             reservationFlow.value.sessionState == Reservation.SessionState.ACTIVE
-          try {
-            connection.endReservation(withGracePeriod = true)
-          } catch (e: Exception) {
-            trackEndReservation(false)
-            throw e
-          }
+          // Reservation enters grace period. Don't track end reservation metric.
+          connection.endReservation(withGracePeriod = true)
           stateFlow.update {
             when (it) {
               // Reset isTransitioning to false if the connection is not established yet.
@@ -285,16 +288,7 @@ class DirectAccessDeviceHandle(
           )
           .addAction(
             NotificationAction.createExpiring("Force check-in device") { _, _ ->
-              scope.launch {
-                withContext(NonCancellable) {
-                  try {
-                    reservationAction.endReservation()
-                  } catch (e: Exception) {
-                    trackEndReservation(false)
-                    throw DeviceActionException("Could not end reservation", e)
-                  }
-                }
-              }
+              scope.launch { reservationAction.endReservation() }
             }
           )
           .notify(project)
@@ -342,9 +336,19 @@ class DirectAccessDeviceHandle(
       }
 
       override suspend fun endReservation() {
-        hasUserEndedReservation = true
-        connection.endReservation()
-        trackEndReservation(true)
+        hasUserForceCheckedInDevice = true
+        try {
+          connection.endReservation()
+        } catch (e: Exception) {
+          hasUserForceCheckedInDevice = false
+          trackEndReservation(
+            false,
+            EndReservationType.FORCE_CHECK_IN,
+            FailureReason.UNKNOWN_FAILURE
+          )
+          throw DeviceActionException("Could not end reservation", e)
+        }
+        trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
       }
 
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
@@ -385,14 +389,19 @@ class DirectAccessDeviceHandle(
     return true
   }
 
-  private fun trackEndReservation(wasSuccessful: Boolean) =
+  private fun trackEndReservation(
+    wasSuccessful: Boolean,
+    endType: EndReservationType,
+    failureReason: FailureReason? = null
+  ) =
     DirectAccessUsageTracker.trackEndReservation(
       wasSuccessful,
-      hasUserEndedReservation,
+      endType,
       getTotalReservationTime(),
       connection.averageLatency.toInt(),
       reservationName,
-      sourceTemplate.deviceInfo.toMetricsDeviceInfo()
+      sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
+      failureReason
     )
 
   private fun getTotalReservationTime(): Long {
