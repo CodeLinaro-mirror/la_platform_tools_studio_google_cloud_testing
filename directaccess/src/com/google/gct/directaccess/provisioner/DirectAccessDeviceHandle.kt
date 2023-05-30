@@ -43,18 +43,13 @@ import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.icons.AllIcons
-import com.intellij.notification.NotificationAction
-import com.intellij.notification.NotificationGroup
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import icons.StudioIcons
 import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
@@ -72,8 +67,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 private val EXTENSION_TIMEOUT = Duration.ofSeconds(10)
-private val notificationGroup: NotificationGroup
-  get() = NotificationGroup.findRegisteredGroup("Direct Access")!!
 
 class DirectAccessDeviceHandle(
   private val project: Project,
@@ -90,6 +83,8 @@ class DirectAccessDeviceHandle(
   val connection: DirectAccessConnection =
     project.service<DirectAccessService>().connectToReservation(reservationName, scope)
       ?: throw RuntimeException("Not logged in.")
+
+  val notificationManager = DirectAccessNotificationManager(project, this)
 
   override val stateFlow: MutableStateFlow<DeviceState>
 
@@ -183,6 +178,7 @@ class DirectAccessDeviceHandle(
             // TODO(b/277240160): Add correct failure reason
             trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
           }
+          notificationManager.expire()
           stateFlow.update {
             val reservation = it.reservation ?: return@withContext
             DeviceState.Disconnected(it.properties)
@@ -257,49 +253,16 @@ class DirectAccessDeviceHandle(
             }
           }
           if (shouldShowNotification) {
-            getNotificationPhrase(reservationFlow.value.expireTime.seconds)?.let {
-              showNotification(sourceTemplate.properties.title, it)
-            }
+            notificationManager.showDeviceDisconnectedNotification(
+              reservationFlow.value.expireTime.seconds
+            )
           }
         }
-
-      private fun getNotificationPhrase(reservationExpireTime: Long): String? {
-        val timeRemaining =
-          Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)
-        return when {
-          timeRemaining <= 0 -> null
-          timeRemaining < 60 -> "less than 1 minute"
-          timeRemaining < 120 -> "up to 2 minutes"
-          else -> "up to ${timeRemaining.div(60F).roundToInt()} minutes"
-        }
-      }
-
-      private fun showNotification(deviceName: String, phrase: String) =
-        notificationGroup
-          .createNotification(
-            "$deviceName on Firebase stopped",
-            getNotificationMessage(deviceName, phrase),
-            NotificationType.INFORMATION
-          )
-          .addAction(
-            NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
-              scope.launch { activationAction.activate() }
-            }
-          )
-          .addAction(
-            NotificationAction.createExpiring("Force check-in device") { _, _ ->
-              scope.launch { reservationAction.endReservation() }
-            }
-          )
-          .notify(project)
 
       private val defaultPresentation =
         DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, true)
 
       override val presentation = MutableStateFlow(defaultPresentation).asStateFlow()
-
-      private fun getNotificationMessage(deviceName: String, phrase: String) =
-        "You can reconnect to the same $deviceName for $phrase before the device is wiped"
     }
 
   override val reservationAction: ReservationAction =
@@ -317,6 +280,7 @@ class DirectAccessDeviceHandle(
               .takeWhile { it.reservation?.endTime?.toEpochMilli() == endTime.toEpochMilli() }
               .collect()
           }
+          notificationManager.expire()
           trackExtendReservation(true, duration)
         } catch (e: TimeoutCancellationException) {
           // TODO(b/277240160): Add correct failure reason here as well as below
@@ -348,6 +312,7 @@ class DirectAccessDeviceHandle(
           )
           throw DeviceActionException("Could not end reservation", e)
         }
+        notificationManager.expire()
         trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
       }
 

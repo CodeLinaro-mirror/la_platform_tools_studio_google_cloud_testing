@@ -337,6 +337,41 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun testNotificationExpiringOnDisconnectDevice() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val handle = (template as DirectAccessDeviceTemplate).activeDevice
+    handle?.reservation?.let {
+      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
+    }
+
+    handle?.deactivationAction?.deactivate()
+    yieldUntil { handle?.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+
+    val firstNotificationsList = getNotifications(projectRule.project)
+    assertThat(firstNotificationsList.size).isEqualTo(1)
+    handle?.activationAction?.activate()
+
+    assertThat(firstNotificationsList[0].isExpired).isTrue()
+    // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
+    // to be cleared.
+    yieldUntil { getNotifications(projectRule.project).isEmpty() }
+
+    // Device will reconnect after previous action. Disconnect again to show notification for force
+    // check-in
+    handle?.deactivationAction?.deactivate()
+
+    val secondNotificationsList = getNotifications(projectRule.project)
+    assertThat(secondNotificationsList.size).isEqualTo(1)
+
+    handle?.reservationAction?.endReservation()
+
+    assertThat(secondNotificationsList[0].isExpired).isTrue()
+    yieldUntil { getNotifications(projectRule.project).isEmpty() }
+  }
+
+  @Test
   fun testActionPresentationsWithReconnection() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     val reservation =
