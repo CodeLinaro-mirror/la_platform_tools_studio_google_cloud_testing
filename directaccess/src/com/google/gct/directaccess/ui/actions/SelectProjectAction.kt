@@ -20,6 +20,7 @@ import com.android.tools.adtui.common.AdtUiUtils
 import com.android.tools.adtui.common.secondaryPanelBackground
 import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
@@ -29,15 +30,19 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.ui.JBColor
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.util.ui.JBUI
 import icons.FirebaseIcons
 import javax.swing.JComponent
 import javax.swing.JPanel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SelectProjectAction(
   private val builder: (String) -> DirectAccessProjectSelector = {
@@ -68,6 +73,15 @@ class SelectProjectAction(
       val service = e.project?.getService(DirectAccessService::class.java) ?: return
       // TODO (b/283017110): use project from google-services.json if it exists.
       val preferredProject = service.gcpProject?.takeIf { it.isNotEmpty() } ?: ""
+      val errorTextPane =
+        JBTextArea().apply {
+          rows = 2
+          foreground = JBColor.RED
+          lineWrap = true
+          wrapStyleWord = true
+          isEditable = false
+          isVisible = false
+        }
       add(
         JBLabel("Firebase Direct Access", JBLabel.LEFT).apply {
           font = AdtUiUtils.DEFAULT_FONT.biggerOn(7f)
@@ -83,7 +97,27 @@ class SelectProjectAction(
             selector.selectedProject.collect {
               if (it.isNotEmpty()) {
                 service.gcpProject = it
-                balloon.revalidate()
+                withContext(AndroidDispatchers.uiThread) {
+                  balloon.revalidate()
+                  launch {
+                    var errorMessage: String? = null
+                    try {
+                      withContext(Dispatchers.IO) { service.reservationManager?.listReservations() }
+                    } catch (_: Exception) {
+                      // TODO (b/283882413): show different reasons for project without access.
+                      errorMessage =
+                        "$it does not have access to Direct Access. Select a different project."
+                    }
+                    if (errorMessage != null) {
+                      errorTextPane.text = errorMessage
+                      errorTextPane.isVisible = true
+                    } else {
+                      errorTextPane.isVisible = false
+                      errorTextPane.text = ""
+                    }
+                    balloon.revalidate()
+                  }
+                }
               }
             }
           }
@@ -91,7 +125,7 @@ class SelectProjectAction(
           isOpaque = false
         }
       )
-
+      add(errorTextPane)
       add(
         JPanel(HorizontalLayout(3)).apply {
           add(JBLabel("Remaining project time:"))
