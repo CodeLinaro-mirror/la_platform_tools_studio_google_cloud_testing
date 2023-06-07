@@ -252,8 +252,6 @@ class DirectAccessDeviceHandle(
             trackDisconnectMetric(false, FailureReason.UNKNOWN_FAILURE)
             throw e
           }
-          // Reservation enters grace period. Don't track end reservation metric.
-          connection.endReservation(withGracePeriod = true)
           stateFlow.update {
             when (it) {
               // Reset isTransitioning to false if the connection is not established yet.
@@ -262,6 +260,8 @@ class DirectAccessDeviceHandle(
               is DeviceState.Connected -> it
             }
           }
+          // Reservation enters grace period. Don't track end reservation metric.
+          connection.endReservation(withGracePeriod = true)
           if (shouldShowNotification) {
             notificationManager.showDeviceDisconnectedNotification(
               reservationFlow.value.expireTime.seconds
