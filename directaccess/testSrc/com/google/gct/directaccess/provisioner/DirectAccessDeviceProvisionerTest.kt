@@ -65,7 +65,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.doReturn
@@ -223,7 +222,6 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { template.activationAction.presentation.value.enabled }
   }
 
-  @Ignore("b/280523933")
   @Test
   fun deactivateBeforeConnected() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
@@ -236,11 +234,32 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(state.value.isTransitioning).isTrue()
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
 
+    // Disconnect after reservation become active.
+    yieldUntil { state.value.reservation?.state == ReservationState.ACTIVE }
     device.deactivationAction!!.deactivate()
     assertThat(state.value.isTransitioning).isFalse()
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
     val activationPresentation = device.activationAction!!.presentation
     yieldUntil { activationPresentation.value.enabled }
+  }
+
+  @Test
+  fun deactivateBeforeReservationActive() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    // Activate a new device before it becomes online
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val device = provisioner.devices.value[0]
+    val state = device.stateFlow
+    assertThat(state.value.isTransitioning).isTrue()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+
+    // Disconnect before reservation become active.
+    device.deactivationAction!!.deactivate()
+    assertThat(state.value.isTransitioning).isFalse()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+    yieldUntil { provisioner.devices.value.isEmpty() }
   }
 
   @Test
