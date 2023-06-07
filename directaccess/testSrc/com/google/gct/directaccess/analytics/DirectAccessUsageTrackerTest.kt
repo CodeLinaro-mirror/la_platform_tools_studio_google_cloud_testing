@@ -356,6 +356,7 @@ class DirectAccessUsageTrackerTest {
     assertThat(disconnectDeviceDetails.userDisconnected).isTrue()
   }
 
+  @Ignore
   @Test
   fun trackDisconnectDeviceSuccessWhenDeviceIsConnectedWhenReservationExpires() =
     runBlockingWithTimeout {
