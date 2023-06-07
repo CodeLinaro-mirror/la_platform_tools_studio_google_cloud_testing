@@ -357,6 +357,11 @@ class DirectAccessDeviceHandle(
     val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
     device.invokeOnDisconnection {
+      if (!hasUserDisconnectedDevice) {
+        notificationManager.showDeviceDisconnectedNotification(
+          state.reservation?.endTime?.epochSecond
+        )
+      }
       trackDisconnectMetric(true)
       stateFlow.update {
         DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
