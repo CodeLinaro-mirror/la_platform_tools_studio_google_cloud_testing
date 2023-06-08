@@ -21,6 +21,7 @@ import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.android.tools.idea.io.netty.channel.ChannelOption
 import com.google.gct.login.GoogleLogin
+import com.google.gct.login.common.LoginListener
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
@@ -48,6 +49,7 @@ class DirectAccessService(val project: Project) : Disposable {
       .withOption(ChannelOption.TCP_NODELAY, true)
       .build()
 
+  private var loginListener: LoginListener? = null
   var reservationManager: DirectAccessReservationManager? = null
     get() {
       return field
@@ -57,13 +59,25 @@ class DirectAccessService(val project: Project) : Disposable {
             }
             .also {
               field = it
-              GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener { loggedIn ->
-                if (!loggedIn) field = null
+              loginListener = LoginListener { loggedIn ->
+                if (!loggedIn) {
+                  reservationManager = null
+                }
               }
+              GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener(loginListener)
             }
         }
     }
-    private set
+    private set(rm) {
+      if (rm != null) {
+        throw IllegalArgumentException("Argument to reservationManager setter must be null")
+      }
+      field = rm
+      if (loginListener != null) {
+        GoogleLogin.instance.activeUser?.googleLoginState?.removeLoginListener(loginListener)
+        loginListener = null
+      }
+    }
 
   private var connectionManager: DirectAccessConnectionManager? = null
     get() {
@@ -87,5 +101,9 @@ class DirectAccessService(val project: Project) : Disposable {
     scope: CoroutineScope
   ): DirectAccessConnection? = connectionManager?.connect(reservationName, scope)
 
-  override fun dispose() {}
+  override fun dispose() {
+    if (loginListener != null) {
+      GoogleLogin.instance.activeUser?.googleLoginState?.removeLoginListener(loginListener)
+    }
+  }
 }

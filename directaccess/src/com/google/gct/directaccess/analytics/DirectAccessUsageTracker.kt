@@ -22,6 +22,7 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DeviceInfo as MetricsDeviceInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.DISCONNECT_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.END_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
@@ -72,6 +73,27 @@ object DirectAccessUsageTracker {
             .build()
       }
 
+    track(deviceInfo, event)
+  }
+
+  fun trackDisconnectDevice(
+    wasSuccessful: Boolean,
+    wasUserDisconnected: Boolean,
+    deviceSession: String?,
+    deviceInfo: MetricsDeviceInfo,
+    failReason: DirectAccessUsageEvent.FailureReason? = null
+  ) {
+    val event =
+      createDirectAccessUsageEvent(deviceSession, failReason) {
+        type = DISCONNECT_DEVICE
+        disconnectDeviceDetails =
+          disconnectDeviceDetailsBuilder
+            .apply {
+              success = wasSuccessful
+              userDisconnected = wasUserDisconnected
+            }
+            .build()
+      }
     track(deviceInfo, event)
   }
 

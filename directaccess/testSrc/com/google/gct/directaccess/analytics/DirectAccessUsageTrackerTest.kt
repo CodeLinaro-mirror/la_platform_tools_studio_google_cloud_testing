@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.analytics
 
+import com.android.adblib.DeviceSelector
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
@@ -43,11 +44,13 @@ import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.DISCONNECT_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.END_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.EXTEND_RESERVATION
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
@@ -130,7 +133,14 @@ class DirectAccessUsageTrackerTest {
     whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
       val reservationName = it.arguments[0] as String
       val deviceScope = it.arguments[1] as CoroutineScope
-      createConnection(reservationName, deviceScope).also { conn -> fakeConnection = conn }
+      createConnection(reservationName, deviceScope).also { conn ->
+        fakeConnection = conn
+        session.deviceServices.configureShellV2Command(
+          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+          "getprop",
+          "Foo"
+        )
+      }
     }
     projectRule.project.replaceService(
       DirectAccessService::class.java,
@@ -315,6 +325,112 @@ class DirectAccessUsageTrackerTest {
   }
 
   @Test
+  fun trackDisconnectDeviceSuccessMetricWhenSuccessDisconnectingDevice() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName, deviceScope ->
+      getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+    findUsageEvent(CONNECT_DEVICE)
+
+    handle.deactivationAction.deactivate()
+    yieldUntil { handle.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+
+    val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(DISCONNECT_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val disconnectDeviceDetails = directAccessEvent.disconnectDeviceDetails
+    assertThat(disconnectDeviceDetails.success).isTrue()
+    assertThat(disconnectDeviceDetails.userDisconnected).isTrue()
+  }
+
+  @Ignore
+  @Test
+  fun trackDisconnectDeviceSuccessWhenDeviceIsConnectedWhenReservationExpires() =
+    runBlockingWithTimeout {
+      // Override default connection setup
+      setupConnection { reservationName, deviceScope ->
+        getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+      }
+      val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+      // Activate device
+      val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+      yieldUntil {
+        template.activeDevice?.connection?.state?.value?.connection ==
+          DirectAccessConnection.ConnectionState.CONNECTED
+      }
+      findUsageEvent(CONNECT_DEVICE)
+
+      // Simulate reservation end
+      directAccessReservationManager.cancelReservation(handle.reservation.name)
+      yieldUntil { handle.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+
+      val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
+      assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+      val directAccessEvent = studioEvent.directAccessUsageEvent
+      assertThat(directAccessEvent.type).isEqualTo(DISCONNECT_DEVICE)
+      assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+      val disconnectDeviceDetails = directAccessEvent.disconnectDeviceDetails
+      assertThat(disconnectDeviceDetails.success).isTrue()
+      assertThat(disconnectDeviceDetails.userDisconnected).isFalse()
+    }
+
+  @Test
+  fun trackDisconnectDeviceFailureMetricWhenErrorDisconnectingDevice() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun closeConnection() = throw Exception()
+      }
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+    findUsageEvent(CONNECT_DEVICE)
+
+    try {
+      handle.deactivationAction.deactivate()
+    } catch (e: Exception) {
+      // This is an expected exception.
+    }
+
+    val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(DISCONNECT_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason).isEqualTo(UNKNOWN_FAILURE)
+
+    val disconnectDeviceDetails = directAccessEvent.disconnectDeviceDetails
+    assertThat(disconnectDeviceDetails.success).isFalse()
+    assertThat(disconnectDeviceDetails.userDisconnected).isTrue()
+  }
+
+  @Test
   fun trackEndReservationSuccessMetricWhenSuccessEndingReservation() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -449,4 +565,21 @@ class DirectAccessUsageTrackerTest {
 
   private fun AndroidStudioEvent.isEventOfType(type: DirectAccessUsageEventType) =
     directAccessUsageEvent.type == type
+
+  private fun getSuccessFulDisconnectTestConnection(
+    reservationName: String,
+    deviceScope: CoroutineScope
+  ) =
+    object :
+      FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+      override suspend fun connect() {
+        session.hostServices.connect(deviceAddress()!!)
+        super.connect()
+      }
+
+      override suspend fun closeConnection() {
+        session.hostServices.disconnect(deviceAddress()!!)
+        super.closeConnection()
+      }
+    }
 }

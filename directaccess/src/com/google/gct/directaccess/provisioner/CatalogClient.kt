@@ -35,19 +35,17 @@ object CatalogClient {
     return catalog.models
       .filter { it.form == "PHYSICAL" }
       .flatMap { model ->
-        model.supportedVersionIds
-          ?.filter { versionId ->
-            versionId?.toIntOrNull()?.let { it >= 26 } == true &&
-              model.perVersionInfo?.any {
-                it.versionId == versionId &&
-                  it.directAccessVersionInfo?.directAccessSupported == true &&
-                  BuildNumber.fromString(it.directAccessVersionInfo.minimumAndroidStudioVersion)
-                    .let { catalogBuildNumber ->
-                      catalogBuildNumber == null ||
-                        catalogBuildNumber <= ApplicationInfo.getInstance().build
-                    }
-              }
-                ?: false
+        model.perVersionInfo
+          ?.filter { perVersionInfo ->
+            perVersionInfo.versionId?.toIntOrNull()?.let { it >= 26 } == true &&
+              perVersionInfo.directAccessVersionInfo?.directAccessSupported == true &&
+              BuildNumber.fromString(
+                  perVersionInfo.directAccessVersionInfo.minimumAndroidStudioVersion
+                )
+                .let { catalogBuildNumber ->
+                  catalogBuildNumber == null ||
+                    catalogBuildNumber <= ApplicationInfo.getInstance().build
+                }
           }
           ?.map {
             val type =
@@ -64,7 +62,7 @@ object CatalogClient {
               model.name,
               model.manufacturer,
               model.codename,
-              it.toInt(),
+              it.versionId.toInt(),
               type,
               model.screenX,
               model.screenY,

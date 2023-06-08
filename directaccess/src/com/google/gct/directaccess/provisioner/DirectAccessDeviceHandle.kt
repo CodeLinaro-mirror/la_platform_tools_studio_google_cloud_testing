@@ -90,6 +90,8 @@ class DirectAccessDeviceHandle(
 
   /** Tracks reconnect to device */
   private var hasConnectedToDeviceOnce = false
+  /** Tracks user involvement in disconnecting device */
+  private var hasUserDisconnectedDevice = false
   /** Tracks device force check in */
   private var hasUserForceCheckedInDevice = false
 
@@ -242,8 +244,14 @@ class DirectAccessDeviceHandle(
           // Check here if notification is needed. endReservation might change the sessionState
           val shouldShowNotification =
             reservationFlow.value.sessionState == Reservation.SessionState.ACTIVE
-          // Reservation enters grace period. Don't track end reservation metric.
-          connection.endReservation(withGracePeriod = true)
+          hasUserDisconnectedDevice = true
+          try {
+            connection.closeConnection()
+          } catch (e: Exception) {
+            // TODO(b/277240160): Add correct failure reason
+            trackDisconnectMetric(false, FailureReason.UNKNOWN_FAILURE)
+            throw e
+          }
           stateFlow.update {
             when (it) {
               // Reset isTransitioning to false if the connection is not established yet.
@@ -252,6 +260,8 @@ class DirectAccessDeviceHandle(
               is DeviceState.Connected -> it
             }
           }
+          // Reservation enters grace period. Don't track end reservation metric.
+          connection.endReservation(withGracePeriod = true)
           if (shouldShowNotification) {
             notificationManager.showDeviceDisconnectedNotification(
               reservationFlow.value.expireTime.seconds
@@ -347,11 +357,23 @@ class DirectAccessDeviceHandle(
     val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
     device.invokeOnDisconnection {
+      trackDisconnectMetric(true)
       stateFlow.update {
         DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
       }
     }
     return true
+  }
+
+  private fun trackDisconnectMetric(wasSuccessful: Boolean, failureReason: FailureReason? = null) {
+    DirectAccessUsageTracker.trackDisconnectDevice(
+      wasSuccessful,
+      hasUserDisconnectedDevice,
+      reservationName,
+      sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
+      failureReason
+    )
+    hasUserDisconnectedDevice = false
   }
 
   private fun trackEndReservation(

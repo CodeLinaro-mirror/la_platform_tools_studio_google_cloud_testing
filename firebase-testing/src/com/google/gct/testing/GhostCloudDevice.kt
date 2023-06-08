@@ -25,6 +25,7 @@ import com.android.ddmlib.InstallReceiver
 import com.android.ddmlib.RawImage
 import com.android.ddmlib.ScreenRecorderOptions
 import com.android.ddmlib.SyncService
+import com.android.ddmlib.ServiceInfo
 import com.android.ddmlib.log.LogReceiver
 import com.android.sdklib.AndroidVersion
 import com.google.common.util.concurrent.Futures
@@ -72,6 +73,8 @@ data class GhostCloudDevice(
   override fun supportsFeature(feature: IDevice.Feature): Boolean = true
 
   override fun supportsFeature(feature: HardwareFeature): Boolean = feature != HardwareFeature.WATCH
+
+  override fun services(): MutableMap<String, ServiceInfo> = mutableMapOf()
 
   override fun getMountPoint(name: String): String? = null
 
@@ -190,7 +193,6 @@ data class GhostCloudDevice(
 
   override fun executeShellCommand(command: String, receiver: IShellOutputReceiver, maxTimeToOutputResponse: Long, maxTimeUnits: TimeUnit) =
     Unit
-
   override fun executeShellCommand(
     command: String,
     receiver: IShellOutputReceiver,
