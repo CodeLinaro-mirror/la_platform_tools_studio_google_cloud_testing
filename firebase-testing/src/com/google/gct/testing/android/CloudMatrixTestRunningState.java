@@ -15,7 +15,6 @@
  */
 package com.google.gct.testing.android;
 
-import com.android.tools.idea.run.AndroidProcessText;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.gct.testing.CloudConfigurationHelper;
 import com.intellij.execution.ExecutionException;
@@ -55,7 +54,6 @@ public class CloudMatrixTestRunningState implements RunProfileState {
   @Nullable
   @Override
   public ExecutionResult execute(Executor executor, @NotNull ProgramRunner runner) throws ExecutionException {
-    AndroidProcessText.attach(myProcessHandler);
     return CloudConfigurationHelper.executeCloudMatrixTests(myMatrixConfigurationId, myCloudProjectId, this, executor);
   }
 
