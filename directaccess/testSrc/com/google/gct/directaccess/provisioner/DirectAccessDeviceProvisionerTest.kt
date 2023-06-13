@@ -126,7 +126,14 @@ class DirectAccessDeviceProvisionerTest {
     whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
       val reservationName = it.arguments[0] as String
       val deviceScope = it.arguments[1] as CoroutineScope
-      createConnection(reservationName, deviceScope).also { conn -> fakeConnection = conn }
+      createConnection(reservationName, deviceScope).also { conn ->
+        fakeConnection = conn
+        session.deviceServices.configureShellV2Command(
+          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+          "getprop",
+          "Foo"
+        )
+      }
     }
     projectRule.project.replaceService(
       DirectAccessService::class.java,
@@ -353,6 +360,27 @@ class DirectAccessDeviceProvisionerTest {
         .isEqualTo(DirectAccessConnection.ConnectionState.DISCONNECTED)
       yieldUntil { plugin.devices.value.isEmpty() }
     }
+  }
+
+  @Test
+  fun testNotificationOnUnexpectedDeviceDisconnection() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+
+    val handle = (template as DirectAccessDeviceTemplate).activeDevice
+    assertThat(handle).isNotNull()
+
+    handle?.reservation?.let {
+      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
+    }
+    session.hostServices.connect(handle!!.connection.deviceAddress()!!)
+    yieldUntil { handle.state is Connected }
+
+    session.hostServices.disconnect(handle.connection.deviceAddress()!!)
+    yieldUntil { getNotifications(projectRule.project).size == 1 }
+    assertThat(getNotifications(projectRule.project)[0].content)
+      .matches("You can reconnect to the same Google Pixel 5 .* before the device is wiped")
   }
 
   @Test

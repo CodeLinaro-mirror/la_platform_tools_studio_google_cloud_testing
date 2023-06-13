@@ -39,14 +39,19 @@ class DirectAccessNotificationManager(
 ) {
   private var deviceDisconnectedNotification: Notification? = null
 
-  fun showDeviceDisconnectedNotification(reservationExpireTime: Long) {
-    val phrase = getDeviceDisconnectedNotificationPhrase(reservationExpireTime) ?: return
+  fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) {
     val deviceName = deviceHandle.sourceTemplate.properties.title
+    val message =
+      reservationExpireTime?.let {
+        val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
+        getDeviceDisconnectedNotificationMessage(deviceName, phrase)
+      }
+        ?: ""
     deviceDisconnectedNotification =
       notificationGroup
         .createNotification(
           "$deviceName on Firebase stopped",
-          getDeviceDisconnectedNotificationMessage(deviceName, phrase),
+          message,
           NotificationType.INFORMATION
         )
         .addAction(
