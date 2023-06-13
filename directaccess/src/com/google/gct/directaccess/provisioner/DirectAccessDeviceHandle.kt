@@ -29,7 +29,7 @@ import com.android.sdklib.deviceprovisioner.ReservationAction
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.asMap
-import com.android.sdklib.deviceprovisioner.invokeOnDisconnection
+import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.run.DeviceHeadsUpListener
@@ -356,7 +356,8 @@ class DirectAccessDeviceHandle(
     val properties = device.deviceProperties().all().asMap()
     val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
-    device.invokeOnDisconnection {
+    scope.launch {
+      device.awaitDisconnection()
       if (!hasUserDisconnectedDevice) {
         notificationManager.showDeviceDisconnectedNotification(
           state.reservation?.endTime?.epochSecond
