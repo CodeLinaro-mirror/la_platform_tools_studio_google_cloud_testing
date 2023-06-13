@@ -23,8 +23,9 @@ import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharac
 
 import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.stats.UsageTrackerUtils;
+import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.sdk.AndroidPlatform;
+import com.android.tools.sdk.AndroidTargetData;
 import com.google.common.collect.Collections2;
 import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
@@ -77,7 +78,6 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.jetbrains.android.sdk.AndroidPlatforms;
-import com.android.tools.sdk.AndroidTargetData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

@@ -16,7 +16,7 @@
 package com.google.gct.testing;
 
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.stats.UsageTrackerUtils;
+import com.android.tools.analytics.UsageTrackerUtils;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
@@ -36,15 +36,27 @@ import com.intellij.openapi.actionSystem.impl.ActionButton;
 import com.intellij.openapi.actionSystem.impl.PresentationFactory;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogBuilder;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import java.awt.*;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
+import org.jetbrains.annotations.Nullable;
 
 public class ScreenshotComparisonDialog {
 

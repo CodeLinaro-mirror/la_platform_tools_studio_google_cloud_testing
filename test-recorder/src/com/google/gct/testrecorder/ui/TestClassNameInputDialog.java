@@ -20,11 +20,11 @@ import static java.util.stream.Collectors.toList;
 
 import com.android.SdkConstants;
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.PluginModel;
 import com.android.tools.idea.projectsystem.SourceProviders;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
-import com.android.tools.idea.stats.UsageTrackerUtils;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
