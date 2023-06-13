@@ -396,7 +396,7 @@ class DirectAccessDeviceHandle(
       wasSuccessful,
       endType,
       getTotalReservationTime(),
-      connection.averageLatency.toInt(),
+      connection.latencyMetrics,
       reservationName,
       sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
       failureReason

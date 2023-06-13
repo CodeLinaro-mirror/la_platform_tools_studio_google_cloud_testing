@@ -457,7 +457,9 @@ class DirectAccessUsageTrackerTest {
 
     val endReservationDetails = directAccessEvent.endReservationDetails
     assertThat(endReservationDetails.success).isTrue()
-    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.maxLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.p90LatencyMs).isEqualTo(90)
+    assertThat(endReservationDetails.connectionMetrics.p50LatencyMs).isEqualTo(50)
     assertThat(endReservationDetails.endReservationType).isEqualTo(FORCE_CHECK_IN)
   }
 
@@ -490,7 +492,9 @@ class DirectAccessUsageTrackerTest {
 
     val endReservationDetails = directAccessEvent.endReservationDetails
     assertThat(endReservationDetails.success).isTrue()
-    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.maxLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.p90LatencyMs).isEqualTo(90)
+    assertThat(endReservationDetails.connectionMetrics.p50LatencyMs).isEqualTo(50)
     assertThat(endReservationDetails.endReservationType).isEqualTo(EXPIRE)
   }
 
@@ -520,7 +524,9 @@ class DirectAccessUsageTrackerTest {
 
     val endReservationDetails = directAccessEvent.endReservationDetails
     assertThat(endReservationDetails.success).isFalse()
-    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.maxLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.p90LatencyMs).isEqualTo(90)
+    assertThat(endReservationDetails.connectionMetrics.p50LatencyMs).isEqualTo(50)
     assertThat(endReservationDetails.endReservationType).isEqualTo(ERROR)
   }
 
@@ -560,7 +566,9 @@ class DirectAccessUsageTrackerTest {
 
     val endReservationDetails = directAccessEvent.endReservationDetails
     assertThat(endReservationDetails.success).isFalse()
-    assertThat(endReservationDetails.averageConnectionLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.maxLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.p90LatencyMs).isEqualTo(90)
+    assertThat(endReservationDetails.connectionMetrics.p50LatencyMs).isEqualTo(50)
   }
 
   private suspend fun findUsageEvent(type: DirectAccessUsageEventType): AndroidStudioEvent {
