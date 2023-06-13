@@ -24,7 +24,6 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.utils.FlightRecorder
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
@@ -141,7 +140,6 @@ class DirectAccessDeviceTemplate(
    * reservation will be requested with a wiped device.
    */
   private fun createDeviceHandle(): DeviceHandle {
-    FlightRecorder.log { "createDeviceHandle" }
     val reservationManager =
       project.service<DirectAccessService>().reservationManager
         ?: throw RuntimeException("Unable to access ReservationManager.")
