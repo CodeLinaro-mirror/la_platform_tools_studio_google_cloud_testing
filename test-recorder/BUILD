@@ -51,7 +51,7 @@ iml_module(
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
         "//tools/adt/idea/.idea/libraries:mockito[test]",
         "//tools/adt/idea/render-resources:intellij.android.render-resources[module]",
-        "//tools/adt/idea/project-system-gradle:intellij.android.projectSystem.gradle[module, test]",
+        "//tools/adt/idea/project-system-gradle:intellij.android.projectSystem.gradle[module]",
         "//tools/base/deploy/deployer:studio.android.sdktools.deployer[module]",
         "//tools/adt/idea/analytics[module]",
     ],
