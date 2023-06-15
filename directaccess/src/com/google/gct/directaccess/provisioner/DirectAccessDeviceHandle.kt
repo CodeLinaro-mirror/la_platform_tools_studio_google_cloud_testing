@@ -354,7 +354,12 @@ class DirectAccessDeviceHandle(
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
     val properties = device.deviceProperties().all().asMap()
-    val deviceProperties = DirectAccessDeviceProperties.build { readCommonProperties(properties) }
+    val deviceProperties =
+      DirectAccessDeviceProperties.build {
+        resolution = Resolution.readFromDevice(device)
+        readCommonProperties(properties)
+      }
+
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
     scope.launch {
       device.awaitDisconnection()
@@ -407,7 +412,7 @@ class DirectAccessDeviceHandle(
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
   class Builder : DeviceProperties.Builder()
   companion object {
-    fun build(block: Builder.() -> Unit) =
+    inline fun build(block: Builder.() -> Unit) =
       Builder().apply(block).run { DirectAccessDeviceProperties(buildBase()) }
   }
 }

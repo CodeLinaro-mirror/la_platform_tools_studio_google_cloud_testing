@@ -140,6 +140,11 @@ class DirectAccessUsageTrackerTest {
           "getprop",
           "Foo"
         )
+        session.deviceServices.configureShellCommand(
+          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+          "wm size",
+          "Physical size: 1080x2400"
+        )
       }
     }
     projectRule.project.replaceService(
