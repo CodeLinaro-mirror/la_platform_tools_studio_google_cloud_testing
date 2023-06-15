@@ -16,7 +16,7 @@
 package com.google.gct.testing;
 
 import com.android.tools.analytics.UsageTracker;
-import com.android.tools.idea.stats.UsageTrackerUtils;
+import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.gct.testing.android.CloudConfiguration;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
@@ -39,14 +39,18 @@ import com.intellij.ui.ColorUtil;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
+import java.awt.Color;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
+import javax.imageio.ImageIO;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JEditorPane;
+import javax.swing.SwingUtilities;
+import javax.swing.event.HyperlinkEvent;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.imageio.ImageIO;
-import javax.swing.*;
-import javax.swing.event.HyperlinkEvent;
-import java.awt.*;
 
 public class CloudTestingUtils {
 

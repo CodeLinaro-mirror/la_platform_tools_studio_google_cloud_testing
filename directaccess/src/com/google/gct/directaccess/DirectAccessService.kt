@@ -50,6 +50,8 @@ class DirectAccessService(val project: Project) : Disposable {
       .build()
 
   private var loginListener: LoginListener? = null
+
+  @get:Synchronized
   var reservationManager: DirectAccessReservationManager? = null
     get() {
       return field
@@ -72,11 +74,8 @@ class DirectAccessService(val project: Project) : Disposable {
       if (rm != null) {
         throw IllegalArgumentException("Argument to reservationManager setter must be null")
       }
-      field = rm
-      if (loginListener != null) {
-        GoogleLogin.instance.activeUser?.googleLoginState?.removeLoginListener(loginListener)
-        loginListener = null
-      }
+      field = null
+      removeLoginListener()
     }
 
   private var connectionManager: DirectAccessConnectionManager? = null
@@ -101,9 +100,12 @@ class DirectAccessService(val project: Project) : Disposable {
     scope: CoroutineScope
   ): DirectAccessConnection? = connectionManager?.connect(reservationName, scope)
 
-  override fun dispose() {
-    if (loginListener != null) {
-      GoogleLogin.instance.activeUser?.googleLoginState?.removeLoginListener(loginListener)
+  private fun removeLoginListener() {
+    loginListener?.let {
+      GoogleLogin.instance.activeUser?.googleLoginState?.removeLoginListener(it)
+      loginListener = null
     }
   }
+
+  override fun dispose() = removeLoginListener()
 }

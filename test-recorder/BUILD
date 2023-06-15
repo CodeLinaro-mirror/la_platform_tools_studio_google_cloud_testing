@@ -53,6 +53,7 @@ iml_module(
         "//tools/adt/idea/render-resources:intellij.android.render-resources[module]",
         "//tools/adt/idea/project-system-gradle:intellij.android.projectSystem.gradle[module, test]",
         "//tools/base/deploy/deployer:studio.android.sdktools.deployer[module]",
+        "//tools/adt/idea/analytics[module]",
     ],
 )
 
