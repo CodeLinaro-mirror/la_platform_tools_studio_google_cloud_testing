@@ -16,15 +16,20 @@
 package com.google.gct.directaccess.ui.actions
 
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.sdklib.deviceprovisioner.DeviceHandle
+import com.android.sdklib.deviceprovisioner.DeviceProvisioner
+import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
@@ -76,6 +81,17 @@ class SelectProjectActionTest {
     ApplicationManager.getApplication()
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
 
+    val devices = MutableStateFlow(listOf<DeviceHandle>())
+    val mockProvisioner = mock<DeviceProvisioner>()
+    val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
+    doReturn(devices).whenever(mockProvisioner).devices
+    doReturn(mockProvisioner).whenever(mockDeviceProvisionerService).deviceProvisioner
+    projectRule.project.replaceService(
+      DeviceProvisionerService::class.java,
+      mockDeviceProvisionerService,
+      projectRule.disposable
+    )
+
     val service = projectRule.project.service<DirectAccessService>()
     val unsupportedProjectName = "unsupportedTestProject"
     val supportedProjectName = "supportedTestProject"
@@ -110,7 +126,9 @@ class SelectProjectActionTest {
     assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
       .isInstanceOf(SelectProjectAction::class.java)
 
-    val selectProjectAction = SelectProjectAction { FakeDirectAccessProjectSelector() }
+    val selectProjectAction = SelectProjectAction { _, isEnabled ->
+      FakeDirectAccessProjectSelector(isEnabled)
+    }
 
     // Click the project selection button.
     val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
@@ -136,14 +154,15 @@ class SelectProjectActionTest {
 
     // Start select action after login.
     selectProjectAction.actionPerformed(event)
-    val balloon = popupRule.fakePopupFactory.getNextBalloon()
-    Disposer.register(projectRule.disposable, balloon)
+    val selectBalloon = popupRule.fakePopupFactory.getNextBalloon()
+    Disposer.register(projectRule.disposable, selectBalloon)
     // Select a project that does not support direct access.
-    val textField = balloon.component.findAllDescendants<JTextField>().first()
+    val textField = selectBalloon.component.findAllDescendants<JTextField>().first()
+    assertThat(textField.isEnabled).isTrue()
     textField.text = unsupportedProjectName
     yieldUntil { projectFlow.value == unsupportedProjectName }
 
-    val errorPanel = balloon.component.findAllDescendants<JTextArea>().first()
+    val errorPanel = selectBalloon.component.findAllDescendants<JTextArea>().first()
     yieldUntil { errorPanel.isVisible }
     assertThat(errorPanel.text)
       .isEqualTo(
@@ -155,12 +174,23 @@ class SelectProjectActionTest {
     yieldUntil { projectFlow.value == supportedProjectName }
     assertThat(isProjectSupported).isTrue()
     yieldUntil { !errorPanel.isVisible }
+
+    // Start a device and the selector will be disabled.
+    val mockDeviceHandle = mock<DirectAccessDeviceHandle>()
+    doReturn(mock<DeviceState.Connected>()).whenever(mockDeviceHandle).state
+    devices.value = listOf(mockDeviceHandle)
+    selectProjectAction.actionPerformed(event)
+    val disabledBalloon = popupRule.fakePopupFactory.getNextBalloon()
+    Disposer.register(projectRule.disposable, disabledBalloon)
+    val disabledTextField = disabledBalloon.component.findAllDescendants<JTextField>().first()
+    assertThat(disabledTextField.isEnabled).isFalse()
   }
 }
 
-class FakeDirectAccessProjectSelector : DirectAccessProjectSelector {
+class FakeDirectAccessProjectSelector(isEnabled: Boolean) : DirectAccessProjectSelector {
   override val component =
     JTextField("").apply {
+      this.isEnabled = isEnabled
       document.addDocumentListener(
         object : DocumentAdapter() {
           override fun textChanged(e: DocumentEvent) {

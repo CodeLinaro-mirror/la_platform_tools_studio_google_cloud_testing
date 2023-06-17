@@ -15,12 +15,14 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.testing.android.CloudConfiguration
 import com.google.gct.testing.android.CloudProjectSelector
 import javax.swing.JComponent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+/** Manages a [component] to select a cloud project for [DeviceProvisionerService]. */
 interface DirectAccessProjectSelector {
 
   val component: JComponent
@@ -28,7 +30,13 @@ interface DirectAccessProjectSelector {
   val selectedProject: StateFlow<String>
 }
 
-class DirectAccessProjectSelectorImpl(private val preferredProject: String) :
+/**
+ * A [DirectAccessProjectSelector] that returns a combo box of available projects.
+ *
+ * @param preferredProject the project to select initially if available
+ * @param isEnabled true if project selection is enabled
+ */
+class DirectAccessProjectSelectorImpl(private val preferredProject: String, isEnabled: Boolean) :
   DirectAccessProjectSelector {
 
   override val selectedProject = MutableStateFlow("")
@@ -41,6 +49,10 @@ class DirectAccessProjectSelectorImpl(private val preferredProject: String) :
   // TODO (b/283017002): show preferredProject while refresh projects.
   private val projectSelector =
     CloudProjectSelector(CloudConfiguration.Kind.SINGLE_DEVICE).apply {
+      this.isEnabled = isEnabled
+      if (!isEnabled) {
+        toolTipText = "Stop reservations to change projects"
+      }
       addItemListener {
         if (!isPreferredProjectApplied) {
           isPreferredProjectApplied = true

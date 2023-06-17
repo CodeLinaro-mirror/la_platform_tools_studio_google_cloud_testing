@@ -85,6 +85,7 @@ public class CloudProjectSelector extends ComboBox<String> {
 
   public void refreshCloudProjects() {
     setModel(new ListComboBoxModel<String>(LOADING_CLOUD_PROJECTS_LIST));
+    Boolean wasEnabled = isEnabled();
     setEnabled(false);
 
     // Do not block the UI thread while getting cloud projects, since it requires network communication.
@@ -99,7 +100,7 @@ public class CloudProjectSelector extends ComboBox<String> {
         }
         setModel(new ListComboBoxModel(myCloudProjects));
         restoreChosenProjectId();
-        setEnabled(true);
+        setEnabled(wasEnabled);
 
         // Simulate a change event such that it is picked up by the editor validation mechanisms.
         for (ItemListener itemListener : getItemListeners()) {
