@@ -17,6 +17,7 @@ package com.google.gct.testrecorder.run;
 
 import com.android.ddmlib.IDevice;
 import com.android.tools.deployer.model.App;
+import com.android.tools.idea.execution.common.stats.RunStats;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.ApkProvider;
@@ -58,7 +59,8 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
                      @NotNull String contributorsAmStartOptions,
                      boolean isDebug,
                      @NotNull ApkProvider apkProvider,
-                     @NotNull ConsoleView consoleView) throws ExecutionException {
+                     @NotNull ConsoleView consoleView,
+                     @NotNull RunStats stats) throws ExecutionException {
     if (TestRecorderSettings.getInstance().CLEAN_BEFORE_START) {
       String command;
       try {
@@ -69,6 +71,6 @@ public class TestRecorderAndroidRunConfiguration extends AndroidRunConfiguration
       }
       ExecutionUtils.executeShellCommand(device, command, consoleView, new EmptyProgressIndicator());
     }
-    super.launch(app, device, facet, contributorsAmStartOptions, isDebug, apkProvider, consoleView);
+    super.launch(app, device, facet, contributorsAmStartOptions, isDebug, apkProvider, consoleView, stats);
   }
 }
