@@ -310,22 +310,23 @@ class DirectAccessDeviceHandle(
           ?: throw DeviceActionException("Extended reservation end time not available.")
       }
 
-      override suspend fun endReservation() {
-        hasUserForceCheckedInDevice = true
-        try {
-          connection.endReservation()
-        } catch (e: Exception) {
-          hasUserForceCheckedInDevice = false
-          trackEndReservation(
-            false,
-            EndReservationType.FORCE_CHECK_IN,
-            FailureReason.UNKNOWN_FAILURE
-          )
-          throw DeviceActionException("Could not end reservation", e)
+      override suspend fun endReservation() =
+        withContext(NonCancellable) {
+          hasUserForceCheckedInDevice = true
+          try {
+            connection.endReservation()
+          } catch (e: Exception) {
+            hasUserForceCheckedInDevice = false
+            trackEndReservation(
+              false,
+              EndReservationType.FORCE_CHECK_IN,
+              FailureReason.UNKNOWN_FAILURE
+            )
+            throw DeviceActionException("Could not end reservation", e)
+          }
+          notificationManager.expire()
+          trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
         }
-        notificationManager.expire()
-        trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
-      }
 
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
       override val presentation: StateFlow<DeviceAction.Presentation> =
