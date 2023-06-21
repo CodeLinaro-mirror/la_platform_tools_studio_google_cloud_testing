@@ -510,9 +510,11 @@ class DirectAccessUsageTrackerTest {
     }
     val reservationFlow =
       directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    reservationFlow.waitUntilActive()
     (reservationFlow as MutableStateFlow).update {
       it.toBuilder().apply { sessionState = Reservation.SessionState.ERROR }.build()
     }
+    yieldUntil { reservationFlow.value.sessionState == Reservation.SessionState.ERROR }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
