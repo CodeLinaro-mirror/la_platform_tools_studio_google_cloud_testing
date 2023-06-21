@@ -17,6 +17,7 @@ package com.google.gct.directaccess
 
 import com.android.tools.idea.adblib.AdbLibService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.android.tools.idea.io.netty.channel.ChannelOption
@@ -30,6 +31,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancelChildren
 
 @Service
 class DirectAccessService(val project: Project) : Disposable {
@@ -51,12 +53,18 @@ class DirectAccessService(val project: Project) : Disposable {
 
   private var loginListener: LoginListener? = null
 
+  /**
+   * [CoroutineScope] of this service. Its child scope is used by [DirectAccessReservationManager]
+   * The child scope is cancelled when the reservation manager is reset.
+   */
+  private val scope = AndroidCoroutineScope(this)
+
   @get:Synchronized
   var reservationManager: DirectAccessReservationManager? = null
     get() {
       return field
         ?: gcpProject?.let { project ->
-          DirectAccessReservationManager(project, AndroidCoroutineScope(this), channel) {
+          DirectAccessReservationManager(project, scope.createChildScope(true), channel) {
               GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
             }
             .also {
@@ -74,6 +82,7 @@ class DirectAccessService(val project: Project) : Disposable {
       if (rm != null) {
         throw IllegalArgumentException("Argument to reservationManager setter must be null")
       }
+      scope.coroutineContext.cancelChildren()
       field = null
       removeLoginListener()
     }
