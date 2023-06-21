@@ -473,15 +473,15 @@ class DirectAccessUsageTrackerTest {
       template.activeDevice?.connection?.state?.value?.connection ==
         DirectAccessConnection.ConnectionState.CONNECTED
     }
-    // Cancel reservation to simulate reservation expiry
-    directAccessReservationManager.cancelReservation(handle.reservation.name)
-    yieldUntil {
-      directAccessReservationManager
-        .fetchReservationFlow(handle.reservation.name)
-        .value
-        .sessionState
-        .isClosed()
+    val reservationFlow =
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    reservationFlow.waitUntilActive()
+
+    // Update the reservation to EXPIRED state
+    (reservationFlow as MutableStateFlow).update {
+      it.toBuilder().apply { sessionState = Reservation.SessionState.EXPIRED }.build()
     }
+    yieldUntil { reservationFlow.value.sessionState.isClosed() }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)

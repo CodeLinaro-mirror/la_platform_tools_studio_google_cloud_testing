@@ -114,8 +114,8 @@ class DirectAccessDeviceHandle(
         if (hasUserForceCheckedInDevice) {
           return@invokeOnCompletion
         }
-        if (throwable == null || throwable is CancellationException) {
-          if (reservationFlow.value.sessionState == Reservation.SessionState.FINISHED) {
+        if (throwable == null) {
+          if (reservationFlow.value.sessionState == Reservation.SessionState.EXPIRED) {
             trackEndReservation(true, EndReservationType.EXPIRE)
           } else {
             trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
