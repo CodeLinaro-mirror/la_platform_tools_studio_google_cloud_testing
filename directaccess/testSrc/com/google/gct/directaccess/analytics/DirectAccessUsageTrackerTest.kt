@@ -224,7 +224,6 @@ class DirectAccessUsageTrackerTest {
     assertThat(connectDeviceDetails.connectTimeMs).isNotNull()
   }
 
-  @Ignore
   @Test
   fun trackConnectionFailMetricWhenErrorConnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
@@ -291,7 +290,6 @@ class DirectAccessUsageTrackerTest {
       .isEqualTo(SIXTY_MINUTES)
   }
 
-  @Ignore
   @Test
   fun trackExtendFailMetricWhenErrorExtendingReservation() = runBlockingWithTimeout {
     // Override default connection setup
@@ -563,7 +561,6 @@ class DirectAccessUsageTrackerTest {
     assertThat(endReservationDetails.endReservationType).isEqualTo(ERROR)
   }
 
-  @Ignore
   @Test
   fun trackEndReservationFailMetricWhenErrorEndingReservation() = runBlockingWithTimeout {
     // Override default connection setup
