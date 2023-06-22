@@ -133,6 +133,11 @@ class DirectAccessDeviceProvisionerTest {
           "getprop",
           "Foo"
         )
+        session.deviceServices.configureShellCommand(
+          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+          "wm size",
+          "Physical size: 1080x2400"
+        )
       }
     }
     projectRule.project.replaceService(
@@ -216,6 +221,8 @@ class DirectAccessDeviceProvisionerTest {
       assertThat(it.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
       assertThat(it.model).isEqualTo(deviceInfo.name + suffix)
       assertThat(it.manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
+      assertThat(it.resolution?.height).isEqualTo(2400)
+      assertThat(it.resolution?.width).isEqualTo(1080)
     }
 
     // Deactivate the device.

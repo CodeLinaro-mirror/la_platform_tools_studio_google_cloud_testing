@@ -26,9 +26,11 @@ import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
+import com.google.gct.login.GoogleLogin
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.ProjectRule
@@ -36,6 +38,7 @@ import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.DocumentAdapter
+import com.intellij.ui.components.AnActionLink
 import java.awt.event.MouseEvent
 import java.time.Duration
 import javax.swing.JPanel
@@ -61,6 +64,18 @@ class SelectProjectActionTest {
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlocking {
+    var isLoggedIn = false
+    val mockGoogleLogin = mock<GoogleLogin>()
+    doAnswer { isLoggedIn }.whenever(mockGoogleLogin).isLoggedIn
+    doAnswer {
+        isLoggedIn = true
+        true
+      }
+      .whenever(mockGoogleLogin)
+      .logIn()
+    ApplicationManager.getApplication()
+      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
+
     val service = projectRule.project.service<DirectAccessService>()
     val unsupportedProjectName = "unsupportedTestProject"
     val supportedProjectName = "supportedTestProject"
@@ -110,10 +125,19 @@ class SelectProjectActionTest {
         },
         mouseEvent
       )
+
+    // Start select action before login.
+    selectProjectAction.actionPerformed(event)
+    val loginBalloon = popupRule.fakePopupFactory.getNextBalloon()
+    Disposer.register(projectRule.disposable, loginBalloon)
+    val action = loginBalloon.component.findAllDescendants<AnActionLink>().first()
+    assertThat(action.text).isEqualTo("Log in")
+    action.doClick()
+
+    // Start select action after login.
     selectProjectAction.actionPerformed(event)
     val balloon = popupRule.fakePopupFactory.getNextBalloon()
     Disposer.register(projectRule.disposable, balloon)
-
     // Select a project that does not support direct access.
     val textField = balloon.component.findAllDescendants<JTextField>().first()
     textField.text = unsupportedProjectName

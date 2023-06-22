@@ -18,6 +18,7 @@ package com.google.gct.directaccess.analytics
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.stats.AnonymizerUtil
 import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.services.firebase.directaccess.client.DirectAccessConnectionMetrics
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DeviceInfo as MetricsDeviceInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
@@ -101,10 +102,10 @@ object DirectAccessUsageTracker {
     wasSuccessful: Boolean,
     endType: EndReservationType,
     reservationTimeSec: Long,
-    avgLatencyMs: Int,
+    latencyMetrics: DirectAccessConnectionMetrics,
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
-    failReason: DirectAccessUsageEvent.FailureReason?
+    failReason: DirectAccessUsageEvent.FailureReason? = null
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -115,7 +116,14 @@ object DirectAccessUsageTracker {
               success = wasSuccessful
               endReservationType = endType
               totalReservationTimeSec = reservationTimeSec.toInt()
-              averageConnectionLatencyMs = avgLatencyMs
+              connectionMetrics =
+                connectionMetricsBuilder
+                  .apply {
+                    maxLatencyMs = latencyMetrics.maxLatency
+                    p50LatencyMs = latencyMetrics.p50Latency
+                    p90LatencyMs = latencyMetrics.p90Latency
+                  }
+                  .build()
             }
             .build()
       }

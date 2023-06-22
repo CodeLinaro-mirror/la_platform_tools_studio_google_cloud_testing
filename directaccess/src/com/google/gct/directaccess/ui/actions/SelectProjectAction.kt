@@ -25,6 +25,7 @@ import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
+import com.google.gct.login.GoogleLogin
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -32,6 +33,7 @@ import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBColor
 import com.intellij.ui.awt.RelativePoint
+import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.panels.HorizontalLayout
@@ -91,35 +93,51 @@ class SelectProjectAction(
       add(
         JPanel(HorizontalLayout(2)).apply {
           add(JBLabel("Project: "))
-          val selector = builder(preferredProject)
-          add(selector.component)
-          scope.launch {
-            selector.selectedProject.collect {
-              if (it.isNotEmpty()) {
-                service.gcpProject = it
-                withContext(AndroidDispatchers.uiThread) {
-                  balloon.revalidate()
-                  launch {
-                    var errorMessage: String? = null
-                    try {
-                      withContext(Dispatchers.IO) { service.reservationManager?.listReservations() }
-                    } catch (_: Exception) {
-                      // TODO (b/283882413): show different reasons for project without access.
-                      errorMessage =
-                        "$it does not have access to Direct Access. Select a different project."
-                    }
-                    if (errorMessage != null) {
-                      errorTextPane.text = errorMessage
-                      errorTextPane.isVisible = true
-                    } else {
-                      errorTextPane.isVisible = false
-                      errorTextPane.text = ""
-                    }
+          if (GoogleLogin.instance.isLoggedIn) {
+
+            val selector = builder(preferredProject)
+            add(selector.component)
+            scope.launch {
+              selector.selectedProject.collect {
+                if (it.isNotEmpty()) {
+                  service.gcpProject = it
+                  withContext(AndroidDispatchers.uiThread) {
                     balloon.revalidate()
+                    launch {
+                      var errorMessage: String? = null
+                      try {
+                        withContext(Dispatchers.IO) {
+                          service.reservationManager?.listReservations()
+                        }
+                      } catch (_: Exception) {
+                        // TODO (b/283882413): show different reasons for project without access.
+                        errorMessage =
+                          "$it does not have access to Direct Access. Select a different project."
+                      }
+                      if (errorMessage != null) {
+                        errorTextPane.text = errorMessage
+                        errorTextPane.isVisible = true
+                      } else {
+                        errorTextPane.isVisible = false
+                        errorTextPane.text = ""
+                      }
+                      balloon.revalidate()
+                    }
                   }
                 }
               }
             }
+          } else {
+            add(
+              AnActionLink(
+                "Log in",
+                object : AnAction() {
+                  override fun actionPerformed(e: AnActionEvent) {
+                    GoogleLogin.instance.logIn()
+                  }
+                }
+              )
+            )
           }
           border = JBUI.Borders.empty(5, 0)
           isOpaque = false
