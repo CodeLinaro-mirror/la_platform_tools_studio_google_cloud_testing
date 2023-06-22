@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
+import com.android.adblib.scope
 import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.DeactivationAction
@@ -361,18 +362,19 @@ class DirectAccessDeviceHandle(
       }
 
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
-    scope.launch {
-      device.awaitDisconnection()
-      if (!hasUserDisconnectedDevice) {
-        notificationManager.showDeviceDisconnectedNotification(
-          state.reservation?.endTime?.epochSecond
-        )
+    scope
+      .launch { device.awaitDisconnection() }
+      .invokeOnCompletion { _ ->
+        if (!hasUserDisconnectedDevice) {
+          notificationManager.showDeviceDisconnectedNotification(
+            state.reservation?.endTime?.epochSecond
+          )
+        }
+        trackDisconnectMetric(true)
+        stateFlow.update {
+          DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
+        }
       }
-      trackDisconnectMetric(true)
-      stateFlow.update {
-        DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
-      }
-    }
     return true
   }
 

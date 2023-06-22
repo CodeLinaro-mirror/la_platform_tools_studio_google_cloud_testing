@@ -397,6 +397,35 @@ class DirectAccessUsageTrackerTest {
     }
 
   @Test
+  fun trackDisconnectDeviceSuccessWhenUserLogsOut() = runBlockingWithTimeout {
+    setupConnection { reservationName, deviceScope ->
+      getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+
+    val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(DISCONNECT_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val disconnectDeviceDetails = directAccessEvent.disconnectDeviceDetails
+    assertThat(disconnectDeviceDetails.success).isTrue()
+    assertThat(disconnectDeviceDetails.userDisconnected).isFalse()
+  }
+
+  @Test
   fun trackDisconnectDeviceFailureMetricWhenErrorDisconnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
     setupConnection { reservationName, deviceScope ->
