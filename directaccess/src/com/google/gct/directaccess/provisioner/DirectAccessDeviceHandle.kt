@@ -134,6 +134,7 @@ class DirectAccessDeviceHandle(
         Reservation.SessionState.REQUESTED,
         Reservation.SessionState.PENDING -> ReservationState.PENDING
         Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
+        Reservation.SessionState.EXPIRED,
         Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
         else -> ReservationState.ERROR
       }

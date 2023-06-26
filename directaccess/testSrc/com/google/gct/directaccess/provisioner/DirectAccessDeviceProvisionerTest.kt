@@ -62,6 +62,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
@@ -495,6 +496,22 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { plugin.devices.value.isEmpty() }
 
     assertThat(getNotifications(projectRule.project).size).isEqualTo(0)
+  }
+
+  @Test
+  fun testStateChangesToCompleteOnReservationExpiry() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val flow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    flow.waitUntilActive()
+
+    (flow as MutableStateFlow).update {
+      it.toBuilder().apply { sessionState = Reservation.SessionState.EXPIRED }.build()
+    }
+    yieldUntil { flow.value.sessionState == Reservation.SessionState.EXPIRED }
+
+    yieldUntil { handle.stateFlow.value.reservation?.state == ReservationState.COMPLETE }
   }
 
   private suspend fun Notification.assertNotification(
