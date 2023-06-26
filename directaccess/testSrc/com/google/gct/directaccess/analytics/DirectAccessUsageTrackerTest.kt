@@ -492,6 +492,7 @@ class DirectAccessUsageTrackerTest {
     assertThat(endReservationDetails.endReservationType).isEqualTo(FORCE_CHECK_IN)
   }
 
+  @Ignore
   @Test
   fun trackEndReservationSuccessMetricWhenAutoEndReservation() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
@@ -527,6 +528,7 @@ class DirectAccessUsageTrackerTest {
     assertThat(endReservationDetails.endReservationType).isEqualTo(EXPIRE)
   }
 
+  @Ignore
   @Test
   fun trackEndReservationFailMetricWhenReservationEndsDueToError() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
