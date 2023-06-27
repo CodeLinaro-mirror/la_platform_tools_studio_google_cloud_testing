@@ -83,7 +83,7 @@ class DirectAccessDeviceHandle(
     project.service<DirectAccessService>().connectToReservation(reservationName, scope)
       ?: throw RuntimeException("Not logged in.")
 
-  val notificationManager = DirectAccessNotificationManager(project, this)
+  val notificationManager: DirectAccessNotificationManager
 
   val icon: Icon
     get() = sourceTemplate.icon
@@ -103,6 +103,8 @@ class DirectAccessDeviceHandle(
     stateFlow =
       MutableStateFlow(initialState.withReservation(mapReservation(reservationFlow.value)))
 
+    // [notificationManager] collects [stateFlow] and needs to be initiated after.
+    notificationManager = DirectAccessNotificationManager(project, this)
     scope.launch {
       reservationFlow.map(this@DirectAccessDeviceHandle::mapReservation).collect { reservation ->
         stateFlow.update { state -> state.withReservation(reservation) }
@@ -183,7 +185,6 @@ class DirectAccessDeviceHandle(
             // TODO(b/277240160): Add correct failure reason
             trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
           }
-          notificationManager.expire()
           stateFlow.update {
             val reservation = it.reservation ?: return@withContext
             DeviceState.Disconnected(it.properties)
@@ -293,7 +294,6 @@ class DirectAccessDeviceHandle(
               .takeWhile { it.reservation?.endTime?.toEpochMilli() == endTime.toEpochMilli() }
               .collect()
           }
-          notificationManager.expire()
           trackExtendReservation(true, duration)
         } catch (e: TimeoutCancellationException) {
           // TODO(b/277240160): Add correct failure reason here as well as below
@@ -326,7 +326,6 @@ class DirectAccessDeviceHandle(
             )
             throw DeviceActionException("Could not end reservation", e)
           }
-          notificationManager.expire()
           trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
         }
 
@@ -372,16 +371,18 @@ class DirectAccessDeviceHandle(
     scope
       .launch { device.awaitDisconnection() }
       .invokeOnCompletion { _ ->
-        // Show notification if the device disconnected without user action
-        if (!hasUserDisconnectedDevice && !hasUserForceCheckedInDevice) {
-          notificationManager.showDeviceDisconnectedNotification(
-            state.reservation?.endTime?.epochSecond
-          )
-        }
-        trackDisconnectMetric(true)
         stateFlow.update {
           DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
         }
+        // Show notification if the device disconnected without user action
+        if (!hasUserDisconnectedDevice) {
+          scope.launch {
+            notificationManager.showDeviceDisconnectedNotification(
+              state.reservation?.endTime?.epochSecond
+            )
+          }
+        }
+        trackDisconnectMetric(true)
       }
     return true
   }

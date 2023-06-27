@@ -59,6 +59,7 @@ import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -349,7 +350,7 @@ class DirectAccessDeviceProvisionerTest {
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
 
-    firstNotificationsList[0].assertNotification(template.properties.title) {
+    firstNotificationsList[0].assertDeviceDisconnectedNotification(template.properties.title) {
       val reconnectAction = it.actions[0] as NotificationAction
       reconnectAction.actionPerformed(mock(), it)
       yieldUntil { handle?.connectionState != DirectAccessConnection.ConnectionState.DISCONNECTED }
@@ -368,7 +369,7 @@ class DirectAccessDeviceProvisionerTest {
     val secondNotificationsList = getNotifications(projectRule.project)
     assertThat(secondNotificationsList.size).isEqualTo(1)
 
-    secondNotificationsList[0].assertNotification(template.properties.title) {
+    secondNotificationsList[0].assertDeviceDisconnectedNotification(template.properties.title) {
       val forceCheckInAction = it.actions[1] as NotificationAction
       forceCheckInAction.actionPerformed(mock(), it)
       yieldUntil { handle?.reservation?.sessionState != Reservation.SessionState.ACTIVE }
@@ -376,6 +377,58 @@ class DirectAccessDeviceProvisionerTest {
         .isEqualTo(DirectAccessConnection.ConnectionState.DISCONNECTED)
       yieldUntil { plugin.devices.value.isEmpty() }
     }
+  }
+
+  @Test
+  fun testActionsInNotificationOnExpiringReservation() = runBlockingWithTimeout {
+    val deviceInfo = deviceInfoListProvider()[0]
+    val template = plugin.templates.value[0]
+
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = fakeConnection.deviceAddress()!!.address
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
+      )
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+
+    val handle = (template as DirectAccessDeviceTemplate).activeDevice
+    assertThat(handle).isNotNull()
+
+    handle?.reservation?.let {
+      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
+    }
+
+    directAccessReservationManager.extendReservation(
+      handle!!.reservation.name,
+      Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
+      DirectAccessReservationManager.ReservationExtendType.TTL
+    )
+
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    val firstNotificationsList = getNotifications(projectRule.project)
+    assertThat(firstNotificationsList.size).isEqualTo(1)
+
+    firstNotificationsList[0].assertReservationExpiringNotification(template.properties.title) {
+      val extendAction = it.actions[0] as NotificationAction
+      extendAction.actionPerformed(mock(), it)
+      yieldUntil {
+        handle.reservation.expireTime.seconds ==
+          service.instant.epochSecond + TimeUnit.MINUTES.toSeconds(35) + 10
+      }
+    }
+
+    // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
+    // to be cleared.
+    yieldUntil { getNotifications(projectRule.project).isEmpty() }
   }
 
   @Test
@@ -416,7 +469,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(firstNotificationsList.size).isEqualTo(1)
     handle?.activationAction?.activate()
 
-    assertThat(firstNotificationsList[0].isExpired).isTrue()
+    yieldUntil { firstNotificationsList[0].isExpired }
     // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
     // to be cleared.
     yieldUntil { getNotifications(projectRule.project).isEmpty() }
@@ -429,8 +482,6 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(secondNotificationsList.size).isEqualTo(1)
 
     handle?.reservationAction?.endReservation()
-
-    assertThat(secondNotificationsList[0].isExpired).isTrue()
     yieldUntil { getNotifications(projectRule.project).isEmpty() }
   }
 
@@ -562,21 +613,43 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(handle.state.properties.icon).isEqualTo(icon)
   }
 
-  private suspend fun Notification.assertNotification(
+  private suspend fun Notification.assertReservationExpiringNotification(
     deviceName: String,
+    actionAssertBlock: suspend (Notification) -> Unit
+  ) =
+    assertDeviceNotification(
+      "Reservation ending in 5 mins",
+      "$deviceName will disconnect in 5 mins. Extend reservation to continue access to the device.",
+      listOf("Extend 30 mins"),
+      actionAssertBlock
+    )
+
+  private suspend fun Notification.assertDeviceDisconnectedNotification(
+    deviceName: String,
+    actionAssertBlock: suspend (Notification) -> Unit
+  ) =
+    assertDeviceNotification(
+      "$deviceName on Firebase stopped",
+      "You can reconnect to the same $deviceName for up to 5 minutes before the device is wiped",
+      listOf("Reconnect to Device", "Force check-in device"),
+      actionAssertBlock
+    )
+
+  private suspend fun Notification.assertDeviceNotification(
+    title: String,
+    content: String,
+    actionTitles: List<String>,
     actionAssertBlock: suspend (Notification) -> Unit
   ) {
     assertThat(groupId).isEqualTo("Direct Access")
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
-    assertThat(title).isEqualTo("$deviceName on Firebase stopped")
-    assertThat(content)
-      .isEqualTo(
-        "You can reconnect to the same $deviceName for up to 5 minutes before the device is wiped"
-      )
-    assertThat(actions.size).isEqualTo(2)
+    assertThat(title).isEqualTo(title)
+    assertThat(content).isEqualTo(content)
+    assertThat(actions.size).isEqualTo(actionTitles.size)
     assertThat(isExpired).isFalse()
-    assertThat(actions[0].templateText).isEqualTo("Reconnect to Device")
-    assertThat(actions[1].templateText).isEqualTo("Force check-in device")
+    actionTitles.indices.forEach { index ->
+      assertThat(actions[index].templateText).isEqualTo(actionTitles[index])
+    }
     actionAssertBlock(this)
     // Make sure the notification expires as both actions expire it.
     yieldUntil { isExpired }
