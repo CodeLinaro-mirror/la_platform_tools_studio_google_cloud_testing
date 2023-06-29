@@ -17,7 +17,6 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
-import com.android.adblib.scope
 import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.DeactivationAction
@@ -347,7 +346,10 @@ class DirectAccessDeviceHandle(
         )
     }
 
-  /** Returns true and changes state to [Connected] if [port] matches the [connection] of handle. */
+  /**
+   * Returns true and changes state to [DeviceState.Connected] if [port] matches the [connection] of
+   * handle.
+   */
   suspend fun claim(port: Int, device: ConnectedDevice): Boolean {
     if (connection.port != port) {
       return false
