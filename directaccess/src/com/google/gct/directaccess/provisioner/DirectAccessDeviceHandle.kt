@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
+import com.android.adblib.scope
 import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.DeactivationAction
@@ -114,8 +115,8 @@ class DirectAccessDeviceHandle(
         if (hasUserForceCheckedInDevice) {
           return@invokeOnCompletion
         }
-        if (throwable == null || throwable is CancellationException) {
-          if (reservationFlow.value.sessionState == Reservation.SessionState.FINISHED) {
+        if (throwable == null) {
+          if (reservationFlow.value.sessionState == Reservation.SessionState.EXPIRED) {
             trackEndReservation(true, EndReservationType.EXPIRE)
           } else {
             trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
@@ -133,6 +134,7 @@ class DirectAccessDeviceHandle(
         Reservation.SessionState.REQUESTED,
         Reservation.SessionState.PENDING -> ReservationState.PENDING
         Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
+        Reservation.SessionState.EXPIRED,
         Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
         else -> ReservationState.ERROR
       }
@@ -309,22 +311,23 @@ class DirectAccessDeviceHandle(
           ?: throw DeviceActionException("Extended reservation end time not available.")
       }
 
-      override suspend fun endReservation() {
-        hasUserForceCheckedInDevice = true
-        try {
-          connection.endReservation()
-        } catch (e: Exception) {
-          hasUserForceCheckedInDevice = false
-          trackEndReservation(
-            false,
-            EndReservationType.FORCE_CHECK_IN,
-            FailureReason.UNKNOWN_FAILURE
-          )
-          throw DeviceActionException("Could not end reservation", e)
+      override suspend fun endReservation() =
+        withContext(NonCancellable) {
+          hasUserForceCheckedInDevice = true
+          try {
+            connection.endReservation()
+          } catch (e: Exception) {
+            hasUserForceCheckedInDevice = false
+            trackEndReservation(
+              false,
+              EndReservationType.FORCE_CHECK_IN,
+              FailureReason.UNKNOWN_FAILURE
+            )
+            throw DeviceActionException("Could not end reservation", e)
+          }
+          notificationManager.expire()
+          trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
         }
-        notificationManager.expire()
-        trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
-      }
 
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
       override val presentation: StateFlow<DeviceAction.Presentation> =
@@ -358,21 +361,23 @@ class DirectAccessDeviceHandle(
       DirectAccessDeviceProperties.build {
         resolution = Resolution.readFromDevice(device)
         readCommonProperties(properties)
+        icon = StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
       }
 
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
-    scope.launch {
-      device.awaitDisconnection()
-      if (!hasUserDisconnectedDevice) {
-        notificationManager.showDeviceDisconnectedNotification(
-          state.reservation?.endTime?.epochSecond
-        )
+    scope
+      .launch { device.awaitDisconnection() }
+      .invokeOnCompletion { _ ->
+        if (!hasUserDisconnectedDevice) {
+          notificationManager.showDeviceDisconnectedNotification(
+            state.reservation?.endTime?.epochSecond
+          )
+        }
+        trackDisconnectMetric(true)
+        stateFlow.update {
+          DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
+        }
       }
-      trackDisconnectMetric(true)
-      stateFlow.update {
-        DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
-      }
-    }
     return true
   }
 
@@ -432,6 +437,13 @@ fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
       }
     resolution = Resolution(info.screenX, info.screenY)
     density = info.screenDensity
+    icon =
+      when (type) {
+        DeviceType.WEAR_OS -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
+        DeviceType.TV -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
+        DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
+        else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
+      }
   }
 }
 
