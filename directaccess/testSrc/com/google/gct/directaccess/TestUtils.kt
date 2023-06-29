@@ -41,7 +41,8 @@ object TestUtils {
         300,
         400,
         500
-      )
+      ),
+      DeviceInfo("Google", "Pixel Watch", "Google", "watch", 33, DeviceType.WEAR_OS, 50, 100, 150)
     )
   }
 
