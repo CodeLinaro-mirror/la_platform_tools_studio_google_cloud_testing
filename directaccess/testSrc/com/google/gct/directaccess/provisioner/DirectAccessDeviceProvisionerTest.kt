@@ -518,6 +518,24 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { handle.stateFlow.value.reservation?.state == ReservationState.COMPLETE }
   }
 
+  @Test
+  fun testNoNotificationOnForceCheckIn() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val flow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    flow.waitUntilActive()
+
+    session.hostServices.connect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.stateFlow.value.connectedDevice != null }
+
+    handle.reservationAction.endReservation()
+    yieldUntil { handle.stateFlow.value is Disconnected }
+
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(0)
+  }
+
   private suspend fun Notification.assertNotification(
     deviceName: String,
     actionAssertBlock: suspend (Notification) -> Unit

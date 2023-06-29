@@ -370,7 +370,8 @@ class DirectAccessDeviceHandle(
     scope
       .launch { device.awaitDisconnection() }
       .invokeOnCompletion { _ ->
-        if (!hasUserDisconnectedDevice) {
+        // Show notification if the device disconnected without user action
+        if (!hasUserDisconnectedDevice && !hasUserForceCheckedInDevice) {
           notificationManager.showDeviceDisconnectedNotification(
             state.reservation?.endTime?.epochSecond
           )
