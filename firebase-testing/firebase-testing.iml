@@ -34,7 +34,6 @@
     <orderEntry type="module" module-name="intellij.android.core" />
     <orderEntry type="module" module-name="google-cloud-tools-core-as" />
     <orderEntry type="module" module-name="google-login-as" />
-    <orderEntry type="library" name="tightvnc" level="project" />
     <orderEntry type="module" module-name="analytics-tracker" />
     <orderEntry type="module" module-name="intellij.android.testFramework" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="mockito" level="project" />
