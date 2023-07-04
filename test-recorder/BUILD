@@ -73,7 +73,6 @@ maven_repository(
         "@maven//:com.android.support.test.espresso.espresso-contrib_3.0.2",
         "@maven//:com.android.support.test.espresso.espresso-core_3.0.2",
         "@maven//:com.android.support.test.rules_1.0.2",
-        "@maven//:com.android.tools.build.gradle_7.4.0-alpha09",
         "@maven//:org.jetbrains.kotlin.kotlin-compiler_1.9.0-Beta",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin-api_1.9.0-Beta",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.9.0-Beta",
