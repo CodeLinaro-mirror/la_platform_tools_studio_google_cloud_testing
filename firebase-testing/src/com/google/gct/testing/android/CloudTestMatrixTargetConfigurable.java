@@ -25,6 +25,7 @@ import static com.google.gct.testing.launcher.CloudAuthenticator.isUserLoggedIn;
 import com.android.tools.idea.run.editor.DeployTargetConfigurable;
 import com.android.tools.idea.run.editor.DeployTargetConfigurableContext;
 import com.android.tools.idea.run.editor.DeployTargetState;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -37,7 +38,6 @@ import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
-import icons.GoogleCloudToolsIcons;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -264,7 +264,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     @Override
     public void update(AnActionEvent event) {
       Presentation presentation = event.getPresentation();
-      presentation.setIcon(GoogleCloudToolsIcons.REFRESH);
+      presentation.setIcon(AllIcons.Actions.Refresh);
       presentation.setText("Refresh cloud projects");
     }
   }

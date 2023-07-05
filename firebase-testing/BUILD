@@ -27,7 +27,6 @@ iml_module(
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
         "//tools/adt/idea/android-common:intellij.android.common[module]",
         "//tools/adt/idea/android:intellij.android.core[module]",
-        "//tools/studio/google/cloud/tools/core-plugin:google-cloud-tools-core-as[module]",
         "//tools/studio/google/cloud/tools/google-login-plugin:google-login-as[module]",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
