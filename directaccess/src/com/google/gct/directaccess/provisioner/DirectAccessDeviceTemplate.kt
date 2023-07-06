@@ -15,15 +15,18 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionDisabledException
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
+import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
+import com.android.tools.idea.devicemanager.DeviceType
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
@@ -34,6 +37,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import icons.StudioIcons
 import java.time.Duration
+import javax.swing.Icon
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +57,10 @@ class DirectAccessDeviceTemplate(
   override val properties = deviceInfo.toDeviceProperties()
 
   private val isActivationEnabled = MutableStateFlow(true)
+
+  /** Icon to show for the template and handle */
+  val icon: Icon
+    get() = properties.icon
 
   /**
    * Last device handle activated by the template.
@@ -188,5 +196,30 @@ class DirectAccessDeviceTemplate(
       reservationFlow.value.name,
       deviceInfo.toMetricsDeviceInfo()
     )
+  }
+}
+
+private fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
+  val info = this
+  return DirectAccessDeviceProperties.build {
+    manufacturer = info.manufacturer
+    model = info.name
+    androidVersion = AndroidVersion(info.api)
+    deviceType =
+      when (info.type) {
+        DeviceType.PHONE -> com.android.sdklib.deviceprovisioner.DeviceType.HANDHELD
+        DeviceType.TV -> com.android.sdklib.deviceprovisioner.DeviceType.TV
+        DeviceType.WEAR_OS -> com.android.sdklib.deviceprovisioner.DeviceType.WEAR
+        DeviceType.AUTOMOTIVE -> com.android.sdklib.deviceprovisioner.DeviceType.AUTOMOTIVE
+      }
+    resolution = Resolution(info.screenX, info.screenY)
+    density = info.screenDensity
+    icon =
+      when (type) {
+        DeviceType.WEAR_OS -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
+        DeviceType.TV -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
+        DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
+        else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
+      }
   }
 }

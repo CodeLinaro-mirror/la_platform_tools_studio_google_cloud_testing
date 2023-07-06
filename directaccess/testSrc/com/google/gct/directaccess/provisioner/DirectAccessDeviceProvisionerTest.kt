@@ -59,6 +59,7 @@ import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
 import java.time.Duration
+import javax.swing.Icon
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -153,7 +154,7 @@ class DirectAccessDeviceProvisionerTest {
   fun testTemplates() = runBlockingWithTimeout {
     // getAvailableDevices() is called in the init block of FirebaseDeviceProvisioner
     // Wait for setup to complete
-    yieldUntil { provisioner.templates.value.size == 3 }
+    yieldUntil { provisioner.templates.value.isNotEmpty() }
 
     // Assert
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
@@ -167,6 +168,9 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
     assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
     assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
+    assertThat(provisioner.templates.value[3].properties.title).isEqualTo("Google Pixel Watch")
+    assertThat(provisioner.templates.value[3].properties.resolution).isEqualTo(Resolution(50, 100))
+    assertThat(provisioner.templates.value[3].properties.density).isEqualTo(150)
 
     // Log out
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
@@ -516,6 +520,46 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { flow.value.sessionState == Reservation.SessionState.EXPIRED }
 
     yieldUntil { handle.stateFlow.value.reservation?.state == ReservationState.COMPLETE }
+  }
+
+  @Test
+  fun testNoNotificationOnForceCheckIn() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val flow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    flow.waitUntilActive()
+
+    session.hostServices.connect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.stateFlow.value.connectedDevice != null }
+
+    handle.reservationAction.endReservation()
+    yieldUntil { handle.stateFlow.value is Disconnected }
+
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(0)
+  }
+
+  @Test
+  fun testCorrectIconForPhone() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+    testCorrectIcon(template, StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+  }
+
+  @Test
+  fun testCorrectIconForWatch() = runBlockingWithTimeout {
+    val template = plugin.templates.value[3] as DirectAccessDeviceTemplate
+    testCorrectIcon(template, StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR)
+  }
+
+  private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    session.hostServices.connect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.state is Connected }
+
+    assertThat(template.icon).isEqualTo(icon)
+    assertThat(handle.icon).isEqualTo(icon)
+    assertThat(handle.state.properties.icon).isEqualTo(icon)
   }
 
   private suspend fun Notification.assertNotification(

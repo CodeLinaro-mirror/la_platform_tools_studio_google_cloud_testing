@@ -17,7 +17,6 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
-import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceAction
@@ -31,7 +30,6 @@ import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.adbbridge.Reservation
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
@@ -50,6 +48,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
+import javax.swing.Icon
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
@@ -85,6 +84,9 @@ class DirectAccessDeviceHandle(
       ?: throw RuntimeException("Not logged in.")
 
   val notificationManager = DirectAccessNotificationManager(project, this)
+
+  val icon: Icon
+    get() = sourceTemplate.icon
 
   override val stateFlow: MutableStateFlow<DeviceState>
 
@@ -363,14 +365,15 @@ class DirectAccessDeviceHandle(
       DirectAccessDeviceProperties.build {
         resolution = Resolution.readFromDevice(device)
         readCommonProperties(properties)
-        icon = StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
+        icon = this@DirectAccessDeviceHandle.icon
       }
 
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
     scope
       .launch { device.awaitDisconnection() }
       .invokeOnCompletion { _ ->
-        if (!hasUserDisconnectedDevice) {
+        // Show notification if the device disconnected without user action
+        if (!hasUserDisconnectedDevice && !hasUserForceCheckedInDevice) {
           notificationManager.showDeviceDisconnectedNotification(
             state.reservation?.endTime?.epochSecond
           )
@@ -421,31 +424,6 @@ class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by
   companion object {
     inline fun build(block: Builder.() -> Unit) =
       Builder().apply(block).run { DirectAccessDeviceProperties(buildBase()) }
-  }
-}
-
-fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
-  val info = this
-  return DirectAccessDeviceProperties.build {
-    manufacturer = info.manufacturer
-    model = info.name
-    androidVersion = AndroidVersion(info.api)
-    deviceType =
-      when (info.type) {
-        DeviceType.PHONE -> com.android.sdklib.deviceprovisioner.DeviceType.HANDHELD
-        DeviceType.TV -> com.android.sdklib.deviceprovisioner.DeviceType.TV
-        DeviceType.WEAR_OS -> com.android.sdklib.deviceprovisioner.DeviceType.WEAR
-        DeviceType.AUTOMOTIVE -> com.android.sdklib.deviceprovisioner.DeviceType.AUTOMOTIVE
-      }
-    resolution = Resolution(info.screenX, info.screenY)
-    density = info.screenDensity
-    icon =
-      when (type) {
-        DeviceType.WEAR_OS -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
-        DeviceType.TV -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
-        DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
-        else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
-      }
   }
 }
 

@@ -11,7 +11,6 @@
 
   <depends>org.jetbrains.android</depends>
   <depends>org.intellij.groovy</depends>
-  <depends>com.google.gct.core</depends>
 
   <xi:include href="/META-INF/gmd-code-completion.xml" xpointer="xpointer(/idea-plugin/*)"/>
 
