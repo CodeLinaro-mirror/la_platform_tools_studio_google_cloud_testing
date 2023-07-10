@@ -40,9 +40,12 @@ import java.time.Duration
 import javax.swing.Icon
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -52,11 +55,12 @@ class DirectAccessDeviceTemplate(
   private val project: Project,
   val deviceInfo: DeviceInfo,
   private val devices: MutableStateFlow<List<DeviceHandle>>,
-  private val scope: CoroutineScope
+  private val scope: CoroutineScope,
+  private val isAuthenticatorReady: Flow<Boolean>
 ) : DeviceTemplate {
   override val properties = deviceInfo.toDeviceProperties()
 
-  private val isActivationEnabled = MutableStateFlow(true)
+  private val isActivationStarted = MutableStateFlow(false)
 
   /** Icon to show for the template and handle */
   val icon: Icon
@@ -69,6 +73,10 @@ class DirectAccessDeviceTemplate(
    */
   var activeDevice: DirectAccessDeviceHandle? = null
     private set(device) {
+      field?.let {
+        devices.update { list -> list - it }
+        isActivationStarted.value = false
+      }
       field = device
       if (device != null) {
         devices.update { list -> list + device }
@@ -76,7 +84,7 @@ class DirectAccessDeviceTemplate(
           device.stateFlow.collect {
             if (it.reservation?.state?.isClosed() == true) {
               field = null
-              isActivationEnabled.value = true
+              isActivationStarted.value = false
               devices.update { list -> list - device }
             }
           }
@@ -100,7 +108,7 @@ class DirectAccessDeviceTemplate(
        */
       override suspend fun activate(duration: Duration?): DeviceHandle {
         // Disable further activate actions to avoid multiple devices.
-        if (!isActivationEnabled.compareAndSet(expect = true, update = false)) {
+        if (!isActivationStarted.compareAndSet(expect = false, update = true)) {
           throw DeviceActionDisabledException(this)
         }
 
@@ -109,15 +117,19 @@ class DirectAccessDeviceTemplate(
         } catch (e: CancellationException) {
           throw e
         } catch (e: Exception) {
-          isActivationEnabled.value = true
+          isActivationStarted.value = false
           throw DeviceActionException("Unable to reserve device.", e)
         }
       }
 
       private val defaultPresentation =
         DeviceAction.Presentation("Acquire", StudioIcons.Avd.RUN, false)
+
       override val presentation: StateFlow<DeviceAction.Presentation> =
-        isActivationEnabled
+        isActivationStarted
+          .combine(isAuthenticatorReady) { started, authenticatorReady ->
+            !started && authenticatorReady
+          }
           .map { enabled -> defaultPresentation.copy(enabled = enabled) }
           .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
     }
@@ -134,7 +146,7 @@ class DirectAccessDeviceTemplate(
    * TODO (b/246171065): activating multiple devices.
    */
   fun createDeviceHandleIfAbsent() {
-    if (isActivationEnabled.compareAndSet(expect = true, update = false)) {
+    if (isActivationStarted.compareAndSet(expect = false, update = true)) {
       createDeviceHandle()
     }
   }
@@ -183,6 +195,16 @@ class DirectAccessDeviceTemplate(
         reservationResult.first
       )
       .also { activeDevice = it }
+  }
+
+  init {
+    scope.launch {
+      isAuthenticatorReady.distinctUntilChanged().collect { isReady ->
+        if (!isReady) {
+          activeDevice = null
+        }
+      }
+    }
   }
 
   private fun CoroutineScope.logReserveMetricWhenReservationActive(

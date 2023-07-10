@@ -102,7 +102,7 @@ class DirectAccessUsageTrackerTest {
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
-      DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
+      DirectAccessReservationManager("test-project", scope, grpcConnectionRule.channel) {
         "testToken"
       }
     setupConnection { reservationName, deviceScope ->
@@ -130,6 +130,7 @@ class DirectAccessUsageTrackerTest {
     createConnection: (String, CoroutineScope) -> FakeDirectAccessConnection
   ) {
     val mockDirectAccessService = mock<DirectAccessService>()
+    Mockito.doReturn("test-project").whenever(mockDirectAccessService).gcpProject
     whenever(mockDirectAccessService.reservationManager).thenReturn(directAccessReservationManager)
     whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
       val reservationName = it.arguments[0] as String

@@ -66,6 +66,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.junit.After
@@ -127,6 +128,7 @@ class DirectAccessDeviceProvisionerTest {
     createConnection: (String, CoroutineScope) -> FakeDirectAccessConnection
   ) {
     val mockDirectAccessService = mock<DirectAccessService>()
+    doReturn("test-project").whenever(mockDirectAccessService).gcpProject
     whenever(mockDirectAccessService.reservationManager).thenReturn(directAccessReservationManager)
     whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
       val reservationName = it.arguments[0] as String
@@ -157,6 +159,9 @@ class DirectAccessDeviceProvisionerTest {
     // getAvailableDevices() is called in the init block of FirebaseDeviceProvisioner
     // Wait for setup to complete
     yieldUntil { provisioner.templates.value.isNotEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
+    }
 
     // Assert
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
@@ -176,13 +181,16 @@ class DirectAccessDeviceProvisionerTest {
 
     // Log out
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
-    yieldUntil { provisioner.templates.value.isEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
 
     // Login again without access.
     isOAuthTokenAvailable = false
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
-    plugin.updateTemplates(scope)
-    yieldUntil { provisioner.templates.value.isEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
   }
 
   @Test
@@ -311,6 +319,27 @@ class DirectAccessDeviceProvisionerTest {
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
     plugin.updateReservations()
     yieldUntil { provisioner.devices.value.isNotEmpty() }
+  }
+
+  @Test
+  fun deviceUpdatedWithLoginState() = runBlockingWithTimeout {
+    val deviceInfo = deviceInfoListProvider()[0]
+    directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
+    plugin.updateReservations()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+
+    // Device removed after logout.
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    yieldUntil {
+      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
+    yieldUntil { provisioner.devices.value.isEmpty() }
+
+    // Login again to re-discover the device.
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
+    yieldUntil {
+      provisioner.templates.value.any { (it as DirectAccessDeviceTemplate).activeDevice != null }
+    }
   }
 
   @Test
@@ -648,4 +677,10 @@ class DirectAccessDeviceProvisionerTest {
     // Make sure the notification expires as both actions expire it.
     yieldUntil { isExpired }
   }
+
+  private fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
+    matchReservations(
+      templates.value.mapNotNull { it as? DirectAccessDeviceTemplate },
+      fetchReservations()!!
+    )
 }
