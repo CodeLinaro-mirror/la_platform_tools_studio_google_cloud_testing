@@ -160,14 +160,10 @@ class DirectAccessDeviceProvisionerPlugin(
 
     fetchReservations()
       ?.filter { reservation ->
-        !reservation.sessionState.isClosed() &&
-          reservation.androidDeviceList.androidDevicesList.isNotEmpty()
+        !reservation.sessionState.isClosed() && reservation.hasAndroidDevice()
       }
       ?.forEach { reservation ->
-        val key =
-          reservation.androidDeviceList.androidDevicesList[0].let {
-            "${it.androidModelId} ${it.androidVersionId}"
-          }
+        val key = reservation.androidDevice.let { "${it.androidModelId} ${it.androidVersionId}" }
         templateMap[key]?.firstOrNull()?.createDeviceHandleIfAbsent()
       }
   }
