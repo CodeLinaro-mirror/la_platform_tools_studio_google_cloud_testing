@@ -39,6 +39,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
+import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.login.GoogleLogin
@@ -334,28 +335,22 @@ class DirectAccessDeviceProvisionerTest {
   fun testActionsInNotificationOnDisconnectDevice() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
 
-    template.activationAction.activate()
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
-    val handle = (template as DirectAccessDeviceTemplate).activeDevice
-    assertThat(handle).isNotNull()
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
-    handle?.reservation?.let {
-      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
-    }
-
-    handle?.deactivationAction?.deactivate()
-    yieldUntil { handle?.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+    handle.deactivationAction.deactivate()
+    yieldUntil { handle.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
 
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
 
-    firstNotificationsList[0].assertDeviceDisconnectedNotification(template.properties.title) {
+    firstNotificationsList[0].assertDeviceDisconnectedNotification(handle) {
       val reconnectAction = it.actions[0] as NotificationAction
       reconnectAction.actionPerformed(mock(), it)
-      yieldUntil { handle?.connectionState != DirectAccessConnection.ConnectionState.DISCONNECTED }
-      assertThat(handle?.connectionState)
-        .isEqualTo(DirectAccessConnection.ConnectionState.CONNECTED)
+      yieldUntil { handle.connectionState != DirectAccessConnection.ConnectionState.DISCONNECTED }
+      assertThat(handle.connectionState).isEqualTo(DirectAccessConnection.ConnectionState.CONNECTED)
     }
 
     // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
@@ -364,16 +359,16 @@ class DirectAccessDeviceProvisionerTest {
 
     // Device will reconnect after previous action. Disconnect again to show notification for force
     // check-in
-    handle?.deactivationAction?.deactivate()
+    handle.deactivationAction.deactivate()
 
     val secondNotificationsList = getNotifications(projectRule.project)
     assertThat(secondNotificationsList.size).isEqualTo(1)
 
-    secondNotificationsList[0].assertDeviceDisconnectedNotification(template.properties.title) {
+    secondNotificationsList[0].assertDeviceDisconnectedNotification(handle) {
       val forceCheckInAction = it.actions[1] as NotificationAction
       forceCheckInAction.actionPerformed(mock(), it)
-      yieldUntil { handle?.reservation?.sessionState != Reservation.SessionState.ACTIVE }
-      assertThat(handle?.connectionState)
+      yieldUntil { handle.reservation.sessionState != Reservation.SessionState.ACTIVE }
+      assertThat(handle.connectionState)
         .isEqualTo(DirectAccessConnection.ConnectionState.DISCONNECTED)
       yieldUntil { plugin.devices.value.isEmpty() }
     }
@@ -384,7 +379,7 @@ class DirectAccessDeviceProvisionerTest {
     val deviceInfo = deviceInfoListProvider()[0]
     val template = plugin.templates.value[0]
 
-    template.activationAction.activate()
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     yieldUntil { provisioner.devices.value.isNotEmpty() }
     // Bring the device online by claiming a matched connected device.
     val serialNumber = fakeConnection.deviceAddress()!!.address
@@ -400,15 +395,10 @@ class DirectAccessDeviceProvisionerTest {
     session.hostServices.devices =
       DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
 
-    val handle = (template as DirectAccessDeviceTemplate).activeDevice
-    assertThat(handle).isNotNull()
-
-    handle?.reservation?.let {
-      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
-    }
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
     directAccessReservationManager.extendReservation(
-      handle!!.reservation.name,
+      handle.reservation.name,
       Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
       DirectAccessReservationManager.ReservationExtendType.TTL
     )
@@ -417,7 +407,7 @@ class DirectAccessDeviceProvisionerTest {
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
 
-    firstNotificationsList[0].assertReservationExpiringNotification(template.properties.title) {
+    firstNotificationsList[0].assertReservationExpiringNotification(handle) {
       val extendAction = it.actions[0] as NotificationAction
       extendAction.actionPerformed(mock(), it)
       yieldUntil {
@@ -614,23 +604,25 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   private suspend fun Notification.assertReservationExpiringNotification(
-    deviceName: String,
+    handle: DirectAccessDeviceHandle,
     actionAssertBlock: suspend (Notification) -> Unit
   ) =
     assertDeviceNotification(
       "Reservation ending in 5 mins",
-      "$deviceName will disconnect in 5 mins. Extend reservation to continue access to the device.",
+      "${handle.deviceName} will disconnect in 5 mins. Extend reservation to continue access to the device.",
+      handle.icon,
       listOf("Extend 30 mins"),
       actionAssertBlock
     )
 
   private suspend fun Notification.assertDeviceDisconnectedNotification(
-    deviceName: String,
+    handle: DirectAccessDeviceHandle,
     actionAssertBlock: suspend (Notification) -> Unit
   ) =
     assertDeviceNotification(
-      "$deviceName on Firebase stopped",
-      "You can reconnect to the same $deviceName for up to 5 minutes before the device is wiped",
+      "${handle.deviceName} on Firebase stopped",
+      "You can reconnect to the same ${handle.deviceName} for up to 5 minutes before the device is wiped",
+      handle.icon,
       listOf("Reconnect to Device", "Force check-in device"),
       actionAssertBlock
     )
@@ -638,6 +630,7 @@ class DirectAccessDeviceProvisionerTest {
   private suspend fun Notification.assertDeviceNotification(
     title: String,
     content: String,
+    deviceIcon: Icon,
     actionTitles: List<String>,
     actionAssertBlock: suspend (Notification) -> Unit
   ) {
@@ -645,6 +638,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
     assertThat(title).isEqualTo(title)
     assertThat(content).isEqualTo(content)
+    assertThat(icon).isEqualTo(deviceIcon)
     assertThat(actions.size).isEqualTo(actionTitles.size)
     assertThat(isExpired).isFalse()
     actionTitles.indices.forEach { index ->

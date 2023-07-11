@@ -110,6 +110,7 @@ class DirectAccessNotificationManager(
               }
             }
           )
+          .setIcon(deviceHandle.icon)
           .apply { notify(project) }
     }
 
@@ -139,6 +140,7 @@ class DirectAccessNotificationManager(
               deviceHandle.scope.launch { deviceHandle.reservationAction.endReservation() }
             }
           )
+          .setIcon(deviceHandle.icon)
           .takeIf { deviceHandle.stateFlow.value.shouldShowDisconnectedNotification() }
           ?.apply { notify(project) }
     }
