@@ -93,8 +93,12 @@ object TestUtils {
 
   val DirectAccessDeviceHandle.connectionState: DirectAccessConnection.ConnectionState
     get() = connection.state.value.connection
+
   val DirectAccessDeviceHandle.reservation: Reservation
     get() = connection.state.value.reservation
+
+  val DirectAccessDeviceHandle.deviceName: String
+    get() = sourceTemplate.properties.title
 
   fun getNotifications(project: Project): Array<Notification> =
     NotificationsManager.getNotificationsManager()

@@ -15,15 +15,29 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.sdklib.deviceprovisioner.DeviceState
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroup
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Manages [Notification]s linked to a [DirectAccessDeviceHandle].
@@ -33,39 +47,103 @@ import kotlinx.coroutines.launch
 private val notificationGroup: NotificationGroup
   get() = NotificationGroup.findRegisteredGroup("Direct Access")!!
 
+private val RESERVATION_EXPIRING_SECONDS = TimeUnit.MINUTES.toSeconds(5)
+
+@OptIn(ExperimentalCoroutinesApi::class)
 class DirectAccessNotificationManager(
   private val project: Project,
   private val deviceHandle: DirectAccessDeviceHandle
 ) {
   private var deviceDisconnectedNotification: Notification? = null
+  private var reservationExpiringNotification: Notification? = null
 
-  fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) {
-    val deviceName = deviceHandle.sourceTemplate.properties.title
-    val message =
-      reservationExpireTime?.let {
-        val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
-        getDeviceDisconnectedNotificationMessage(deviceName, phrase)
+  private val mutex = Mutex()
+
+  init {
+    deviceHandle.scope.launch {
+      deviceHandle.stateFlow
+        .mapNotNull {
+          if (!it.shouldShowDisconnectedNotification()) {
+            expireDeviceDisconnectedNotification()
+          }
+          it.reservation?.endTime?.epochSecond
+        }
+        .distinctUntilChanged()
+        .mapLatest {
+          expireReservationExpiringNotification()
+          val timeLeft = it - Instant.now().epochSecond
+          // Do not show expiring notifications when a device is in grace period, which is implied
+          // here as the durations of devices in grace period are less than
+          // RESERVATION_EXPIRING_SECONDS.
+          // TODO (b/290674109): access grace period status from device handle.
+          if (timeLeft > RESERVATION_EXPIRING_SECONDS) {
+            delay(TimeUnit.SECONDS.toMillis(timeLeft - RESERVATION_EXPIRING_SECONDS))
+            showReservationExpiringNotification()
+          }
+        }
+        .collect()
+    }
+    deviceHandle.scope.coroutineContext.job.invokeOnCompletion {
+      CoroutineScope(EmptyCoroutineContext).launch {
+        expireDeviceDisconnectedNotification()
+        expireReservationExpiringNotification()
       }
-        ?: ""
-    deviceDisconnectedNotification =
-      notificationGroup
-        .createNotification(
-          "$deviceName on Firebase stopped",
-          message,
-          NotificationType.INFORMATION
-        )
-        .addAction(
-          NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
-            deviceHandle.scope.launch { deviceHandle.activationAction.activate() }
-          }
-        )
-        .addAction(
-          NotificationAction.createExpiring("Force check-in device") { _, _ ->
-            deviceHandle.scope.launch { deviceHandle.reservationAction.endReservation() }
-          }
-        )
-        .apply { notify(project) }
+    }
   }
+
+  private suspend fun showReservationExpiringNotification() =
+    mutex.withLock {
+      // Do not show reservation expiring notification if the device is in grace period.
+      if (deviceDisconnectedNotification?.isExpired == false) return
+      val deviceName = deviceHandle.sourceTemplate.properties.title
+      reservationExpiringNotification =
+        notificationGroup
+          .createNotification(
+            "Reservation ending in 5 mins",
+            "$deviceName will disconnect in 5 mins. Extend reservation to continue access to the device.",
+            NotificationType.INFORMATION
+          )
+          .addAction(
+            NotificationAction.createExpiring("Extend 30 mins") { _, _ ->
+              deviceHandle.scope.launch {
+                deviceHandle.reservationAction.reserve(Duration.ofMinutes(30))
+              }
+            }
+          )
+          .setIcon(deviceHandle.icon)
+          .apply { notify(project) }
+    }
+
+  suspend fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) =
+    mutex.withLock {
+      val deviceName = deviceHandle.sourceTemplate.properties.title
+      val message =
+        reservationExpireTime?.let {
+          val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
+          getDeviceDisconnectedNotificationMessage(deviceName, phrase)
+        }
+          ?: ""
+      deviceDisconnectedNotification =
+        notificationGroup
+          .createNotification(
+            "$deviceName on Firebase stopped",
+            message,
+            NotificationType.INFORMATION
+          )
+          .addAction(
+            NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
+              deviceHandle.scope.launch { deviceHandle.activationAction.activate() }
+            }
+          )
+          .addAction(
+            NotificationAction.createExpiring("Force check-in device") { _, _ ->
+              deviceHandle.scope.launch { deviceHandle.reservationAction.endReservation() }
+            }
+          )
+          .setIcon(deviceHandle.icon)
+          .takeIf { deviceHandle.stateFlow.value.shouldShowDisconnectedNotification() }
+          ?.apply { notify(project) }
+    }
 
   private fun getDeviceDisconnectedNotificationPhrase(reservationExpireTime: Long): String? {
     val timeRemaining =
@@ -81,8 +159,18 @@ class DirectAccessNotificationManager(
   private fun getDeviceDisconnectedNotificationMessage(deviceName: String, phrase: String) =
     "You can reconnect to the same $deviceName for $phrase before the device is wiped"
 
-  /** Expires all [Notification]s linked to the [DirectAccessDeviceHandle]. */
-  fun expire() {
-    deviceDisconnectedNotification?.expire()
-  }
+  private suspend fun expireDeviceDisconnectedNotification() =
+    mutex.withLock {
+      deviceDisconnectedNotification?.expire()
+      deviceDisconnectedNotification = null
+    }
+
+  private suspend fun expireReservationExpiringNotification() =
+    mutex.withLock {
+      reservationExpiringNotification?.expire()
+      reservationExpiringNotification = null
+    }
+
+  private fun DeviceState.shouldShowDisconnectedNotification() =
+    this is DeviceState.Disconnected && !isTransitioning && reservation?.state?.isClosed() == false
 }
