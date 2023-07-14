@@ -106,7 +106,6 @@ public class SessionInitializer implements Runnable {
   private volatile DebuggerSession myDebuggerSession;
   private volatile DebuggerManagerListener myDebuggerManagerListener;
   private volatile RecordingDialog myRecordingDialog;
-  private volatile boolean myFailedToStart;
 
   public SessionInitializer(AndroidFacet facet, ExecutionEnvironment environment,
                             TestRecorderRunConfigurationProxy testRecorderConfigurationProxy, RunConfiguration runConfiguration,
@@ -165,19 +164,7 @@ public class SessionInitializer implements Runnable {
 
   @Override
   public void run() {
-    try {
-      assignDevice();
-    } catch (final Exception e) {
-      myFailedToStart = true;
-      ApplicationManager.getApplication().invokeLater(new Runnable() {
-        @Override
-        public void run() {
-          Messages.showErrorDialog(myProject, e.getMessage(), "Test Recorder startup failure");
-        }
-      });
-
-      stopTestRecorder();
-    }
+    // Keep it for proper wiring.
   }
 
   @NotNull
@@ -185,15 +172,19 @@ public class SessionInitializer implements Runnable {
     return new DebugProcessListener() {
       @Override
       public void processAttached(DebugProcess process) {
-        if (myFailedToStart) {
-          stopDebugger();
-          return;
-        }
-
         AndroidSessionInfo sessionInfo = process.getProcessHandler().getUserData(AndroidSessionInfo.KEY);
         if (sessionInfo != null && sessionInfo.getRunConfiguration() != myRunConfiguration) {
           // Not my debugger session (probably, my session failed midway) => stop listening.
           DebuggerManagerEx.getInstanceEx(myProject).removeDebuggerManagerListener(myDebuggerManagerListener);
+          return;
+        }
+
+        try {
+          assignDevice();
+        } catch (final Exception e) {
+          ApplicationManager.getApplication().invokeLater(
+            () -> Messages.showErrorDialog(myProject, e.getMessage(), "Test Recorder startup failure"));
+          stopTestRecorder();
           return;
         }
 
