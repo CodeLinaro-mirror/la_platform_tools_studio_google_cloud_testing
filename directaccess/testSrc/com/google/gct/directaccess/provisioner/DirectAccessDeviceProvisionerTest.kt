@@ -38,6 +38,8 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.tools.idea.streaming.core.DeviceId
+import com.android.tools.idea.streaming.core.RunningDevicePanel
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -49,6 +51,7 @@ import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.updateReservations
+import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStateRule
@@ -72,7 +75,9 @@ import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
+import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.content.Content
 import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
 import java.time.Duration
@@ -90,8 +95,10 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
+import org.mockito.Mockito
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.verify
 
 class DirectAccessDeviceProvisionerTest {
 
@@ -99,10 +106,14 @@ class DirectAccessDeviceProvisionerTest {
   private val projectRule = ProjectRule()
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
   private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+  private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
-    RuleChain.outerRule(projectRule).around(grpcConnectionRule).around(loginStateRule)
+    RuleChain.outerRule(projectRule)
+      .around(grpcConnectionRule)
+      .around(loginStateRule)
+      .around(fakeToolWindowRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -530,7 +541,7 @@ class DirectAccessDeviceProvisionerTest {
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
 
-    firstNotificationsList[0].assertReservationExpiringNotification(handle) {
+    firstNotificationsList[0].assertReservationExpiringNotification(handle, true) {
       val extendAction = it.actions[0] as NotificationAction
       extendAction.actionPerformed(mock(), it)
       yieldUntil {
@@ -542,6 +553,66 @@ class DirectAccessDeviceProvisionerTest {
     // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
     // to be cleared.
     yieldUntil { getNotifications(projectRule.project).isEmpty() }
+  }
+
+  @Test
+  fun testBannerNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
+    val bannerNotifications = mutableListOf<EditorNotificationPanel>()
+    val handle = setupReservationExpiringTest()
+    val mockContent = setupMockContentForRunningDevicePanel(bannerNotifications)
+    val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
+
+    fakeToolWindow.contentManager.addContent(mockContent)
+
+    directAccessReservationManager.extendReservation(
+      handle.reservation.name,
+      Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
+      DirectAccessReservationManager.ReservationExtendType.TTL
+    )
+
+    yieldUntil { bannerNotifications.isNotEmpty() }
+    assertThat(bannerNotifications.size).isEqualTo(1)
+    assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+
+    // Switch the panel in RDW
+    fakeToolWindow.contentManager.addContent(mock())
+
+    yieldUntil { bannerNotifications.isEmpty() }
+    assertThat(getNotifications(projectRule.project).isEmpty()).isTrue()
+
+    // Switch to original panel in RDW
+    fakeToolWindow.contentManager.setSelectedContent(mockContent)
+
+    yieldUntil { bannerNotifications.isNotEmpty() }
+    assertThat(bannerNotifications.size).isEqualTo(1)
+    assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+
+    session.hostServices.disconnect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.stateFlow.value is Disconnected }
+    verify(fakeToolWindow.contentManager).removeContentManagerListener(any())
+  }
+
+  @Test
+  fun testBalloonNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
+    val bannerNotifications = mutableListOf<EditorNotificationPanel>()
+    val handle = setupReservationExpiringTest()
+    val mockContent = setupMockContentForRunningDevicePanel(bannerNotifications)
+    val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
+
+    // Add mock content and a separate mock to simulate 2 devices with the required device
+    // not visible in RDW
+    fakeToolWindow.contentManager.addContent(mockContent)
+    fakeToolWindow.contentManager.addContent(mock())
+
+    directAccessReservationManager.extendReservation(
+      handle.reservation.name,
+      Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
+      DirectAccessReservationManager.ReservationExtendType.TTL
+    )
+
+    assertThat(bannerNotifications.isEmpty()).isTrue()
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    getNotifications(projectRule.project)[0].assertReservationExpiringNotification(handle, false) {}
   }
 
   @Test
@@ -835,13 +906,15 @@ class DirectAccessDeviceProvisionerTest {
 
   private suspend fun Notification.assertReservationExpiringNotification(
     handle: DirectAccessDeviceHandle,
+    waitForNotificationExpiry: Boolean,
     actionAssertBlock: suspend (Notification) -> Unit
   ) =
     assertDeviceNotification(
-      "Reservation ending in 5 mins",
+      RESERVATION_EXPIRING_BANNER_TITLE,
       "${handle.deviceName} will disconnect in 5 mins. Extend reservation to continue access to the device.",
       handle.icon,
       listOf("Extend 30 mins"),
+      waitForNotificationExpiry,
       actionAssertBlock
     )
 
@@ -854,6 +927,7 @@ class DirectAccessDeviceProvisionerTest {
       "You can reconnect to the same ${handle.deviceName} for up to 5 minutes before the device is wiped",
       handle.icon,
       listOf("Reconnect to Device", "Force check-in device"),
+      true,
       actionAssertBlock
     )
 
@@ -862,6 +936,7 @@ class DirectAccessDeviceProvisionerTest {
     content: String,
     deviceIcon: Icon,
     actionTitles: List<String>,
+    waitForNotificationExpiry: Boolean,
     actionAssertBlock: suspend (Notification) -> Unit
   ) {
     assertThat(groupId).isEqualTo("Direct Access")
@@ -876,6 +951,52 @@ class DirectAccessDeviceProvisionerTest {
     }
     actionAssertBlock(this)
     // Make sure the notification expires as both actions expire it.
-    yieldUntil { isExpired }
+    if (waitForNotificationExpiry) yieldUntil { isExpired }
+  }
+
+  private suspend fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
+    matchReservations(
+      templates.value.mapNotNull { it as? DirectAccessDeviceTemplate },
+      fetchReservations()!!
+    )
+
+  private suspend fun setupReservationExpiringTest(): DirectAccessDeviceHandle {
+    val deviceInfo = deviceInfoListProvider()[0]
+    val template = plugin.templates.value[0]
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = fakeConnection.deviceAddress()!!.address
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
+      )
+    )
+    session.hostServices.connect(handle.connection.deviceAddress()!!)
+    return handle
+  }
+
+  private fun setupMockContentForRunningDevicePanel(
+    bannerNotificationHolder: MutableList<EditorNotificationPanel>
+  ): Content {
+    val mockRunningDevicePanel = Mockito.mock(RunningDevicePanel::class.java)
+    doReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
+      .whenever(mockRunningDevicePanel)
+      .id
+    doAnswer { bannerNotificationHolder.add(it.arguments[0] as EditorNotificationPanel) }
+      .whenever(mockRunningDevicePanel)
+      .addNotification(any())
+    doAnswer { bannerNotificationHolder.remove(it.arguments[0] as EditorNotificationPanel) }
+      .whenever(mockRunningDevicePanel)
+      .removeNotification(any())
+    val mockContent = Mockito.mock(Content::class.java)
+    doAnswer { mockRunningDevicePanel }.whenever(mockContent).component
+    return mockContent
   }
 }

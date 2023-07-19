@@ -33,10 +33,13 @@ import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.run.DeviceHeadsUpListener
+import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
+import com.android.tools.idea.streaming.core.RunningDevicePanel
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
@@ -44,6 +47,9 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReaso
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.ui.content.ContentManagerEvent
+import com.intellij.ui.content.ContentManagerListener
 import icons.StudioIcons
 import java.time.Duration
 import java.time.Instant
@@ -99,6 +105,8 @@ class DirectAccessDeviceHandle(
   private var hasUserDisconnectedDevice = false
   /** Tracks device force check in */
   private var hasUserForceCheckedInDevice = false
+  /** [ContentManagerListener] that listens to panel changes in RDW */
+  private var rdwPanelChangeListener: ContentManagerListener? = null
 
   init {
     scope.launch {
@@ -361,6 +369,7 @@ class DirectAccessDeviceHandle(
     project.messageBus
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
+    addContentManagerListener()
     val properties = device.deviceProperties().all().asMap()
     val deviceProperties =
       DirectAccessDeviceProperties.build {
@@ -377,6 +386,9 @@ class DirectAccessDeviceHandle(
         stateFlow.update {
           DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
         }
+        // Remove content manager listener since device has disconnected
+        removeContentManagerListener()
+
         // Show notification if the device disconnected without user action
         if (!hasUserDisconnectedDevice && !hasUserForceCheckedInDevice) {
           scope.launch {
@@ -421,6 +433,33 @@ class DirectAccessDeviceHandle(
       reservationManager.fetchReservationFlow(reservationName).value.createTime.seconds
     return Instant.now().epochSecond - reservationStartTime
   }
+
+  /** Adds content manager listener to RDW for this handle. */
+  private fun addContentManagerListener() {
+    // Content manager listener already added.
+    if (rdwPanelChangeListener != null) return
+
+    getRunningDeviceWindow(project)
+      ?.addContentManagerListener(
+        object : ContentManagerListener {
+            override fun selectionChanged(event: ContentManagerEvent) {
+              val eventPanel = event.content.component as? RunningDevicePanel ?: return
+              if (eventPanel.id.serialNumber == connection.deviceAddress()?.address) {
+                notificationManager.onDevicePanelVisibilityChanged()
+              }
+            }
+          }
+          .also { rdwPanelChangeListener = it }
+      )
+  }
+
+  /** Removes content manager listener from RDW */
+  private fun removeContentManagerListener() {
+    rdwPanelChangeListener?.let {
+      getRunningDeviceWindow(project)?.contentManager?.removeContentManagerListener(it)
+      rdwPanelChangeListener = null
+    }
+  }
 }
 
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
@@ -439,3 +478,6 @@ class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by
 
 fun ReservationState.isClosed() =
   this == ReservationState.ERROR || this == ReservationState.COMPLETE
+
+internal fun getRunningDeviceWindow(project: Project) =
+  ToolWindowManager.getInstance(project).getToolWindow(RUNNING_DEVICES_TOOL_WINDOW_ID)
