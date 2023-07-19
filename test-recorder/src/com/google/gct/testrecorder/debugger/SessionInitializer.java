@@ -58,6 +58,7 @@ import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.RemoteConnection;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RunProfileState;
+import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.openapi.application.ApplicationManager;
@@ -68,6 +69,7 @@ import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Computable;
 import com.intellij.psi.PsiClass;
+import com.intellij.util.messages.MessageBusConnection;
 import com.intellij.xdebugger.XDebugProcess;
 import com.intellij.xdebugger.XDebugProcessStarter;
 import com.intellij.xdebugger.XDebugSession;
@@ -84,7 +86,7 @@ import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
 
-public class SessionInitializer implements Runnable {
+public class SessionInitializer {
   private static final Logger LOGGER = Logger.getInstance(SessionInitializer.class);
 
   // A replacement press back breakpoint descriptor as a workaround for emulators with API 28+ that cannot reliably handle,
@@ -160,11 +162,6 @@ public class SessionInitializer implements Runnable {
     };
 
     DebuggerManagerEx.getInstanceEx(myProject).addDebuggerManagerListener(myDebuggerManagerListener);
-  }
-
-  @Override
-  public void run() {
-    // Keep it for proper wiring.
   }
 
   @NotNull

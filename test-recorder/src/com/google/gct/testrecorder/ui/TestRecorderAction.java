@@ -39,6 +39,7 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionTarget;
 import com.intellij.execution.ExecutionTargetManager;
+import com.intellij.execution.ProgramRunnerUtil;
 import com.intellij.execution.RunManager;
 import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.RunnerAndConfigurationSettings;
@@ -215,19 +216,8 @@ public class TestRecorderAction extends AnAction {
       throw new RuntimeException("Could not obtain Android facet for module: " + module.getName());
     }
 
-    // Terminate any active Run or Debug session of the to-be-recorded run configuration.
-    // Even if it is a Run session, it still needs to be terminated, since the app will have to be restarted in debug mode.
-    ExecutionTarget selectedExecutionTarget = ExecutionTargetManager.getActiveTarget(project);
-    if (selectedExecutionTarget instanceof AndroidExecutionTarget) {
-      final List<IDevice> runningDevices = ((AndroidExecutionTarget)selectedExecutionTarget).getRunningDevices().stream().toList();
-      final List<ProcessHandler> runningProcessHandlers = UtilsKt.getProcessHandlersForDevices(settings, project, runningDevices);
-      runningProcessHandlers.forEach(ProcessHandler::destroyProcess);
-    }
-
-    SessionInitializer sessionInitializer =
-      new SessionInitializer(facet, environment, testRecorderConfigurationProxy, configurationBase, isRecordingTest);
-    environment.getRunner().execute(environment, descriptor ->
-      ApplicationManager.getApplication().executeOnPooledThread(sessionInitializer));
+    new SessionInitializer(facet, environment, testRecorderConfigurationProxy, configurationBase, isRecordingTest);
+    ProgramRunnerUtil.executeConfiguration(environment, false, true);
   }
 
   @VisibleForTesting
