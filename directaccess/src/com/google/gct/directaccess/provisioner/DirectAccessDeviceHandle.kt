@@ -30,6 +30,7 @@ import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.adbbridge.Reservation
+import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
@@ -114,19 +115,30 @@ class DirectAccessDeviceHandle(
     scope
       .launch { reservationFlow.takeWhile { !it.sessionState.isClosed() }.collect() }
       .invokeOnCompletion { throwable ->
-        // If user has force checked in device, it has already been tracked.
-        if (hasUserForceCheckedInDevice) {
+        if (!shouldTrackEndReservation(throwable, reservationFlow.value.sessionState)) {
           return@invokeOnCompletion
         }
-        if (throwable == null) {
-          if (reservationFlow.value.sessionState == Reservation.SessionState.EXPIRED) {
-            trackEndReservation(true, EndReservationType.EXPIRE)
-          } else {
-            trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
-          }
+
+        if (reservationFlow.value.sessionState == SessionState.EXPIRED) {
+          trackEndReservation(true, EndReservationType.EXPIRE)
+        } else {
+          trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
         }
       }
   }
+
+  /**
+   * End reservation should not be tracked if:
+   * 1. User has not force checked in the device since it is already tracked
+   * 2. The reservation state is still REQUESTED, PENDING or ACTIVE
+   *
+   * End reservation should be tracked when:
+   * 1. The throwable is null
+   * 2. If the throwable is [CancellationException]
+   */
+  private fun shouldTrackEndReservation(throwable: Throwable?, sessionState: SessionState) =
+    if (hasUserForceCheckedInDevice || !sessionState.isClosed()) false
+    else throwable?.let { it is CancellationException } ?: true
 
   /** Map Reservation to its device provisioner format. */
   private fun mapReservation(
@@ -134,11 +146,11 @@ class DirectAccessDeviceHandle(
   ): com.android.sdklib.deviceprovisioner.Reservation {
     val reservationState =
       when (reservation.sessionState) {
-        Reservation.SessionState.REQUESTED,
-        Reservation.SessionState.PENDING -> ReservationState.PENDING
-        Reservation.SessionState.ACTIVE -> ReservationState.ACTIVE
-        Reservation.SessionState.EXPIRED,
-        Reservation.SessionState.FINISHED -> ReservationState.COMPLETE
+        SessionState.REQUESTED,
+        SessionState.PENDING -> ReservationState.PENDING
+        SessionState.ACTIVE -> ReservationState.ACTIVE
+        SessionState.EXPIRED,
+        SessionState.FINISHED -> ReservationState.COMPLETE
         else -> ReservationState.ERROR
       }
     return com.android.sdklib.deviceprovisioner.Reservation(
@@ -246,8 +258,7 @@ class DirectAccessDeviceHandle(
         withContext(scope.coroutineContext + NonCancellable) {
           val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
           // Check here if notification is needed. endReservation might change the sessionState
-          val shouldShowNotification =
-            reservationFlow.value.sessionState == Reservation.SessionState.ACTIVE
+          val shouldShowNotification = reservationFlow.value.sessionState == SessionState.ACTIVE
           hasUserDisconnectedDevice = true
           try {
             connection.closeConnection()

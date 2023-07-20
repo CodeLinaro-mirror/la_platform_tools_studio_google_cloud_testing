@@ -491,6 +491,29 @@ class DirectAccessUsageTrackerTest {
     assertThat(endReservationDetails.endReservationType).isEqualTo(FORCE_CHECK_IN)
   }
 
+  @Test
+  fun endReservationNotTrackedOnUserLogOut() = runBlockingWithTimeout {
+    setupConnection { reservationName, deviceScope ->
+      getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+    }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+
+    findUsageEvent(DISCONNECT_DEVICE)
+
+    assertThat(tracker.usages.any { it.studioEvent.directAccessUsageEvent.type == END_RESERVATION })
+      .isFalse()
+  }
+
   @Ignore
   @Test
   fun trackEndReservationSuccessMetricWhenAutoEndReservation() = runBlockingWithTimeout {

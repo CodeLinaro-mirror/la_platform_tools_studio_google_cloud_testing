@@ -15,20 +15,24 @@
  */
 package com.google.gct.directaccess.ui.actions
 
+import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.common.AdtUiUtils
 import com.android.tools.adtui.common.secondaryPanelBackground
 import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
 import com.google.gct.login.GoogleLogin
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBColor
@@ -46,10 +50,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private val loginLink =
+  AnActionLink(
+    "Log in",
+    object : AnAction() {
+      override fun actionPerformed(e: AnActionEvent) {
+        GoogleLogin.instance.logIn()
+      }
+    }
+  )
+
 class SelectProjectAction(
-  private val builder: (String) -> DirectAccessProjectSelector = {
-    DirectAccessProjectSelectorImpl(it)
-  }
+  private val builder: (String, Boolean) -> DirectAccessProjectSelector =
+    { preferredProject, isEnabled ->
+      DirectAccessProjectSelectorImpl(preferredProject, isEnabled)
+    }
 ) : AnAction("Configure Direct Access Project", "text", FirebaseIcons.ACTION_ICON) {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
@@ -72,7 +87,9 @@ class SelectProjectAction(
 
     val scope = AndroidCoroutineScope(balloon)
     mainPanel.apply {
-      val service = e.project?.getService(DirectAccessService::class.java) ?: return
+      val service = e.project?.service<DirectAccessService>() ?: return
+      val devices =
+        e.project?.service<DeviceProvisionerService>()?.deviceProvisioner?.devices ?: return
       // TODO (b/283017110): use project from google-services.json if it exists.
       val preferredProject = service.gcpProject?.takeIf { it.isNotEmpty() } ?: ""
       val errorTextPane =
@@ -94,50 +111,22 @@ class SelectProjectAction(
         JPanel(HorizontalLayout(2)).apply {
           add(JBLabel("Project: "))
           if (GoogleLogin.instance.isLoggedIn) {
-
-            val selector = builder(preferredProject)
+            val selector =
+              builder(
+                preferredProject,
+                devices.value.filterIsInstance<DirectAccessDeviceHandle>().none {
+                  // Disable the selector if there are connected devices.
+                  it.state is DeviceState.Connected
+                }
+              )
             add(selector.component)
             scope.launch {
               selector.selectedProject.collect {
-                if (it.isNotEmpty()) {
-                  service.gcpProject = it
-                  withContext(AndroidDispatchers.uiThread) {
-                    balloon.revalidate()
-                    launch {
-                      var errorMessage: String? = null
-                      try {
-                        withContext(Dispatchers.IO) {
-                          service.reservationManager?.listReservations()
-                        }
-                      } catch (_: Exception) {
-                        // TODO (b/283882413): show different reasons for project without access.
-                        errorMessage =
-                          "$it does not have access to Direct Access. Select a different project."
-                      }
-                      if (errorMessage != null) {
-                        errorTextPane.text = errorMessage
-                        errorTextPane.isVisible = true
-                      } else {
-                        errorTextPane.isVisible = false
-                        errorTextPane.text = ""
-                      }
-                      balloon.revalidate()
-                    }
-                  }
-                }
+                onProjectChanged(it, service, balloon, errorTextPane)
               }
             }
           } else {
-            add(
-              AnActionLink(
-                "Log in",
-                object : AnAction() {
-                  override fun actionPerformed(e: AnActionEvent) {
-                    GoogleLogin.instance.logIn()
-                  }
-                }
-              )
-            )
+            add(loginLink)
           }
           border = JBUI.Borders.empty(5, 0)
           isOpaque = false
@@ -157,5 +146,38 @@ class SelectProjectAction(
 
     val component = e.inputEvent.component as JComponent
     balloon.show(RelativePoint.getSouthOf(component), Balloon.Position.below)
+  }
+
+  private suspend fun onProjectChanged(
+    project: String,
+    service: DirectAccessService,
+    balloon: Balloon,
+    errorTextPane: JBTextArea
+  ) {
+    if (project.isEmpty()) {
+      return
+    }
+    service.gcpProject = project
+    withContext(AndroidDispatchers.uiThread) {
+      balloon.revalidate()
+      launch {
+        var errorMessage: String? = null
+        try {
+          withContext(Dispatchers.IO) { service.reservationManager?.listReservations() }
+        } catch (_: Exception) {
+          // TODO (b/283882413): show different reasons for project without access.
+          errorMessage =
+            "$project does not have access to Direct Access. Select a different project."
+        }
+        if (errorMessage != null) {
+          errorTextPane.text = errorMessage
+          errorTextPane.isVisible = true
+        } else {
+          errorTextPane.isVisible = false
+          errorTextPane.text = ""
+        }
+        balloon.revalidate()
+      }
+    }
   }
 }
