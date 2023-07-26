@@ -66,7 +66,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.junit.After
@@ -274,6 +273,29 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
     val activationPresentation = device.activationAction!!.presentation
     yieldUntil { activationPresentation.value.enabled }
+  }
+
+  @Test
+  fun connectionFailed() = runBlockingWithTimeout {
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun connect() {
+          throw RuntimeException("Failed connection.")
+        }
+      }
+    }
+
+    val template = plugin.templates.value[0]
+    // Activate a new device from template.
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val device = provisioner.devices.value[0]
+    // Device disconnected with an exception thrown from DirectAccessConnection.
+    val state = device.stateFlow
+    assertThat(state.value.isTransitioning).isFalse()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+    yieldUntil { device.activationAction?.presentation?.value?.enabled == true }
   }
 
   @Test
