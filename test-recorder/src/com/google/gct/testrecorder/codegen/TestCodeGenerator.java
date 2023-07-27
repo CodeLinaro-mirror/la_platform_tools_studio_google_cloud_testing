@@ -80,6 +80,7 @@ import org.apache.velocity.runtime.RuntimeConstants;
 import org.jetbrains.android.sdk.AndroidPlatforms;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.helpers.NOPLogger;
 
 /**
  * This class generates instrumentation test and saves it to target location given the
@@ -234,7 +235,7 @@ public class TestCodeGenerator {
 
       VelocityEngine velocityEngine = new VelocityEngine();
       // Suppress creation of velocity.log file.
-      velocityEngine.setProperty(RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, "org.apache.velocity.runtime.log.NullLogChute");
+      velocityEngine.setProperty(RuntimeConstants.RUNTIME_LOG_INSTANCE, NOPLogger.NOP_LOGGER);
       velocityEngine.init();
       velocityEngine.evaluate(createVelocityContext(testVirtualFile), writer, RecordingDialog.class.getName(), readTemplateFileContent());
       writer.flush();
