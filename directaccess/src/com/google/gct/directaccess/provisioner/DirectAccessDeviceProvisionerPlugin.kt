@@ -68,12 +68,11 @@ class DirectAccessDeviceProvisionerPlugin(
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
   private val reservationsFlow = MutableStateFlow<List<Reservation>?>(null)
+  private val activeDeviceInfoFlow = MutableStateFlow(setOf<DeviceInfo>())
 
   init {
     // Clean up remaining templates when scope is cancelled.
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
-
-    val activeDeviceInfoFlow = MutableStateFlow(setOf<DeviceInfo>())
 
     // Maintain a state flow of gcp projects from directAccessService.
     val directAccessService = project.service<DirectAccessService>()
@@ -139,7 +138,9 @@ class DirectAccessDeviceProvisionerPlugin(
     reservations: List<Reservation>
   ) {
     val templateMap =
-      templates.groupBy { template -> template.deviceInfo.let { "${it.codename} ${it.api}" } }
+      templates
+        .filter { activeDeviceInfoFlow.value.contains(it.deviceInfo) }
+        .groupBy { template -> template.deviceInfo.let { "${it.codename} ${it.api}" } }
 
     reservations
       .filter { reservation ->
@@ -147,10 +148,7 @@ class DirectAccessDeviceProvisionerPlugin(
       }
       .forEach { reservation ->
         val key = reservation.androidDevice.let { "${it.androidModelId} ${it.androidVersionId}" }
-        templateMap[key]
-          ?.firstOrNull()
-          ?.takeIf { it.activationAction.presentation.value.enabled }
-          ?.createDeviceHandleIfAbsent()
+        templateMap[key]?.firstOrNull()?.createDeviceHandleIfAbsent()
       }
   }
 

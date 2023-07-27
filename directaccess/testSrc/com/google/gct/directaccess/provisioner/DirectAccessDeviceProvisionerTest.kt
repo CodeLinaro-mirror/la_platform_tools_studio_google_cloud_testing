@@ -339,6 +339,7 @@ class DirectAccessDeviceProvisionerTest {
   fun createDevicesFromExistingReservations() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
+    yieldUntil { plugin.fetchReservations()?.isNotEmpty() == true }
     plugin.updateReservations()
     yieldUntil { provisioner.devices.value.isNotEmpty() }
   }
@@ -347,6 +348,7 @@ class DirectAccessDeviceProvisionerTest {
   fun deviceUpdatedWithLoginState() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
+    yieldUntil { plugin.fetchReservations()?.isNotEmpty() == true }
     plugin.updateReservations()
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
