@@ -144,7 +144,7 @@ class SelectProjectAction(
       border = JBUI.Borders.empty(4)
     }
 
-    val component = e.inputEvent.component as JComponent
+    val component = e.inputEvent!!.component as JComponent
     balloon.show(RelativePoint.getSouthOf(component), Balloon.Position.below)
   }
 
