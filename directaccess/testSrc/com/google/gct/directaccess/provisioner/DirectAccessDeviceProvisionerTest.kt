@@ -127,6 +127,7 @@ class DirectAccessDeviceProvisionerTest {
     createConnection: (String, CoroutineScope) -> FakeDirectAccessConnection
   ) {
     val mockDirectAccessService = mock<DirectAccessService>()
+    doReturn("test-project").whenever(mockDirectAccessService).gcpProject
     whenever(mockDirectAccessService.reservationManager).thenReturn(directAccessReservationManager)
     whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
       val reservationName = it.arguments[0] as String
@@ -157,6 +158,9 @@ class DirectAccessDeviceProvisionerTest {
     // getAvailableDevices() is called in the init block of FirebaseDeviceProvisioner
     // Wait for setup to complete
     yieldUntil { provisioner.templates.value.isNotEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
+    }
 
     // Assert
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
@@ -176,13 +180,16 @@ class DirectAccessDeviceProvisionerTest {
 
     // Log out
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
-    yieldUntil { provisioner.templates.value.isEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
 
     // Login again without access.
     isOAuthTokenAvailable = false
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
-    plugin.updateTemplates(scope)
-    yieldUntil { provisioner.templates.value.isEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
   }
 
   @Test
@@ -269,6 +276,29 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun connectionFailed() = runBlockingWithTimeout {
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun connect() {
+          throw RuntimeException("Failed connection.")
+        }
+      }
+    }
+
+    val template = plugin.templates.value[0]
+    // Activate a new device from template.
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val device = provisioner.devices.value[0]
+    // Device disconnected with an exception thrown from DirectAccessConnection.
+    val state = device.stateFlow
+    assertThat(state.value.isTransitioning).isFalse()
+    assertThat(state.value).isInstanceOf(Disconnected::class.java)
+    yieldUntil { device.activationAction?.presentation?.value?.enabled == true }
+  }
+
+  @Test
   fun deactivateBeforeReservationActive() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
 
@@ -311,6 +341,27 @@ class DirectAccessDeviceProvisionerTest {
     directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
     plugin.updateReservations()
     yieldUntil { provisioner.devices.value.isNotEmpty() }
+  }
+
+  @Test
+  fun deviceUpdatedWithLoginState() = runBlockingWithTimeout {
+    val deviceInfo = deviceInfoListProvider()[0]
+    directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
+    plugin.updateReservations()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+
+    // Device removed after logout.
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    yieldUntil {
+      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
+    yieldUntil { provisioner.devices.value.isEmpty() }
+
+    // Login again to re-discover the device.
+    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
+    yieldUntil {
+      provisioner.templates.value.any { (it as DirectAccessDeviceTemplate).activeDevice != null }
+    }
   }
 
   @Test
@@ -648,4 +699,10 @@ class DirectAccessDeviceProvisionerTest {
     // Make sure the notification expires as both actions expire it.
     yieldUntil { isExpired }
   }
+
+  private fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
+    matchReservations(
+      templates.value.mapNotNull { it as? DirectAccessDeviceTemplate },
+      fetchReservations()!!
+    )
 }

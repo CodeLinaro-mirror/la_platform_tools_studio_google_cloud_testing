@@ -191,17 +191,13 @@ class DirectAccessDeviceHandle(
           scope.trackConnectTime()
           try {
             connection.connect()
-          } catch (e: CancellationException) {
-            throw e
           } catch (e: Exception) {
+            stateFlow.update {
+              val reservation = it.reservation ?: return@withContext
+              DeviceState.Disconnected(it.properties).withReservation(reservation)
+            }
             // TODO(b/277240160): Add correct failure reason
             trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
-          }
-          stateFlow.update {
-            val reservation = it.reservation ?: return@withContext
-            DeviceState.Disconnected(it.properties)
-              .copy(isTransitioning = true)
-              .withReservation(reservation)
           }
         }
       }

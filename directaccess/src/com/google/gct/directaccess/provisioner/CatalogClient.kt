@@ -38,20 +38,23 @@ object CatalogClient {
         model.perVersionInfo
           ?.filter { perVersionInfo ->
             perVersionInfo.versionId?.toIntOrNull()?.let { it >= 26 } == true &&
-              perVersionInfo.directAccessVersionInfo?.directAccessSupported == true &&
-              BuildNumber.fromString(
-                  perVersionInfo.directAccessVersionInfo.minimumAndroidStudioVersion
-                )
-                .let { catalogBuildNumber ->
-                  catalogBuildNumber == null ||
-                    catalogBuildNumber <= ApplicationInfo.getInstance().build
-                }
+              // TODO(b/292642744): Remove isUnfilteredDevices when a more robust solution is
+              //                    implemented.
+              (isUnfilteredDevices() ||
+                perVersionInfo.directAccessVersionInfo?.directAccessSupported == true &&
+                  BuildNumber.fromString(
+                      perVersionInfo.directAccessVersionInfo.minimumAndroidStudioVersion
+                    )
+                    .let { catalogBuildNumber ->
+                      catalogBuildNumber == null ||
+                        catalogBuildNumber <= ApplicationInfo.getInstance().build
+                    })
           }
           ?.map {
             val type =
               when (model["formFactor"]) {
                 // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
-                // tablets
+                //                   tablets
                 "PHONE",
                 "TABLET" -> DeviceType.PHONE
                 "WEARABLE" -> DeviceType.WEAR_OS
@@ -72,6 +75,9 @@ object CatalogClient {
           ?: listOf()
       }
   }
+
+  private fun isUnfilteredDevices(): Boolean =
+    System.getProperty("da_unfiltered_devices").toBoolean()
 }
 
 class NotLoggedInException : Exception("Not logged in")
