@@ -509,8 +509,7 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
                                       @NotNull final String actualText,
                                       @NotNull final String expectedText) {
     setStacktraceIfNotSet(stackTrace);
-    myState = new TestComparisionFailedState(localizedMessage, stackTrace,
-                                             actualText, expectedText);
+    myState = new TestComparisonFailedState(localizedMessage, stackTrace, actualText, expectedText, true, null, null);
     fireOnNewPrintable(myState);
   }
 
@@ -649,8 +648,8 @@ public class GoogleCloudTestProxy extends AbstractTestProxy implements Navigatab
   @Override
   @Nullable
   public DiffHyperlink getDiffViewerProvider() {
-    if (myState instanceof TestComparisionFailedState) {
-      return ((TestComparisionFailedState)myState).getHyperlink();
+    if (myState instanceof TestComparisonFailedState) {
+      return ((TestComparisonFailedState)myState).getHyperlink();
     }
 
     if (myChildren != null) {
