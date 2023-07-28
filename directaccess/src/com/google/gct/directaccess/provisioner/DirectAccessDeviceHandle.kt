@@ -431,7 +431,13 @@ class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by
   class Builder : DeviceProperties.Builder()
   companion object {
     inline fun build(block: Builder.() -> Unit) =
-      Builder().apply(block).run { DirectAccessDeviceProperties(buildBase()) }
+      Builder()
+        .apply {
+          block()
+          // DirectAccess devices are always remote
+          isRemote = true
+        }
+        .run { DirectAccessDeviceProperties(buildBase()) }
   }
 }
 

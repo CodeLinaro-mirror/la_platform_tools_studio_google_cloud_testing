@@ -168,15 +168,19 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
     assertThat(provisioner.templates.value[0].properties.icon)
       .isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+    assertThat(provisioner.templates.value[0].properties.isRemote).isTrue()
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
     assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
     assertThat(provisioner.templates.value[1].properties.density).isEqualTo(400)
+    assertThat(provisioner.templates.value[1].properties.isRemote).isTrue()
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
     assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
     assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
+    assertThat(provisioner.templates.value[2].properties.isRemote).isTrue()
     assertThat(provisioner.templates.value[3].properties.title).isEqualTo("Google Pixel Watch")
     assertThat(provisioner.templates.value[3].properties.resolution).isEqualTo(Resolution(50, 100))
     assertThat(provisioner.templates.value[3].properties.density).isEqualTo(150)
+    assertThat(provisioner.templates.value[3].properties.isRemote).isTrue()
 
     // Log out
     (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
@@ -241,6 +245,7 @@ class DirectAccessDeviceProvisionerTest {
       assertThat(it.manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
       assertThat(it.resolution?.height).isEqualTo(2400)
       assertThat(it.resolution?.width).isEqualTo(1080)
+      assertThat(it.isRemote).isTrue()
     }
 
     // Deactivate the device.
