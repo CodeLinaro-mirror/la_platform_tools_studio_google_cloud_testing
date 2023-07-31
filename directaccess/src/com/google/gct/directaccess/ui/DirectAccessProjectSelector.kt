@@ -57,9 +57,8 @@ class DirectAccessProjectSelectorImpl(private val preferredProject: String, isEn
         if (!isPreferredProjectApplied) {
           isPreferredProjectApplied = true
           selectedItem = preferredProject
-        } else {
-          selectedProject.value = selectedItem as String
         }
+        selectedProject.value = selectedItem as String
       }
       refreshCloudProjects()
     }
