@@ -18,15 +18,10 @@ package com.google.gct.testrecorder.ui;
 import static org.apache.commons.lang.StringUtils.isEmpty;
 
 import com.android.annotations.VisibleForTesting;
-import com.android.ddmlib.IDevice;
-import com.android.ide.common.repository.GradleCoordinate;
 import com.android.ide.common.repository.GoogleMavenArtifactId;
+import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
-import com.android.tools.idea.execution.common.AndroidExecutionTarget;
-import com.android.tools.idea.execution.common.UtilsKt;
-import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
-import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxAction;
@@ -37,22 +32,18 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.execution.ExecutionException;
-import com.intellij.execution.ExecutionTarget;
-import com.intellij.execution.ExecutionTargetManager;
 import com.intellij.execution.ProgramRunnerUtil;
 import com.intellij.execution.RunManager;
 import com.intellij.execution.RunManagerEx;
 import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.executors.DefaultDebugExecutor;
-import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
@@ -174,16 +165,15 @@ public class TestRecorderAction extends AnAction {
     if (testRecorderConfigurationProxy == null) {
       throw new RuntimeException("Could not obtain an instance of TestRecorderRunConfigurationProxy");
     }
-    Module module = testRecorderConfigurationProxy.getModule();
 
-    // Do not launch Espresso Test Recorder for projects that include native C++ code because they are not fully supported.
-    if (GradleBuildModel.get(module).android().externalNativeBuild().cmake().version().getValueType()
-        != GradlePropertyModel.ValueType.NONE) {
-      String message = "Espresso Test Recorder does not support projects with native C++ code.";
+    // Do not launch Espresso Test Recorder for projects that include native C code because they are not fully supported.
+    if (testRecorderConfigurationProxy.isNativeProject()) {
+      String message = "Espresso Test Recorder does not support projects with native C code.";
       Messages.showDialog(project, message, "Espresso test cannot be recorded", new String[]{"OK"}, 0, null);
       return;
     }
 
+    Module module = testRecorderConfigurationProxy.getModule();
     // Do not launch Espresso Test Recorder for Compose projects, since Espresso Testing Framework does not support Compose.
     AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(module);
     for (GoogleMavenArtifactId artifactId : GoogleMavenArtifactId.values()) {

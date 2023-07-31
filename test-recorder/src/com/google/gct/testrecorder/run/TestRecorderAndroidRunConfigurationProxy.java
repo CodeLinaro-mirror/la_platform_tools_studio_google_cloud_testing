@@ -17,19 +17,19 @@ package com.google.gct.testrecorder.run;
 
 import com.android.annotations.Nullable;
 import com.android.ddmlib.IDevice;
+import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
+import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.DeviceFutures;
 import com.android.tools.idea.run.activity.launch.DefaultActivityLaunch;
-import com.android.tools.idea.run.activity.launch.ActivityLaunchOptionState;
 import com.android.tools.idea.run.activity.launch.LaunchOptionState;
 import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.intellij.execution.configurations.LocatableConfigurationBase;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.module.Module;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRunConfigurationProxy {
 
@@ -37,6 +37,15 @@ public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRun
 
   public TestRecorderAndroidRunConfigurationProxy(AndroidRunConfiguration baseConfiguration) {
     myBaseConfiguration = baseConfiguration;
+  }
+
+  @Override
+  public boolean isNativeProject() {
+    Module module = getModule();
+    // TODO(b/294274926): Do not use DSL models to detect Gradle native projects.
+    return GradleBuildModel.get(module) != null
+           && GradleBuildModel.get(module).android().externalNativeBuild().cmake().version().getValueType()
+              != GradlePropertyModel.ValueType.NONE;
   }
 
   @NotNull

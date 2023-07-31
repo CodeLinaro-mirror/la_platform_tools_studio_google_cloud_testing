@@ -23,9 +23,8 @@ import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.module.Module;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 public interface TestRecorderRunConfigurationProxy {
   ExtensionPointName<TestRecorderRunConfigurationProxyProvider> EP_NAME =
@@ -43,6 +42,8 @@ public interface TestRecorderRunConfigurationProxy {
 
     return null;
   }
+
+  boolean isNativeProject();
 
   @NotNull
   LocatableConfigurationBase getTestRecorderRunConfiguration();
