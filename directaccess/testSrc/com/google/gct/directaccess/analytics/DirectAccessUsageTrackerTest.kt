@@ -73,7 +73,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
@@ -361,7 +360,6 @@ class DirectAccessUsageTrackerTest {
     assertThat(disconnectDeviceDetails.userDisconnected).isTrue()
   }
 
-  @Ignore
   @Test
   fun trackDisconnectDeviceSuccessWhenDeviceIsConnectedWhenReservationExpires() =
     runBlockingWithTimeout {
@@ -373,7 +371,9 @@ class DirectAccessUsageTrackerTest {
 
       // Activate device
       val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-      directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+      val reservationFlow =
+        directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+      reservationFlow.waitUntilActive()
       yieldUntil {
         template.activeDevice?.connection?.state?.value?.connection ==
           DirectAccessConnection.ConnectionState.CONNECTED
@@ -381,8 +381,10 @@ class DirectAccessUsageTrackerTest {
       findUsageEvent(CONNECT_DEVICE)
 
       // Simulate reservation end
-      directAccessReservationManager.cancelReservation(handle.reservation.name)
-      yieldUntil { handle.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+      (reservationFlow as MutableStateFlow).update {
+        it.toBuilder().apply { sessionState = Reservation.SessionState.EXPIRED }.build()
+      }
+      yieldUntil { reservationFlow.value.sessionState.isClosed() }
 
       val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
       assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -515,7 +517,6 @@ class DirectAccessUsageTrackerTest {
       .isFalse()
   }
 
-  @Ignore
   @Test
   fun trackEndReservationSuccessMetricWhenAutoEndReservation() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
@@ -551,7 +552,6 @@ class DirectAccessUsageTrackerTest {
     assertThat(endReservationDetails.endReservationType).isEqualTo(EXPIRE)
   }
 
-  @Ignore
   @Test
   fun trackEndReservationFailMetricWhenReservationEndsDueToError() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
