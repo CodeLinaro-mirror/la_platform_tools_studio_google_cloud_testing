@@ -195,7 +195,6 @@ data class GhostCloudDevice(
   override fun executeRemoteCommand(
     adbSockAddr: InetSocketAddress,
     command: String,
-    device: IDevice,
     rcvr: IShellOutputReceiver,
     maxTimeout: Long,
     maxTimeToOutputResponse: Long,
@@ -205,7 +204,6 @@ data class GhostCloudDevice(
   override fun executeRemoteCommand(
     adbSockAddr: InetSocketAddress,
     command: String,
-    device: IDevice,
     rcvr: IShellOutputReceiver,
     maxTimeToOutputResponse: Long,
     maxTimeUnits: TimeUnit
@@ -215,7 +213,6 @@ data class GhostCloudDevice(
     adbSockAddr: InetSocketAddress,
     adbService: AdbHelper.AdbService,
     command: String,
-    device: IDevice,
     rcvr: IShellOutputReceiver,
     maxTimeToOutputResponse: Long,
     maxTimeUnits: TimeUnit,
@@ -226,7 +223,6 @@ data class GhostCloudDevice(
     adbSockAddr: InetSocketAddress,
     adbService: AdbHelper.AdbService,
     command: String,
-    device: IDevice,
     rcvr: IShellOutputReceiver,
     maxTimeout: Long,
     maxTimeToOutputResponse: Long,
