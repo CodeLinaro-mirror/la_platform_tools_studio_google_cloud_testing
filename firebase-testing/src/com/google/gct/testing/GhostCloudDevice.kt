@@ -15,6 +15,7 @@
  */
 package com.google.gct.testing
 
+import com.android.ddmlib.AdbHelper
 import com.android.ddmlib.Client
 import com.android.ddmlib.FileListingService
 import com.android.ddmlib.IDevice
@@ -31,6 +32,8 @@ import com.android.sdklib.AndroidVersion
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.io.File
+import java.io.InputStream
+import java.net.InetSocketAddress
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 
@@ -188,6 +191,48 @@ data class GhostCloudDevice(
   override fun getRegion(): String? = null
 
   override fun getVersion(): AndroidVersion = androidVersion
+
+  override fun executeRemoteCommand(
+    adbSockAddr: InetSocketAddress,
+    command: String,
+    device: IDevice,
+    rcvr: IShellOutputReceiver,
+    maxTimeout: Long,
+    maxTimeToOutputResponse: Long,
+    maxTimeUnits: TimeUnit
+  ) = Unit
+
+  override fun executeRemoteCommand(
+    adbSockAddr: InetSocketAddress,
+    command: String,
+    device: IDevice,
+    rcvr: IShellOutputReceiver,
+    maxTimeToOutputResponse: Long,
+    maxTimeUnits: TimeUnit
+  ) = Unit
+
+  override fun executeRemoteCommand(
+    adbSockAddr: InetSocketAddress,
+    adbService: AdbHelper.AdbService,
+    command: String,
+    device: IDevice,
+    rcvr: IShellOutputReceiver,
+    maxTimeToOutputResponse: Long,
+    maxTimeUnits: TimeUnit,
+    `is`: InputStream?
+  ) = Unit
+
+  override fun executeRemoteCommand(
+    adbSockAddr: InetSocketAddress,
+    adbService: AdbHelper.AdbService,
+    command: String,
+    device: IDevice,
+    rcvr: IShellOutputReceiver,
+    maxTimeout: Long,
+    maxTimeToOutputResponse: Long,
+    maxTimeUnits: TimeUnit,
+    `is`: InputStream?
+  ) = Unit
 
   override fun getName(): String = "Firebase device: $deviceId"
 
