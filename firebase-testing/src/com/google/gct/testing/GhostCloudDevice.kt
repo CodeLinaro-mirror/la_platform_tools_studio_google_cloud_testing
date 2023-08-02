@@ -33,7 +33,6 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.io.File
 import java.io.InputStream
-import java.net.InetSocketAddress
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 
@@ -193,7 +192,6 @@ data class GhostCloudDevice(
   override fun getVersion(): AndroidVersion = androidVersion
 
   override fun executeRemoteCommand(
-    adbSockAddr: InetSocketAddress,
     command: String,
     rcvr: IShellOutputReceiver,
     maxTimeout: Long,
@@ -202,7 +200,6 @@ data class GhostCloudDevice(
   ) = Unit
 
   override fun executeRemoteCommand(
-    adbSockAddr: InetSocketAddress,
     command: String,
     rcvr: IShellOutputReceiver,
     maxTimeToOutputResponse: Long,
@@ -210,7 +207,6 @@ data class GhostCloudDevice(
   ) = Unit
 
   override fun executeRemoteCommand(
-    adbSockAddr: InetSocketAddress,
     adbService: AdbHelper.AdbService,
     command: String,
     rcvr: IShellOutputReceiver,
@@ -220,7 +216,6 @@ data class GhostCloudDevice(
   ) = Unit
 
   override fun executeRemoteCommand(
-    adbSockAddr: InetSocketAddress,
     adbService: AdbHelper.AdbService,
     command: String,
     rcvr: IShellOutputReceiver,
