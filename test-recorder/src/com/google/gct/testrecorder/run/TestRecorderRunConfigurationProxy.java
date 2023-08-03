@@ -45,15 +45,7 @@ public interface TestRecorderRunConfigurationProxy {
 
   boolean isNativeProject();
 
-  @NotNull
-  LocatableConfigurationBase getTestRecorderRunConfiguration();
-
   Module getModule();
 
   boolean isLaunchActivitySupported();
-
-  String getLaunchActivityClass();
-
-  @Nullable
-  List<ListenableFuture<IDevice>> getDeviceFutures(ExecutionEnvironment environment);
 }

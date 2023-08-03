@@ -54,6 +54,9 @@ iml_module(
         "//tools/adt/idea/project-system-gradle:intellij.android.projectSystem.gradle[module]",
         "//tools/base/deploy/deployer:studio.android.sdktools.deployer[module]",
         "//tools/adt/idea/analytics[module]",
+        "//tools/adt/idea/.idea/libraries:truth[test]",
+        "//tools/analytics-library/testing:android.sdktools.analytics-testing[module, test]",
+        "//tools/adt/idea/execution/common:intellij.android.execution.common.tests[module, test]",
     ],
 )
 
@@ -68,11 +71,13 @@ maven_repository(
         "@maven//:androidx.test.espresso.espresso-core_3.5.1",
         "@maven//:androidx.test.ext.junit_1.1.5",
         "@maven//:androidx.test.rules_1.3.0",
+        "@maven//:com.android.support.constraint.constraint-layout_1.0.2",
         "@maven//:com.android.support.support-compat_28.0.0",
         "@maven//:com.android.support.support-v4_28.0.0",
         "@maven//:com.android.support.test.espresso.espresso-contrib_3.0.2",
         "@maven//:com.android.support.test.espresso.espresso-core_3.0.2",
         "@maven//:com.android.support.test.rules_1.0.2",
+        "@maven//:com.google.guava.guava_19.0",
         "@maven//:org.jetbrains.kotlin.kotlin-compiler_1.9.0-Beta",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin-api_1.9.0-Beta",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.9.0-Beta",

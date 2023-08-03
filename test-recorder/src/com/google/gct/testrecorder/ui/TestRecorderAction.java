@@ -26,7 +26,6 @@ import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxAction;
 import com.google.common.collect.Lists;
-import com.google.gct.testrecorder.debugger.SessionInitializer;
 import com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxy;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
@@ -51,11 +50,11 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.popup.PopupStep;
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.openapi.util.IconLoader;
+import com.intellij.openapi.util.Key;
 import com.intellij.ui.popup.list.ListPopupImpl;
 import icons.StudioIcons;
 import java.util.List;
 import javax.swing.Icon;
-import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 
 public class TestRecorderAction extends AnAction {
@@ -66,6 +65,8 @@ public class TestRecorderAction extends AnAction {
   private final static String RECORD_TEST_ACTION_TEXT = "Record Espresso Test";
   public static final Icon TEST_RECORDER_ICON = StudioIcons.Test.RECORD_ESPRESSO_TEST;
   public static final Icon SCRIPT_RECORDER_ICON = IconLoader.getIcon("robo_dot.png", TestRecorderAction.class);
+
+  public static final Key<Boolean> KEY = Key.create("test.recorder.launch");
 
 
   @Override
@@ -201,12 +202,8 @@ public class TestRecorderAction extends AnAction {
 
     ExecutionEnvironment environment = builder.build();
 
-    AndroidFacet facet = AndroidFacet.getInstance(module);
-    if (facet == null) {
-      throw new RuntimeException("Could not obtain Android facet for module: " + module.getName());
-    }
+    environment.putCopyableUserData(KEY, true);
 
-    new SessionInitializer(facet, environment, testRecorderConfigurationProxy, configurationBase, isRecordingTest);
     ProgramRunnerUtil.executeConfiguration(environment, false, true);
   }
 

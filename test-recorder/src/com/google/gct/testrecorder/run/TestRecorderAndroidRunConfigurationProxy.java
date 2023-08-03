@@ -20,13 +20,9 @@ import com.android.ddmlib.IDevice;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.run.AndroidRunConfiguration;
-import com.android.tools.idea.run.DeviceFutures;
 import com.android.tools.idea.run.activity.launch.DefaultActivityLaunch;
 import com.android.tools.idea.run.activity.launch.LaunchOptionState;
 import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.intellij.execution.configurations.LocatableConfigurationBase;
-import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.module.Module;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
@@ -48,12 +44,6 @@ public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRun
               != GradlePropertyModel.ValueType.NONE;
   }
 
-  @NotNull
-  @Override
-  public LocatableConfigurationBase getTestRecorderRunConfiguration() {
-    return new TestRecorderAndroidRunConfiguration(myBaseConfiguration);
-  }
-
   @Override
   public Module getModule() {
     return myBaseConfiguration.getConfigurationModule().getModule();
@@ -65,23 +55,5 @@ public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRun
 
     // Supported launch activities are Default and Specified.
     return activityLaunchOptionState instanceof DefaultActivityLaunch.State || activityLaunchOptionState instanceof SpecificActivityLaunch.State;
-  }
-
-  @Override
-  public String getLaunchActivityClass() {
-    LaunchOptionState activityLaunchOptionState = myBaseConfiguration.getLaunchOptionState(myBaseConfiguration.MODE);
-
-    if (activityLaunchOptionState instanceof SpecificActivityLaunch.State) {
-      return ((SpecificActivityLaunch.State)activityLaunchOptionState).ACTIVITY_CLASS;
-    }
-
-    return "";
-  }
-
-  @Nullable
-  @Override
-  public List<ListenableFuture<IDevice>> getDeviceFutures(ExecutionEnvironment environment) {
-    DeviceFutures deviceFutures = environment.getCopyableUserData(DeviceFutures.KEY);
-    return deviceFutures == null ? null : deviceFutures.get();
   }
 }

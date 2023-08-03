@@ -15,6 +15,7 @@
  */
 package com.google.gct.testrecorder.debugger;
 
+import static com.android.tools.idea.execution.common.UtilsKt.clearAppStorage;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.DELAYED_MESSAGE_POST;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.LAZY_CLASSES_LOADER;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.LIST_ITEM_CLICK;
@@ -30,16 +31,12 @@ import static com.google.gct.testrecorder.event.TestRecorderEvent.WINDOW_CONTENT
 
 import com.android.SdkConstants;
 import com.android.ddmlib.AndroidDebugBridge;
-import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
-import com.android.tools.idea.execution.common.AndroidSessionInfo;
-import com.android.tools.idea.projectsystem.ProjectSystemUtil;
+import com.android.tools.idea.execution.common.stats.RunStats;
 import com.android.tools.idea.run.activity.ActivityLocatorUtils;
 import com.android.tools.idea.run.activity.DefaultActivityLocator;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxy;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.ui.RecordingDialog;
 import com.intellij.debugger.DebuggerManagerEx;
@@ -49,16 +46,13 @@ import com.intellij.debugger.engine.DebugProcessImpl;
 import com.intellij.debugger.engine.DebugProcessListener;
 import com.intellij.debugger.engine.JavaDebugProcess;
 import com.intellij.debugger.engine.RemoteDebugProcessHandler;
-import com.intellij.debugger.impl.DebuggerManagerListener;
 import com.intellij.debugger.impl.DebuggerSession;
 import com.intellij.execution.DefaultExecutionResult;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionResult;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.RemoteConnection;
-import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RunProfileState;
-import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.openapi.application.ApplicationManager;
@@ -69,14 +63,12 @@ import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Computable;
 import com.intellij.psi.PsiClass;
-import com.intellij.util.messages.MessageBusConnection;
 import com.intellij.xdebugger.XDebugProcess;
 import com.intellij.xdebugger.XDebugProcessStarter;
 import com.intellij.xdebugger.XDebugSession;
 import com.intellij.xdebugger.XDebuggerManager;
-import java.util.List;
+import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import javax.swing.SwingUtilities;
 import org.jetbrains.android.dom.manifest.Activity;
 import org.jetbrains.android.dom.manifest.ActivityAlias;
@@ -86,8 +78,9 @@ import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
 
-public class SessionInitializer {
-  private static final Logger LOGGER = Logger.getInstance(SessionInitializer.class);
+public class TestRecorderDebugProcessListener implements DebugProcessListener {
+
+  private static final Logger LOGGER = Logger.getInstance(TestRecorderDebugProcessListener.class);
 
   // A replacement press back breakpoint descriptor as a workaround for emulators with API 28+ that cannot reliably handle,
   // i.e., without occasionally freezing, the regular PRESS_BACK breakpoint.
@@ -100,24 +93,24 @@ public class SessionInitializer {
   private final AndroidFacet myFacet;
   private final Project myProject;
   private final ExecutionEnvironment myEnvironment;
-  private final TestRecorderRunConfigurationProxy myTestRecorderConfigurationProxy;
-  private final RunConfiguration myRunConfiguration;
   private final boolean myIsRecordingTest;
   private IDevice myDevice;
-  private String myPackageName;
+  private final String myPackageName;
   private volatile DebuggerSession myDebuggerSession;
-  private volatile DebuggerManagerListener myDebuggerManagerListener;
   private volatile RecordingDialog myRecordingDialog;
+  private final String mySpecificActivityClass;
 
-  public SessionInitializer(AndroidFacet facet, ExecutionEnvironment environment,
-                            TestRecorderRunConfigurationProxy testRecorderConfigurationProxy, RunConfiguration runConfiguration,
-                            boolean isRecordingTest) {
+
+  public TestRecorderDebugProcessListener(AndroidFacet facet, ExecutionEnvironment environment, IDevice device, String packageName,
+                                          boolean isRecordingTest, String specificActivityClass, DebuggerSession debugSession) {
     myFacet = facet;
-    myProject = myFacet.getModule().getProject();
+    mySpecificActivityClass = specificActivityClass;
+    myProject = environment.getProject();
+    myPackageName = packageName;
+    myDevice = device;
     myEnvironment = environment;
-    myTestRecorderConfigurationProxy = testRecorderConfigurationProxy;
-    myRunConfiguration = runConfiguration;
     myIsRecordingTest = isRecordingTest;
+    myDebuggerSession = debugSession;
     // TODO: Although more robust than android.view.View#performClick() breakpoint, this might miss "contrived" clicks,
     // originating from the View object itself (e.g., as a result of processing a touch event).
     myBreakpointDescriptors.add(new BreakpointDescriptor(VIEW_CLICK, "android.view.View$PerformClick", "run", "()V", false));
@@ -145,45 +138,10 @@ public class SessionInitializer {
                                                          "(Landroid/os/Message;)V", false));
     myBreakpointDescriptors.add(new BreakpointDescriptor(PERMISSIONS_REQUEST, "android.app.Activity", "requestPermissions",
                                                          "([Ljava/lang/String;I)V", false));
-
-    myDebuggerManagerListener = new DebuggerManagerListener() {
-      @Override
-      public void sessionCreated(DebuggerSession session) {
-        myDebuggerSession = session;
-        myDebuggerSession.getProcess().addDebugProcessListener(createDebugProcessListener());
-      }
-
-      @Override
-      public void sessionDetached(DebuggerSession session) {
-        if (myDebuggerSession == session) {
-          DebuggerManagerEx.getInstanceEx(myProject).removeDebuggerManagerListener(myDebuggerManagerListener);
-        }
-      }
-    };
-
-    DebuggerManagerEx.getInstanceEx(myProject).addDebuggerManagerListener(myDebuggerManagerListener);
   }
 
-  @NotNull
-  private DebugProcessListener createDebugProcessListener() {
-    return new DebugProcessListener() {
       @Override
       public void processAttached(DebugProcess process) {
-        AndroidSessionInfo sessionInfo = process.getProcessHandler().getUserData(AndroidSessionInfo.KEY);
-        if (sessionInfo != null && sessionInfo.getRunConfiguration() != myRunConfiguration) {
-          // Not my debugger session (probably, my session failed midway) => stop listening.
-          DebuggerManagerEx.getInstanceEx(myProject).removeDebuggerManagerListener(myDebuggerManagerListener);
-          return;
-        }
-
-        try {
-          assignDevice();
-        } catch (final Exception e) {
-          ApplicationManager.getApplication().invokeLater(
-            () -> Messages.showErrorDialog(myProject, e.getMessage(), "Test Recorder startup failure"));
-          stopTestRecorder();
-          return;
-        }
 
         // Mute any user-defined breakpoints to avoid Test Recorder hanging the app when such a breakpoint gets hit.
         // This event arrives before initBreakpoints is called in DebugProcessEvents,
@@ -245,8 +203,7 @@ public class SessionInitializer {
           promptToRestartDebugging();
         }
       }
-    };
-  }
+
 
   /**
    * There are two major uses for the fully qualified launched activity name:
@@ -255,8 +212,8 @@ public class SessionInitializer {
    */
   @NotNull
   private String detectLaunchedActivityName() {
-    if (!Strings.isNullOrEmpty(myTestRecorderConfigurationProxy.getLaunchActivityClass())) {
-      return myTestRecorderConfigurationProxy.getLaunchActivityClass();
+    if (!Strings.isNullOrEmpty(mySpecificActivityClass)) {
+      return mySpecificActivityClass;
     }
 
     return DumbService.getInstance(myProject).runReadActionInSmartMode(new Computable<String>() {
@@ -401,11 +358,11 @@ public class SessionInitializer {
     DebugProcessImpl debugProcess = myDebuggerSession.getProcess();
     for (BreakpointDescriptor breakpointDescriptor : myBreakpointDescriptors) {
       if (device.getVersion().getApiLevel() >= 28) {
-        if (breakpointDescriptor.eventType == DELAYED_MESSAGE_POST) {
+        if (Objects.equals(breakpointDescriptor.eventType, DELAYED_MESSAGE_POST)) {
           // Skip setting the delayed message breakpoint on Android 28+ as it freezes recording in some scenarios.
           continue;
         }
-        if (device.isEmulator() && breakpointDescriptor.eventType == PRESS_BACK) {
+        if (device.isEmulator() && Objects.equals(breakpointDescriptor.eventType, PRESS_BACK)) {
           // Use a replacement press back breakpoint descriptor for emulators with API 28+.
           breakpointDescriptor = PRESS_BACK_EMULATOR_28_BREAKPOINT_DESCRIPTOR;
         }
@@ -422,7 +379,7 @@ public class SessionInitializer {
     if (myDevice != null && TestRecorderSettings.getInstance().CLEAN_AFTER_FINISH) {
       try {
         // Clear app data such that there is no stale state => the generated test can run (pass) immediately.
-        myDevice.executeShellCommand("pm clear " + myPackageName, new CollectingOutputReceiver(), 5, TimeUnit.SECONDS);
+        clearAppStorage(myProject, myDevice, myPackageName, RunStats.from(myEnvironment));
       } catch (Exception e) {
         LOGGER.warn("Exception stopping the app", e);
       }
@@ -430,8 +387,6 @@ public class SessionInitializer {
   }
 
   private void stopDebugger() {
-    DebuggerManagerEx.getInstanceEx(myProject).removeDebuggerManagerListener(myDebuggerManagerListener);
-
     if (TestRecorderSettings.getInstance().STOP_APP_AFTER_RECORDING) {
       if (myDebuggerSession != null) {
         XDebugSession xDebugSession = myDebuggerSession.getXDebugSession();
@@ -450,30 +405,6 @@ public class SessionInitializer {
       for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
         breakpointCommand.disable();
       }
-    }
-  }
-
-  private void assignDevice() {
-    List<ListenableFuture<IDevice>> listenableFutures = myTestRecorderConfigurationProxy.getDeviceFutures(myEnvironment);
-
-    if (listenableFutures == null || listenableFutures.size() != 1) {
-      throw new RuntimeException("Test Recorder should be launched on a single device!");
-    }
-
-    try {
-      myDevice = listenableFutures.get(0).get();
-    } catch (Exception e) {
-      throw new RuntimeException("Exception while waiting for the device to become ready ", e);
-    }
-
-    if (myDevice.getVersion().getApiLevel() < 19) {
-      throw new RuntimeException("Test Recorder supports devices and emulators running Android API level 19 (Android 4.4 Kit Kat) and higher.");
-    }
-
-    try {
-      myPackageName = ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
-    } catch (Exception e) {
-      throw new RuntimeException("Could not compute package name!");
     }
   }
 

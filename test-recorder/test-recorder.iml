@@ -52,5 +52,8 @@
     <orderEntry type="module" module-name="android.sdktools.deployer" />
     <orderEntry type="module" module-name="analytics" />
     <orderEntry type="module" module-name="intellij.android.projectSystem.gradle" />
+    <orderEntry type="library" scope="TEST" name="truth" level="project" />
+    <orderEntry type="module" module-name="android.sdktools.analytics-testing" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.android.execution.common.tests" scope="TEST" />
   </component>
 </module>
