@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import org.assertj.core.util.VisibleForTesting
 
@@ -133,7 +134,7 @@ class DirectAccessDeviceProvisionerPlugin(
   }
 
   @VisibleForTesting
-  fun matchReservations(
+  suspend fun matchReservations(
     templates: List<DirectAccessDeviceTemplate>,
     reservations: List<Reservation>
   ) {
@@ -146,10 +147,15 @@ class DirectAccessDeviceProvisionerPlugin(
       .filter { reservation ->
         !reservation.sessionState.isClosed() && reservation.hasAndroidDevice()
       }
-      .forEach { reservation ->
+      .mapNotNull { reservation ->
         val key = reservation.androidDevice.let { "${it.androidModelId} ${it.androidVersionId}" }
-        templateMap[key]?.firstOrNull()?.createDeviceHandleIfAbsent()
+
+        templateMap[key]?.firstOrNull()?.let { template ->
+          // Create handle without blocking iteration
+          scope.launch { template.createDeviceHandleIfAbsent(reservation.name) }
+        }
       }
+      .joinAll()
   }
 
   /**

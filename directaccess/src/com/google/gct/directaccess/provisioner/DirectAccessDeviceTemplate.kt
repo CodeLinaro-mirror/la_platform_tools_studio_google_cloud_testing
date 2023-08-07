@@ -113,13 +113,45 @@ class DirectAccessDeviceTemplate(
         }
 
         try {
-          return createDeviceHandle().also { it.activationAction?.activate() }
+          val reservationName = findOrCreateReservation()
+          return createDeviceHandle(reservationName).also { it.activationAction?.activate() }
         } catch (e: CancellationException) {
           throw e
         } catch (e: Exception) {
           isActivationStarted.value = false
           throw DeviceActionException("Unable to reserve device.", e)
         }
+      }
+
+      private fun findOrCreateReservation(): String {
+        val reservationManager =
+          project.service<DirectAccessService>().reservationManager
+            ?: throw RuntimeException("Unable to access ReservationManager.")
+
+        val (reservationName, startTime) =
+          try {
+            reservationManager.findOrCreateReservation(
+              deviceInfo.codename,
+              deviceInfo.api.toString()
+            )
+          } catch (e: Exception) {
+            // TODO(b/277240160): Add correct failure reason
+            DirectAccessUsageTracker.trackReserveDevice(
+              false,
+              null,
+              null,
+              deviceInfo.toMetricsDeviceInfo(),
+              DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
+            )
+            throw e
+          }
+        if (startTime != 0L) {
+          scope.logReserveMetricWhenReservationActive(
+            reservationManager.fetchReservationFlow(reservationName),
+            startTime
+          )
+        }
+        return reservationName
       }
 
       private val defaultPresentation =
@@ -137,7 +169,8 @@ class DirectAccessDeviceTemplate(
   override val editAction = null
 
   /**
-   * Creates a [DirectAccessDeviceHandle] with Disconnected state.
+   * Creates a [DirectAccessDeviceHandle] with Disconnected state for [reservationName] if one is
+   * not present already.
    *
    * The returned device handle prioritizes connecting to an existing reservation over requesting a
    * new one. This method is disabled when a device handle is active or being created. At most one
@@ -145,46 +178,19 @@ class DirectAccessDeviceTemplate(
    *
    * TODO (b/246171065): activating multiple devices.
    */
-  fun createDeviceHandleIfAbsent() {
+  fun createDeviceHandleIfAbsent(reservationName: String) {
     if (isActivationStarted.compareAndSet(expect = false, update = true)) {
-      createDeviceHandle()
+      createDeviceHandle(reservationName)
     }
   }
 
   /**
-   * Creates a [DirectAccessDeviceHandle] matching the [deviceInfo].
+   * Creates a [DirectAccessDeviceHandle] for the given [reservationName].
    *
-   * A direct access device is represented by a reservation, which can be created by other means
-   * with the same user and project. If there is an existing reservation when calling this method,
-   * the existing reservation will be reused to create a [DeviceHandle]. Otherwise, a new
-   * reservation will be requested with a wiped device.
+   * Reservation corresponding to [reservationName] can be a new reservation requested by the user
+   * that is inactive, or it can be an active reservation created elsewhere.
    */
-  private fun createDeviceHandle(): DeviceHandle {
-    val reservationManager =
-      project.service<DirectAccessService>().reservationManager
-        ?: throw RuntimeException("Unable to access ReservationManager.")
-
-    val reservationResult =
-      try {
-        reservationManager.findOrCreateReservation(deviceInfo.codename, deviceInfo.api.toString())
-      } catch (e: Exception) {
-        // TODO(b/277240160): Add correct failure reason
-        DirectAccessUsageTracker.trackReserveDevice(
-          false,
-          null,
-          null,
-          deviceInfo.toMetricsDeviceInfo(),
-          DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
-        )
-        throw e
-      }
-    if (reservationResult.second != 0L) {
-      scope.logReserveMetricWhenReservationActive(
-        reservationManager.fetchReservationFlow(reservationResult.first),
-        reservationResult.second
-      )
-    }
-
+  private fun createDeviceHandle(reservationName: String): DeviceHandle {
     val deviceScope = scope.createChildScope(isSupervisor = true)
     // Notify provisioner plugin of the new device.
     return DirectAccessDeviceHandle(
@@ -192,7 +198,7 @@ class DirectAccessDeviceTemplate(
         deviceScope,
         this@DirectAccessDeviceTemplate,
         DeviceState.Disconnected(properties),
-        reservationResult.first
+        reservationName
       )
       .also { activeDevice = it }
   }

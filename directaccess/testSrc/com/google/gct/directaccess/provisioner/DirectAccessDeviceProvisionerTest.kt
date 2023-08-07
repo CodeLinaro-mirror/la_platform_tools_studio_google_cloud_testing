@@ -707,7 +707,7 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { isExpired }
   }
 
-  private fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
+  private suspend fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
     matchReservations(
       templates.value.mapNotNull { it as? DirectAccessDeviceTemplate },
       fetchReservations()!!
