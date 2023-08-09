@@ -15,106 +15,39 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.idea.adblib.AdbLibService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
-import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
-import com.android.tools.idea.io.netty.channel.ChannelOption
-import com.google.gct.login.GoogleLogin
-import com.google.gct.login.common.LoginListener
-import com.google.services.firebase.directaccess.client.DirectAccessConnection
-import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
-import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
+import com.google.gct.login.LoginState
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 
-@Service
+@Service(Service.Level.PROJECT)
 class DirectAccessService(val project: Project) : Disposable {
-  val gcpProjectListeners = mutableListOf<() -> Unit>()
-
-  var gcpProject: String?
-    get() = PropertiesComponent.getInstance(project).getValue("direct.access.project")
-    set(value) {
-      PropertiesComponent.getInstance(project).setValue("direct.access.project", value)
-      reservationManager = null
-      connectionManager = null
-      gcpProjectListeners.forEach { it() }
-    }
-
-  private val channel =
-    NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
-      .withOption(ChannelOption.TCP_NODELAY, true)
-      .build()
-
-  private var loginListener: LoginListener? = null
-
-  /**
-   * [CoroutineScope] of this service. Its child scope is used by [DirectAccessReservationManager]
-   * The child scope is cancelled when the reservation manager is reset.
-   */
   private val scope = AndroidCoroutineScope(this)
+  private val _cloudProjectFlow = MutableStateFlow<String?>(null)
+  val cloudProjectFlow: StateFlow<String?> = _cloudProjectFlow
 
-  @get:Synchronized
-  var reservationManager: DirectAccessReservationManager? = null
-    get() {
-      return field
-        ?: gcpProject?.let { project ->
-          DirectAccessReservationManager(project, scope.createChildScope(true), channel) {
-              GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
-            }
-            .also {
-              field = it
-              loginListener = LoginListener { loggedIn ->
-                if (!loggedIn) {
-                  reservationManager = null
-                }
-              }
-              GoogleLogin.instance.activeUser?.googleLoginState?.addLoginListener(loginListener)
-            }
-        }
+  @Synchronized
+  fun selectCloudProject(cloudProject: String?) {
+    cloudProject?.let {
+      PropertiesComponent.getInstance(project).setValue("direct.access.project", it)
     }
-    private set(rm) {
-      if (rm != null) {
-        throw IllegalArgumentException("Argument to reservationManager setter must be null")
-      }
-      scope.coroutineContext.cancelChildren()
-      field = null
-      removeLoginListener()
-    }
-
-  private var connectionManager: DirectAccessConnectionManager? = null
-    get() {
-      return field
-        ?: reservationManager?.let { reservationManager ->
-          DirectAccessConnectionManager(
-              AdbLibService.getSession(project),
-              { GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken() },
-              channel,
-              reservationManager,
-            )
-            .also { field = it }
-        }
-    }
-
-  /**
-   * Returns a [DirectAccessConnection] connecting to a device with [reservationName] and [scope].
-   */
-  fun connectToReservation(
-    reservationName: String,
-    scope: CoroutineScope
-  ): DirectAccessConnection? = connectionManager?.connect(reservationName, scope)
-
-  private fun removeLoginListener() {
-    loginListener?.let {
-      GoogleLogin.instance.activeUser?.googleLoginState?.removeLoginListener(it)
-      loginListener = null
-    }
+    service<DirectAccessApplicationService>().registerCloudProject(project, cloudProject)
+    _cloudProjectFlow.value = cloudProject
   }
 
-  override fun dispose() = removeLoginListener()
+  init {
+    selectCloudProject(PropertiesComponent.getInstance(project).getValue("direct.access.project"))
+    scope.launch { LoginState.loggedIn.filter { !it }.collect { selectCloudProject(null) } }
+  }
+
+  override fun dispose() {
+    selectCloudProject(null)
+  }
 }

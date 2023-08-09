@@ -24,6 +24,7 @@ import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
@@ -33,6 +34,7 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBColor
@@ -87,11 +89,12 @@ class SelectProjectAction(
 
     val scope = AndroidCoroutineScope(balloon)
     mainPanel.apply {
+      val project = e.project ?: return
       val service = e.project?.service<DirectAccessService>() ?: return
       val devices =
         e.project?.service<DeviceProvisionerService>()?.deviceProvisioner?.devices ?: return
       // TODO (b/283017110): use project from google-services.json if it exists.
-      val preferredProject = service.gcpProject?.takeIf { it.isNotEmpty() } ?: ""
+      val preferredProject = service.cloudProjectFlow.value ?: ""
       val errorTextPane =
         JBTextArea().apply {
           rows = 2
@@ -122,7 +125,7 @@ class SelectProjectAction(
             add(selector.component)
             scope.launch {
               selector.selectedProject.collect {
-                onProjectChanged(it, service, balloon, errorTextPane)
+                onProjectChanged(project, it, balloon, errorTextPane)
               }
             }
           } else {
@@ -149,25 +152,29 @@ class SelectProjectAction(
   }
 
   private suspend fun onProjectChanged(
-    project: String,
-    service: DirectAccessService,
+    project: Project,
+    cloudProject: String,
     balloon: Balloon,
     errorTextPane: JBTextArea
   ) {
-    if (project.isEmpty()) {
+    if (cloudProject.isEmpty()) {
       return
     }
-    service.gcpProject = project
+    project.service<DirectAccessService>().selectCloudProject(cloudProject)
     withContext(AndroidDispatchers.uiThread) {
       balloon.revalidate()
       launch {
         var errorMessage: String? = null
         try {
-          withContext(Dispatchers.IO) { service.reservationManager?.listReservations() }
+          withContext(Dispatchers.IO) {
+            service<DirectAccessApplicationService>()
+              .getReservationManager(project)
+              ?.listReservations()
+          }
         } catch (_: Exception) {
           // TODO (b/283882413): show different reasons for project without access.
           errorMessage =
-            "$project does not have access to Direct Access. Select a different project."
+            "$cloudProject does not have access to Direct Access. Select a different project."
         }
         if (errorMessage != null) {
           errorTextPane.text = errorMessage

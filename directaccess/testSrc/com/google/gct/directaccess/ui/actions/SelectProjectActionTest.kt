@@ -28,6 +28,8 @@ import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
+import com.google.common.util.concurrent.MoreExecutors
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
@@ -36,7 +38,6 @@ import com.google.services.firebase.directaccess.client.DirectAccessReservationM
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.components.service
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
@@ -50,8 +51,12 @@ import javax.swing.JPanel
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import javax.swing.event.DocumentEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -69,6 +74,7 @@ class SelectProjectActionTest {
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlocking {
+    val scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     var isLoggedIn = false
     val mockGoogleLogin = mock<GoogleLogin>()
     doAnswer { isLoggedIn }.whenever(mockGoogleLogin).isLoggedIn
@@ -92,42 +98,45 @@ class SelectProjectActionTest {
       projectRule.disposable
     )
 
-    val service = projectRule.project.service<DirectAccessService>()
     val unsupportedProjectName = "unsupportedTestProject"
     val supportedProjectName = "supportedTestProject"
-    val projectFlow = MutableStateFlow("")
 
-    var isProjectSupported = false
     val mockDirectAccessService = mock<DirectAccessService>()
-    doAnswer {
-        isProjectSupported = it.arguments[0] == supportedProjectName
-        projectFlow.value = it.arguments[0] as String
-        it.arguments[0]
-      }
-      .whenever(mockDirectAccessService)
-      .gcpProject = any()
-
+    val mockDirectAccessApplicationService = mock<DirectAccessApplicationService>()
+    val cloudProjectFlow = MutableStateFlow<String?>(null)
+    doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
     doReturn(
         object : FakeDirectAccessReservationManager() {
           override fun listReservations(): List<Reservation> {
-            if (!isProjectSupported) throw RuntimeException("unauthorized")
+            if (cloudProjectFlow.value == unsupportedProjectName)
+              throw RuntimeException("unauthorized")
             return listOf()
           }
         }
       )
-      .whenever(mockDirectAccessService)
-      .reservationManager
+      .whenever(mockDirectAccessApplicationService)
+      .getReservationManager(any())
+
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
       projectRule.disposable
     )
-    service.gcpProjectListeners.add { projectFlow.value = service.gcpProject!! }
+
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessApplicationService::class.java,
+        mockDirectAccessApplicationService,
+        projectRule.disposable
+      )
+
     assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
       .isInstanceOf(SelectProjectAction::class.java)
 
     val selectProjectAction = SelectProjectAction { _, isEnabled ->
-      FakeDirectAccessProjectSelector(isEnabled)
+      FakeDirectAccessProjectSelector(isEnabled).also {
+        scope.launch { it.selectedProject.collect { cloudProjectFlow.value = it } }
+      }
     }
 
     // Click the project selection button.
@@ -160,7 +169,7 @@ class SelectProjectActionTest {
     val textField = selectBalloon.component.findAllDescendants<JTextField>().first()
     assertThat(textField.isEnabled).isTrue()
     textField.text = unsupportedProjectName
-    yieldUntil { projectFlow.value == unsupportedProjectName }
+    yieldUntil { cloudProjectFlow.value == unsupportedProjectName }
 
     val errorPanel = selectBalloon.component.findAllDescendants<JTextArea>().first()
     yieldUntil { errorPanel.isVisible }
@@ -171,8 +180,7 @@ class SelectProjectActionTest {
 
     // Select a project that supports direct access.
     textField.text = supportedProjectName
-    yieldUntil { projectFlow.value == supportedProjectName }
-    assertThat(isProjectSupported).isTrue()
+    yieldUntil { cloudProjectFlow.value == supportedProjectName }
     yieldUntil { !errorPanel.isVisible }
 
     // Start a device and the selector will be disabled.
@@ -215,5 +223,7 @@ open class FakeDirectAccessReservationManager : DirectAccessReservationManager {
   override fun fetchReservationFlow(reservationName: String): StateFlow<Reservation> =
     notImplemented()
   override fun maybeRestoreExpireTimeOnReconnect(reservationName: String) = notImplemented()
+  override fun close() = Unit
+
   private fun notImplemented(): Nothing = error("Not yet implemented")
 }

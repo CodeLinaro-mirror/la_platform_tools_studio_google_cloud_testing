@@ -27,7 +27,7 @@ import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
-import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.findOrCreateReservation
@@ -125,7 +125,7 @@ class DirectAccessDeviceTemplate(
 
       private fun findOrCreateReservation(): String {
         val reservationManager =
-          project.service<DirectAccessService>().reservationManager
+          service<DirectAccessApplicationService>().getReservationManager(project)
             ?: throw RuntimeException("Unable to access ReservationManager.")
 
         val (reservationName, startTime) =
@@ -178,10 +178,11 @@ class DirectAccessDeviceTemplate(
    *
    * TODO (b/246171065): activating multiple devices.
    */
-  fun createDeviceHandleIfAbsent(reservationName: String) {
+  fun createDeviceHandleIfAbsent(reservationName: String): DeviceHandle? {
     if (isActivationStarted.compareAndSet(expect = false, update = true)) {
-      createDeviceHandle(reservationName)
+      return createDeviceHandle(reservationName)
     }
+    return null
   }
 
   /**

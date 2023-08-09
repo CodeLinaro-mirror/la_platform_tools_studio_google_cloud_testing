@@ -32,11 +32,10 @@ import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.run.DeviceHeadsUpListener
-import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
-import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
@@ -76,20 +75,22 @@ class DirectAccessDeviceHandle(
   private val reservationName: String
 ) : DeviceHandle {
 
-  private val reservationManager: DirectAccessReservationManager =
-    project.service<DirectAccessService>().reservationManager
-      ?: throw RuntimeException("Not logged in.")
+  private val reservationManager =
+    service<DirectAccessApplicationService>().getReservationManager(project)
+      ?: throw RuntimeException("Reservation manager not available.")
 
   val connection: DirectAccessConnection =
-    project.service<DirectAccessService>().connectToReservation(reservationName, scope)
-      ?: throw RuntimeException("Not logged in.")
-
-  val notificationManager: DirectAccessNotificationManager
+    service<DirectAccessApplicationService>().getConnectionManager(project)?.create(reservationName)
+      ?: throw RuntimeException("Failed to get connection.")
 
   val icon: Icon
     get() = sourceTemplate.icon
 
-  override val stateFlow: MutableStateFlow<DeviceState>
+  private val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
+  override val stateFlow =
+    MutableStateFlow(initialState.withReservation(mapReservation(reservationFlow.value)))
+  // [notificationManager] collects [stateFlow] and needs to be initiated after.
+  val notificationManager = DirectAccessNotificationManager(project, this)
 
   /** Tracks reconnect to device */
   private var hasConnectedToDeviceOnce = false
@@ -99,13 +100,6 @@ class DirectAccessDeviceHandle(
   private var hasUserForceCheckedInDevice = false
 
   init {
-    val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
-
-    stateFlow =
-      MutableStateFlow(initialState.withReservation(mapReservation(reservationFlow.value)))
-
-    // [notificationManager] collects [stateFlow] and needs to be initiated after.
-    notificationManager = DirectAccessNotificationManager(project, this)
     scope.launch {
       reservationFlow.map(this@DirectAccessDeviceHandle::mapReservation).collect { reservation ->
         stateFlow.update { state -> state.withReservation(reservation) }
