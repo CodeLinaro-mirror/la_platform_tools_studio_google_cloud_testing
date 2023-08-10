@@ -16,7 +16,6 @@
 package com.google.gct.testrecorder.run
 
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutor
-import com.android.tools.idea.execution.common.AppRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfigurationExecutor
 import com.android.tools.idea.run.DeviceFutures
@@ -40,7 +39,6 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
     return configuration.run {
       val applicationIdProvider = applicationIdProvider ?: throw RuntimeException("Cannot get ApplicationIdProvider")
       val apkProvider = apkProvider ?: throw RuntimeException("Cannot get ApkProvider")
-      env.putCopyableUserData(AppRunConfiguration.KEY, this)
       val baseExecutor = AndroidRunConfigurationExecutor(applicationIdProvider, env, deviceFutures, apkProvider)
       val activityName = (configuration.getLaunchOptionState(configuration.MODE) as? SpecificActivityLaunch.State)?.ACTIVITY_CLASS ?: ""
 
