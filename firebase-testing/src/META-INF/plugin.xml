@@ -24,8 +24,6 @@
 
     <moduleService serviceInterface="com.google.gct.testing.CloudDefaultPersistentConfigurations"
                     serviceImplementation="com.google.gct.testing.CloudDefaultPersistentConfigurations"/>
-
-    <exceptionFilter implementation="com.google.gct.testing.filter.TestLabExceptionFilterFactory"/>
   </extensions>
 
   <extensions defaultExtensionNs="com.android.run">
