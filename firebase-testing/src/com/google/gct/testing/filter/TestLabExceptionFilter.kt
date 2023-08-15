@@ -17,6 +17,7 @@ package com.google.gct.testing.filter
 
 import com.intellij.execution.filters.Filter
 import com.intellij.execution.filters.HyperlinkInfoFactory
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -49,7 +50,7 @@ private val otherMethodRegex = Regex("$PACKAGE_CLASS_REGEX\\((?<$SOURCES>(Native
  *
  * The parenthesis in string "E/TestRunner(9723)" causes current exception filter to fail since the parser only recognizes the first
  * "(" and ignores content in "(Instrumentation.java:2248)".
-  */
+ */
 class TestLabExceptionFilter(
   private val myProject: Project,
   private val mySearchScope: GlobalSearchScope,
@@ -60,22 +61,27 @@ class TestLabExceptionFilter(
 
   override fun applyFilter(line: String, entireLength: Int): Filter.Result? {
     val offset = entireLength - line.length
-    var items: List<Filter.ResultItem> = fileAndLineRegex.findAll(line).mapNotNull {
-      val range = it.groups[LOCATION]?.range ?: return@mapNotNull null
-      val lineNumber = (it.groups[LINE_NUMBER]?.value?.toIntOrNull() ?: return@mapNotNull null) - 1
-      createHyperLinkFromMatch(it, offset, range, lineNumber, true)
-    }.toList()
-
-    // Handle other sources like "Native Method" and "Unknown Source" if items inside parenthesis is not formatted as fileName:lineNumber
-    if (items.isEmpty()) {
-      items = otherMethodRegex.findAll(line).mapNotNull {
-        val range = it.groups[SOURCES]?.range ?: return@mapNotNull null
-        createHyperLinkFromMatch(it, offset, range, 0, false)
+    try {
+      var items: List<Filter.ResultItem> = fileAndLineRegex.findAll(line).mapNotNull {
+        val range = it.groups[LOCATION]?.range ?: return@mapNotNull null
+        val lineNumber = (it.groups[LINE_NUMBER]?.value?.toIntOrNull() ?: return@mapNotNull null) - 1
+        createHyperLinkFromMatch(it, offset, range, lineNumber, true)
       }.toList()
-    }
-    return when {
-      items.isEmpty() -> null
-      else -> Filter.Result(items)
+
+      // Handle other sources like "Native Method" and "Unknown Source" if items inside parenthesis is not formatted as fileName:lineNumber
+      if (items.isEmpty()) {
+        items = otherMethodRegex.findAll(line).mapNotNull {
+          val range = it.groups[SOURCES]?.range ?: return@mapNotNull null
+          createHyperLinkFromMatch(it, offset, range, 0, false)
+        }.toList()
+      }
+      return when {
+        items.isEmpty() -> null
+        else -> Filter.Result(items)
+      }
+    } catch (e: Exception) {
+      thisLogger().debug("Line $line caused exception in TestLabExceptionFilter", e)
+      return null
     }
   }
 
@@ -99,15 +105,19 @@ class TestLabExceptionFilter(
     val fullQualifiedName =
       match.groups[FULL_CLASS_NAME]?.value?.split("$")?.filter { it.toIntOrNull() == null }?.joinToString(".") ?: return emptyList()
 
+    if (expandedClassName.isEmpty() || fullQualifiedName.isEmpty()) {
+      return emptyList()
+    }
+
     // We don't need to dig into the innermost nested class to obtain the source file. Sometimes nested class
     // does not appear as inner class in its parent class in PSI class representation.
     return fileNamesCache.getClassesByName(expandedClassName.first(), mySearchScope).filter { matchingClass ->
-      val qualifiedName = matchingClass.qualifiedName
-      qualifiedName != null && fullQualifiedName.startsWith(qualifiedName) && (!matchFileName || run {
+      val qualifiedName = matchingClass.qualifiedName ?: return@filter false
+      fullQualifiedName.startsWith(qualifiedName) && (!matchFileName || run {
         var containingFileName = matchingClass.containingFile?.name ?: return@filter false
         containingFileName = containingFileName.split(".")[0]
         match.groups[FILE_NAME]?.value?.startsWith(containingFileName) ?: false
       })
-    }.mapNotNull { it.containingFile.virtualFile }
+    }.mapNotNull { it.containingFile?.virtualFile }
   }
 }

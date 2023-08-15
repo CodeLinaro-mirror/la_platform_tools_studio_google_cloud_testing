@@ -42,6 +42,7 @@ class TestLabExceptionFilterTest {
     ClassNameFileTuple("TestClass2", "com.test.package.TestClass2", "TestClass2.kt"),
     ClassNameFileTuple("TestClass2", "com.test.package2.TestClass2", "TestClass2.kt"),
     ClassNameFileTuple("TestClass3", "com.test.TestClass3", "TestClass3.kt"),
+    ClassNameFileTuple("TestClass4", "com.test.additional.package.string.TestClass4", "TestClass4.kt"),
   )
 
   @get:Rule
@@ -104,6 +105,30 @@ class TestLabExceptionFilterTest {
   fun applyFilter_generatedClass() {
     val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package2.TestClass2$1.fail(TestClass2.kt:34)"
     assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!)
+  }
+
+  @Test
+  fun applyFilter_catchException() {
+    val line = "2023-08-14 03:08:24.346  1154-1524  Conscrypt               com.google.android.gms               W  \tat com.google.android.gms.org.conscrypt.Platform.setSocketWriteTimeout(:com.google.android.gms@221819047@22.18.19 (190800-449480960):2)"
+    assert(myTestLabFilter.applyFilter(line, line.length) == null)
+  }
+
+  @Test
+  fun applyFilter_additionalPackageString() {
+    val line = "\tat com.test.additional.package.string.TestClass4.throw(TestClass4.kt:2)"
+    assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!)
+  }
+
+  @Test
+  fun applyFilter_missingLineNumber() {
+    val line = "\tat com.test.additional.package.string.TestClass4.throw(TestClass4.kt)"
+    assert(myTestLabFilter.applyFilter(line, line.length) == null)
+  }
+
+  @Test
+  fun applyFilter_missingFileName() {
+      val line = "\tat com.test.additional.package.string.TestClass4.throw(:32)"
+    assert(myTestLabFilter.applyFilter(line, line.length) == null)
   }
 
   private fun assertFilteredResult(line: String, result: Filter.Result, highLightText: String? = null) {
