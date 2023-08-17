@@ -31,6 +31,7 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlug
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.intellij.openapi.Disposable
@@ -75,10 +76,15 @@ class DirectAccessMultiProjectTest {
   private lateinit var provisioner2: DeviceProvisioner
   private lateinit var scope: CoroutineScope
   private lateinit var mockGoogleLogin: GoogleLogin
+  private lateinit var loginState: MutableStateFlow<LoginStatus>
 
   @Before
   fun setUp() = runBlockingWithTimeout {
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+
+    loginState = MutableStateFlow(LoginStatus.LoggedIn("test@google.com"))
+    ApplicationManager.getApplication()
+      .replaceService(LoginState::class.java, LoginState(loginState), disposable)
 
     val mockAdbLibApplicationService = mock<AdbLibApplicationService>()
     doReturn(session).whenever(mockAdbLibApplicationService).session
@@ -93,7 +99,6 @@ class DirectAccessMultiProjectTest {
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     ApplicationManager.getApplication()
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, disposable)
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     doReturn(grpcConnectionRule.channel).whenever(mockDirectAccessServiceSetup).channel

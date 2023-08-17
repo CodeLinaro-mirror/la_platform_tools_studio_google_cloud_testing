@@ -43,6 +43,7 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlug
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
@@ -96,14 +97,17 @@ class DirectAccessUsageTrackerTest {
   private lateinit var scope: CoroutineScope
   private lateinit var tracker: TestUsageTracker
   private lateinit var mockGoogleLogin: GoogleLogin
+  private lateinit var loginState: MutableStateFlow<LoginStatus>
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    loginState = MutableStateFlow(LoginStatus.LoggedIn("test@gmail.com"))
+    ApplicationManager.getApplication()
+      .replaceService(LoginState::class.java, LoginState(loginState), projectRule.disposable)
     mockGoogleLogin = mock()
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     ApplicationManager.getApplication()
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
       DirectAccessReservationManager("test-project", scope, grpcConnectionRule.channel) {
@@ -140,7 +144,9 @@ class DirectAccessUsageTrackerTest {
     val cloudProjectName = "test-project"
     val cloudProjectFlow = MutableStateFlow<String?>(cloudProjectName)
     scope.launch {
-      LoginState.loggedIn.collect { cloudProjectFlow.value = if (it) cloudProjectName else null }
+      LoginState.getInstance().loginStatus.collect {
+        cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
+      }
     }
     doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
@@ -447,7 +453,7 @@ class DirectAccessUsageTrackerTest {
         DirectAccessConnection.ConnectionState.CONNECTED
     }
 
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginState.value = LoginStatus.LoggedOut
     fakeConnection.closeConnection()
 
     val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
@@ -548,7 +554,7 @@ class DirectAccessUsageTrackerTest {
         DirectAccessConnection.ConnectionState.CONNECTED
     }
 
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginState.value = LoginStatus.LoggedOut
 
     fakeConnection.closeConnection()
     findUsageEvent(DISCONNECT_DEVICE)

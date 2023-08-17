@@ -17,6 +17,7 @@ package com.google.gct.directaccess
 
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStatus
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
@@ -44,7 +45,12 @@ class DirectAccessService(val project: Project) : Disposable {
 
   init {
     selectCloudProject(PropertiesComponent.getInstance(project).getValue("direct.access.project"))
-    scope.launch { LoginState.loggedIn.filter { !it }.collect { selectCloudProject(null) } }
+    scope.launch {
+      LoginState.getInstance()
+        .loginStatus
+        .filter { it is LoginStatus.LoggedOut }
+        .collect { selectCloudProject(null) }
+    }
   }
 
   override fun dispose() {

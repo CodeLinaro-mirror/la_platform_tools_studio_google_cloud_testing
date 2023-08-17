@@ -47,6 +47,7 @@ import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.updateReservations
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
@@ -94,15 +95,18 @@ class DirectAccessDeviceProvisionerTest {
   private lateinit var scope: CoroutineScope
   private lateinit var mockGoogleLogin: GoogleLogin
   private var isOAuthTokenAvailable: Boolean = false
+  private lateinit var loginState: MutableStateFlow<LoginStatus>
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    loginState = MutableStateFlow(LoginStatus.LoggedIn("test@gmail.com"))
+    ApplicationManager.getApplication()
+      .replaceService(LoginState::class.java, LoginState(loginState), projectRule.disposable)
     mockGoogleLogin = mock()
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     ApplicationManager.getApplication()
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
 
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     isOAuthTokenAvailable = true
     directAccessReservationManager =
@@ -139,7 +143,9 @@ class DirectAccessDeviceProvisionerTest {
     val cloudProjectName = "test-project"
     val cloudProjectFlow = MutableStateFlow<String?>(cloudProjectName)
     scope.launch {
-      LoginState.loggedIn.collect { cloudProjectFlow.value = if (it) cloudProjectName else null }
+      LoginState.getInstance().loginStatus.collect {
+        cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
+      }
     }
     doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
@@ -210,14 +216,14 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[3].properties.isRemote).isTrue()
 
     // Log out
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginState.value = LoginStatus.LoggedOut
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
 
     // Login again without access.
     isOAuthTokenAvailable = false
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
+    loginState.value = LoginStatus.LoggedIn("test@gmail.com")
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
@@ -389,14 +395,14 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
     // Device removed after logout.
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginState.value = LoginStatus.LoggedOut
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
     yieldUntil { provisioner.devices.value.isEmpty() }
 
     // Login again to re-discover the device.
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
+    loginState.value = LoginStatus.LoggedIn("test@gmail.com")
     yieldUntil {
       provisioner.templates.value.any { (it as DirectAccessDeviceTemplate).activeDevice != null }
     }
