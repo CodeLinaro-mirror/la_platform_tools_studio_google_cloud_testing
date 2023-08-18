@@ -48,5 +48,6 @@
     <orderEntry type="library" name="google-api-client" level="project" />
     <orderEntry type="library" name="cloudresourcemanager" level="project" />
     <orderEntry type="module" module-name="analytics" />
+    <orderEntry type="library" name="truth" level="project" scope="TEST" />
   </component>
 </module>

@@ -22,13 +22,13 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
+import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.login.LoginState
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -42,7 +42,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import org.assertj.core.util.VisibleForTesting
+import java.util.concurrent.TimeUnit
 
 /**
  * Provides direct access to physical devices run by Firebase. Supports configuring direct access
