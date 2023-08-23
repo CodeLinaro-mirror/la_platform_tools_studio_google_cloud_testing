@@ -382,7 +382,7 @@ class DirectAccessDeviceHandle(
           DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
         }
         // Show notification if the device disconnected without user action
-        if (!hasUserDisconnectedDevice) {
+        if (!hasUserDisconnectedDevice && !hasUserForceCheckedInDevice) {
           scope.launch {
             notificationManager.showDeviceDisconnectedNotification(
               state.reservation?.endTime?.epochSecond

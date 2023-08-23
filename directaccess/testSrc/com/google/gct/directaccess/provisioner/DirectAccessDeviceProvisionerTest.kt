@@ -640,6 +640,36 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun testNoNotificationOnForceCheckInWhenReservationEndDelayed() = runBlockingWithTimeout {
+    setupConnection { reservationName, deviceScope ->
+      object :
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        override suspend fun endReservation(withGracePeriod: Boolean) {
+          closeConnection()
+          // Do not end reservation to simulate delayed/failed end reservation
+        }
+      }
+    }
+
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val flow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    flow.waitUntilActive()
+
+    session.hostServices.connect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.stateFlow.value.connectedDevice != null }
+
+    // User force checks in the device
+    handle.reservationAction.endReservation()
+    session.hostServices.disconnect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.stateFlow.value is Disconnected }
+
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(0)
+  }
+
+  @Test
   fun testCorrectIconForPhone() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
     testCorrectIcon(template, StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
