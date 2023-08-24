@@ -38,6 +38,7 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.reservation
+import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
@@ -129,7 +130,6 @@ class DirectAccessUsageTrackerTest {
       DirectAccessDeviceProvisionerPlugin(
         session.scope,
         projectRule.project,
-        TestUtils.deviceInfoListProvider
       )
     provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
     yieldUntil { provisioner.templates.value.isNotEmpty() }
@@ -151,6 +151,11 @@ class DirectAccessUsageTrackerTest {
         cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
       }
     }
+    val activeDeviceCatalogFlow = MutableStateFlow(listOf<DeviceInfo>())
+    doReturn(TestUtils.deviceInfoListProvider())
+      .whenever(mockDirectAccessService)
+      .getDeviceInfoList()
+    doReturn(activeDeviceCatalogFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
     doReturn(directAccessReservationManager)

@@ -29,6 +29,7 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
+import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.GoogleLogin
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
@@ -39,6 +40,7 @@ import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBColor
 import com.intellij.ui.awt.RelativePoint
+import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
@@ -48,6 +50,7 @@ import com.intellij.util.ui.JBUI
 import icons.FirebaseIcons
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JSeparator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
@@ -148,6 +151,15 @@ class SelectProjectAction(
           isOpaque = false
         }
       )
+      if (StudioFlags.DIRECT_ACCESS_ADD_DEVICE.get()) {
+        add(JSeparator())
+        add(
+          ActionLink("Show/hide devices in Device Manager...") {
+            balloon.hide()
+            SelectDeviceDialog(project).show()
+          }
+        )
+      }
       TreeWalker(this).descendantStream().forEach { it.background = secondaryPanelBackground }
       border = JBUI.Borders.empty(4)
     }

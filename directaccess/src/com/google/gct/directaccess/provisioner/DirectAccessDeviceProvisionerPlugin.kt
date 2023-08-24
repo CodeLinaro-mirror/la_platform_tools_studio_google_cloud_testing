@@ -21,7 +21,6 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.flags.StudioFlags
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
@@ -34,6 +33,7 @@ import com.intellij.openapi.project.Project
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 const val PLUGIN_ID = "FirebaseDirectAccess"
 
@@ -55,13 +56,7 @@ const val PLUGIN_ID = "FirebaseDirectAccess"
  */
 class DirectAccessDeviceProvisionerPlugin(
   private val scope: CoroutineScope,
-  private val project: Project,
-  private val deviceInfoProvider: () -> List<DeviceInfo> = {
-    CatalogClient.getAvailableDevices(
-      "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
-      project.service<DirectAccessService>().cloudProjectFlow.value
-    )
-  }
+  private val project: Project
 ) : DeviceProvisionerPlugin {
   private val logger = Logger.getInstance(DirectAccessDeviceProvisionerPlugin::class.java)
 
@@ -74,7 +69,9 @@ class DirectAccessDeviceProvisionerPlugin(
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
   private val reservationsFlow = MutableStateFlow<List<Reservation>?>(null)
-  private val activeDeviceInfoFlow = MutableStateFlow(setOf<DeviceInfo>())
+  // A flow of set with devices that are accessible with the current login state and cloud project.
+  private val accessibleDeviceInfoSetFlow = MutableStateFlow(setOf<DeviceInfo>())
+  private val cachedTemplatesMap = mutableMapOf<DeviceInfo, DirectAccessDeviceTemplate>()
 
   init {
     // Clean up remaining templates when scope is cancelled.
@@ -103,32 +100,59 @@ class DirectAccessDeviceProvisionerPlugin(
           }
         }
         .collectLatest { gcpProject ->
-          val deviceInfoList =
+          val newAccessibleDeviceInfoList =
             gcpProject?.let {
               try {
-                deviceInfoProvider()
+                project.service<DirectAccessService>().getDeviceInfoList()
               } catch (_: Exception) {
                 null
               }
             }
               ?: listOf()
-          activeDeviceInfoFlow.value = deviceInfoList.toSet()
+          accessibleDeviceInfoSetFlow.value = newAccessibleDeviceInfoList.toSet()
+          project.service<DirectAccessService>().deviceSelectionListFlow.update {
+            oldDeviceSelectionListFlow ->
+            (newAccessibleDeviceInfoList - oldDeviceSelectionListFlow.map { it.deviceInfo }.toSet())
+              .map { DeviceSelection(true, it) } + oldDeviceSelectionListFlow
+          }
+        }
+    }
 
-          _templates.value +=
-            deviceInfoList.minus(_templates.value.map { it.deviceInfo }.toSet()).map { deviceInfo ->
-              DirectAccessDeviceTemplate(
-                project,
-                deviceInfo,
-                _devices,
-                scope.createChildScope(isSupervisor = true),
-                reservationsFlow.combine(activeDeviceInfoFlow) { reservations, deviceInfoSet ->
-                  reservations != null && deviceInfoSet.contains(deviceInfo)
+    // Update templates with enabledDevicesFlow.
+    scope.launch {
+      project.service<DirectAccessService>().deviceSelectionListFlow.collect { deviceSelectionList
+        ->
+        _templates.update {
+          val existingDeviceInfoMap = it.groupBy { template -> template.deviceInfo }
+          deviceSelectionList
+            .filter { selection -> selection.isSelected }
+            .map { selection -> selection.deviceInfo }
+            .map { deviceInfo ->
+              existingDeviceInfoMap[deviceInfo]?.firstOrNull()
+                ?: cachedTemplatesMap.computeIfAbsent(deviceInfo) {
+                  val templateScope = scope.createChildScope(isSupervisor = true)
+                  DirectAccessDeviceTemplate(
+                    project,
+                    deviceInfo,
+                    _devices,
+                    templateScope,
+                    reservationsFlow.combine(accessibleDeviceInfoSetFlow) {
+                      reservations,
+                      deviceInfoSet ->
+                      reservations != null && deviceInfoSet.contains(deviceInfo)
+                    }
+                  )
                 }
-              )
             }
-
+        }
+      }
+    }
+    scope.launch {
+      templates
+        .combine(accessibleDeviceInfoSetFlow) { templates, _ -> templates }
+        .collectLatest {
           // Refresh reservations every minute to verify current templates and discover devices that
-          // were reserved elsewhere
+          // were reserved elsewhere.
           while (true) {
             fetchReservations()?.let { matchReservations(_templates.value, it) }
             delay(TimeUnit.MINUTES.toMillis(1))
@@ -141,25 +165,29 @@ class DirectAccessDeviceProvisionerPlugin(
   suspend fun matchReservations(
     templates: List<DirectAccessDeviceTemplate>,
     reservations: List<Reservation>
-  ) {
-    val templateMap =
-      templates
-        .filter { activeDeviceInfoFlow.value.contains(it.deviceInfo) }
-        .groupBy { template -> template.deviceInfo.let { "${it.codename} ${it.api}" } }
+  ): Unit =
+    withContext(NonCancellable) { ->
+      // Applies a NonCancellable job to the coroutine context so that if this method is cancelled
+      // and called again from an outside `collectLatest` block, `createDeviceHandleIfAbsent` will
+      // not be called concurrently for the same template.
+      val templateMap =
+        templates
+          .filter { accessibleDeviceInfoSetFlow.value.contains(it.deviceInfo) }
+          .groupBy { template -> template.deviceInfo.let { "${it.codename} ${it.api}" } }
 
-    reservations
-      .filter { reservation ->
-        !reservation.sessionState.isClosed() && reservation.hasAndroidDevice()
-      }
-      .mapNotNull { reservation ->
-        val key = reservation.androidDevice.let { "${it.androidModelId} ${it.androidVersionId}" }
-        templateMap[key]?.firstOrNull()?.let { template ->
-          // Create handle without blocking iteration
-          scope.launch { template.createDeviceHandleIfAbsent(reservation.name) }
+      reservations
+        .filter { reservation ->
+          !reservation.sessionState.isClosed() && reservation.hasAndroidDevice()
         }
-      }
-      .joinAll()
-  }
+        .mapNotNull { reservation ->
+          val key = reservation.androidDevice.let { "${it.androidModelId} ${it.androidVersionId}" }
+          templateMap[key]?.firstOrNull()?.let { template ->
+            // Create handle without blocking iteration
+            launch { template.createDeviceHandleIfAbsent(reservation.name) }
+          }
+        }
+        .joinAll()
+    }
 
   /**
    * Returns a list of reservations from [DirectAccessService], or null if authentication failed.

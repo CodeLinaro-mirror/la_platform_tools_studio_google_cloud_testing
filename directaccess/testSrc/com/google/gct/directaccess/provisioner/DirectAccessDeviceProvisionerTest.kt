@@ -34,6 +34,10 @@ import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adbbridge.Reservation
+import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
+import com.android.tools.adtui.swing.enableHeadlessDialogs
+import com.android.tools.adtui.swing.findAllDescendants
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -45,6 +49,7 @@ import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.updateReservations
+import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStateRule
 import com.google.gct.login.LoginStatus
@@ -62,8 +67,12 @@ import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.ui.TestDialog
+import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.testFramework.ProjectRule
+import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
+import com.intellij.ui.components.JBCheckBox
 import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
 import java.time.Duration
@@ -75,12 +84,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
-import org.mockito.Mockito
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
 class DirectAccessDeviceProvisionerTest {
@@ -104,6 +114,8 @@ class DirectAccessDeviceProvisionerTest {
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    enableHeadlessDialogs(projectRule.disposable)
+    TestDialogManager.setTestDialog(TestDialog.YES)
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     isOAuthTokenAvailable = true
     directAccessReservationManager =
@@ -118,18 +130,14 @@ class DirectAccessDeviceProvisionerTest {
         scope.createChildScope(true)
       )
     }
-    plugin =
-      DirectAccessDeviceProvisionerPlugin(
-        session.scope,
-        projectRule.project,
-        deviceInfoListProvider
-      )
+    plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
 
   @After
   fun tearDown() = runBlockingWithTimeout {
+    TestDialogManager.setTestDialog(null)
     scope.cancel()
     session.close()
   }
@@ -144,6 +152,15 @@ class DirectAccessDeviceProvisionerTest {
         cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
       }
     }
+    val accessibleDeviceInfoListFlow = MutableStateFlow(listOf<DeviceSelection>())
+    doAnswer {
+        if (loginStateRule.state.value is LoginStatus.LoggedIn && isOAuthTokenAvailable)
+          deviceInfoListProvider()
+        else listOf()
+      }
+      .whenever(mockDirectAccessService)
+      .getDeviceInfoList()
+    doReturn(accessibleDeviceInfoListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
     doReturn(directAccessReservationManager)
@@ -152,7 +169,7 @@ class DirectAccessDeviceProvisionerTest {
     doReturn(mockDirectAccessConnectionManager)
       .whenever(mockDirectAccessApplicationService)
       .getConnectionManager(any())
-    Mockito.doAnswer {
+    doAnswer {
         val reservationName = it.arguments[0] as String
         createConnection(reservationName).also { conn ->
           fakeConnection = conn
@@ -731,6 +748,79 @@ class DirectAccessDeviceProvisionerTest {
   fun testCorrectIconForWatch() = runBlockingWithTimeout {
     val template = plugin.templates.value[3] as DirectAccessDeviceTemplate
     testCorrectIcon(template, StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR)
+  }
+
+  @RunsInEdt
+  @Test
+  fun selectTemplates() = runBlockingWithTimeout {
+    assertThat(plugin.templates.value.size).isEqualTo(4)
+    val deviceInfoList =
+      plugin.templates.value.map { (it as DirectAccessDeviceTemplate).deviceInfo }
+
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
+        checkboxList.forEach { assertThat(it.isSelected).isTrue() }
+
+        checkboxList[1].isSelected = false
+        checkboxList[2].isSelected = false
+        dialog.clickDefaultButton()
+      }
+    }
+    yieldUntil { plugin.templates.value.size == 2 }
+    var templates = plugin.templates.value
+    assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
+    assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
+
+    // Re-select a template
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
+        checkboxList[1].isSelected = true
+        dialog.clickDefaultButton()
+      }
+    }
+    yieldUntil { plugin.templates.value.size == 3 }
+    templates = plugin.templates.value
+    assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
+    assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[1])
+    assertThat((templates[2] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
+  }
+
+  @RunsInEdt
+  @Test
+  fun selectTemplatesAfterLogout() = runBlockingWithTimeout {
+    assertThat(plugin.templates.value.size).isEqualTo(4)
+    // Same templates after logout.
+    loginStateRule.state.value = LoginStatus.LoggedOut
+    yieldUntil {
+      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
+    assertThat(plugin.templates.value.size).isEqualTo(4)
+
+    // De-select a template.
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
+        checkboxList[1].isSelected = false
+        dialog.clickDefaultButton()
+      }
+    }
+    yieldUntil { plugin.templates.value.size == 3 }
+    // The de-selected device info gets removed from the table.
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(3)
+        dialog.clickDefaultButton()
+      }
+    }
   }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {

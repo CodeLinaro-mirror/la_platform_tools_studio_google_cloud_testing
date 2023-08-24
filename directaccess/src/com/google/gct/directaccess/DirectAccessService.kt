@@ -16,6 +16,8 @@
 package com.google.gct.directaccess
 
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStatus
 import com.intellij.ide.util.PropertiesComponent
@@ -32,6 +34,8 @@ class DirectAccessService(val project: Project) : Disposable {
   private val scope = AndroidCoroutineScope(this)
   private val _cloudProjectFlow = MutableStateFlow<String?>(null)
   val cloudProjectFlow: StateFlow<String?> = _cloudProjectFlow
+  /** A flow of devices with selected states. */
+  val deviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
 
   @Synchronized
   fun selectCloudProject(cloudProject: String?) {
@@ -42,6 +46,9 @@ class DirectAccessService(val project: Project) : Disposable {
     service<DirectAccessApplicationService>().registerCloudProject(project, cloudProject)
     _cloudProjectFlow.value = cloudProject
   }
+
+  fun getDeviceInfoList(): List<DeviceInfo> =
+    service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(cloudProjectFlow.value)
 
   init {
     scope.launch {
