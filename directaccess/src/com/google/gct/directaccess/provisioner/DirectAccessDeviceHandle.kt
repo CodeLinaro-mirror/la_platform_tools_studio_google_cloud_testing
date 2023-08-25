@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
+import com.android.adblib.serialNumber
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceAction
@@ -365,6 +366,7 @@ class DirectAccessDeviceHandle(
       DirectAccessDeviceProperties.build {
         resolution = Resolution.readFromDevice(device)
         readCommonProperties(properties)
+        populateDeviceInfoProto(PLUGIN_ID, device.serialNumber, properties)
         icon = this@DirectAccessDeviceHandle.icon
       }
 
@@ -427,9 +429,9 @@ class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by
     inline fun build(block: Builder.() -> Unit) =
       Builder()
         .apply {
-          block()
           // DirectAccess devices are always remote
           isRemote = true
+          block()
         }
         .run { DirectAccessDeviceProperties(buildBase()) }
   }

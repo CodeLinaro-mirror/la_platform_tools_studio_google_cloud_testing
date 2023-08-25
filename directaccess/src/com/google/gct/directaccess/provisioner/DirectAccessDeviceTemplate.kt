@@ -250,5 +250,6 @@ private fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
         DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
         else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
       }
+    populateDeviceInfoProto(PLUGIN_ID, null, emptyMap())
   }
 }

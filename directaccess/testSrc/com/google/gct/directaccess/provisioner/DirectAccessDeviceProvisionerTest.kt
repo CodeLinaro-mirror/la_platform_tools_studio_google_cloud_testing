@@ -56,6 +56,7 @@ import com.google.services.firebase.directaccess.client.FakeDirectAccessConnecti
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.waitUntilActive
+import com.google.wireless.android.sdk.stats.DeviceInfo
 import com.intellij.icons.AllIcons
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
@@ -282,6 +283,14 @@ class DirectAccessDeviceProvisionerTest {
       assertThat(it.resolution?.height).isEqualTo(2400)
       assertThat(it.resolution?.width).isEqualTo(1080)
       assertThat(it.isRemote).isTrue()
+
+      it.deviceInfoProto.apply {
+        assertThat(model).isEqualTo(deviceInfo.name + suffix)
+        assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
+        assertThat(deviceType).isEqualTo(DeviceInfo.DeviceType.CLOUD_PHYSICAL)
+        assertThat(deviceProvisionerId).isEqualTo(PLUGIN_ID)
+        assertThat(anonymizedSerialNumber).isNotEmpty()
+      }
     }
 
     // Deactivate the device.

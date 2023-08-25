@@ -43,6 +43,8 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
+const val PLUGIN_ID = "FirebaseDirectAccess"
+
 /**
  * Provides direct access to physical devices run by Firebase. Supports configuring direct access
  * device templates and activating / deactivating them.
