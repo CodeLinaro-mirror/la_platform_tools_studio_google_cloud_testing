@@ -22,18 +22,16 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.util.Pair;
+import com.intellij.ui.CollectionComboBoxModel;
 import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
 import com.intellij.util.ui.JBUI;
-import org.jdesktop.swingx.combobox.ListComboBoxModel;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.util.List;
@@ -51,26 +49,22 @@ public class CloudProjectSelector extends ComboBox<String> {
   private Module myCurrentModule;
 
   // Used to keep track of user choices when run config and/or module are not available.
-  private static Map<CloudConfiguration.Kind, String> myLastChosenProjectIdPerKind = Maps.newHashMapWithExpectedSize(5);
+  private static final Map<CloudConfiguration.Kind, String> myLastChosenProjectIdPerKind = Maps.newHashMapWithExpectedSize(5);
 
   /** A cache of project ids selected by <kind, module> per android run configuration, so that if
    * the configuration and/or module selections change back and forth, we retain the appropriate selected project id.
    */
-  private static Map<Integer, Map<Pair<CloudConfiguration.Kind, Module>, String>> myProjectByConfigurationIdAndModuleCache =
+  private static final Map<Integer, Map<Pair<CloudConfiguration.Kind, Module>, String>> myProjectByConfigurationIdAndModuleCache =
     Maps.newHashMapWithExpectedSize(5);
 
   public CloudProjectSelector(@NotNull CloudConfiguration.Kind configurationKind) {
     myConfigurationKind = configurationKind;
-
     setRenderer(new CloudProjectRenderer());
 
-    addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        Object selectedItem = getSelectedItem();
-        if (selectedItem != null && !LOADING_CLOUD_PROJECTS_STRING.equals(selectedItem)) {
-          rememberChosenProjectId((String)selectedItem);
-        }
+    addActionListener(e -> {
+      Object selectedItem = getSelectedItem();
+      if (selectedItem != null && !LOADING_CLOUD_PROJECTS_STRING.equals(selectedItem)) {
+        rememberChosenProjectId((String)selectedItem);
       }
     });
 
@@ -79,13 +73,13 @@ public class CloudProjectSelector extends ComboBox<String> {
     }
 
     if (myCloudProjects != null) {
-      setModel(new ListComboBoxModel(myCloudProjects));
+      setModel(new CollectionComboBoxModel<>(myCloudProjects));
     }
   }
 
   public void refreshCloudProjects() {
-    setModel(new ListComboBoxModel<String>(LOADING_CLOUD_PROJECTS_LIST));
-    Boolean wasEnabled = isEnabled();
+    setModel(new CollectionComboBoxModel<>(LOADING_CLOUD_PROJECTS_LIST));
+    boolean wasEnabled = isEnabled();
     setEnabled(false);
 
     // Do not block the UI thread while getting cloud projects, since it requires network communication.
@@ -98,7 +92,7 @@ public class CloudProjectSelector extends ComboBox<String> {
         } else {
           setDefaultPreferredSize();
         }
-        setModel(new ListComboBoxModel(myCloudProjects));
+        setModel(new CollectionComboBoxModel<>(myCloudProjects));
         restoreChosenProjectId();
         setEnabled(wasEnabled);
 
@@ -159,11 +153,7 @@ public class CloudProjectSelector extends ComboBox<String> {
     }
 
     Map<Pair<CloudConfiguration.Kind, Module>, String> projectByModuleCache =
-      myProjectByConfigurationIdAndModuleCache.get(myCurrentConfigurationId);
-    if (projectByModuleCache == null) {
-      projectByModuleCache = Maps.newHashMapWithExpectedSize(5);
-      myProjectByConfigurationIdAndModuleCache.put(myCurrentConfigurationId, projectByModuleCache);
-    }
+      myProjectByConfigurationIdAndModuleCache.computeIfAbsent(myCurrentConfigurationId, k -> Maps.newHashMapWithExpectedSize(5));
 
     projectByModuleCache.put(Pair.create(myConfigurationKind, myCurrentModule), cloudProjectId);
   }
@@ -190,13 +180,13 @@ public class CloudProjectSelector extends ComboBox<String> {
     return null;
   }
 
-  private static class CloudProjectRenderer extends ColoredListCellRenderer {
+  private static class CloudProjectRenderer extends ColoredListCellRenderer<String> {
     @Override
-    protected void customizeCellRenderer(JList list, Object value, int index, boolean selected, boolean hasFocus) {
+    protected void customizeCellRenderer(@NotNull JList<? extends String> list, String value, int index, boolean selected, boolean hasFocus) {
       if (value == null) {
         append("[none]", SimpleTextAttributes.ERROR_ATTRIBUTES);
       } else {
-        append(String.valueOf(value));
+        append(value);
       }
     }
   }
