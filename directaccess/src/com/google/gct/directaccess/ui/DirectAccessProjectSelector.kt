@@ -49,6 +49,7 @@ class DirectAccessProjectSelectorImpl(private val preferredProject: String, isEn
   // TODO (b/283017002): show preferredProject while refresh projects.
   private val projectSelector =
     CloudProjectSelector(CloudConfiguration.Kind.SINGLE_DEVICE).apply {
+      this.isEditable = true
       this.isEnabled = isEnabled
       if (!isEnabled) {
         toolTipText = "Stop reservations to change projects"

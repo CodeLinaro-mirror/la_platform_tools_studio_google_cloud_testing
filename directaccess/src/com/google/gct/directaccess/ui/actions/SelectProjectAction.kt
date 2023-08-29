@@ -80,7 +80,7 @@ class SelectProjectAction(
       JBPopupFactory.getInstance()
         .createBalloonBuilder(mainPanel)
         .setShadow(true)
-        .setHideOnAction(true)
+        .setHideOnAction(false)
         .setBlockClicksThroughBalloon(true)
         .setAnimationCycle(200)
         .setBorderColor(secondaryPanelBackground)
