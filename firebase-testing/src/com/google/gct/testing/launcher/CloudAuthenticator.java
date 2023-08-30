@@ -18,8 +18,6 @@ package com.google.gct.testing.launcher;
 import com.android.annotations.Nullable;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
@@ -88,7 +86,9 @@ public class CloudAuthenticator {
   @NotNull
   public CloudResourceManager getCloudResourceManager() {
     prepareCredential();
-    if (myCloudResourceManager == null) {
+    if (myCloudResourceManager == null
+        || myCloudResourceManager.getRequestFactory() == null
+        || myCloudResourceManager.getRequestFactory().getInitializer() != GoogleLogin.getInstance().getCredential()) {
       myCloudResourceManager =
         new CloudResourceManager.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential)
           .setApplicationName(APPLICATION_NAME).build();
@@ -184,11 +184,12 @@ public class CloudAuthenticator {
     if (myHttpTransport == null) {
       myHttpTransport = createHttpTransport();
     }
-    if (myCredential == null) {
+    GoogleLogin googleLogin = GoogleLogin.getInstance();
+    if (myCredential == null || myCredential != googleLogin.getCredential()) {
       if (!authorize()) {
-        throw new RuntimeException("Failed to authorize to Google Cloud!");
+        throw new RuntimeException("Failed to authorize to Google Cloud! Please check if you set the correct user account.");
       }
-      myCredential = GoogleLogin.getInstance().getCredential();
+      myCredential = googleLogin.getCredential();
     }
   }
 
