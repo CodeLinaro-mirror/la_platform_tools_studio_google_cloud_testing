@@ -46,7 +46,7 @@ class DirectAccessService(val project: Project) : Disposable {
   init {
     selectCloudProject(PropertiesComponent.getInstance(project).getValue("direct.access.project"))
     scope.launch {
-      LoginState.getInstance()
+      service<LoginState>()
         .loginStatus
         .filter { it is LoginStatus.LoggedOut }
         .collect { selectCloudProject(null) }

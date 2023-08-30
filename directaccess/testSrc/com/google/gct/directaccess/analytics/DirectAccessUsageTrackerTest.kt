@@ -43,6 +43,7 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlug
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStateRule
 import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -66,6 +67,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReserv
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.THIRTY_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.service
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
@@ -80,14 +82,19 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
 class DirectAccessUsageTrackerTest {
 
   private val service = FakeDirectAccessGrpcService()
-  @get:Rule val projectRule = ProjectRule()
-  @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
+  private val projectRule = ProjectRule()
+  private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
+  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+
+  @get:Rule
+  val ruleChain = RuleChain.outerRule(projectRule).around(grpcConnectionRule).around(loginStateRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -97,13 +104,9 @@ class DirectAccessUsageTrackerTest {
   private lateinit var scope: CoroutineScope
   private lateinit var tracker: TestUsageTracker
   private lateinit var mockGoogleLogin: GoogleLogin
-  private lateinit var loginState: MutableStateFlow<LoginStatus>
 
   @Before
   fun setUp() = runBlockingWithTimeout {
-    loginState = MutableStateFlow(LoginStatus.LoggedIn("test@gmail.com"))
-    ApplicationManager.getApplication()
-      .replaceService(LoginState::class.java, LoginState(loginState), projectRule.disposable)
     mockGoogleLogin = mock()
     doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     ApplicationManager.getApplication()
@@ -144,7 +147,7 @@ class DirectAccessUsageTrackerTest {
     val cloudProjectName = "test-project"
     val cloudProjectFlow = MutableStateFlow<String?>(cloudProjectName)
     scope.launch {
-      LoginState.getInstance().loginStatus.collect {
+      service<LoginState>().loginStatus.collect {
         cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
       }
     }
@@ -453,7 +456,7 @@ class DirectAccessUsageTrackerTest {
         DirectAccessConnection.ConnectionState.CONNECTED
     }
 
-    loginState.value = LoginStatus.LoggedOut
+    loginStateRule.state.value = LoginStatus.LoggedOut
     fakeConnection.closeConnection()
 
     val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
@@ -554,7 +557,7 @@ class DirectAccessUsageTrackerTest {
         DirectAccessConnection.ConnectionState.CONNECTED
     }
 
-    loginState.value = LoginStatus.LoggedOut
+    loginStateRule.state.value = LoginStatus.LoggedOut
 
     fakeConnection.closeConnection()
     findUsageEvent(DISCONNECT_DEVICE)
