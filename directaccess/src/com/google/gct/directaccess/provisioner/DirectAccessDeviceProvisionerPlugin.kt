@@ -25,6 +25,8 @@ import com.android.tools.idea.flags.StudioFlags
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
@@ -37,6 +39,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
@@ -82,7 +86,12 @@ class DirectAccessDeviceProvisionerPlugin(
     scope.launch {
       // Create a flow of valid gcp projects.
       @OptIn(ExperimentalCoroutinesApi::class)
-      directAccessService.cloudProjectFlow
+      service<LoginState>()
+        .loginStatus
+        .flatMapLatest { loginStatus ->
+          if (loginStatus is LoginStatus.LoggedIn) directAccessService.cloudProjectFlow
+          else flow { emit(null) }
+        }
         .transformLatest { gcpProject ->
           // Verify the same non-null project every 5 minutes.
           emit(gcpProject)
