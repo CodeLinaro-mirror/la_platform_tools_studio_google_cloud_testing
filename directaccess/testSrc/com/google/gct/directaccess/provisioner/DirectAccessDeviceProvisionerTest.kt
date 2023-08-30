@@ -45,7 +45,6 @@ import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.updateReservations
-import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStateRule
 import com.google.gct.login.LoginStatus
@@ -73,7 +72,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.junit.After
@@ -92,7 +90,8 @@ class DirectAccessDeviceProvisionerTest {
   private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
 
   @get:Rule
-  val ruleChain = RuleChain.outerRule(projectRule).around(grpcConnectionRule).around(loginStateRule)
+  val ruleChain: RuleChain =
+    RuleChain.outerRule(projectRule).around(grpcConnectionRule).around(loginStateRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -100,16 +99,10 @@ class DirectAccessDeviceProvisionerTest {
   private lateinit var directAccessReservationManager: DirectAccessReservationManager
   private lateinit var fakeConnection: FakeDirectAccessConnection
   private lateinit var scope: CoroutineScope
-  private lateinit var mockGoogleLogin: GoogleLogin
   private var isOAuthTokenAvailable: Boolean = false
 
   @Before
   fun setUp() = runBlockingWithTimeout {
-    mockGoogleLogin = mock()
-    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
-    ApplicationManager.getApplication()
-      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
-
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     isOAuthTokenAvailable = true
     directAccessReservationManager =
@@ -224,11 +217,17 @@ class DirectAccessDeviceProvisionerTest {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
 
-    // Login again without access.
+    // Login without access.
     isOAuthTokenAvailable = false
     loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+    }
+    // Login with access.
+    isOAuthTokenAvailable = true
+    loginStateRule.state.value = LoginStatus.LoggedIn("test2@gmail.com")
+    yieldUntil {
+      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
     }
   }
 
