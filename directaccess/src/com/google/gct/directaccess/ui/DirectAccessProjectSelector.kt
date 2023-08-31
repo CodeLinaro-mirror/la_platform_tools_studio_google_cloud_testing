@@ -28,6 +28,8 @@ interface DirectAccessProjectSelector {
   val component: JComponent
 
   val selectedProject: StateFlow<String>
+
+  val isReady: StateFlow<Boolean>
 }
 
 /**
@@ -40,6 +42,8 @@ class DirectAccessProjectSelectorImpl(private val preferredProject: String, isEn
   DirectAccessProjectSelector {
 
   override val selectedProject = MutableStateFlow("")
+
+  override val isReady = MutableStateFlow(false)
 
   override val component: JComponent
     get() = projectSelector
@@ -56,6 +60,7 @@ class DirectAccessProjectSelectorImpl(private val preferredProject: String, isEn
       }
       addItemListener {
         if (!isPreferredProjectApplied) {
+          isReady.value = true
           isPreferredProjectApplied = true
           selectedItem = preferredProject
         }
