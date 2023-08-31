@@ -23,12 +23,13 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.google.common.annotations.VisibleForTesting
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
-import com.google.gct.login.LoginState
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -36,13 +37,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 /**
  * Provides direct access to physical devices run by Firebase. Supports configuring direct access
@@ -54,7 +53,7 @@ class DirectAccessDeviceProvisionerPlugin(
   private val deviceInfoProvider: () -> List<DeviceInfo> = {
     CatalogClient.getAvailableDevices(
       "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
-      project.service<DirectAccessService>().gcpProject
+      project.service<DirectAccessService>().cloudProjectFlow.value
     )
   }
 ) : DeviceProvisionerPlugin {
@@ -77,17 +76,11 @@ class DirectAccessDeviceProvisionerPlugin(
 
     // Maintain a state flow of gcp projects from directAccessService.
     val directAccessService = project.service<DirectAccessService>()
-    val gcpProjectFlow = MutableStateFlow(directAccessService.gcpProject)
-    directAccessService.gcpProjectListeners.add {
-      gcpProjectFlow.value = directAccessService.gcpProject
-    }
 
     scope.launch {
       // Create a flow of valid gcp projects.
       @OptIn(ExperimentalCoroutinesApi::class)
-      LoginState.loggedIn
-        .combine(gcpProjectFlow) { isLoggedIn, gcpProject -> gcpProject.takeIf { isLoggedIn } }
-        .distinctUntilChanged()
+      directAccessService.cloudProjectFlow
         .transformLatest { gcpProject ->
           // Verify the same non-null project every 5 minutes.
           emit(gcpProject)
@@ -149,7 +142,6 @@ class DirectAccessDeviceProvisionerPlugin(
       }
       .mapNotNull { reservation ->
         val key = reservation.androidDevice.let { "${it.androidModelId} ${it.androidVersionId}" }
-
         templateMap[key]?.firstOrNull()?.let { template ->
           // Create handle without blocking iteration
           scope.launch { template.createDeviceHandleIfAbsent(reservation.name) }
@@ -165,7 +157,7 @@ class DirectAccessDeviceProvisionerPlugin(
   fun fetchReservations(): List<Reservation>? {
     reservationsFlow.value =
       try {
-        project.service<DirectAccessService>().reservationManager?.listReservations()
+        service<DirectAccessApplicationService>().getReservationManager(project)?.listReservations()
       } catch (e: Exception) {
         logger.warn("Fetching reservations failed", e)
         null
@@ -180,6 +172,25 @@ class DirectAccessDeviceProvisionerPlugin(
       return devices.value.filterIsInstance<DirectAccessDeviceHandle>().firstOrNull {
         it.claim(port, device)
       }
+      // TODO(b/296468326): Share reservation list across user projects with the same cloud project.
+      ?: service<DirectAccessApplicationService>()
+          .getConnectionManager(project)
+          ?.connections
+          ?.get(port)
+          ?.let { connection ->
+            // Create a handle with the ConnectedDevice if its port is managed by the
+            // DirectAccessConnectionManager.
+            val reservation = connection.state.value.reservation
+            val androidDevice = reservation.androidDevice
+            if (!reservation.sessionState.isClosed() && reservation.hasAndroidDevice()) {
+              _templates.value
+                .firstOrNull {
+                  it.deviceInfo.codename == androidDevice.androidModelId &&
+                    it.deviceInfo.api.toString() == androidDevice.androidVersionId
+                }
+                ?.createDeviceHandleIfAbsent(reservation.name)
+            } else null
+          }
     }
     return null
   }

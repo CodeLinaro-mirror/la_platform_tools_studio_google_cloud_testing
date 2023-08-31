@@ -23,6 +23,7 @@ import com.android.adblib.scope
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
@@ -36,15 +37,20 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
+import com.google.gct.directaccess.TestUtils.updateReservations
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStateRule
+import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
@@ -55,6 +61,7 @@ import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.service
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
@@ -66,19 +73,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
+import org.mockito.Mockito
 import org.mockito.Mockito.doReturn
 
 class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
-  @get:Rule val projectRule = ProjectRule()
-  @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
+  private val projectRule = ProjectRule()
+  private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
+  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+
+  @get:Rule
+  val ruleChain = RuleChain.outerRule(projectRule).around(grpcConnectionRule).around(loginStateRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -96,7 +110,6 @@ class DirectAccessDeviceProvisionerTest {
     ApplicationManager.getApplication()
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
 
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     isOAuthTokenAvailable = true
     directAccessReservationManager =
@@ -104,8 +117,12 @@ class DirectAccessDeviceProvisionerTest {
         if (!isOAuthTokenAvailable) throw RuntimeException()
         "testToken"
       }
-    setupConnection { reservationName, deviceScope ->
-      FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
+    setupConnection { reservationName ->
+      FakeDirectAccessConnection(
+        directAccessReservationManager,
+        reservationName,
+        scope.createChildScope(true)
+      )
     }
     plugin =
       DirectAccessDeviceProvisionerPlugin(
@@ -123,34 +140,53 @@ class DirectAccessDeviceProvisionerTest {
     session.close()
   }
 
-  private fun setupConnection(
-    createConnection: (String, CoroutineScope) -> FakeDirectAccessConnection
-  ) {
+  private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {
+    val mockDirectAccessApplicationService = mock<DirectAccessApplicationService>()
     val mockDirectAccessService = mock<DirectAccessService>()
-    doReturn("test-project").whenever(mockDirectAccessService).gcpProject
-    whenever(mockDirectAccessService.reservationManager).thenReturn(directAccessReservationManager)
-    whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
-      val reservationName = it.arguments[0] as String
-      val deviceScope = it.arguments[1] as CoroutineScope
-      createConnection(reservationName, deviceScope).also { conn ->
-        fakeConnection = conn
-        session.deviceServices.configureShellV2Command(
-          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
-          "getprop",
-          "Foo"
-        )
-        session.deviceServices.configureShellCommand(
-          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
-          "wm size",
-          "Physical size: 1080x2400"
-        )
+    val cloudProjectName = "test-project"
+    val cloudProjectFlow = MutableStateFlow<String?>(cloudProjectName)
+    scope.launch {
+      service<LoginState>().loginStatus.collect {
+        cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
       }
     }
+    doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
+    val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
+    doReturn(directAccessReservationManager)
+      .whenever(mockDirectAccessApplicationService)
+      .getReservationManager(any())
+    doReturn(mockDirectAccessConnectionManager)
+      .whenever(mockDirectAccessApplicationService)
+      .getConnectionManager(any())
+    Mockito.doAnswer {
+        val reservationName = it.arguments[0] as String
+        createConnection(reservationName).also { conn ->
+          fakeConnection = conn
+          session.deviceServices.configureShellV2Command(
+            DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+            "getprop",
+            "Foo"
+          )
+          session.deviceServices.configureShellCommand(
+            DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+            "wm size",
+            "Physical size: 1080x2400"
+          )
+        }
+      }
+      .whenever(mockDirectAccessConnectionManager)
+      .create(any())
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
       projectRule.disposable
     )
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessApplicationService::class.java,
+        mockDirectAccessApplicationService,
+        projectRule.disposable
+      )
   }
 
   @Test
@@ -183,14 +219,14 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[3].properties.isRemote).isTrue()
 
     // Log out
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginStateRule.state.value = LoginStatus.LoggedOut
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
 
     // Login again without access.
     isOAuthTokenAvailable = false
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
+    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
@@ -282,9 +318,13 @@ class DirectAccessDeviceProvisionerTest {
 
   @Test
   fun connectionFailed() = runBlockingWithTimeout {
-    setupConnection { reservationName, deviceScope ->
+    setupConnection { reservationName ->
       object :
-        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
         override suspend fun connect() {
           throw RuntimeException("Failed connection.")
         }
@@ -358,14 +398,14 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
     // Device removed after logout.
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginStateRule.state.value = LoginStatus.LoggedOut
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
     yieldUntil { provisioner.devices.value.isEmpty() }
 
     // Login again to re-discover the device.
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
+    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
     yieldUntil {
       provisioner.templates.value.any { (it as DirectAccessDeviceTemplate).activeDevice != null }
     }
@@ -640,6 +680,40 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun testNoNotificationOnForceCheckInWhenReservationEndDelayed() = runBlockingWithTimeout {
+    setupConnection { reservationName ->
+      object :
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
+        override suspend fun endReservation(withGracePeriod: Boolean) {
+          closeConnection()
+          // Do not end reservation to simulate delayed/failed end reservation
+        }
+      }
+    }
+
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val flow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    flow.waitUntilActive()
+
+    session.hostServices.connect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.stateFlow.value.connectedDevice != null }
+
+    // User force checks in the device
+    handle.reservationAction.endReservation()
+    session.hostServices.disconnect(handle.connection.deviceAddress()!!)
+    yieldUntil { handle.stateFlow.value is Disconnected }
+
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(0)
+  }
+
+  @Test
   fun testCorrectIconForPhone() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
     testCorrectIcon(template, StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
@@ -706,10 +780,4 @@ class DirectAccessDeviceProvisionerTest {
     // Make sure the notification expires as both actions expire it.
     yieldUntil { isExpired }
   }
-
-  private suspend fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
-    matchReservations(
-      templates.value.mapNotNull { it as? DirectAccessDeviceTemplate },
-      fetchReservations()!!
-    )
 }

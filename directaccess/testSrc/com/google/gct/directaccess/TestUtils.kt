@@ -21,6 +21,8 @@ import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationsManager
@@ -103,4 +105,10 @@ object TestUtils {
   fun getNotifications(project: Project): Array<Notification> =
     NotificationsManager.getNotificationsManager()
       .getNotificationsOfType(Notification::class.java, project)
+
+  suspend fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
+    matchReservations(
+      templates.value.mapNotNull { it as? DirectAccessDeviceTemplate },
+      fetchReservations()!!
+    )
 }

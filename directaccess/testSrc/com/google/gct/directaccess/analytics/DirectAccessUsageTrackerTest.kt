@@ -19,6 +19,7 @@ import com.android.adblib.DeviceSelector
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
@@ -32,6 +33,7 @@ import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
@@ -41,7 +43,10 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlug
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStateRule
+import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
@@ -62,6 +67,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReserv
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.THIRTY_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.service
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
@@ -71,17 +77,24 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito
+import org.junit.rules.RuleChain
+import org.mockito.Mockito.doAnswer
+import org.mockito.Mockito.doReturn
 
 class DirectAccessUsageTrackerTest {
 
   private val service = FakeDirectAccessGrpcService()
-  @get:Rule val projectRule = ProjectRule()
-  @get:Rule val grpcConnectionRule = GrpcConnectionRule(listOf(service))
+  private val projectRule = ProjectRule()
+  private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
+  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+
+  @get:Rule
+  val ruleChain = RuleChain.outerRule(projectRule).around(grpcConnectionRule).around(loginStateRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -95,17 +108,20 @@ class DirectAccessUsageTrackerTest {
   @Before
   fun setUp() = runBlockingWithTimeout {
     mockGoogleLogin = mock()
-    Mockito.doReturn(true).whenever(mockGoogleLogin).isLoggedIn
+    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
     ApplicationManager.getApplication()
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = true
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
       DirectAccessReservationManager("test-project", scope, grpcConnectionRule.channel) {
         "testToken"
       }
-    setupConnection { reservationName, deviceScope ->
-      FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope)
+    setupConnection { reservationName ->
+      FakeDirectAccessConnection(
+        directAccessReservationManager,
+        reservationName,
+        scope.createChildScope(true)
+      )
     }
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
@@ -125,34 +141,53 @@ class DirectAccessUsageTrackerTest {
     session.close()
   }
 
-  private fun setupConnection(
-    createConnection: (String, CoroutineScope) -> FakeDirectAccessConnection
-  ) {
+  private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {
+    val mockDirectAccessApplicationService = mock<DirectAccessApplicationService>()
     val mockDirectAccessService = mock<DirectAccessService>()
-    Mockito.doReturn("test-project").whenever(mockDirectAccessService).gcpProject
-    whenever(mockDirectAccessService.reservationManager).thenReturn(directAccessReservationManager)
-    whenever(mockDirectAccessService.connectToReservation(any(), any())).thenAnswer {
-      val reservationName = it.arguments[0] as String
-      val deviceScope = it.arguments[1] as CoroutineScope
-      createConnection(reservationName, deviceScope).also { conn ->
-        fakeConnection = conn
-        session.deviceServices.configureShellV2Command(
-          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
-          "getprop",
-          "Foo"
-        )
-        session.deviceServices.configureShellCommand(
-          DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
-          "wm size",
-          "Physical size: 1080x2400"
-        )
+    val cloudProjectName = "test-project"
+    val cloudProjectFlow = MutableStateFlow<String?>(cloudProjectName)
+    scope.launch {
+      service<LoginState>().loginStatus.collect {
+        cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
       }
     }
+    doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
+    val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
+    doReturn(directAccessReservationManager)
+      .whenever(mockDirectAccessApplicationService)
+      .getReservationManager(any())
+    doReturn(mockDirectAccessConnectionManager)
+      .whenever(mockDirectAccessApplicationService)
+      .getConnectionManager(any())
+    doAnswer {
+        val reservationName = it.arguments[0] as String
+        createConnection(reservationName).also { conn ->
+          fakeConnection = conn
+          session.deviceServices.configureShellV2Command(
+            DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+            "getprop",
+            "Foo"
+          )
+          session.deviceServices.configureShellCommand(
+            DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
+            "wm size",
+            "Physical size: 1080x2400"
+          )
+        }
+      }
+      .whenever(mockDirectAccessConnectionManager)
+      .create(any())
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
       projectRule.disposable
     )
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessApplicationService::class.java,
+        mockDirectAccessApplicationService,
+        projectRule.disposable
+      )
   }
 
   @Test
@@ -228,9 +263,13 @@ class DirectAccessUsageTrackerTest {
   @Test
   fun trackConnectionFailMetricWhenErrorConnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
-    setupConnection { reservationName, deviceScope ->
+    setupConnection { reservationName ->
       object :
-        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
         override suspend fun connect() = throw Exception()
       }
     }
@@ -294,9 +333,13 @@ class DirectAccessUsageTrackerTest {
   @Test
   fun trackExtendFailMetricWhenErrorExtendingReservation() = runBlockingWithTimeout {
     // Override default connection setup
-    setupConnection { reservationName, deviceScope ->
+    setupConnection { reservationName ->
       object :
-        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
         override suspend fun extendReservation(duration: Duration) = throw Exception()
       }
     }
@@ -331,8 +374,8 @@ class DirectAccessUsageTrackerTest {
   @Test
   fun trackDisconnectDeviceSuccessMetricWhenSuccessDisconnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
-    setupConnection { reservationName, deviceScope ->
-      getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+    setupConnection { reservationName ->
+      getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
     }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -364,8 +407,8 @@ class DirectAccessUsageTrackerTest {
   fun trackDisconnectDeviceSuccessWhenDeviceIsConnectedWhenReservationExpires() =
     runBlockingWithTimeout {
       // Override default connection setup
-      setupConnection { reservationName, deviceScope ->
-        getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+      setupConnection { reservationName ->
+        getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
       }
       val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -400,8 +443,8 @@ class DirectAccessUsageTrackerTest {
 
   @Test
   fun trackDisconnectDeviceSuccessWhenUserLogsOut() = runBlockingWithTimeout {
-    setupConnection { reservationName, deviceScope ->
-      getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+    setupConnection { reservationName ->
+      getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
     }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -413,7 +456,8 @@ class DirectAccessUsageTrackerTest {
         DirectAccessConnection.ConnectionState.CONNECTED
     }
 
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginStateRule.state.value = LoginStatus.LoggedOut
+    fakeConnection.closeConnection()
 
     val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -430,9 +474,13 @@ class DirectAccessUsageTrackerTest {
   @Test
   fun trackDisconnectDeviceFailureMetricWhenErrorDisconnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
-    setupConnection { reservationName, deviceScope ->
+    setupConnection { reservationName ->
       object :
-        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
         override suspend fun closeConnection() = throw Exception()
       }
     }
@@ -496,8 +544,8 @@ class DirectAccessUsageTrackerTest {
 
   @Test
   fun endReservationNotTrackedOnUserLogOut() = runBlockingWithTimeout {
-    setupConnection { reservationName, deviceScope ->
-      getSuccessFulDisconnectTestConnection(reservationName, deviceScope)
+    setupConnection { reservationName ->
+      getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
     }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -509,8 +557,9 @@ class DirectAccessUsageTrackerTest {
         DirectAccessConnection.ConnectionState.CONNECTED
     }
 
-    (LoginState.loggedIn as MutableStateFlow<Boolean>).value = false
+    loginStateRule.state.value = LoginStatus.LoggedOut
 
+    fakeConnection.closeConnection()
     findUsageEvent(DISCONNECT_DEVICE)
 
     assertThat(tracker.usages.any { it.studioEvent.directAccessUsageEvent.type == END_RESERVATION })
@@ -589,9 +638,13 @@ class DirectAccessUsageTrackerTest {
   @Test
   fun trackEndReservationFailMetricWhenErrorEndingReservation() = runBlockingWithTimeout {
     // Override default connection setup
-    setupConnection { reservationName, deviceScope ->
+    setupConnection { reservationName ->
       object :
-        FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
         override suspend fun endReservation(withGracePeriod: Boolean) = throw Exception()
       }
     }
