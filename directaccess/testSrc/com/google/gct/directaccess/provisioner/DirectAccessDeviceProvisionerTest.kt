@@ -383,7 +383,7 @@ class DirectAccessDeviceProvisionerTest {
 
     yieldUntil { provisioner.devices.value.isEmpty() }
 
-    // Once the device is removed, the provisioner should cancel the job
+    // Once the device is removed, the plugin should cancel the job
     job.join()
     assertThat(job.isCancelled).isTrue()
   }
