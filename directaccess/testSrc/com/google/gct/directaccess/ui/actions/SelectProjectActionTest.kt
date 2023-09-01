@@ -208,6 +208,7 @@ class FakeDirectAccessProjectSelector(isEnabled: Boolean) : DirectAccessProjectS
       )
     }
   override val selectedProject = MutableStateFlow("")
+  override val isReady = MutableStateFlow(true)
 }
 
 open class FakeDirectAccessReservationManager : DirectAccessReservationManager {

@@ -49,6 +49,8 @@ import icons.FirebaseIcons
 import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -124,6 +126,9 @@ class SelectProjectAction(
               )
             add(selector.component)
             scope.launch {
+              // Wait until fetching all cloud projects to resize [balloon].
+              selector.isReady.takeWhile { !it }.collect()
+              withContext(AndroidDispatchers.uiThread) { balloon.revalidate() }
               selector.selectedProject.collect {
                 onProjectChanged(project, it, balloon, errorTextPane)
               }

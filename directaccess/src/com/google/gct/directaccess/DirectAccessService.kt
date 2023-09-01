@@ -25,7 +25,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 @Service(Service.Level.PROJECT)
@@ -37,6 +36,7 @@ class DirectAccessService(val project: Project) : Disposable {
   @Synchronized
   fun selectCloudProject(cloudProject: String?) {
     cloudProject?.let {
+      // Stores the last non-null cloud project in PropertiesComponent.
       PropertiesComponent.getInstance(project).setValue("direct.access.project", it)
     }
     service<DirectAccessApplicationService>().registerCloudProject(project, cloudProject)
@@ -44,12 +44,16 @@ class DirectAccessService(val project: Project) : Disposable {
   }
 
   init {
-    selectCloudProject(PropertiesComponent.getInstance(project).getValue("direct.access.project"))
     scope.launch {
-      service<LoginState>()
-        .loginStatus
-        .filter { it is LoginStatus.LoggedOut }
-        .collect { selectCloudProject(null) }
+      service<LoginState>().loginStatus.collect {
+        if (it is LoginStatus.LoggedIn) {
+          selectCloudProject(
+            PropertiesComponent.getInstance(project).getValue("direct.access.project")
+          )
+        } else {
+          selectCloudProject(null)
+        }
+      }
     }
   }
 
