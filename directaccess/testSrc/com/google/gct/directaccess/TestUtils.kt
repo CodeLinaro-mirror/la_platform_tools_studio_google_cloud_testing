@@ -23,11 +23,10 @@ import com.google.api.services.testing.model.DirectAccessVersionInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationsManager
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 
 object TestUtils {
@@ -227,9 +226,6 @@ object TestUtils {
     NotificationsManager.getNotificationsManager()
       .getNotificationsOfType(Notification::class.java, project)
 
-  suspend fun DirectAccessDeviceProvisionerPlugin.updateReservations() =
-    matchReservations(
-      templates.value.mapNotNull { it as? DirectAccessDeviceTemplate },
-      fetchReservations()!!
-    )
+  suspend fun Project.refreshReservations() =
+    service<DirectAccessService>().cloudProjectManager.value?.reservationListFlow?.refresh()
 }

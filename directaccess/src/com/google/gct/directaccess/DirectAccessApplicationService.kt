@@ -15,47 +15,34 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.createChildScope
-import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
-import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
-import com.jetbrains.rd.util.concurrentMapOf
 
 /**
- * An application level service that maps a user project to its [DirectAccessReservationManager] and
- * [DirectAccessConnectionManager] so that different projects with the same cloud project share the
- * same managers.
- *
- * Each cloud project has its own access to device catalog and reservations. Different user projects
- * may use the same cloud project. Connecting to a reservation adds a connected device to the adb
- * device list. To avoid adding duplicate devices for the same reservation, we need to make
- * [DirectAccessReservationManager] and [DirectAccessConnectionManager] cloud project scoped and
- * shared across different user projects.
+ * An application level service that maps a user project to its [DirectAccessCloudProjectManager] so
+ * that different projects with the same cloud project share the same manager.
  */
 @Service
 class DirectAccessApplicationService : Disposable {
 
   private val scope = AndroidCoroutineScope(this)
-  // TODO(b/296468326): Share reservation list across user projects with the same cloud project.
-  /**
-   * A mapping from a user project to its selected cloud project with plain format e.g. `foo`,
-   * `ftl-direct-access`.
-   */
-  private val cloudProjectMap = concurrentMapOf<Project, String>()
-  /** A mapping from a cloud project to its [DirectAccessReservationManager]. */
-  private val reservationManagerMap = concurrentMapOf<String, DirectAccessReservationManager>()
-  /** A mapping from a cloud project to its [DirectAccessConnectionManager]. */
-  private val connectionManagerMap = concurrentMapOf<String, DirectAccessConnectionManager>()
+  /** A mapping from a user project to its selected cloud project. */
+  private val cloudProjectMap = mutableMapOf<Project, CloudProjectEntry>()
+  /** A mapping from a cloud project to its [DirectAccessCloudProjectManager]. */
+  private val cloudProjectManagerMap =
+    mutableMapOf<CloudProjectEntry, DirectAccessCloudProjectManager>()
 
-  fun registerCloudProject(project: Project, cloudProject: String?) {
-    val cloudProjectToRemove = cloudProjectMap[project]
-    if (cloudProjectToRemove == cloudProject) {
-      return
+  @Synchronized
+  fun registerCloudProject(
+    project: Project,
+    cloudProject: CloudProjectEntry?
+  ): DirectAccessCloudProjectManager? {
+    val existingCloudProject = cloudProjectMap[project]
+    if (existingCloudProject == cloudProject) {
+      return getCloudProjectManager(cloudProject)
     }
 
     if (cloudProject != null) {
@@ -63,36 +50,19 @@ class DirectAccessApplicationService : Disposable {
     } else {
       cloudProjectMap.remove(project)
     }
-    if (cloudProjectToRemove != null && cloudProjectToRemove !in cloudProjectMap.values) {
-      reservationManagerMap.remove(cloudProjectToRemove)?.close()
-      connectionManagerMap.remove(cloudProjectToRemove)?.close()
+    if (existingCloudProject != null && existingCloudProject !in cloudProjectMap.values) {
+      cloudProjectManagerMap.remove(existingCloudProject)?.close()
     }
+
+    return getCloudProjectManager(cloudProject)
   }
 
-  fun getReservationManager(project: Project): DirectAccessReservationManager? {
-    val cloudProject = cloudProjectMap[project] ?: return null
-    return reservationManagerMap.computeIfAbsent(cloudProject) {
-      DirectAccessReservationManager(
-        it,
-        scope.createChildScope(true),
-        service<DirectAccessServiceSetup>().channel
-      ) {
-        service<DirectAccessServiceSetup>().fetchAccessToken()
-      }
-    }
-  }
-
-  fun getConnectionManager(project: Project): DirectAccessConnectionManager? {
-    val cloudProject = cloudProjectMap[project] ?: return null
-    val reservationManager = getReservationManager(project) ?: return null
-    return connectionManagerMap.computeIfAbsent(cloudProject) {
-      DirectAccessConnectionManager(
-        scope.createChildScope(true),
-        AdbLibApplicationService.instance.session,
-        { service<DirectAccessServiceSetup>().fetchAccessToken() },
-        service<DirectAccessServiceSetup>().channel,
-        reservationManager,
-      )
+  private fun getCloudProjectManager(
+    cloudProject: CloudProjectEntry?
+  ): DirectAccessCloudProjectManager? {
+    if (cloudProject == null) return null
+    return cloudProjectManagerMap.computeIfAbsent(cloudProject) {
+      DirectAccessCloudProjectManager(it, scope.createChildScope(true))
     }
   }
 

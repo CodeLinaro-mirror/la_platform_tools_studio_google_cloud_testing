@@ -24,8 +24,8 @@ import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
-import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
@@ -51,7 +51,6 @@ import icons.FirebaseIcons
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
@@ -95,11 +94,9 @@ class SelectProjectAction(
     val scope = AndroidCoroutineScope(balloon)
     mainPanel.apply {
       val project = e.project ?: return
-      val service = e.project?.service<DirectAccessService>() ?: return
-      val devices =
-        e.project?.service<DeviceProvisionerService>()?.deviceProvisioner?.devices ?: return
+      val devices = project.service<DeviceProvisionerService>().deviceProvisioner.devices
       // TODO (b/283017110): use project from google-services.json if it exists.
-      val preferredProject = service.cloudProjectFlow.value ?: ""
+      val preferredProject = project.directAccessCloudProjectManager?.cloudProject?.name ?: ""
       val errorTextPane =
         JBTextArea().apply {
           rows = 2
@@ -181,20 +178,11 @@ class SelectProjectAction(
     withContext(AndroidDispatchers.uiThread) {
       balloon.revalidate()
       launch {
-        var errorMessage: String? = null
-        try {
-          withContext(Dispatchers.IO) {
-            service<DirectAccessApplicationService>()
-              .getReservationManager(project)
-              ?.listReservations()
-          }
-        } catch (_: Exception) {
+        val reservations = project.directAccessCloudProjectManager?.reservationListFlow?.refresh()
+        if (reservations == null) {
           // TODO (b/283882413): show different reasons for project without access.
-          errorMessage =
+          errorTextPane.text =
             "$cloudProject does not have access to Direct Access. Select a different project."
-        }
-        if (errorMessage != null) {
-          errorTextPane.text = errorMessage
           errorTextPane.isVisible = true
         } else {
           errorTextPane.isVisible = false

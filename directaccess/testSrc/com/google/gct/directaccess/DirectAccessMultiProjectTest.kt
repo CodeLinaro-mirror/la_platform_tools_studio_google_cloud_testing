@@ -26,7 +26,7 @@ import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.gct.directaccess.TestUtils.updateReservations
+import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
@@ -34,7 +34,6 @@ import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
-import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -43,6 +42,7 @@ import com.intellij.testFramework.DisposableRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -139,19 +140,20 @@ class DirectAccessMultiProjectTest {
     val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
     val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
     assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
+    // Create a reservation from project1.
     val reservationManager =
-      service<DirectAccessApplicationService>().getReservationManager(project1)!!
-    val reservation =
-      reservationManager.createReservation(
-        template1.deviceInfo.codename,
-        template1.deviceInfo.api.toString()
-      )
-    reservationManager.fetchReservationFlow(reservation.name).waitUntilActive()
-    plugin1.updateReservations()
+      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(
+      template1.deviceInfo.codename,
+      template1.deviceInfo.api.toString()
+    )
+    project1.refreshReservations()
     plugin1.devices.takeWhile { it.isEmpty() }.collect()
     val device1 = plugin1.devices.value[0] as DirectAccessDeviceHandle
-    plugin2.updateReservations()
-    plugin2.devices.takeWhile { it.isEmpty() }.collect()
+    // Project2 creates a handle with the same device info immediately.
+    withTimeout(TimeUnit.SECONDS.toMillis(2)) {
+      plugin2.devices.takeWhile { it.isEmpty() }.collect()
+    }
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
   }
