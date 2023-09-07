@@ -40,6 +40,7 @@ import java.time.Duration
 import javax.swing.Icon
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -75,6 +76,7 @@ class DirectAccessDeviceTemplate(
     private set(device) {
       field?.let {
         devices.update { list -> list - it }
+        it.scope.cancel()
         isActivationStarted.value = false
       }
       field = device
@@ -86,6 +88,7 @@ class DirectAccessDeviceTemplate(
               field = null
               isActivationStarted.value = false
               devices.update { list -> list - device }
+              device.scope.cancel()
             }
           }
         }
@@ -250,5 +253,6 @@ private fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
         DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
         else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
       }
+    populateDeviceInfoProto(PLUGIN_ID, null, emptyMap())
   }
 }

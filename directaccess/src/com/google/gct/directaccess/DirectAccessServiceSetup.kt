@@ -19,12 +19,14 @@ import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.ManagedChannel
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.android.tools.idea.io.netty.channel.ChannelOption
+import com.google.gct.directaccess.provisioner.CatalogClient
+import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.login.GoogleLogin
 import com.intellij.openapi.components.Service
 
 /**
- * A setup service for direct access module with methods that can be replaced in testing
- * environment.
+ * A setup service with methods that are used by other services in direct access module and can be
+ * replaced in testing environment.
  */
 @Service
 class DirectAccessServiceSetup {
@@ -35,4 +37,14 @@ class DirectAccessServiceSetup {
 
   fun fetchAccessToken(): String? =
     GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
+
+  /**
+   * Returns a list of device info that are accessible with the current login state and
+   * [cloudProject].
+   */
+  fun getAccessibleDeviceInfoList(cloudProject: String?): List<DeviceInfo> =
+    CatalogClient.getAvailableDevices(
+      "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
+      cloudProject
+    )
 }

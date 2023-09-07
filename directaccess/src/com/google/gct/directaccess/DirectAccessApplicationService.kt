@@ -70,7 +70,7 @@ class DirectAccessApplicationService : Disposable {
   }
 
   fun getReservationManager(project: Project): DirectAccessReservationManager? {
-    val cloudProject = cloudProjectMap.getValue(project) ?: return null
+    val cloudProject = cloudProjectMap[project] ?: return null
     return reservationManagerMap.computeIfAbsent(cloudProject) {
       DirectAccessReservationManager(
         it,

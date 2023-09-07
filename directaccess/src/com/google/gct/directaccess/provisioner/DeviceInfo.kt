@@ -28,3 +28,5 @@ data class DeviceInfo(
   val screenY: Int,
   val screenDensity: Int
 )
+
+data class DeviceSelection(var isSelected: Boolean, val deviceInfo: DeviceInfo)

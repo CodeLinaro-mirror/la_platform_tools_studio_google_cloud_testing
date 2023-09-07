@@ -20,6 +20,7 @@ import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
+import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.adblib.AdbLibApplicationService
@@ -101,6 +102,9 @@ class DirectAccessMultiProjectTest {
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, disposable)
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
+    doReturn(TestUtils.deviceInfoListProvider())
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(any())
     doReturn(grpcConnectionRule.channel).whenever(mockDirectAccessServiceSetup).channel
     doReturn("testToken").whenever(mockDirectAccessServiceSetup).fetchAccessToken()
     ApplicationManager.getApplication()
@@ -110,10 +114,8 @@ class DirectAccessMultiProjectTest {
         disposable
       )
 
-    plugin1 =
-      DirectAccessDeviceProvisionerPlugin(session.scope, project1, TestUtils.deviceInfoListProvider)
-    plugin2 =
-      DirectAccessDeviceProvisionerPlugin(session.scope, project1, TestUtils.deviceInfoListProvider)
+    plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
+    plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
     provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
     provisioner2 = DeviceProvisioner.create(session, listOf(plugin2), testDeviceIcons)
 
