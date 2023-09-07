@@ -17,7 +17,6 @@ package com.google.gct.directaccess.analytics
 
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.stats.AnonymizerUtil
-import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionMetrics
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DeviceInfo as MetricsDeviceInfo
@@ -180,13 +179,3 @@ object DirectAccessUsageTracker {
       }
       .build()
 }
-
-fun DeviceInfo.toMetricsDeviceInfo(): MetricsDeviceInfo =
-  MetricsDeviceInfo.newBuilder()
-    .apply {
-      deviceType = MetricsDeviceInfo.DeviceType.CLOUD_PHYSICAL
-      manufacturer = this@toMetricsDeviceInfo.manufacturer
-      model = this@toMetricsDeviceInfo.name
-      buildApiLevelFull = this@toMetricsDeviceInfo.api.toString()
-    }
-    .build()

@@ -42,6 +42,7 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
+import com.google.gct.directaccess.provisioner.PLUGIN_ID
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStateRule
@@ -55,6 +56,7 @@ import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DeviceInfo.DeviceType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.DISCONNECT_DEVICE
@@ -686,7 +688,13 @@ class DirectAccessUsageTrackerTest {
 
   private suspend fun findUsageEvent(type: DirectAccessUsageEventType): AndroidStudioEvent {
     yieldUntil { tracker.usages.any { it.studioEvent.isEventOfType(type) } }
-    return tracker.usages.first { it.studioEvent.isEventOfType(type) }.studioEvent
+    return tracker.usages
+      .first { it.studioEvent.isEventOfType(type) }
+      .studioEvent
+      .also {
+        assertThat(it.deviceInfo.deviceProvisionerId).isEqualTo(PLUGIN_ID)
+        assertThat(it.deviceInfo.deviceType).isEqualTo(DeviceType.CLOUD_PHYSICAL)
+      }
   }
 
   private fun AndroidStudioEvent.isEventOfType(type: DirectAccessUsageEventType) =

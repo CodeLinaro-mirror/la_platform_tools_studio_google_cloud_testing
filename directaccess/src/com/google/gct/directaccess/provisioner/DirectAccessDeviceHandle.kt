@@ -37,7 +37,6 @@ import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.RunningDevicePanel
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
-import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isClosed
@@ -235,20 +234,6 @@ class DirectAccessDeviceHandle(
           trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
         }
       }
-
-      private fun trackConnectMetrics(
-        wasSuccessful: Boolean,
-        timeToConnectMs: Long? = null,
-        failureReason: FailureReason? = null
-      ) =
-        DirectAccessUsageTracker.trackConnectDevice(
-          wasSuccessful,
-          hasConnectedToDeviceOnce,
-          timeToConnectMs,
-          reservationName,
-          sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
-          failureReason
-        )
     }
 
   override val deactivationAction =
@@ -342,19 +327,6 @@ class DirectAccessDeviceHandle(
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
       override val presentation: StateFlow<DeviceAction.Presentation> =
         MutableStateFlow(DeviceAction.Presentation("Reserve", AllIcons.Actions.Resume, true))
-
-      private fun trackExtendReservation(
-        wasSuccessful: Boolean,
-        duration: Duration,
-        failReason: FailureReason? = null
-      ) =
-        DirectAccessUsageTracker.trackExtendReservation(
-          wasSuccessful,
-          duration,
-          reservationName,
-          sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
-          failReason
-        )
     }
 
   /**
@@ -402,12 +374,39 @@ class DirectAccessDeviceHandle(
     return true
   }
 
+  private fun trackConnectMetrics(
+    wasSuccessful: Boolean,
+    timeToConnectMs: Long? = null,
+    failureReason: FailureReason? = null
+  ) =
+    DirectAccessUsageTracker.trackConnectDevice(
+      wasSuccessful,
+      hasConnectedToDeviceOnce,
+      timeToConnectMs,
+      reservationName,
+      state.properties.deviceInfoProto,
+      failureReason
+    )
+
+  private fun trackExtendReservation(
+    wasSuccessful: Boolean,
+    duration: Duration,
+    failReason: FailureReason? = null
+  ) =
+    DirectAccessUsageTracker.trackExtendReservation(
+      wasSuccessful,
+      duration,
+      reservationName,
+      state.properties.deviceInfoProto,
+      failReason
+    )
+
   private fun trackDisconnectMetric(wasSuccessful: Boolean, failureReason: FailureReason? = null) {
     DirectAccessUsageTracker.trackDisconnectDevice(
       wasSuccessful,
       hasUserDisconnectedDevice,
       reservationName,
-      sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
+      state.properties.deviceInfoProto,
       failureReason
     )
     hasUserDisconnectedDevice = false
@@ -424,7 +423,7 @@ class DirectAccessDeviceHandle(
       getTotalReservationTime(),
       connection.latencyMetrics,
       reservationName,
-      sourceTemplate.deviceInfo.toMetricsDeviceInfo(),
+      state.properties.deviceInfoProto,
       failureReason
     )
 

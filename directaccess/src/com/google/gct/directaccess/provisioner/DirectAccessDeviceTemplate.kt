@@ -29,10 +29,9 @@ import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
-import com.google.gct.directaccess.analytics.toMetricsDeviceInfo
 import com.google.services.firebase.directaccess.client.findOrCreateReservation
 import com.google.services.firebase.directaccess.client.waitUntilActive
-import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import icons.StudioIcons
@@ -139,13 +138,7 @@ class DirectAccessDeviceTemplate(
             )
           } catch (e: Exception) {
             // TODO(b/277240160): Add correct failure reason
-            DirectAccessUsageTracker.trackReserveDevice(
-              false,
-              null,
-              null,
-              deviceInfo.toMetricsDeviceInfo(),
-              DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
-            )
+            trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE)
             throw e
           }
         if (startTime != 0L) {
@@ -222,11 +215,25 @@ class DirectAccessDeviceTemplate(
     reserveStartTime: Long
   ) = launch {
     reservationFlow.waitUntilActive()
-    DirectAccessUsageTracker.trackReserveDevice(
+    trackReserveDevice(
       true,
       System.currentTimeMillis() - reserveStartTime,
-      reservationFlow.value.name,
-      deviceInfo.toMetricsDeviceInfo()
+      reservationFlow.value.name
+    )
+  }
+
+  private fun trackReserveDevice(
+    wasSuccessful: Boolean,
+    timeToReserve: Long? = null,
+    reservationName: String? = null,
+    failureReason: FailureReason? = null
+  ) {
+    DirectAccessUsageTracker.trackReserveDevice(
+      wasSuccessful,
+      timeToReserve,
+      reservationName,
+      properties.deviceInfoProto,
+      failureReason
     )
   }
 }
