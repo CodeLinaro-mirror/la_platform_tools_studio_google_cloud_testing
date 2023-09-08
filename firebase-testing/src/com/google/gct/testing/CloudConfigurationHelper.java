@@ -15,7 +15,7 @@
  */
 package com.google.gct.testing;
 
-import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getSingleApkOrParentFolderForRunConfiguration;
+import static com.google.gct.testing.CloudConfigurationHelperUtils.getSingleApkOrParentFolderForRunConfiguration;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
