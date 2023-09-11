@@ -238,7 +238,7 @@ class DirectAccessDeviceTemplate(
   }
 }
 
-private fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
+internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DirectAccessDeviceProperties {
   val info = this
   return DirectAccessDeviceProperties.build {
     manufacturer = info.manufacturer
@@ -260,6 +260,6 @@ private fun DeviceInfo.toDeviceProperties(): DirectAccessDeviceProperties {
         DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
         else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
       }
-    populateDeviceInfoProto(PLUGIN_ID, null, emptyMap())
+    populateDeviceInfoProto(PLUGIN_ID, null, emptyMap(), connectionCount.toString())
   }
 }
