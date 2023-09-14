@@ -16,11 +16,18 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.tools.idea.streaming.core.RunningDevicePanel
+import com.google.services.firebase.directaccess.client.deviceAddress
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroup
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.popup.JBPopupListener
+import com.intellij.openapi.ui.popup.LightweightWindowEvent
+import com.intellij.openapi.wm.ToolWindow
+import com.intellij.ui.EditorNotificationPanel
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -49,13 +56,16 @@ private val notificationGroup: NotificationGroup
 
 private val RESERVATION_EXPIRING_SECONDS = TimeUnit.MINUTES.toSeconds(5)
 
+const val RESERVATION_EXPIRING_BANNER_TITLE = "Reservation ending in 5 mins"
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class DirectAccessNotificationManager(
   private val project: Project,
   private val deviceHandle: DirectAccessDeviceHandle
 ) {
   private var deviceDisconnectedNotification: Notification? = null
-  private var reservationExpiringNotification: Notification? = null
+  private val reservationExpiringNotification =
+    ReservationExpiringNotification(project, deviceHandle)
 
   private val mutex = Mutex()
 
@@ -95,23 +105,7 @@ class DirectAccessNotificationManager(
     mutex.withLock {
       // Do not show reservation expiring notification if the device is in grace period.
       if (deviceDisconnectedNotification?.isExpired == false) return
-      val deviceName = deviceHandle.sourceTemplate.properties.title
-      reservationExpiringNotification =
-        notificationGroup
-          .createNotification(
-            "Reservation ending in 5 mins",
-            "$deviceName will disconnect in 5 mins. Extend reservation to continue access to the device.",
-            NotificationType.INFORMATION
-          )
-          .addAction(
-            NotificationAction.createExpiring("Extend 30 mins") { _, _ ->
-              deviceHandle.scope.launch {
-                deviceHandle.reservationAction.reserve(Duration.ofMinutes(30))
-              }
-            }
-          )
-          .setIcon(deviceHandle.icon)
-          .apply { notify(project) }
+      reservationExpiringNotification.show()
     }
 
   suspend fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) =
@@ -145,6 +139,11 @@ class DirectAccessNotificationManager(
           ?.apply { notify(project) }
     }
 
+  /** Handles panel visibility changes */
+  fun onDevicePanelVisibilityChanged() {
+    if (reservationExpiringNotification.notificationVisible) reservationExpiringNotification.show()
+  }
+
   private fun getDeviceDisconnectedNotificationPhrase(reservationExpireTime: Long): String? {
     val timeRemaining =
       Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)
@@ -166,11 +165,145 @@ class DirectAccessNotificationManager(
     }
 
   private suspend fun expireReservationExpiringNotification() =
-    mutex.withLock {
-      reservationExpiringNotification?.expire()
-      reservationExpiringNotification = null
-    }
+    mutex.withLock { reservationExpiringNotification.expire() }
 
   private fun DeviceState.shouldShowDisconnectedNotification() =
     this is DeviceState.Disconnected && !isTransitioning && reservation?.state?.isClosed() == false
+
+  /** Show reservation expiring notification depending on user visible content */
+  private class ReservationExpiringNotification(
+    private val project: Project,
+    private val deviceHandle: DirectAccessDeviceHandle
+  ) {
+
+    /** Panel for this [DirectAccessDeviceHandle] */
+    private val devicePanel: RunningDevicePanel?
+      get() = getRunningDeviceWindow(project)?.devicePanel
+
+    /**
+     * True if the current visible panel in RDW is for this [DirectAccessDeviceHandle]; false
+     * otherwise
+     */
+    private val isDeviceVisible: Boolean
+      get() =
+        devicePanel?.let {
+          it.id.serialNumber ==
+            getRunningDeviceWindow(project)?.visibleDevicePanel?.id?.serialNumber
+        }
+          ?: false
+
+    /** [EditorNotificationPanel] that is being shown in RDW */
+    private var bannerNotification: EditorNotificationPanel? = null
+
+    /** [Notification] that is being shown in studio when device panel is not visible */
+    private var balloonNotification: Notification? = null
+
+    /** Keep track of notification visibility */
+    var notificationVisible = false
+
+    /**
+     * Shows the notification in appropriate location.
+     *
+     * Show banner notification if device panel is visible else show balloon notification.
+     */
+    fun show() {
+      when {
+        // Device is visible and balloon notification is not showing.
+        // Show the banner notification in RDW panel
+        isDeviceVisible && balloonNotification == null -> {
+          bannerNotification =
+            createEditorNotificationPanel().also {
+              // Content in the devicePanel may not have been created by the time addNotification is
+              // called. Call it in invokeLater to ensure content is created
+              invokeLater { devicePanel?.addNotification(it) }
+            }
+        }
+        // Device is not visible and the notification was not shown on the panel
+        // so show the balloon notification
+        !isDeviceVisible && bannerNotification == null -> {
+          if (balloonNotification?.isExpired == false) return
+          balloonNotification =
+            createBalloonNotification().apply {
+              notify(project)
+              // notify() calls invokeLater internally to create the balloon
+              // Queue an event after that to get the balloon and add a listener to it
+              // This listener expires the notification when user clicks on the close icon.
+              invokeLater {
+                balloon?.addListener(
+                  object : JBPopupListener {
+                    override fun onClosed(event: LightweightWindowEvent) {
+                      super.onClosed(event)
+                      expire()
+                    }
+                  }
+                )
+              }
+            }
+        }
+        // Device is not visible any longer but banner notification was visible
+        // when the device was visible.
+        // Cleanup the banner notification from RDW
+        !isDeviceVisible && balloonNotification == null -> {
+          expire()
+        }
+        else -> return
+      }
+      notificationVisible = true
+    }
+
+    /** Removes the notifications */
+    fun expire() {
+      bannerNotification?.let {
+        devicePanel?.removeNotification(it)
+        bannerNotification = null
+      }
+      balloonNotification?.let {
+        it.expire()
+        balloonNotification = null
+      }
+      notificationVisible = false
+    }
+
+    private fun createEditorNotificationPanel() =
+      EditorNotificationPanel().apply {
+        text = RESERVATION_EXPIRING_BANNER_TITLE
+        icon(deviceHandle.icon)
+        createActionLabel("Extend 30 mins") { extendReservation() }
+        setCloseAction {
+          devicePanel?.removeNotification(this)
+          expire()
+        }
+      }
+
+    private fun createBalloonNotification() =
+      notificationGroup
+        .createNotification(
+          RESERVATION_EXPIRING_BANNER_TITLE,
+          "${deviceHandle.sourceTemplate.properties.title} will disconnect in 5 mins. Extend reservation to continue access to the device.",
+          NotificationType.INFORMATION
+        )
+        .addAction(
+          NotificationAction.createExpiring("Extend 30 mins") { _, _ -> extendReservation() }
+        )
+        .setIcon(deviceHandle.icon)
+        .whenExpired { expire() }
+
+    /** Extends the reservation and expires notification */
+    private fun extendReservation() =
+      deviceHandle.scope.launch {
+        deviceHandle.reservationAction.reserve(Duration.ofMinutes(30))
+        expire()
+      }
+
+    /** Gets current visible panel in RDW */
+    private val ToolWindow.visibleDevicePanel: RunningDevicePanel?
+      get() = contentManager.selectedContent?.component as? RunningDevicePanel
+
+    /** Gets the panel for this [DirectAccessDeviceHandle] from RDW */
+    private val ToolWindow.devicePanel: RunningDevicePanel?
+      get() =
+        contentManager.contents
+          .mapNotNull { it.component as? RunningDevicePanel }
+          .firstOrNull { it.id.serialNumber == deviceHandle.connection.deviceAddress()?.address }
+  }
 }
