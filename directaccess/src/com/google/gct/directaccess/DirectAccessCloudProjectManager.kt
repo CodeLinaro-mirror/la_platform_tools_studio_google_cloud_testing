@@ -18,7 +18,9 @@ package com.google.gct.directaccess
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.concurrency.createChildScope
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.gct.testing.launcher.CloudAuthenticator
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.intellij.openapi.components.service
@@ -47,6 +49,14 @@ class DirectAccessCloudProjectManager(
   val cloudProject: CloudProjectEntry,
   private val scope: CoroutineScope
 ) : AutoCloseable {
+
+  val remainingMinutes: Long
+    get() =
+      CloudAuthenticator.getInstance()
+        .getRemainingQuota(
+          "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}",
+          "projects/${cloudProject.name}"
+        )
 
   val reservationManager: DirectAccessReservationManager =
     DirectAccessReservationManager(

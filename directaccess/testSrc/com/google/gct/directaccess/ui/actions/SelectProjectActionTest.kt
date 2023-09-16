@@ -50,6 +50,7 @@ import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.components.AnActionLink
+import com.intellij.ui.components.JBLabel
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
 import javax.swing.JTextArea
@@ -171,11 +172,19 @@ class SelectProjectActionTest {
       .isEqualTo(
         "$unsupportedProjectName does not have access to Direct Access. Select a different project."
       )
+    val remainingMinutesLabel =
+      selectBalloon.component
+        .findAllDescendants<JBLabel>()
+        .filter { it.text.endsWith("mins") }
+        .first()
+    assertThat(remainingMinutesLabel.text).isEqualTo("-- mins")
 
     // Select a project that supports direct access.
     textField.text = supportedProjectName
     yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName }
     yieldUntil { !errorPanel.isVisible }
+
+    yieldUntil { remainingMinutesLabel.text == "60 mins" }
 
     // Start a device and the selector will be disabled.
     val mockDeviceHandle = mock<DirectAccessDeviceHandle>()
@@ -209,6 +218,7 @@ class SelectProjectActionTest {
         if (isAuthorized) directAccessReservationManager.listReservations() else null
       }
     doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlow
+    doReturn(60L).whenever(mockCloudProjectManager).remainingMinutes
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
