@@ -31,9 +31,32 @@ import com.intellij.openapi.project.Project
 object TestUtils {
   val deviceInfoListProvider = {
     listOf(
-      DeviceInfo("Google", "Pixel 5", "Google", "codename1", 31, DeviceType.PHONE, 100, 200, 300),
-      DeviceInfo("Google", "Pixel 6", "Google", "codename2", 32, DeviceType.PHONE, 200, 300, 400),
       DeviceInfo(
+        "id1",
+        "Google",
+        "Pixel 5",
+        "Google",
+        "codename1",
+        31,
+        DeviceType.PHONE,
+        100,
+        200,
+        300
+      ),
+      DeviceInfo(
+        "id2",
+        "Google",
+        "Pixel 6",
+        "Google",
+        "codename2",
+        32,
+        DeviceType.PHONE,
+        200,
+        300,
+        400
+      ),
+      DeviceInfo(
+        "id3",
         "Google",
         "Pixel 6 Pro",
         "Google",
@@ -44,7 +67,18 @@ object TestUtils {
         400,
         500
       ),
-      DeviceInfo("Google", "Pixel Watch", "Google", "watch", 33, DeviceType.WEAR_OS, 50, 100, 150)
+      DeviceInfo(
+        "id4",
+        "Google",
+        "Pixel Watch",
+        "Google",
+        "watch",
+        33,
+        DeviceType.WEAR_OS,
+        50,
+        100,
+        150
+      )
     )
   }
 

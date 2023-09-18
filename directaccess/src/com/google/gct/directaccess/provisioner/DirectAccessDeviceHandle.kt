@@ -23,6 +23,7 @@ import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
+import com.android.sdklib.deviceprovisioner.DeviceId
 import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.ReservationAction
@@ -80,6 +81,8 @@ class DirectAccessDeviceHandle(
   initialState: DeviceState,
   private val reservationName: String
 ) : DeviceHandle {
+
+  override val id = DeviceId(PLUGIN_ID, false, "reservation=${reservationName}")
 
   private val reservationManager =
     service<DirectAccessApplicationService>().getReservationManager(project)

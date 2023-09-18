@@ -20,6 +20,7 @@ import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionDisabledException
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
+import com.android.sdklib.deviceprovisioner.DeviceId
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Resolution
@@ -58,6 +59,8 @@ class DirectAccessDeviceTemplate(
   private val scope: CoroutineScope,
   private val isAuthenticatorReady: Flow<Boolean>
 ) : DeviceTemplate {
+  override val id = DeviceId(PLUGIN_ID, true, "model_id=${deviceInfo.id}")
+
   override val properties = deviceInfo.toDeviceProperties()
 
   private val isActivationStarted = MutableStateFlow(false)

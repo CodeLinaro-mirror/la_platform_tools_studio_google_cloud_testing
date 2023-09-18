@@ -220,6 +220,11 @@ class DirectAccessDeviceProvisionerTest {
     }
 
     // Assert
+    provisioner.templates.value[0].id.apply {
+      assertThat(isTemplate).isTrue()
+      assertThat(pluginId).isEqualTo(PLUGIN_ID)
+      assertThat(identifier).isEqualTo("model_id=id1")
+    }
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
     assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
@@ -269,9 +274,10 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
     val devices = provisioner.devices.value
     assertThat(devices.size).isEqualTo(1)
-    val device = devices[0]
+    val device = devices[0] as DirectAccessDeviceHandle
     val state = device.stateFlow
     assertThat(device.sourceTemplate).isEqualTo(template)
+    assertThat(device.id).isNotEqualTo(template.id)
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
     assertThat(state.value.isTransitioning).isTrue()
     assertThat(state.value.status).isEqualTo("Reserving a device...")
@@ -317,6 +323,11 @@ class DirectAccessDeviceProvisionerTest {
         assertThat(deviceProvisionerId).isEqualTo(PLUGIN_ID)
         assertThat(anonymizedSerialNumber).isNotEmpty()
       }
+    }
+    device.id.apply {
+      assertThat(pluginId).isEqualTo(PLUGIN_ID)
+      assertThat(isTemplate).isFalse()
+      assertThat(identifier).isEqualTo("reservation=${device.reservation.name}")
     }
 
     // Deactivate the device.
