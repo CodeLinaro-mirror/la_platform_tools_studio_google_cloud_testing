@@ -115,8 +115,7 @@ class DirectAccessNotificationManager(
         reservationExpireTime?.let {
           val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
           getDeviceDisconnectedNotificationMessage(deviceName, phrase)
-        }
-          ?: ""
+        } ?: ""
       deviceDisconnectedNotification =
         notificationGroup
           .createNotification(
@@ -189,8 +188,7 @@ class DirectAccessNotificationManager(
         devicePanel?.let {
           it.id.serialNumber ==
             getRunningDeviceWindow(project)?.visibleDevicePanel?.id?.serialNumber
-        }
-          ?: false
+        } ?: false
 
     /** [EditorNotificationPanel] that is being shown in RDW */
     private var bannerNotification: EditorNotificationPanel? = null

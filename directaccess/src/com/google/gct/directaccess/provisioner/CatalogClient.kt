@@ -76,8 +76,7 @@ object CatalogClient {
               model.screenY,
               model.screenDensity
             )
-          }
-          ?: listOf()
+          } ?: listOf()
       }
   }
 

@@ -316,6 +316,7 @@ class DirectAccessUsageTrackerTest {
           scope.createChildScope(true)
         ) {
         private var connectCount = 0
+
         override suspend fun connect() {
           if (++connectCount > 2) throw Exception()
           super.connect()

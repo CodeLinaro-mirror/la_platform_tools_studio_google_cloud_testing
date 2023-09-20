@@ -213,17 +213,23 @@ class FakeDirectAccessProjectSelector(isEnabled: Boolean) : DirectAccessProjectS
 
 open class FakeDirectAccessReservationManager : DirectAccessReservationManager {
   override fun createReservation(model: String, apiLevel: String): Reservation = notImplemented()
+
   override fun listReservations(): List<Reservation> = notImplemented()
+
   override fun cancelReservation(reservationName: String, withGracePeriod: Boolean) =
     notImplemented()
+
   override fun extendReservation(
     reservationName: String,
     duration: Duration,
     type: DirectAccessReservationManager.ReservationExtendType
   ) = notImplemented()
+
   override fun fetchReservationFlow(reservationName: String): StateFlow<Reservation> =
     notImplemented()
+
   override fun maybeRestoreExpireTimeOnReconnect(reservationName: String) = notImplemented()
+
   override fun close() = Unit
 
   private fun notImplemented(): Nothing = error("Not yet implemented")

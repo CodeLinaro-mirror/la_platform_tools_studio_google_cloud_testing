@@ -483,6 +483,7 @@ class DirectAccessDeviceHandle(
 
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
   class Builder : DeviceProperties.Builder()
+
   companion object {
     inline fun build(block: Builder.() -> Unit) =
       Builder()
