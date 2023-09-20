@@ -39,7 +39,7 @@ import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.streaming.core.DeviceId
-import com.android.tools.idea.streaming.core.RunningDevicePanel
+import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -50,7 +50,6 @@ import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
-import com.google.gct.directaccess.TestUtils.updateReservations
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.LoginState
@@ -985,18 +984,18 @@ class DirectAccessDeviceProvisionerTest {
   private fun setupMockContentForRunningDevicePanel(
     bannerNotificationHolder: MutableList<EditorNotificationPanel>
   ): Content {
-    val mockRunningDevicePanel = Mockito.mock(RunningDevicePanel::class.java)
+    val mockStreamingDevicePanel = Mockito.mock(StreamingDevicePanel::class.java)
     doReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
-      .whenever(mockRunningDevicePanel)
+      .whenever(mockStreamingDevicePanel)
       .id
     doAnswer { bannerNotificationHolder.add(it.arguments[0] as EditorNotificationPanel) }
-      .whenever(mockRunningDevicePanel)
+      .whenever(mockStreamingDevicePanel)
       .addNotification(any())
     doAnswer { bannerNotificationHolder.remove(it.arguments[0] as EditorNotificationPanel) }
-      .whenever(mockRunningDevicePanel)
+      .whenever(mockStreamingDevicePanel)
       .removeNotification(any())
     val mockContent = Mockito.mock(Content::class.java)
-    doAnswer { mockRunningDevicePanel }.whenever(mockContent).component
+    doAnswer { mockStreamingDevicePanel }.whenever(mockContent).component
     return mockContent
   }
 }

@@ -34,7 +34,7 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
-import com.android.tools.idea.streaming.core.RunningDevicePanel
+import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
@@ -462,7 +462,7 @@ class DirectAccessDeviceHandle(
       ?.addContentManagerListener(
         object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
-              val eventPanel = event.content.component as? RunningDevicePanel ?: return
+              val eventPanel = event.content.component as? StreamingDevicePanel ?: return
               if (eventPanel.id.serialNumber == connection.deviceAddress()?.address) {
                 notificationManager.onDevicePanelVisibilityChanged()
               }
