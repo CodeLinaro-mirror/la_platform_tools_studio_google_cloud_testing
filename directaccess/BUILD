@@ -45,5 +45,6 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:google-api-client",
         "//tools/vendor/google/firebase[module]",
         "//tools/adt/idea/streaming:intellij.android.streaming[module]",
+        "//tools/adt/idea/server-flags:intellij.android.server-flags[module]",
     ],
 )

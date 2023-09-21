@@ -40,6 +40,7 @@ import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
 import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
@@ -65,8 +66,13 @@ public class TestRecorderAction extends AnAction {
   private final static String RECORD_TEST_ACTION_TEXT = "Record Espresso Test";
   public static final Icon TEST_RECORDER_ICON = StudioIcons.Test.RECORD_ESPRESSO_TEST;
   public static final Icon SCRIPT_RECORDER_ICON = IconLoader.getIcon("robo_dot.png", TestRecorderAction.class);
-
   public static final Key<Boolean> KEY = Key.create("test.recorder.launch");
+
+  @NotNull
+  @Override
+  public ActionUpdateThread getActionUpdateThread() {
+    return ActionUpdateThread.BGT;
+  }
 
 
   @Override

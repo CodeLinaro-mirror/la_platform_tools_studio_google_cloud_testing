@@ -98,8 +98,8 @@ class DirectAccessDeviceHandle(
   // [notificationManager] collects [stateFlow] and needs to be initiated after.
   val notificationManager = DirectAccessNotificationManager(project, this)
 
-  /** Tracks reconnect to device */
-  private var hasConnectedToDeviceOnce = false
+  /** Tracks number of connection attempts to the device */
+  private var connectionAttempts = 0
   /** Tracks user involvement in disconnecting device */
   private var hasUserDisconnectedDevice = false
   /** Tracks device force check in */
@@ -184,9 +184,25 @@ class DirectAccessDeviceHandle(
       /** Starts connection to the remote device. */
       override suspend fun activate() {
         withContext(scope.coroutineContext) {
+          // Increment connectionAttempts outside update so that it is not incremented twice
+          // in case update is run twice
+          connectionAttempts++
           stateFlow.update {
-            val reservation = it.reservation ?: return@withContext
-            DeviceState.Disconnected(it.properties)
+            val reservation =
+              it.reservation
+                ?: throw DeviceActionException(
+                    "Reservation required to activate Direct Access Device"
+                  )
+                  .also {
+                    // TODO(b/277240160): Add correct failure reason
+                    trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+                  }
+            // Properties obtained from device after the first connection are lost here.
+            // The properties will be read again when device is claimed by the plugin.
+            // This is fine since the connection event does not require those properties
+            // to be from the device. Also, the initial event does not have those properties
+            val properties = sourceTemplate.deviceInfo.toDeviceProperties(connectionAttempts)
+            DeviceState.Disconnected(properties)
               .copy(isTransitioning = true)
               .withReservation(reservation)
           }
@@ -226,7 +242,6 @@ class DirectAccessDeviceHandle(
               .collect()
           }
           trackConnectMetrics(true, System.currentTimeMillis() - connectStartTime)
-          hasConnectedToDeviceOnce = true
         } catch (e: CancellationException) {
           throw e
         } catch (e: Exception) {
@@ -347,7 +362,12 @@ class DirectAccessDeviceHandle(
       DirectAccessDeviceProperties.build {
         resolution = Resolution.readFromDevice(device)
         readCommonProperties(properties)
-        populateDeviceInfoProto(PLUGIN_ID, device.serialNumber, properties)
+        populateDeviceInfoProto(
+          PLUGIN_ID,
+          device.serialNumber,
+          properties,
+          connectionAttempts.toString()
+        )
         icon = this@DirectAccessDeviceHandle.icon
       }
 
@@ -381,7 +401,7 @@ class DirectAccessDeviceHandle(
   ) =
     DirectAccessUsageTracker.trackConnectDevice(
       wasSuccessful,
-      hasConnectedToDeviceOnce,
+      connectionAttempts >= 2,
       timeToConnectMs,
       reservationName,
       state.properties.deviceInfoProto,

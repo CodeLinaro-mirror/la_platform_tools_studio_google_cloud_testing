@@ -256,6 +256,7 @@ class DirectAccessUsageTrackerTest {
 
     val studioEvent = findUsageEvent(CONNECT_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+    assertThat(studioEvent.deviceInfo.connectionId).isEqualTo("1")
 
     val directAccessEvent = studioEvent.directAccessUsageEvent
     assertThat(directAccessEvent.type).isEqualTo(CONNECT_DEVICE)
@@ -291,6 +292,7 @@ class DirectAccessUsageTrackerTest {
 
     val studioEvent = findUsageEvent(CONNECT_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+    assertThat(studioEvent.deviceInfo.connectionId).isEqualTo("1")
 
     val directAccessEvent = studioEvent.directAccessUsageEvent
     assertThat(directAccessEvent.type).isEqualTo(CONNECT_DEVICE)
@@ -301,6 +303,41 @@ class DirectAccessUsageTrackerTest {
     assertThat(connectDeviceDetails.success).isFalse()
     assertThat(connectDeviceDetails.reconnect).isFalse()
     assertThat(connectDeviceDetails.hasConnectTimeMs()).isFalse()
+  }
+
+  @Test
+  fun testConnectionIdIncrementsIrrespectiveOfSuccess() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName ->
+      object :
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
+        private var connectCount = 0
+        override suspend fun connect() {
+          if (++connectCount > 2) throw Exception()
+          super.connect()
+        }
+      }
+    }
+
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+
+    repeat(5) {
+      if (it > 0) handle.activationAction.activate()
+
+      val studioEvent = findUsageEvent(CONNECT_DEVICE)
+      assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+      assertThat(studioEvent.deviceInfo.connectionId).isEqualTo("${it + 1}")
+
+      handle.deactivationAction.deactivate()
+      tracker.usages.clear()
+    }
   }
 
   @Test
