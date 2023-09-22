@@ -365,6 +365,10 @@ class DirectAccessDeviceHandle(
       DirectAccessDeviceProperties.build {
         resolution = Resolution.readFromDevice(device)
         readCommonProperties(properties)
+        // Override model and manufacturer as the info read from device
+        // may be different from catalog
+        manufacturer = sourceTemplate.properties.manufacturer
+        model = sourceTemplate.properties.model
         populateDeviceInfoProto(
           PLUGIN_ID,
           device.serialNumber,

@@ -291,7 +291,7 @@ class DirectAccessDeviceProvisionerTest {
 
     // Bring the device online by claiming a matched connected device.
     val serialNumber = fakeConnection.deviceAddress()!!.address
-    // We intentionally add a suffix to verify if the properties have been updated.
+    // We intentionally add a suffix to ensure updated property is not displayed
     val suffix = "-connected"
     session.deviceServices.configureDeviceProperties(
       DeviceSelector.fromSerialNumber(serialNumber),
@@ -307,18 +307,18 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { state.value.connectedDevice != null }
     assertThat(state.value).isInstanceOf(Connected::class.java)
     assertThat(state.value.reservation!!.stateMessage).isEmpty()
-    state.value.properties.also {
-      assertThat(it.icon).isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
-      assertThat(it.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
-      assertThat(it.model).isEqualTo(deviceInfo.name + suffix)
-      assertThat(it.manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
-      assertThat(it.resolution?.height).isEqualTo(2400)
-      assertThat(it.resolution?.width).isEqualTo(1080)
-      assertThat(it.isRemote).isTrue()
+    with(state.value.properties) {
+      assertThat(icon).isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+      assertThat(androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
+      assertThat(model).isEqualTo(deviceInfo.name)
+      assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer)
+      assertThat(resolution?.height).isEqualTo(2400)
+      assertThat(resolution?.width).isEqualTo(1080)
+      assertThat(isRemote).isTrue()
 
-      it.deviceInfoProto.apply {
-        assertThat(model).isEqualTo(deviceInfo.name + suffix)
-        assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
+      with(deviceInfoProto) {
+        assertThat(model).isEqualTo(deviceInfo.name)
+        assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer)
         assertThat(deviceType).isEqualTo(DeviceInfo.DeviceType.CLOUD_PHYSICAL)
         assertThat(deviceProvisionerId).isEqualTo(PLUGIN_ID)
         assertThat(anonymizedSerialNumber).isNotEmpty()
