@@ -24,7 +24,7 @@ import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
-import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxAction;
+import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxTargetProvider;
 import com.google.common.collect.Lists;
 import com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxy;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
@@ -39,7 +39,6 @@ import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
-import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -94,8 +93,8 @@ public class TestRecorderAction extends AnAction {
     }
 
     // Disable Espresso Test Recorder if multiple target devices are selected.
-    DeviceAndSnapshotComboBoxAction deviceAndSnapshotComboBoxAction = (DeviceAndSnapshotComboBoxAction) ActionManager.getInstance().getAction("DeviceAndSnapshotComboBox");
-    if (deviceAndSnapshotComboBoxAction.isMultipleTargetsSelectedInComboBox(project) && deviceAndSnapshotComboBoxAction.getNumberOfSelectedDevices(project) > 1) {
+    DeviceAndSnapshotComboBoxTargetProvider targetProvider = DeviceAndSnapshotComboBoxTargetProvider.getInstance();
+    if (targetProvider.getNumberOfSelectedDevices(project) > 1) {
       presentation.setEnabled(false);
       return;
     }
