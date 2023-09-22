@@ -129,7 +129,7 @@ class DirectAccessNotificationManager(
             }
           )
           .addAction(
-            NotificationAction.createExpiring("Force check-in device") { _, _ ->
+            NotificationAction.createExpiring("Return and erase device") { _, _ ->
               deviceHandle.scope.launch { deviceHandle.reservationAction.endReservation() }
             }
           )

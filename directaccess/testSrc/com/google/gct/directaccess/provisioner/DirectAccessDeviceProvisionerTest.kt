@@ -936,7 +936,7 @@ class DirectAccessDeviceProvisionerTest {
       "${handle.deviceName} on Firebase stopped",
       "You can reconnect to the same ${handle.deviceName} for up to 5 minutes before the device is wiped",
       handle.icon,
-      listOf("Reconnect to Device", "Force check-in device"),
+      listOf("Reconnect to Device", "Return and erase device"),
       true,
       actionAssertBlock
     )
