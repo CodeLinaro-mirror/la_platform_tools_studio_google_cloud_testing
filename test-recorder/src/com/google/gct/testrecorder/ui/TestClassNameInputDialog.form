@@ -44,9 +44,10 @@
                   <text value="Test class name:"/>
                 </properties>
               </component>
-              <component id="3702" class="javax.swing.JTextField" binding="myClassNameField">
+              <component id="3702" class="javax.swing.JTextArea" binding="myClassNameArea">
                 <constraints border-constraint="East"/>
                 <properties>
+                  <lineWrap value="true"/>
                   <minimumSize width="320" height="27"/>
                   <preferredSize width="320" height="27"/>
                 </properties>
