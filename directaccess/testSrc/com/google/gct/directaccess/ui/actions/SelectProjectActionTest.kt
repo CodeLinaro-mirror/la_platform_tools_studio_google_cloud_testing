@@ -34,7 +34,7 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.login.GoogleLogin
-import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
+import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
@@ -46,7 +46,6 @@ import com.intellij.testFramework.replaceService
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.components.AnActionLink
 import java.awt.event.MouseEvent
-import java.time.Duration
 import javax.swing.JPanel
 import javax.swing.JTextArea
 import javax.swing.JTextField
@@ -54,7 +53,6 @@ import javax.swing.event.DocumentEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -209,22 +207,4 @@ class FakeDirectAccessProjectSelector(isEnabled: Boolean) : DirectAccessProjectS
     }
   override val selectedProject = MutableStateFlow("")
   override val isReady = MutableStateFlow(true)
-}
-
-open class FakeDirectAccessReservationManager : DirectAccessReservationManager {
-  override fun createReservation(model: String, apiLevel: String): Reservation = notImplemented()
-  override fun listReservations(): List<Reservation> = notImplemented()
-  override fun cancelReservation(reservationName: String, withGracePeriod: Boolean) =
-    notImplemented()
-  override fun extendReservation(
-    reservationName: String,
-    duration: Duration,
-    type: DirectAccessReservationManager.ReservationExtendType
-  ) = notImplemented()
-  override fun fetchReservationFlow(reservationName: String): StateFlow<Reservation> =
-    notImplemented()
-  override fun maybeRestoreExpireTimeOnReconnect(reservationName: String) = notImplemented()
-  override fun close() = Unit
-
-  private fun notImplemented(): Nothing = error("Not yet implemented")
 }

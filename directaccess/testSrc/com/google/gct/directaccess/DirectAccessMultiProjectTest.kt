@@ -65,8 +65,10 @@ class DirectAccessMultiProjectTest {
 
   private val disposable: Disposable
     get() = disposableRule.disposable
+
   private val project1: Project
     get() = projectRule1.project
+
   private val project2: Project
     get() = projectRule2.project
 

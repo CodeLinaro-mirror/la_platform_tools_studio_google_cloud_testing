@@ -23,6 +23,7 @@ import com.android.sdklib.deviceprovisioner.DeactivationAction
 import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceHandle
+import com.android.sdklib.deviceprovisioner.DeviceId
 import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.ReservationAction
@@ -34,7 +35,7 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
-import com.android.tools.idea.streaming.core.RunningDevicePanel
+import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
@@ -80,6 +81,8 @@ class DirectAccessDeviceHandle(
   initialState: DeviceState,
   private val reservationName: String
 ) : DeviceHandle {
+
+  override val id = DeviceId(PLUGIN_ID, false, "reservation=${reservationName}")
 
   private val reservationManager =
     service<DirectAccessApplicationService>().getReservationManager(project)
@@ -362,6 +365,10 @@ class DirectAccessDeviceHandle(
       DirectAccessDeviceProperties.build {
         resolution = Resolution.readFromDevice(device)
         readCommonProperties(properties)
+        // Override model and manufacturer as the info read from device
+        // may be different from catalog
+        manufacturer = sourceTemplate.properties.manufacturer
+        model = sourceTemplate.properties.model
         populateDeviceInfoProto(
           PLUGIN_ID,
           device.serialNumber,
@@ -462,7 +469,7 @@ class DirectAccessDeviceHandle(
       ?.addContentManagerListener(
         object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
-              val eventPanel = event.content.component as? RunningDevicePanel ?: return
+              val eventPanel = event.content.component as? StreamingDevicePanel ?: return
               if (eventPanel.id.serialNumber == connection.deviceAddress()?.address) {
                 notificationManager.onDevicePanelVisibilityChanged()
               }
@@ -483,6 +490,7 @@ class DirectAccessDeviceHandle(
 
 class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
   class Builder : DeviceProperties.Builder()
+
   companion object {
     inline fun build(block: Builder.() -> Unit) =
       Builder()

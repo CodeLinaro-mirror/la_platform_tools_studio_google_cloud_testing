@@ -61,7 +61,7 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
+import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -83,7 +83,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
   private String mySelectedLanguage;
 
   private JPanel myRootPanel;
-  private JTextField myClassNameField;
+  private JTextArea myClassNameArea;
   private JLabel myErrorMessageLabel;
   private JComboBox<String> myClassLanguageComboBox;
 
@@ -148,7 +148,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
       myClassName = activityTestNameBase + counter++;
     }
 
-    myClassNameField.setText(myClassName);
+    myClassNameArea.setText(myClassName);
   }
 
   private VirtualFile detectOrCreateTestSourceDirectoryAndDefaultOutputLanguage() {
@@ -393,7 +393,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
     // Set up document listener for class name text field.
     // Update OK button based on the entered class name.
-    myClassNameField.getDocument().addDocumentListener(new DocumentListener() {
+    myClassNameArea.getDocument().addDocumentListener(new DocumentListener() {
       @Override
       public void insertUpdate(DocumentEvent documentEvent) {
         update();
@@ -410,7 +410,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
       }
 
       private void update() {
-        myClassName = myClassNameField.getText().trim();
+        myClassName = myClassNameArea.getText().trim();
         updateOKButton();
       }
     });
@@ -537,7 +537,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
   @Override
   public JComponent getPreferredFocusedComponent() {
-    return myClassNameField;
+    return myClassNameArea;
   }
 
 }

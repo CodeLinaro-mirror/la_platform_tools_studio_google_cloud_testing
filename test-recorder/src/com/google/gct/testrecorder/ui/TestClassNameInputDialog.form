@@ -41,13 +41,16 @@
               <component id="53264" class="javax.swing.JLabel">
                 <constraints border-constraint="West"/>
                 <properties>
+                  <opaque value="true"/>
                   <text value="Test class name:"/>
                 </properties>
               </component>
-              <component id="3702" class="javax.swing.JTextField" binding="myClassNameField">
+              <component id="3702" class="javax.swing.JTextArea" binding="myClassNameArea">
                 <constraints border-constraint="East"/>
                 <properties>
+                  <lineWrap value="true"/>
                   <minimumSize width="320" height="27"/>
+                  <opaque value="true"/>
                   <preferredSize width="320" height="27"/>
                 </properties>
               </component>
@@ -64,13 +67,16 @@
               <component id="d073c" class="javax.swing.JLabel">
                 <constraints border-constraint="West"/>
                 <properties>
+                  <opaque value="true"/>
                   <text value="Test class language:"/>
                 </properties>
               </component>
               <component id="286a8" class="javax.swing.JComboBox" binding="myClassLanguageComboBox">
                 <constraints border-constraint="East"/>
                 <properties>
+                  <maximumSize width="320" height="29"/>
                   <minimumSize width="320" height="29"/>
+                  <opaque value="true"/>
                   <popupVisible value="false"/>
                   <preferredSize width="320" height="29"/>
                 </properties>

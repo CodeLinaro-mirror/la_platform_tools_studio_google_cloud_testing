@@ -39,7 +39,7 @@ import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.streaming.core.DeviceId
-import com.android.tools.idea.streaming.core.RunningDevicePanel
+import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -50,7 +50,6 @@ import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.reservation
-import com.google.gct.directaccess.TestUtils.updateReservations
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.LoginState
@@ -221,6 +220,11 @@ class DirectAccessDeviceProvisionerTest {
     }
 
     // Assert
+    provisioner.templates.value[0].id.apply {
+      assertThat(isTemplate).isTrue()
+      assertThat(pluginId).isEqualTo(PLUGIN_ID)
+      assertThat(identifier).isEqualTo("model_id=id1")
+    }
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
     assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
@@ -270,9 +274,10 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
     val devices = provisioner.devices.value
     assertThat(devices.size).isEqualTo(1)
-    val device = devices[0]
+    val device = devices[0] as DirectAccessDeviceHandle
     val state = device.stateFlow
     assertThat(device.sourceTemplate).isEqualTo(template)
+    assertThat(device.id).isNotEqualTo(template.id)
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
     assertThat(state.value.isTransitioning).isTrue()
     assertThat(state.value.status).isEqualTo("Reserving a device...")
@@ -286,7 +291,7 @@ class DirectAccessDeviceProvisionerTest {
 
     // Bring the device online by claiming a matched connected device.
     val serialNumber = fakeConnection.deviceAddress()!!.address
-    // We intentionally add a suffix to verify if the properties have been updated.
+    // We intentionally add a suffix to ensure updated property is not displayed
     val suffix = "-connected"
     session.deviceServices.configureDeviceProperties(
       DeviceSelector.fromSerialNumber(serialNumber),
@@ -302,22 +307,27 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { state.value.connectedDevice != null }
     assertThat(state.value).isInstanceOf(Connected::class.java)
     assertThat(state.value.reservation!!.stateMessage).isEmpty()
-    state.value.properties.also {
-      assertThat(it.icon).isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
-      assertThat(it.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
-      assertThat(it.model).isEqualTo(deviceInfo.name + suffix)
-      assertThat(it.manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
-      assertThat(it.resolution?.height).isEqualTo(2400)
-      assertThat(it.resolution?.width).isEqualTo(1080)
-      assertThat(it.isRemote).isTrue()
+    with(state.value.properties) {
+      assertThat(icon).isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+      assertThat(androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
+      assertThat(model).isEqualTo(deviceInfo.name)
+      assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer)
+      assertThat(resolution?.height).isEqualTo(2400)
+      assertThat(resolution?.width).isEqualTo(1080)
+      assertThat(isRemote).isTrue()
 
-      it.deviceInfoProto.apply {
-        assertThat(model).isEqualTo(deviceInfo.name + suffix)
-        assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer + suffix)
+      with(deviceInfoProto) {
+        assertThat(model).isEqualTo(deviceInfo.name)
+        assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer)
         assertThat(deviceType).isEqualTo(DeviceInfo.DeviceType.CLOUD_PHYSICAL)
         assertThat(deviceProvisionerId).isEqualTo(PLUGIN_ID)
         assertThat(anonymizedSerialNumber).isNotEmpty()
       }
+    }
+    device.id.apply {
+      assertThat(pluginId).isEqualTo(PLUGIN_ID)
+      assertThat(isTemplate).isFalse()
+      assertThat(identifier).isEqualTo("reservation=${device.reservation.name}")
     }
 
     // Deactivate the device.
@@ -926,7 +936,7 @@ class DirectAccessDeviceProvisionerTest {
       "${handle.deviceName} on Firebase stopped",
       "You can reconnect to the same ${handle.deviceName} for up to 5 minutes before the device is wiped",
       handle.icon,
-      listOf("Reconnect to Device", "Force check-in device"),
+      listOf("Reconnect to Device", "Return and erase device"),
       true,
       actionAssertBlock
     )
@@ -985,18 +995,18 @@ class DirectAccessDeviceProvisionerTest {
   private fun setupMockContentForRunningDevicePanel(
     bannerNotificationHolder: MutableList<EditorNotificationPanel>
   ): Content {
-    val mockRunningDevicePanel = Mockito.mock(RunningDevicePanel::class.java)
+    val mockStreamingDevicePanel = Mockito.mock(StreamingDevicePanel::class.java)
     doReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
-      .whenever(mockRunningDevicePanel)
+      .whenever(mockStreamingDevicePanel)
       .id
     doAnswer { bannerNotificationHolder.add(it.arguments[0] as EditorNotificationPanel) }
-      .whenever(mockRunningDevicePanel)
+      .whenever(mockStreamingDevicePanel)
       .addNotification(any())
     doAnswer { bannerNotificationHolder.remove(it.arguments[0] as EditorNotificationPanel) }
-      .whenever(mockRunningDevicePanel)
+      .whenever(mockStreamingDevicePanel)
       .removeNotification(any())
     val mockContent = Mockito.mock(Content::class.java)
-    doAnswer { mockRunningDevicePanel }.whenever(mockContent).component
+    doAnswer { mockStreamingDevicePanel }.whenever(mockContent).component
     return mockContent
   }
 }

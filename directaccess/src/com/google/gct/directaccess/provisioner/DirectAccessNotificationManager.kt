@@ -16,7 +16,7 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceState
-import com.android.tools.idea.streaming.core.RunningDevicePanel
+import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
@@ -115,8 +115,7 @@ class DirectAccessNotificationManager(
         reservationExpireTime?.let {
           val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
           getDeviceDisconnectedNotificationMessage(deviceName, phrase)
-        }
-          ?: ""
+        } ?: ""
       deviceDisconnectedNotification =
         notificationGroup
           .createNotification(
@@ -130,7 +129,7 @@ class DirectAccessNotificationManager(
             }
           )
           .addAction(
-            NotificationAction.createExpiring("Force check-in device") { _, _ ->
+            NotificationAction.createExpiring("Return and erase device") { _, _ ->
               deviceHandle.scope.launch { deviceHandle.reservationAction.endReservation() }
             }
           )
@@ -177,7 +176,7 @@ class DirectAccessNotificationManager(
   ) {
 
     /** Panel for this [DirectAccessDeviceHandle] */
-    private val devicePanel: RunningDevicePanel?
+    private val devicePanel: StreamingDevicePanel?
       get() = getRunningDeviceWindow(project)?.devicePanel
 
     /**
@@ -189,8 +188,7 @@ class DirectAccessNotificationManager(
         devicePanel?.let {
           it.id.serialNumber ==
             getRunningDeviceWindow(project)?.visibleDevicePanel?.id?.serialNumber
-        }
-          ?: false
+        } ?: false
 
     /** [EditorNotificationPanel] that is being shown in RDW */
     private var bannerNotification: EditorNotificationPanel? = null
@@ -296,14 +294,14 @@ class DirectAccessNotificationManager(
       }
 
     /** Gets current visible panel in RDW */
-    private val ToolWindow.visibleDevicePanel: RunningDevicePanel?
-      get() = contentManager.selectedContent?.component as? RunningDevicePanel
+    private val ToolWindow.visibleDevicePanel: StreamingDevicePanel?
+      get() = contentManager.selectedContent?.component as? StreamingDevicePanel
 
     /** Gets the panel for this [DirectAccessDeviceHandle] from RDW */
-    private val ToolWindow.devicePanel: RunningDevicePanel?
+    private val ToolWindow.devicePanel: StreamingDevicePanel?
       get() =
         contentManager.contents
-          .mapNotNull { it.component as? RunningDevicePanel }
+          .mapNotNull { it.component as? StreamingDevicePanel }
           .firstOrNull { it.id.serialNumber == deviceHandle.connection.deviceAddress()?.address }
   }
 }

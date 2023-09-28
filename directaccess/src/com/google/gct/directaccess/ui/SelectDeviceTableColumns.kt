@@ -31,11 +31,13 @@ internal object SelectDeviceTableColumns {
     override val name = ""
     override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
     override val attribute = stringAttribute<SelectDeviceRowData> { "" }
+
     override fun createUi(rowValue: SelectDeviceRowData) =
       JBCheckBox().apply {
         isSelected = rowValue.isSelected
         addItemListener { rowValue.isSelected = isSelected }
       }
+
     override fun updateValue(rowValue: SelectDeviceRowData, component: JBCheckBox, value: String) =
       Unit
   }
@@ -44,8 +46,10 @@ internal object SelectDeviceTableColumns {
     override val name = ""
     override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
     override val attribute = stringAttribute<SelectDeviceRowData> { "" }
+
     override fun createUi(rowValue: SelectDeviceRowData) =
       JBLabel(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+
     override fun updateValue(rowValue: SelectDeviceRowData, component: JBLabel, value: String) =
       Unit
   }

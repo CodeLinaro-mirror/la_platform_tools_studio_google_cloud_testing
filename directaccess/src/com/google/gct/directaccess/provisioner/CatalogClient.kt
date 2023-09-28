@@ -66,6 +66,7 @@ object CatalogClient {
                 else -> DeviceType.PHONE
               }
             DeviceInfo(
+              model.id,
               model.brand,
               model.name,
               model.manufacturer,
@@ -76,8 +77,7 @@ object CatalogClient {
               model.screenY,
               model.screenDensity
             )
-          }
-          ?: listOf()
+          } ?: listOf()
       }
   }
 

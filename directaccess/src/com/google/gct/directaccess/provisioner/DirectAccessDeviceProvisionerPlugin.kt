@@ -107,8 +107,7 @@ class DirectAccessDeviceProvisionerPlugin(
               } catch (_: Exception) {
                 null
               }
-            }
-              ?: listOf()
+            } ?: listOf()
           accessibleDeviceInfoSetFlow.value = newAccessibleDeviceInfoList.toSet()
           project.service<DirectAccessService>().deviceSelectionListFlow.update {
             oldDeviceSelectionListFlow ->
@@ -211,8 +210,9 @@ class DirectAccessDeviceProvisionerPlugin(
       return devices.value.filterIsInstance<DirectAccessDeviceHandle>().firstOrNull {
         it.claim(port, device)
       }
-      // TODO(b/296468326): Share reservation list across user projects with the same cloud project.
-      ?: service<DirectAccessApplicationService>()
+        // TODO(b/296468326): Share reservation list across user projects with the same cloud
+        // project.
+        ?: service<DirectAccessApplicationService>()
           .getConnectionManager(project)
           ?.connections
           ?.get(port)
