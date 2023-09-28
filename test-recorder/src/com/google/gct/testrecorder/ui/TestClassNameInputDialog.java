@@ -23,6 +23,8 @@ import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.PluginModel;
+import com.android.tools.idea.projectsystem.CommonTestType;
+import com.android.tools.idea.projectsystem.IdeaSourceProvider;
 import com.android.tools.idea.projectsystem.SourceProviders;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
 import com.google.common.collect.Iterables;
@@ -242,17 +244,19 @@ public class TestClassNameInputDialog extends DialogWrapper {
     AndroidFacet facet = AndroidFacet.getInstance(myTestClassModule);
     if (facet == null) return emptyList();
     SourceProviders sourceProviders = SourceProviders.getInstance(facet);
+    IdeaSourceProvider androidSourceProvider = sourceProviders.getDeviceTestSources().get(CommonTestType.ANDROID_TEST);
+    if (androidSourceProvider == null) return emptyList();
     List<String> androidTestSourceRoots = Streams.stream(Iterables.concat(
-      sourceProviders.getAndroidTestSources().getJavaDirectories(),
-      sourceProviders.getAndroidTestSources().getKotlinDirectories()
+      androidSourceProvider.getJavaDirectories(),
+      androidSourceProvider.getKotlinDirectories()
     )).map(VirtualFile::getCanonicalPath).collect(toList());
     if (!androidTestSourceRoots.isEmpty()) {
       return androidTestSourceRoots;
     }
     // If no actual Android test source roots were found, look for potential ones as URLs.
     return Streams.stream(Iterables.concat(
-      sourceProviders.getAndroidTestSources().getJavaDirectoryUrls(),
-      sourceProviders.getAndroidTestSources().getKotlinDirectoryUrls()
+      androidSourceProvider.getJavaDirectoryUrls(),
+      androidSourceProvider.getKotlinDirectoryUrls()
     )).map(TestClassNameInputDialog::getURLPath).collect(toList());
   }
 
