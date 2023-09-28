@@ -19,12 +19,13 @@ import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.testing.AndroidProjectRule
+import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalog
+import com.google.gct.directaccess.TestUtils.androidDeviceCatalogWithMissingFields
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
@@ -39,26 +40,42 @@ class CatalogClientTest {
     whenever(mockGoogleLoginService.isLoggedIn).thenReturn(true)
 
     CloudAuthenticator.setInstance(mockCloudAuthenticator)
+  }
+
+  private fun setupCloudAuthenticator(deviceCatalog: AndroidDeviceCatalog) =
     whenever(
         mockCloudAuthenticator.getAndroidDeviceCatalogForEnvironment(
           Mockito.anyString(),
           Mockito.anyString()
         )
       )
-      .thenReturn(androidDeviceCatalog)
+      .thenReturn(deviceCatalog)
+
+  @Test
+  fun testCorrectDeviceTypeFromFormFactor() {
+    setupCloudAuthenticator(androidDeviceCatalog)
+
+    val devices = CatalogClient.getAvailableDevices("testEndpoint", "testProject")
+
+    assertThat(devices.size).isEqualTo(2)
+    assertThat(devices[0].name).isEqualTo("Phone")
+    assertThat(devices[0].type).isEqualTo(DeviceType.PHONE)
+    assertThat(devices[0].api).isGreaterThan(25)
+    assertThat(devices[1].name).isEqualTo("Watch")
+    assertThat(devices[1].type).isEqualTo(DeviceType.WEAR_OS)
+    assertThat(devices[1].api).isGreaterThan(25)
   }
 
   @Test
-  @Ignore("b/283121750")
-  fun testCorrectDeviceTypeFromFormFactor() {
+  fun testModelWithMissingInfoFilteredOut() {
+    setupCloudAuthenticator(androidDeviceCatalogWithMissingFields)
+
     val devices = CatalogClient.getAvailableDevices("testEndpoint", "testProject")
 
-    assertThat(devices.size).isEqualTo(3)
+    assertThat(devices.size).isEqualTo(2)
     assertThat(devices[0].name).isEqualTo("Phone")
     assertThat(devices[0].type).isEqualTo(DeviceType.PHONE)
     assertThat(devices[1].name).isEqualTo("Watch")
     assertThat(devices[1].type).isEqualTo(DeviceType.WEAR_OS)
-    assertThat(devices[2].name).isEqualTo("Tablet")
-    assertThat(devices[2].type).isEqualTo(DeviceType.PHONE)
   }
 }

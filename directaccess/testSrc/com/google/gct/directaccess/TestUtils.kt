@@ -19,6 +19,8 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
+import com.google.api.services.testing.model.DirectAccessVersionInfo
+import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
@@ -88,12 +90,14 @@ object TestUtils {
       name = "Phone"
       brand = "Google"
       codename = "oriole"
+      id = codename
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
       set("formFactor", "PHONE")
       screenX = 100
       screenY = 200
       screenDensity = 300
+      perVersionInfo = listOf(generatePerVersionInfo())
     }
 
   private val wearable =
@@ -101,13 +105,15 @@ object TestUtils {
       manufacturer = "Google"
       name = "Watch"
       brand = "Google"
-      codename = "oriole"
+      codename = "watch"
+      id = codename
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
       set("formFactor", "WEARABLE")
       screenX = 10
       screenY = 20
       screenDensity = 30
+      perVersionInfo = listOf(generatePerVersionInfo())
     }
 
   private val tablet =
@@ -115,17 +121,98 @@ object TestUtils {
       manufacturer = "Google"
       name = "Tablet"
       brand = "Google"
-      codename = "oriole"
+      codename = "tablet"
+      id = codename
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
       set("formFactor", "TABLET")
       screenX = 1000
       screenY = 2000
       screenDensity = 3000
+      perVersionInfo = listOf(generatePerVersionInfo(isDirectAccessSupported = false))
+    }
+
+  private val invalidDevice =
+    AndroidModel().apply {
+      manufacturer = "invalid"
+      name = "device"
+      brand = "invalid"
+      codename = "device"
+      supportedVersionIds = listOf("33")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 1000
+      screenY = 2000
+      // Missing screenDensity
+      perVersionInfo = listOf(generatePerVersionInfo())
+    }
+
+  private val phoneLessThanApi26 =
+    AndroidModel().apply {
+      manufacturer = "Google"
+      name = "Phone API 25"
+      brand = "Google"
+      codename = "phone-api-25"
+      id = codename
+      supportedVersionIds = listOf("25")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
+      perVersionInfo = listOf(generatePerVersionInfo("25"))
+    }
+
+  private val phoneSupportedOnHigherASVersion =
+    AndroidModel().apply {
+      manufacturer = "Google"
+      name = "Phone Higher AS Version"
+      brand = "Google"
+      codename = "phone-higher-as-version"
+      id = codename
+      supportedVersionIds = listOf("25")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
+      perVersionInfo =
+        listOf(
+          generatePerVersionInfo().apply {
+            directAccessVersionInfo.apply { minimumAndroidStudioVersion = "999.9999.99" }
+          }
+        )
+    }
+
+  private fun generatePerVersionInfo(api: String = "32", isDirectAccessSupported: Boolean = true) =
+    PerAndroidVersionInfo().apply {
+      deviceCapacity = "DEVICE_CAPACITY_HIGH"
+      versionId = api
+      directAccessVersionInfo =
+        DirectAccessVersionInfo().apply { directAccessSupported = isDirectAccessSupported }
     }
 
   val androidDeviceCatalog =
-    AndroidDeviceCatalog().apply { models = listOf(phone, wearable, tablet) }
+    createDeviceCatalog(
+      phone,
+      wearable,
+      tablet,
+      phoneLessThanApi26,
+      phoneSupportedOnHigherASVersion
+    )
+
+  val androidDeviceCatalogWithMissingFields =
+    createDeviceCatalog(
+      phone,
+      wearable,
+      tablet,
+      invalidDevice,
+      phoneLessThanApi26,
+      phoneSupportedOnHigherASVersion
+    )
+
+  private fun createDeviceCatalog(vararg androidModels: AndroidModel) =
+    AndroidDeviceCatalog().apply { models = androidModels.toList() }
 
   val DirectAccessDeviceHandle.connectionState: DirectAccessConnection.ConnectionState
     get() = connection.state.value.connection

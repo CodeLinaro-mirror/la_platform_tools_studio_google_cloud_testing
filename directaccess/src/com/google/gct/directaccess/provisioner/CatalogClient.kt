@@ -23,9 +23,12 @@ import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.intellij.openapi.application.ApplicationInfo
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.BuildNumber
 
 object CatalogClient {
+
+  private val logger = Logger.getInstance(CatalogClient::class.java)
 
   /** Returns available devices to be accessed directly. */
   fun getAvailableDevices(endpoint: String, cloudProject: String?): List<DeviceInfo> {
@@ -55,28 +58,13 @@ object CatalogClient {
                         catalogBuildNumber <= ApplicationInfo.getInstance().build
                     })
           }
-          ?.map {
-            val type =
-              when (model["formFactor"]) {
-                // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
-                //                   tablets
-                "PHONE",
-                "TABLET" -> DeviceType.PHONE
-                "WEARABLE" -> DeviceType.WEAR_OS
-                else -> DeviceType.PHONE
-              }
-            DeviceInfo(
-              model.id,
-              model.brand,
-              model.name,
-              model.manufacturer,
-              model.codename,
-              it.versionId.toInt(),
-              type,
-              model.screenX,
-              model.screenY,
-              model.screenDensity
-            )
+          ?.mapNotNull {
+            try {
+              model.createDeviceInfo(it.versionId.toInt())
+            } catch (e: Exception) {
+              logger.info("Could not create DeviceInfo for model: $model", e)
+              null
+            }
           } ?: listOf()
       }
   }
@@ -93,6 +81,30 @@ object CatalogClient {
 
   private fun isUnfilteredDevices(): Boolean =
     System.getProperty("da_unfiltered_devices").toBoolean()
+
+  private fun AndroidModel.createDeviceInfo(api: Int): DeviceInfo {
+    val type =
+      when (get("formFactor")) {
+        // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
+        //                   tablets
+        "PHONE",
+        "TABLET" -> DeviceType.PHONE
+        "WEARABLE" -> DeviceType.WEAR_OS
+        else -> DeviceType.PHONE
+      }
+    return DeviceInfo(
+      id,
+      brand,
+      name,
+      manufacturer,
+      codename,
+      api,
+      type,
+      screenX,
+      screenY,
+      screenDensity
+    )
+  }
 }
 
 class NotLoggedInException : Exception("Not logged in")
