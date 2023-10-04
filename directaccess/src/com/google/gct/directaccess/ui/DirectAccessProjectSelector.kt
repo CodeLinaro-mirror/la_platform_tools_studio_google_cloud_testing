@@ -15,12 +15,22 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
-import com.google.gct.testing.android.CloudConfiguration
-import com.google.gct.testing.android.CloudProjectSelector
+import com.google.services.firebase.FirebaseProjectClient
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.CollectionComboBoxModel
+import com.intellij.util.ui.NamedColorUtil
 import javax.swing.JComponent
+import javax.swing.JTextField
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+internal const val ERROR_FETCHING_FIREBASE_PROJECT = "Error fetching firebase projects"
+internal const val NO_PROJECTS_AVAILABLE = "No project available"
 
 /** Manages a [component] to select a cloud project for [DeviceProvisionerService]. */
 interface DirectAccessProjectSelector {
@@ -36,36 +46,69 @@ interface DirectAccessProjectSelector {
  * A [DirectAccessProjectSelector] that returns a combo box of available projects.
  *
  * @param preferredProject the project to select initially if available
- * @param isEnabled true if project selection is enabled
+ * @param shouldEnable true if project selection is enabled
  */
-class DirectAccessProjectSelectorImpl(private val preferredProject: String, isEnabled: Boolean) :
-  DirectAccessProjectSelector {
+class DirectAccessProjectSelectorImpl(
+  private val preferredProject: String,
+  private val shouldEnable: Boolean,
+  scope: CoroutineScope
+) : DirectAccessProjectSelector, ComboBox<String>() {
+
+  override val component: JComponent
+    get() = this
 
   override val selectedProject = MutableStateFlow("")
 
   override val isReady = MutableStateFlow(false)
 
-  override val component: JComponent
-    get() = projectSelector
-
   private var isPreferredProjectApplied = false
 
-  // TODO (b/283017002): show preferredProject while refresh projects.
-  private val projectSelector =
-    CloudProjectSelector(CloudConfiguration.Kind.SINGLE_DEVICE).apply {
-      this.isEditable = true
-      this.isEnabled = isEnabled
-      if (!isEnabled) {
-        toolTipText = "Stop reservations to change projects"
-      }
-      addItemListener {
-        if (!isPreferredProjectApplied) {
-          isReady.value = true
-          isPreferredProjectApplied = true
-          selectedItem = preferredProject
-        }
-        selectedProject.value = selectedItem as String
-      }
-      refreshCloudProjects()
+  init {
+    renderer = DirectAccessProjectSelectorRenderer
+    model = CollectionComboBoxModel(listOf("Loading..."))
+    isEnabled = false
+    if (!shouldEnable) {
+      toolTipText = "Stop reservations to change projects"
     }
+    preferredSize = null
+    scope.refreshProjects()
+    addItemListener { scope.launch { updateSelectedItem(it.item as String) } }
+  }
+
+  private fun CoroutineScope.refreshProjects() = launch {
+    val projects =
+      try {
+        FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
+      } catch (e: Exception) {
+        null
+      }
+    if (projects == null) {
+      model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
+      updateSelectedItem(ERROR_FETCHING_FIREBASE_PROJECT)
+      paintErrorText()
+      isEnabled = false
+    } else if (projects.isEmpty()) {
+      model = CollectionComboBoxModel(listOf(NO_PROJECTS_AVAILABLE))
+      updateSelectedItem(NO_PROJECTS_AVAILABLE)
+      isEnabled = false
+    } else {
+      model = CollectionComboBoxModel(projects)
+      updateSelectedItem(preferredProject)
+      isEnabled = shouldEnable
+    }
+  }
+
+  private fun paintErrorText() {
+    val textField = editor.editorComponent as JTextField
+    textField.disabledTextColor = NamedColorUtil.getErrorForeground()
+  }
+
+  private suspend fun updateSelectedItem(item: String) {
+    if (!isPreferredProjectApplied) {
+      isReady.value = true
+      isPreferredProjectApplied = true
+      withContext(AndroidDispatchers.uiThread) { selectedItem = item }
+    }
+    selectedProject.value = selectedItem as String
+  }
 }

@@ -29,6 +29,8 @@ import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
+import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
+import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.GoogleLogin
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -51,6 +53,7 @@ import icons.FirebaseIcons
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
@@ -68,9 +71,11 @@ private val loginLink =
   )
 
 class SelectProjectAction(
-  private val builder: (String, Boolean) -> DirectAccessProjectSelector =
-    { preferredProject, isEnabled ->
-      DirectAccessProjectSelectorImpl(preferredProject, isEnabled)
+  private val builder: (String, Boolean, CoroutineScope) -> DirectAccessProjectSelector =
+    { preferredProject, isEnabled, scope ->
+      DirectAccessProjectSelectorImpl(preferredProject, isEnabled, scope).apply {
+        isEditable = true
+      }
     }
 ) : AnAction("Configure Device Streaming Project", "text", FirebaseIcons.ACTION_ICON) {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -128,7 +133,8 @@ class SelectProjectAction(
                 devices.value.filterIsInstance<DirectAccessDeviceHandle>().none {
                   // Disable the selector if there are connected devices.
                   it.state is DeviceState.Connected
-                }
+                },
+                scope
               )
             add(selector.component)
             scope.launch {
@@ -178,7 +184,11 @@ class SelectProjectAction(
     errorTextPane: JBTextArea,
     remainingMinutesLabel: JBLabel
   ) {
-    if (cloudProject.isEmpty()) {
+    if (cloudProject.isEmpty() || cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
+      withContext(AndroidDispatchers.uiThread) { balloon.revalidate() }
+      return
+    } else if (cloudProject == NO_PROJECTS_AVAILABLE) {
+      project.service<DirectAccessService>().selectCloudProject(null)
       return
     }
     project.service<DirectAccessService>().selectCloudProject(cloudProject)
