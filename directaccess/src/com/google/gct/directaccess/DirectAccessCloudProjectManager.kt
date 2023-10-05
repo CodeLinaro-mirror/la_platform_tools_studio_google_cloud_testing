@@ -15,10 +15,10 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
+import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.checkDirectAccessPermission
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -85,13 +85,18 @@ class DirectAccessCloudProjectManager(
       }
     }
 
-  val reservationListFlow: RefreshableStateFlow<List<Reservation>?> =
+  val reservationListFlowWithException =
     RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(1)) {
       try {
-        reservationManager.listReservations()
+        Pair(reservationManager.listReservations(), null)
       } catch (e: Exception) {
-        null
+        Pair(null, e)
       }
+    }
+
+  val permissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
+    RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(2)) {
+      checkDirectAccessPermission(cloudProject)
     }
 
   override fun close() {

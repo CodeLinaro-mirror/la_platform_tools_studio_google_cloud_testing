@@ -47,6 +47,12 @@ class RefreshableStateFlow<T>(
 
   val stateFlow: StateFlow<T> = _stateFlow
 
+  /**
+   * Current value of the flow. Does not refresh the flow. Call refresh() to get refreshed value.
+   */
+  val value: T
+    get() = stateFlow.value
+
   init {
     scope.launch {
       while (true) {

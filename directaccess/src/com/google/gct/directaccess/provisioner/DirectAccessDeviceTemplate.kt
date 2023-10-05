@@ -189,7 +189,9 @@ class DirectAccessDeviceTemplate(
             startTime
           )
         }
-        scope.launch { project.directAccessCloudProjectManager?.reservationListFlow?.refresh() }
+        scope.launch {
+          project.directAccessCloudProjectManager?.reservationListFlowWithException?.refresh()
+        }
         return reservationName
       }
 

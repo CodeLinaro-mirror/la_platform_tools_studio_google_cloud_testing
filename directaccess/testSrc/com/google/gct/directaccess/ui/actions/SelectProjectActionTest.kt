@@ -25,14 +25,20 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.io.grpc.Status
+import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
+import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.RefreshableStateFlow
+import com.google.gct.directaccess.SERVICES_USE
 import com.google.gct.directaccess.TestUtils
+import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
@@ -55,8 +61,8 @@ import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
-import javax.swing.JTextArea
 import javax.swing.JTextField
+import javax.swing.JTextPane
 import javax.swing.event.DocumentEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -80,10 +86,31 @@ class SelectProjectActionTest {
   @get:Rule
   val ruleChain = RuleChain.outerRule(projectRule).around(popupRule).around(loginStateRule)!!
 
+  private val apiDisabledProject = "apiDisabledProject"
+  private val unsupportedTestProjectWithServiceUse = "unsupportedTestProjectWithServiceUse"
+  private val unsupportedTestProjectWithoutServiceUse = "unsupportedTestProjectWithoutServiceUse"
+  private val viewerTestProject = "viewerTestProject"
+  private val unknownPermissionTestProject = "unknownPermissionTestProject"
+  private val supportedProjectName = "supportedTestProject"
+  private val scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+  private val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
+  private val permissionFlow =
+    RefreshableStateFlow(scope, Long.MAX_VALUE) {
+      when (cloudProjectManagerFlow.value?.cloudProject?.name) {
+        unsupportedTestProjectWithServiceUse -> parseFrom(setOf(SERVICES_USE))
+        unsupportedTestProjectWithoutServiceUse -> parseFrom(FULL_PERMISSIONS_SET - SERVICES_USE)
+        supportedProjectName -> parseFrom(FULL_PERMISSIONS_SET)
+        viewerTestProject -> parseFrom(VIEWER_PERMISSIONS_SET)
+        unknownPermissionTestProject ->
+          parseFrom(FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE)
+        else -> parseFrom(emptySet())
+      }
+    }
+  private var exceptionToThrow: StatusRuntimeException? = null
+
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlocking {
-    val scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     var isLoggedIn = false
     val mockGoogleLogin = mock<GoogleLogin>()
     doAnswer { isLoggedIn }.whenever(mockGoogleLogin).isLoggedIn
@@ -107,11 +134,7 @@ class SelectProjectActionTest {
       projectRule.disposable
     )
 
-    val unsupportedProjectName = "unsupportedTestProject"
-    val supportedProjectName = "supportedTestProject"
-
     val mockDirectAccessService = mock<DirectAccessService>()
-    val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
     doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
     doAnswer {
         val cloudProjectName = it.arguments[0] as? String
@@ -122,6 +145,7 @@ class SelectProjectActionTest {
             cloudProjectName,
             cloudProjectName == supportedProjectName
           )
+        runBlocking { permissionFlow.refresh() }
         Unit
       }
       .whenever(mockDirectAccessService)
@@ -167,16 +191,71 @@ class SelectProjectActionTest {
     val selectBalloon = popupRule.fakePopupFactory.getNextBalloon()
     Disposer.register(projectRule.disposable, selectBalloon)
     // Select a project that does not support direct access.
+    exceptionToThrow =
+      Status.PERMISSION_DENIED.withDescription("Not authorized for project").asRuntimeException()
     val textField = selectBalloon.component.findAllDescendants<JTextField>().first()
     assertThat(textField.isEnabled).isTrue()
-    textField.text = unsupportedProjectName
-    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedProjectName }
+    textField.text = unsupportedTestProjectWithServiceUse
+    yieldUntil {
+      cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithServiceUse
+    }
 
-    val errorPanel = selectBalloon.component.findAllDescendants<JTextArea>().first()
-    yieldUntil { errorPanel.isVisible }
-    assertThat(errorPanel.text)
-      .isEqualTo(
-        "$unsupportedProjectName does not have access to Device Streaming. Select a different project."
+    val errorPanel = selectBalloon.component.findAllDescendants<JTextPane>().first()
+
+    yieldUntil { errorPanel.text.isNotEmpty() }
+    assertThat(errorPanel.getHtmlFilteredText())
+      .contains(
+        "You do not have access to Device Streaming in project $unsupportedTestProjectWithServiceUse."
+      )
+
+    // Select a project with disabled Cloud Testing API
+    exceptionToThrow =
+      Status.PERMISSION_DENIED.withDescription(
+          "Cloud Testing API has not been used in project $apiDisabledProject before or it is disabled."
+        )
+        .asRuntimeException()
+    textField.text = apiDisabledProject
+    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == apiDisabledProject }
+    assertThat(errorPanel.getHtmlFilteredText())
+      .contains(
+        "Cloud Testing API is not enabled in your project $apiDisabledProject. Enable it by visiting Google Cloud console."
+      )
+
+    // Select a project without service use permission
+    exceptionToThrow =
+      Status.PERMISSION_DENIED.withDescription(
+          "Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission"
+        )
+        .asRuntimeException()
+    textField.text = unsupportedTestProjectWithoutServiceUse
+    yieldUntil {
+      cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithoutServiceUse
+    }
+    yieldUntil { errorPanel.text.contains(unsupportedTestProjectWithoutServiceUse) }
+    assertThat(errorPanel.getHtmlFilteredText())
+      .contains(
+        "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
+      )
+
+    // Select a project with viewer permission
+    exceptionToThrow = null
+    textField.text = viewerTestProject
+    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == viewerTestProject }
+    yieldUntil { errorPanel.text.contains(viewerTestProject) }
+    assertThat(errorPanel.getHtmlFilteredText())
+      .contains(
+        "You do not have full access to Device Streaming in project $viewerTestProject. You are missing the following permissions:" +
+          permissionFlow.value.missingPermissions.joinToString("")
+      )
+
+    // Select a project with a mix of permission
+    textField.text = unknownPermissionTestProject
+    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == unknownPermissionTestProject }
+    yieldUntil { errorPanel.text.contains(unknownPermissionTestProject) }
+    assertThat(errorPanel.getHtmlFilteredText())
+      .contains(
+        "You do not have full access to Device Streaming in project $unknownPermissionTestProject. You are missing the following permissions:" +
+          permissionFlow.value.missingPermissions.joinToString("")
       )
     val remainingMinutesLabel =
       selectBalloon.component
@@ -184,22 +263,22 @@ class SelectProjectActionTest {
         .filter { it.text.endsWith("mins") }
         .first()
     assertThat(remainingMinutesLabel.text).isEqualTo("-- mins")
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unsupportedProjectName)
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
 
     textField.text = ERROR_FETCHING_FIREBASE_PROJECT
     assertThat(fakePropertiesComponent[projectRule.project])
       .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unsupportedProjectName)
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
 
     textField.text = NO_PROJECTS_AVAILABLE
     yieldUntil { cloudProjectManagerFlow.value == null }
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unsupportedProjectName)
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
 
     // Select a project that supports direct access.
     textField.text = supportedProjectName
     yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName }
-    yieldUntil { !errorPanel.isVisible }
     assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
+    assertThat(errorPanel.getHtmlFilteredText()).isEqualTo("")
 
     yieldUntil { remainingMinutesLabel.text == "60 mins" }
 
@@ -244,9 +323,10 @@ class SelectProjectActionTest {
 
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (isAuthorized) directAccessReservationManager.listReservations() else null
+        if (isAuthorized) Pair(directAccessReservationManager.listReservations(), null)
+        else Pair(null, exceptionToThrow)
       }
-    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlow
+    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
     doReturn(60L).whenever(mockCloudProjectManager).remainingMinutes
 
     val accessibleDeviceInfoListFlow =
@@ -257,6 +337,7 @@ class SelectProjectActionTest {
       .whenever(mockCloudProjectManager)
       .accessibleDeviceInfoListFlow
 
+    doReturn(permissionFlow).whenever(mockCloudProjectManager).permissionFlow
     return mockCloudProjectManager
   }
 }
@@ -276,3 +357,6 @@ class FakeDirectAccessProjectSelector(isEnabled: Boolean) : DirectAccessProjectS
   override val selectedProject = MutableStateFlow("")
   override val isReady = MutableStateFlow(true)
 }
+
+private fun JTextPane.getHtmlFilteredText() =
+  text.replace(Regex("<[^>]*>"), "").replace("\n", "").replace(Regex(" +"), " ").trim()

@@ -95,7 +95,8 @@ class DirectAccessDeviceProvisionerPlugin(
             }
           }
           launch {
-            cloudProjectManager.reservationListFlow.stateFlow.collect { newReservations ->
+            cloudProjectManager.reservationListFlowWithException.stateFlow.collect { pair ->
+              val newReservations = pair.first
               reservationsFlow.value = newReservations
               if (newReservations != null) {
                 matchReservations(_templates.value, newReservations)

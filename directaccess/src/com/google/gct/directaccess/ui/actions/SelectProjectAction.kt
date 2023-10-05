@@ -24,7 +24,11 @@ import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.io.grpc.Status
+import com.android.tools.idea.io.grpc.StatusRuntimeException
+import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.settings.DirectAccessConfiguration
@@ -41,25 +45,35 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.ui.BrowserHyperlinkListener
 import com.intellij.ui.JBColor
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
+import com.intellij.ui.util.maximumWidth
+import com.intellij.util.ui.HTMLEditorKitBuilder
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import icons.FirebaseIcons
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import javax.swing.JComponent
+import javax.swing.JEditorPane
 import javax.swing.JPanel
 import javax.swing.JSeparator
+import javax.swing.JTextPane
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private const val CLOUD_TEST_API_ENABLE_LINK =
+  "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
 
 private val loginLink =
   AnActionLink(
@@ -104,14 +118,30 @@ class SelectProjectAction(
       val devices = project.service<DeviceProvisionerService>().deviceProvisioner.devices
       // TODO (b/283017110): use project from google-services.json if it exists.
       val preferredProject = project.directAccessCloudProjectManager?.cloudProject?.name ?: ""
-      val errorTextPane =
-        JBTextArea().apply {
-          rows = 2
-          foreground = JBColor.RED
-          lineWrap = true
-          wrapStyleWord = true
-          isEditable = false
-          isVisible = false
+      val errorTextPane: JTextPane =
+        object : JTextPane() {
+          init {
+            foreground = JBColor.RED
+            isEditable = false
+            isVisible = false
+            editorKit = HTMLEditorKitBuilder.simple()
+            contentType = "text/html"
+            font = UIUtil.getLabelFont()
+            addHyperlinkListener(BrowserHyperlinkListener.INSTANCE)
+            addComponentListener(
+              object : ComponentAdapter() {
+                override fun componentResized(e: ComponentEvent) {
+                  super.componentResized(e)
+                  scope.launch { withContext(AndroidDispatchers.uiThread) { balloon.revalidate() } }
+                }
+              }
+            )
+          }
+
+          override fun updateUI() {
+            super.updateUI()
+            putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
+          }
         }
       val remainingMinutesLabel =
         JBLabel().apply {
@@ -141,6 +171,7 @@ class SelectProjectAction(
             scope.launch {
               // Wait until fetching all cloud projects to resize [balloon].
               selector.isReady.takeWhile { !it }.collect()
+              errorTextPane.maximumWidth = selector.component.width
               withContext(AndroidDispatchers.uiThread) { balloon.revalidate() }
               selector.selectedProject.collect {
                 onProjectChanged(project, it, balloon, errorTextPane, remainingMinutesLabel)
@@ -182,7 +213,7 @@ class SelectProjectAction(
     project: Project,
     cloudProject: String,
     balloon: Balloon,
-    errorTextPane: JBTextArea,
+    errorTextPane: JTextPane,
     remainingMinutesLabel: JBLabel
   ) {
     if (cloudProject.isEmpty() || cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
@@ -196,16 +227,19 @@ class SelectProjectAction(
     withContext(AndroidDispatchers.uiThread) {
       balloon.revalidate()
       launch {
-        val reservations = project.directAccessCloudProjectManager?.reservationListFlow?.refresh()
-        if (reservations == null) {
-          // TODO (b/283882413): show different reasons for project without access.
-          errorTextPane.text =
-            "$cloudProject does not have access to Device Streaming. Select a different project."
+        val permission =
+          project.directAccessCloudProjectManager?.permissionFlow?.value
+            ?: throw RuntimeException("Unable to retrieve permission")
+        val reservationListException =
+          project.directAccessCloudProjectManager?.reservationListFlowWithException?.value?.second
+        val errorMessage = getErrorMessage(cloudProject, permission, reservationListException)
+        if (errorMessage != null) {
+          errorTextPane.text = errorMessage
           errorTextPane.isVisible = true
           updateRemainingQuota(remainingMinutesLabel, -1)
         } else {
-          errorTextPane.isVisible = false
           errorTextPane.text = ""
+          errorTextPane.isVisible = false
           launch {
             updateRemainingQuota(
               remainingMinutesLabel,
@@ -220,6 +254,65 @@ class SelectProjectAction(
       }
     }
   }
+
+  private fun getErrorMessage(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: Exception?
+  ): String? {
+    return if (exception != null) {
+      getErrorMessageFromException(cloudProject, permission, exception)
+    } else {
+      when (permission) {
+        is DirectAccessPermissionStatus.None ->
+          "You do not have access to Device Streaming in project $cloudProject."
+        is DirectAccessPermissionStatus.Viewer,
+        is DirectAccessPermissionStatus.MissingServiceUse,
+        is DirectAccessPermissionStatus.Unknown ->
+          "You do not have full access to Device Streaming in project $cloudProject. You are missing the following permissions:<br>" +
+            permission.missingPermissions.joinToString("<br>")
+        is DirectAccessPermissionStatus.Full -> null
+      }
+    }
+  }
+
+  private fun getErrorMessageFromException(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: Exception
+  ) =
+    if (exception is StatusRuntimeException) {
+      getStatusCodeErrorMessage(cloudProject, permission, exception)
+    } else {
+      "An unknown error occurred when checking your permissions."
+    }
+
+  private fun getStatusCodeErrorMessage(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: StatusRuntimeException
+  ) =
+    if (exception.status.code == Status.Code.PERMISSION_DENIED) {
+      val description = exception.status.description
+      val apiDisabledString =
+        "Cloud Testing API has not been used in project $cloudProject before or it is disabled."
+      val serviceUsageMissing = "Grant the caller the roles/serviceusage.serviceUsageConsumer role"
+      when {
+        description?.contains(apiDisabledString, true) == true ->
+          "Cloud Testing API is not enabled in your project $cloudProject. Enable it by visiting <a href=\"$CLOUD_TEST_API_ENABLE_LINK$cloudProject\">Google Cloud console</a>."
+        description?.contains(serviceUsageMissing, true) == true -> {
+          if (permission.missingPermissions == FULL_PERMISSIONS_SET) {
+            "You do not have access to Device Streaming in project $cloudProject."
+          } else {
+            "You do not have full access to Device Streaming in project $cloudProject. You are missing the following permissions:<br>" +
+              permission.missingPermissions.joinToString("<br>")
+          }
+        }
+        else -> "You do not have access to Device Streaming in project $cloudProject."
+      }
+    } else {
+      "An unknown error occurred when checking your permissions."
+    }
 
   private fun updateRemainingQuota(remainingMinutesLabel: JBLabel, remainingMinutes: Long) {
     val text =

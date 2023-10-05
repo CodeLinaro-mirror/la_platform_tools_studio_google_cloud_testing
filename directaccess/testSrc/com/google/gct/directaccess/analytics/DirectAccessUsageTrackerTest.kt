@@ -180,10 +180,10 @@ class DirectAccessUsageTrackerTest {
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
         if (loginStateRule.state.value is LoginStatus.LoggedIn)
-          directAccessReservationManager.listReservations()
-        else null
+          Pair(directAccessReservationManager.listReservations(), null)
+        else Pair(null, Exception())
       }
-    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlow
+    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) { TestUtils.deviceInfoListProvider() }

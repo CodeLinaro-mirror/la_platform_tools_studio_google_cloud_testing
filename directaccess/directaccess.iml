@@ -43,5 +43,6 @@
     <orderEntry type="module" module-name="firebase" />
     <orderEntry type="module" module-name="intellij.android.streaming" />
     <orderEntry type="module" module-name="intellij.android.server-flags" />
+    <orderEntry type="library" name="cloudresourcemanager" level="project" />
   </component>
 </module>

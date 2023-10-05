@@ -250,5 +250,9 @@ object TestUtils {
       .getNotificationsOfType(Notification::class.java, project)
 
   suspend fun Project.refreshReservations() =
-    service<DirectAccessService>().cloudProjectManager.value?.reservationListFlow?.refresh()
+    service<DirectAccessService>()
+      .cloudProjectManager
+      .value
+      ?.reservationListFlowWithException
+      ?.refresh()
 }
