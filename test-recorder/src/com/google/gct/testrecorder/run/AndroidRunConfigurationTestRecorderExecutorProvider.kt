@@ -16,11 +16,13 @@
 package com.google.gct.testrecorder.run
 
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutor
+import com.android.tools.idea.project.FacetBasedApplicationProjectContext
 import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfigurationExecutor
 import com.android.tools.idea.run.DeviceFutures
 import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch
 import com.android.tools.idea.run.configuration.execution.getApplicationIdAndDevices
+import com.android.tools.idea.util.androidFacet
 import com.google.gct.testrecorder.ui.TestRecorderAction
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.progress.runBlockingCancellable
@@ -39,7 +41,16 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
     return configuration.run {
       val applicationIdProvider = applicationIdProvider ?: throw RuntimeException("Cannot get ApplicationIdProvider")
       val apkProvider = apkProvider ?: throw RuntimeException("Cannot get ApkProvider")
-      val baseExecutor = AndroidRunConfigurationExecutor(applicationIdProvider, env, deviceFutures, apkProvider)
+      val baseExecutor = AndroidRunConfigurationExecutor(
+        applicationIdProvider,
+        FacetBasedApplicationProjectContext(
+          applicationIdProvider.packageName,
+          configuration.configurationModule.module?.androidFacet ?: throw RuntimeException("Cannot get AndroidFacet")
+        ),
+        env,
+        deviceFutures,
+        apkProvider
+      )
       val activityName = (configuration.getLaunchOptionState(configuration.MODE) as? SpecificActivityLaunch.State)?.ACTIVITY_CLASS ?: ""
 
       return TestRecorderExecutor(env, baseExecutor, activityName, baseExecutor.facet) { indicator ->
