@@ -78,6 +78,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 private val EXTENSION_TIMEOUT = Duration.ofSeconds(10)
+// TODO - Remove once Reservation has a field for max duration
+// go/da-table-row/9pyBLLoGz3pexgO3l2U4Ca
+private val MAX_SESSION_DURATION = Duration.ofHours(3)
 
 class DirectAccessDeviceHandle(
   private val project: Project,
@@ -178,7 +181,8 @@ class DirectAccessDeviceHandle(
       reservationState,
       "",
       Instant.ofEpochSecond(reservation.createTime.seconds),
-      Instant.ofEpochSecond(reservation.expireTime.seconds)
+      Instant.ofEpochSecond(reservation.expireTime.seconds),
+      MAX_SESSION_DURATION
     )
   }
 
