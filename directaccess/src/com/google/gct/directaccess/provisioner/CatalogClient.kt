@@ -16,10 +16,7 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.tools.idea.devicemanager.DeviceType
-import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.serverflags.ServerFlagService
 import com.google.api.services.testing.model.AndroidModel
-import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.intellij.openapi.application.ApplicationInfo
@@ -47,8 +44,7 @@ object CatalogClient {
             perVersionInfo.versionId?.toIntOrNull()?.let { it >= 26 } == true &&
               // TODO(b/292642744): Remove isUnfilteredDevices when a more robust solution is
               //                    implemented.
-              (isUxr202309Device(model, perVersionInfo) ||
-                isUnfilteredDevices() ||
+              (isUnfilteredDevices() ||
                 perVersionInfo.directAccessVersionInfo?.directAccessSupported == true &&
                   BuildNumber.fromString(
                       perVersionInfo.directAccessVersionInfo.minimumAndroidStudioVersion
@@ -68,16 +64,6 @@ object CatalogClient {
           } ?: listOf()
       }
   }
-
-  private fun isUxr202309Device(model: AndroidModel, perVersionInfo: PerAndroidVersionInfo) =
-    StudioFlags.USE_UXR_202309_FILTER.get() &&
-      uxr202309Filter[model.codename]?.contains(perVersionInfo.versionId) == true
-
-  private val uxr202309Filter =
-    (ServerFlagService.instance.getString("directaccess/uxr202309Filter") ?: "")
-      .split(",")
-      .filterNot { it.isEmpty() }
-      .groupBy({ it.substringBefore("/") }) { it.substringAfter("/") }
 
   private fun isUnfilteredDevices(): Boolean =
     System.getProperty("da_unfiltered_devices").toBoolean()
