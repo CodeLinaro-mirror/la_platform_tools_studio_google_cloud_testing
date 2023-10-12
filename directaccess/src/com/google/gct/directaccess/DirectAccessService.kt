@@ -16,7 +16,6 @@
 package com.google.gct.directaccess
 
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
-import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStatus
@@ -32,23 +31,26 @@ import kotlinx.coroutines.launch
 @Service(Service.Level.PROJECT)
 class DirectAccessService(val project: Project) : Disposable {
   private val scope = AndroidCoroutineScope(this)
-  private val _cloudProjectFlow = MutableStateFlow<String?>(null)
-  val cloudProjectFlow: StateFlow<String?> = _cloudProjectFlow
+
+  private val _cloudProjectManager = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
+  val cloudProjectManager: StateFlow<DirectAccessCloudProjectManager?> = _cloudProjectManager
+  val cloudProject: String?
+    get() = cloudProjectManager.value?.cloudProject?.name
+
   /** A flow of devices with selected states. */
   val deviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
 
   @Synchronized
   fun selectCloudProject(cloudProject: String?) {
-    cloudProject?.let {
-      // Stores the last non-null cloud project in PropertiesComponent.
-      PropertiesComponent.getInstance(project).setValue("direct.access.project", it)
-    }
-    service<DirectAccessApplicationService>().registerCloudProject(project, cloudProject)
-    _cloudProjectFlow.value = cloudProject
+    val cloudProjectEntry =
+      cloudProject?.let {
+        // Stores the last non-null cloud project in PropertiesComponent.
+        PropertiesComponent.getInstance(project).setValue("direct.access.project", it)
+        getCloudProject(cloudProject)
+      }
+    _cloudProjectManager.value =
+      service<DirectAccessApplicationService>().registerCloudProject(project, cloudProjectEntry)
   }
-
-  fun getDeviceInfoList(): List<DeviceInfo> =
-    service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(cloudProjectFlow.value)
 
   init {
     scope.launch {
@@ -67,4 +69,13 @@ class DirectAccessService(val project: Project) : Disposable {
   override fun dispose() {
     selectCloudProject(null)
   }
+
+  private fun getCloudProject(name: String): CloudProjectEntry? {
+    val user =
+      (service<LoginState>().loginStatus.value as? LoginStatus.LoggedIn)?.email ?: return null
+    return CloudProjectEntry(user, name)
+  }
 }
+
+internal val Project.directAccessCloudProjectManager
+  get() = service<DirectAccessService>().cloudProjectManager.value

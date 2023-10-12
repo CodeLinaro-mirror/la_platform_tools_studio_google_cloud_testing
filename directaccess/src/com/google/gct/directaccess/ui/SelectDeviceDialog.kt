@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui
 import com.android.tools.adtui.categorytable.CategoryTable
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -38,7 +39,12 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     )
 
   private val deviceRowDataList: List<SelectDeviceRowData> = run {
-    val accessibleDeviceInfoSet = project.service<DirectAccessService>().getDeviceInfoList().toSet()
+    val accessibleDeviceInfoSet =
+      project.directAccessCloudProjectManager
+        ?.accessibleDeviceInfoListFlow
+        ?.stateFlow
+        ?.value
+        ?.toSet() ?: listOf()
     project
       .service<DirectAccessService>()
       .deviceSelectionListFlow

@@ -33,12 +33,14 @@ import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.gct.directaccess.DirectAccessApplicationService
+import com.google.gct.directaccess.CloudProjectEntry
+import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.reservation
-import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
@@ -144,28 +146,49 @@ class DirectAccessUsageTrackerTest {
   }
 
   private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {
-    val mockDirectAccessApplicationService = mock<DirectAccessApplicationService>()
+    // Sets up mock project service.
     val mockDirectAccessService = mock<DirectAccessService>()
     val cloudProjectName = "test-project"
-    val cloudProjectFlow = MutableStateFlow<String?>(cloudProjectName)
+    val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
+    val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
+    doReturn(CloudProjectEntry("", cloudProjectName)).whenever(mockCloudProjectManager).cloudProject
+    val deviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
+    doReturn(deviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
+    doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
+    projectRule.project.replaceService(
+      DirectAccessService::class.java,
+      mockDirectAccessService,
+      projectRule.disposable
+    )
+
+    // Sets up deviceSelectionListFlow.
     scope.launch {
       service<LoginState>().loginStatus.collect {
-        cloudProjectFlow.value = if (it is LoginStatus.LoggedIn) cloudProjectName else null
+        cloudProjectManagerFlow.value =
+          if (it is LoginStatus.LoggedIn) mockCloudProjectManager else null
       }
     }
-    val activeDeviceCatalogFlow = MutableStateFlow(listOf<DeviceInfo>())
-    doReturn(TestUtils.deviceInfoListProvider())
-      .whenever(mockDirectAccessService)
-      .getDeviceInfoList()
-    doReturn(activeDeviceCatalogFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
-    doReturn(cloudProjectFlow).whenever(mockDirectAccessService).cloudProjectFlow
+
+    // Sets up APIs in cloudProjectManager.
+    val reservationListFlow =
+      RefreshableStateFlow(scope, Long.MAX_VALUE) {
+        if (loginStateRule.state.value is LoginStatus.LoggedIn)
+          directAccessReservationManager.listReservations()
+        else null
+      }
+    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlow
+
+    val accessibleDeviceInfoListFlow =
+      RefreshableStateFlow(scope, Long.MAX_VALUE) { TestUtils.deviceInfoListProvider() }
+    doReturn(accessibleDeviceInfoListFlow)
+      .whenever(mockCloudProjectManager)
+      .accessibleDeviceInfoListFlow
+    doReturn(directAccessReservationManager).whenever(mockCloudProjectManager).reservationManager
+
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
-    doReturn(directAccessReservationManager)
-      .whenever(mockDirectAccessApplicationService)
-      .getReservationManager(any())
-    doReturn(mockDirectAccessConnectionManager)
-      .whenever(mockDirectAccessApplicationService)
-      .getConnectionManager(any())
+    doReturn(mockDirectAccessConnectionManager).whenever(mockCloudProjectManager).connectionManager
+
+    // Sets up connectionManager.
     doAnswer {
         val reservationName = it.arguments[0] as String
         createConnection(reservationName).also { conn ->
@@ -184,17 +207,6 @@ class DirectAccessUsageTrackerTest {
       }
       .whenever(mockDirectAccessConnectionManager)
       .create(any())
-    projectRule.project.replaceService(
-      DirectAccessService::class.java,
-      mockDirectAccessService,
-      projectRule.disposable
-    )
-    ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessApplicationService::class.java,
-        mockDirectAccessApplicationService,
-        projectRule.disposable
-      )
   }
 
   @Test

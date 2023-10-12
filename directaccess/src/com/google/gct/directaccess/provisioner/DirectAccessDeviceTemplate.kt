@@ -28,12 +28,11 @@ import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
-import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
+import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.services.firebase.directaccess.client.findOrCreateReservation
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import icons.StudioIcons
 import java.time.Duration
@@ -130,7 +129,7 @@ class DirectAccessDeviceTemplate(
 
       private fun findOrCreateReservation(): String {
         val reservationManager =
-          service<DirectAccessApplicationService>().getReservationManager(project)
+          project.directAccessCloudProjectManager?.reservationManager
             ?: throw RuntimeException("Unable to access ReservationManager.")
 
         val (reservationName, startTime) =
@@ -150,6 +149,7 @@ class DirectAccessDeviceTemplate(
             startTime
           )
         }
+        scope.launch { project.directAccessCloudProjectManager?.reservationListFlow?.refresh() }
         return reservationName
       }
 
@@ -179,7 +179,12 @@ class DirectAccessDeviceTemplate(
    */
   fun createDeviceHandleIfAbsent(reservationName: String): DeviceHandle? {
     if (isActivationStarted.compareAndSet(expect = false, update = true)) {
-      return createDeviceHandle(reservationName)
+      try {
+        return createDeviceHandle(reservationName)
+      } catch (e: Exception) {
+        isActivationStarted.value = false
+        throw e
+      }
     }
     return null
   }
