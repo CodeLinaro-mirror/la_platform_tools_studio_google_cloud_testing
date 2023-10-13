@@ -170,7 +170,7 @@ class SelectProjectActionTest {
     yieldUntil { errorPanel.isVisible }
     assertThat(errorPanel.text)
       .isEqualTo(
-        "$unsupportedProjectName does not have access to Direct Access. Select a different project."
+        "$unsupportedProjectName does not have access to Device Streaming. Select a different project."
       )
     val remainingMinutesLabel =
       selectBalloon.component
