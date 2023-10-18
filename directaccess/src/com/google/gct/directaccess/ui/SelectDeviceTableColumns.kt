@@ -54,11 +54,11 @@ internal object SelectDeviceTableColumns {
       Unit
   }
 
-  object Brand :
+  object Manufacturer :
     LabelColumn<SelectDeviceRowData>(
-      "Brand",
+      "Manufacturer",
       Column.SizeConstraint(min = 100, preferred = 200),
-      stringAttribute { it.deviceInfo.brand }
+      stringAttribute { it.deviceInfo.manufacturer }
     )
 
   object Name :
@@ -96,5 +96,5 @@ internal object SelectDeviceTableColumns {
       stringAttribute { it.deviceInfo.screenDensity.toString() }
     )
 
-  val columns = listOf(Selected, DeviceIcon, Brand, Name, Api, Width, Height, Dpi)
+  val columns = listOf(Selected, DeviceIcon, Manufacturer, Name, Api, Width, Height, Dpi)
 }

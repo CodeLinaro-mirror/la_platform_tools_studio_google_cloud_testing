@@ -21,6 +21,11 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
+import com.google.api.services.monitoring.v3.Monitoring;
+import com.google.api.services.monitoring.v3.model.PointData;
+import com.google.api.services.monitoring.v3.model.QueryTimeSeriesRequest;
+import com.google.api.services.monitoring.v3.model.QueryTimeSeriesResponse;
+import com.google.api.services.monitoring.v3.model.TimeSeriesData;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.testing.Testing;
 import com.google.api.services.testing.model.AndroidDeviceCatalog;
@@ -28,6 +33,12 @@ import com.google.api.services.toolresults.ToolResults;
 import com.google.gct.login.GoogleLogin;
 import com.google.gct.testing.CloudTestingUtils;
 import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Locale;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 
@@ -37,12 +48,15 @@ public class CloudAuthenticator {
 
   private static CloudAuthenticator instance;
 
-  /** Global instance of the HTTP transport. */
+  /**
+   * Global instance of the HTTP transport.
+   */
   private HttpTransport myHttpTransport;
   private Credential myCredential;
   private Storage myStorage;
   private CloudResourceManager myCloudResourceManager;
   private Testing myTest;
+  private Monitoring myMonitoring;
   private ToolResults myToolresults;
   private long myLastDiscoveryServiceInvocationTimestamp = -1;
 
@@ -121,6 +135,20 @@ public class CloudAuthenticator {
     return myTest;
   }
 
+  @NotNull
+  private Monitoring getMonitoring(@Nullable String endpoint) {
+    prepareCredential();
+    if (myMonitoring == null) {
+      Monitoring.Builder builder =
+        new Monitoring.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), myCredential).setApplicationName(APPLICATION_NAME);
+      if (endpoint != null) {
+        builder.setRootUrl(endpoint);
+      }
+      myMonitoring = builder.build();
+    }
+    return myMonitoring;
+  }
+
   /**
    * Get the {@link AndroidDeviceCatalog} for the given FTL {@code endpoint}.
    */
@@ -138,11 +166,12 @@ public class CloudAuthenticator {
         .execute()
         .getAndroidDeviceCatalog();
       if (catalog.getVersions().isEmpty() || catalog.getModels().isEmpty() || catalog.getRuntimeConfiguration().getLocales().isEmpty()
-        || catalog.getRuntimeConfiguration().getOrientations().isEmpty()) {
+          || catalog.getRuntimeConfiguration().getOrientations().isEmpty()) {
         showDeviceCatalogError("Android device catalog is empty for some dimensions", currentTimestamp);
       }
       return catalog;
-    } finally {
+    }
+    finally {
       myLastDiscoveryServiceInvocationTimestamp = currentTimestamp;
     }
   }
@@ -159,6 +188,94 @@ public class CloudAuthenticator {
       showDeviceCatalogError("Exception while getting Android device catalog\n\n" + e.getMessage(), System.currentTimeMillis());
       return null;
     }
+  }
+
+  @NotNull
+  private QueryTimeSeriesResponse queryMonitoring(@NotNull String endpoint, @NotNull String project, @NotNull String queryString)
+    throws IOException {
+    Monitoring monitoring = getMonitoring(endpoint);
+    QueryTimeSeriesRequest request = new QueryTimeSeriesRequest()
+      .setQuery(queryString)
+      .setPageSize(200);
+    return monitoring.projects().timeSeries()
+      .query(project, request)
+      .execute();
+  }
+
+  /**
+   * Returns remaining quota in minutes for the endPoint and project, -1 if not available.
+   *
+   * @param endpoint end point of the monitoring backend, effective only for the first calling
+   * @param project  name of the cloud project
+   */
+  public long getRemainingQuota(@NotNull String endpoint, @NotNull String project) {
+    Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    calendar.setTimeInMillis(getTimestampAtMidnightInPDT());
+    // Sets up the beginning date of the query interval.
+    String date = String.format(Locale.US, "d'%d/%d/%d 7:00'",
+                                calendar.get(Calendar.YEAR),
+                                calendar.get(Calendar.MONTH) + 1,
+                                calendar.get(Calendar.DAY_OF_MONTH));
+
+    try {
+      QueryTimeSeriesResponse usageResponse = queryMonitoring(
+        endpoint,
+        project,
+        "fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/rate/net_usage'\n" +
+        "| filter metric.quota_metric==\"testing.googleapis.com/direct_access/blaze_physical_minutes\" " +
+        "|| metric.quota_metric==\"testing.googleapis.com/direct_access/spark_physical_minutes\"\n" +
+        "| within " + date
+      );
+      // Response does not has enough data to determine usage.
+      if (usageResponse.size() < 2) {
+        return -1;
+      }
+      long usageNumber = sumNumbers(usageResponse);
+      QueryTimeSeriesResponse limitResponse = queryMonitoring(
+        endpoint,
+        project,
+        "fetch consumer_quota\n" +
+        "| metric 'serviceruntime.googleapis.com/quota/limit'\n" +
+        "| filter metric.limit_name==\"BlazePhysicalDeviceDirectAccessMinutesPerDayPerProject\"" +
+        "|| metric.limit_name==\"SparkPhysicalDeviceDirectAccessMinutesPerDayPerProject\"\n" +
+        "| within " + date
+      );
+      long limitNumber = findNumber(limitResponse);
+      // Response does not has enough data to determine usage limit.
+      if (usageResponse.size() < 2) {
+        return -1;
+      }
+      return limitNumber - usageNumber;
+    }
+    catch (Exception e) {
+      // TODO: Surface errors in the UI.
+      CloudTestingUtils.showErrorMessage(null, "Error retrieving remaining quotas",
+                                         "Failed to retrieve remaining quotas! Please try again later.\n" + e.getLocalizedMessage());
+      return -1;
+    }
+  }
+
+  /**
+   * Returns the timestamp in millis of last midnight in Pacific Daylight Time, when quotas usage for firebase cloud projects are refreshed.
+   */
+  private long getTimestampAtMidnightInPDT() {
+    long dayInMillis = TimeUnit.DAYS.toMillis(1);
+    long nowInMillis = Instant.now().toEpochMilli();
+    // Millis of the first midnight for UTC-7 time zone.
+    long midnightInMillis = TimeUnit.HOURS.toMillis(7);
+    // Millis of the latest midnight for UTC-7 time zone.
+    return midnightInMillis + (nowInMillis - midnightInMillis) / dayInMillis * dayInMillis;
+  }
+
+  private long findNumber(@NotNull QueryTimeSeriesResponse item) {
+    TimeSeriesData timeSeriesData = (TimeSeriesData)((ArrayList<?>)item.get("timeSeriesData")).get(0);
+    PointData pointData = timeSeriesData.getPointData().get(0);
+    return pointData.getValues().get(0).getInt64Value();
+  }
+
+  private long sumNumbers(@NotNull QueryTimeSeriesResponse item) {
+    TimeSeriesData timeSeriesData = (TimeSeriesData)((ArrayList<?>)item.get("timeSeriesData")).get(0);
+    return timeSeriesData.getPointData().stream().mapToLong((a) -> a.getValues().get(0).getInt64Value()).sum();
   }
 
   private void showDeviceCatalogError(String errorMessageSuffix, long currentTimestamp) {
@@ -197,7 +314,8 @@ public class CloudAuthenticator {
   private HttpTransport createHttpTransport() {
     try {
       return GoogleNetHttpTransport.newTrustedTransport();
-    } catch (Exception e) {
+    }
+    catch (Exception e) {
       System.err.println(e.getMessage());
       throw new RuntimeException("Failed to acquire HTTP transport for Google Cloud Storage!");
     }
@@ -220,5 +338,4 @@ public class CloudAuthenticator {
   public static boolean isUserLoggedIn() {
     return GoogleLogin.getInstance().getCredential() != null;
   }
-
 }

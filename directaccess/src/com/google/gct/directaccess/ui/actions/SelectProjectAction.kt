@@ -51,6 +51,7 @@ import icons.FirebaseIcons
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
@@ -106,6 +107,11 @@ class SelectProjectAction(
           isEditable = false
           isVisible = false
         }
+      val remainingMinutesLabel =
+        JBLabel().apply {
+          foreground = StandardColors.DISABLED_TEXT_COLOR
+          updateRemainingQuota(this, -1)
+        }
       add(
         JBLabel("Firebase Direct Access", JBLabel.LEFT).apply {
           font = AdtUiUtils.DEFAULT_FONT.biggerOn(7f)
@@ -130,7 +136,7 @@ class SelectProjectAction(
               selector.isReady.takeWhile { !it }.collect()
               withContext(AndroidDispatchers.uiThread) { balloon.revalidate() }
               selector.selectedProject.collect {
-                onProjectChanged(project, it, balloon, errorTextPane)
+                onProjectChanged(project, it, balloon, errorTextPane, remainingMinutesLabel)
               }
             }
           } else {
@@ -144,7 +150,7 @@ class SelectProjectAction(
       add(
         JPanel(HorizontalLayout(3)).apply {
           add(JBLabel("Remaining project time:"))
-          add(JBLabel("-- mins").apply { foreground = StandardColors.DISABLED_TEXT_COLOR })
+          add(remainingMinutesLabel)
           isOpaque = false
         }
       )
@@ -169,7 +175,8 @@ class SelectProjectAction(
     project: Project,
     cloudProject: String,
     balloon: Balloon,
-    errorTextPane: JBTextArea
+    errorTextPane: JBTextArea,
+    remainingMinutesLabel: JBLabel
   ) {
     if (cloudProject.isEmpty()) {
       return
@@ -184,12 +191,32 @@ class SelectProjectAction(
           errorTextPane.text =
             "$cloudProject does not have access to Direct Access. Select a different project."
           errorTextPane.isVisible = true
+          updateRemainingQuota(remainingMinutesLabel, -1)
         } else {
           errorTextPane.isVisible = false
           errorTextPane.text = ""
+          launch {
+            updateRemainingQuota(
+              remainingMinutesLabel,
+              withContext(Dispatchers.IO) {
+                project.directAccessCloudProjectManager?.remainingMinutes ?: -1
+              }
+            )
+            balloon.revalidate()
+          }
         }
         balloon.revalidate()
       }
     }
+  }
+
+  private fun updateRemainingQuota(remainingMinutesLabel: JBLabel, remainingMinutes: Long) {
+    val text =
+      when {
+        remainingMinutes < 0 -> "--"
+        remainingMinutes < 30 -> "less than 30"
+        else -> remainingMinutes.toString()
+      }
+    remainingMinutesLabel.text = "$text mins"
   }
 }
