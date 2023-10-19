@@ -23,6 +23,7 @@ import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.flags.ExternalSettings
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.directAccessCloudProjectManager
@@ -81,7 +82,7 @@ class SelectProjectAction(
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
-    e.presentation.isVisible = StudioFlags.DIRECT_ACCESS.get()
+    e.presentation.isVisible = service<ExternalSettings>().enableDeviceStreaming
   }
 
   override fun actionPerformed(e: AnActionEvent) {
