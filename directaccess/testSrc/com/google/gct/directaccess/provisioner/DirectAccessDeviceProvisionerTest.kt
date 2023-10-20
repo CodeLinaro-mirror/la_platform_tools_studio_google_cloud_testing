@@ -63,11 +63,14 @@ import com.google.services.firebase.directaccess.client.DirectAccessReservationM
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.deviceAddress
+import com.google.services.firebase.directaccess.client.isActive
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DeviceInfo
 import com.intellij.icons.AllIcons
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
+import com.intellij.notification.NotificationDisplayType
+import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.TestDialog
@@ -913,6 +916,56 @@ class DirectAccessDeviceProvisionerTest {
         dialog.clickDefaultButton()
       }
     }
+  }
+
+  @Test
+  fun testStickyNotificationOnReservationExpiry() = runBlockingWithTimeout {
+    val deviceInfo = deviceInfoListProvider()[0]
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val flow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    flow.waitUntilActive()
+
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = handle.connection.deviceAddress()!!.address
+    // We intentionally add a suffix to verify if the properties have been updated.
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
+      )
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    yieldUntil { handle.state is Connected }
+
+    directAccessReservationManager.cancelReservation(flow.value.name)
+
+    yieldUntil { !flow.value.isActive() }
+    assertThat(template.activeDevice).isNull()
+
+    val notificationsList = getNotifications(projectRule.project)
+    assertThat(notificationsList.size).isEqualTo(1)
+
+    val notification = notificationsList[0]
+    assertThat(notification.title).isEqualTo("${template.properties.title} session ended")
+    assertThat(notification.icon).isEqualTo(handle.icon)
+    assertThat(notification.groupId).isEqualTo("Direct Access Sticky")
+    val notificationGroup =
+      service<NotificationGroupManager>().getNotificationGroup(notification.groupId)
+    assertThat(notificationGroup.displayType).isEqualTo(NotificationDisplayType.STICKY_BALLOON)
+
+    val actions = notification.actions
+    assertThat(actions.size).isEqualTo(1)
+    val action = actions[0] as NotificationAction
+    action.actionPerformed(mock(), notification)
+    yieldUntil { notification.isExpired }
+    // New device was created from the template
+    yieldUntil { template.activeDevice != null }
   }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {

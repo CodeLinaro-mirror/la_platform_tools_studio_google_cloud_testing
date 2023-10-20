@@ -34,6 +34,7 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <notificationGroup id="Direct Access" displayType="BALLOON"/>
+    <notificationGroup id="Direct Access Sticky" displayType="STICKY_BALLOON" />
   </extensions>
 
   <actions>

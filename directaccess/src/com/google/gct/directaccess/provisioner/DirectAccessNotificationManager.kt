@@ -22,8 +22,10 @@ import com.google.services.firebase.directaccess.client.deviceAddress
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroup
+import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.invokeLater
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
@@ -31,6 +33,9 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.ui.EditorNotificationPanel
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.EmptyCoroutineContext
@@ -53,7 +58,11 @@ import kotlinx.coroutines.sync.withLock
  * All notification should expire automatically when related actions are triggered.
  */
 private val notificationGroup: NotificationGroup
-  get() = NotificationGroup.findRegisteredGroup("Direct Access")!!
+  get() = service<NotificationGroupManager>().getNotificationGroup("Direct Access")
+
+/** Creates sticky notifications that require the user to interact with it inorder to dismiss it */
+private val stickyNotificationGroup: NotificationGroup
+  get() = service<NotificationGroupManager>().getNotificationGroup("Direct Access Sticky")
 
 private val RESERVATION_EXPIRING_SECONDS = TimeUnit.MINUTES.toSeconds(5)
 
@@ -67,6 +76,15 @@ class DirectAccessNotificationManager(
   private var deviceDisconnectedNotification: Notification? = null
   private val reservationExpiringNotification =
     ReservationExpiringNotification(project, deviceHandle)
+
+  private val deviceName: String
+    get() = deviceHandle.sourceTemplate.properties.title
+
+  private val formattedEndTime: String
+    get() =
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        .withZone(ZoneId.systemDefault())
+        .format(deviceHandle.state.reservation?.endTime)
 
   private val mutex = Mutex()
 
@@ -146,6 +164,25 @@ class DirectAccessNotificationManager(
   /** Handles panel visibility changes */
   fun onDevicePanelVisibilityChanged() {
     if (reservationExpiringNotification.notificationVisible) reservationExpiringNotification.show()
+  }
+
+  fun showReservationExpiredNotification() {
+    stickyNotificationGroup
+      .createNotification(
+        "$deviceName session ended",
+        "Your device session ended at $formattedEndTime. The device was returned and erased.",
+        NotificationType.INFORMATION
+      )
+      .setIcon(deviceHandle.icon)
+      .addAction(
+        NotificationAction.createSimpleExpiring("Reserve new device") {
+          // deviceHandle's scope will be cancelled and cannot be used here.
+          CoroutineScope(EmptyCoroutineContext).launch {
+            deviceHandle.sourceTemplate.activationAction.activate()
+          }
+        }
+      )
+      .notify(project)
   }
 
   private fun getDeviceDisconnectedNotificationPhrase(reservationExpireTime: Long): String? {

@@ -108,6 +108,8 @@ class DirectAccessDeviceHandle(
   private var hasUserDisconnectedDevice = false
   /** Tracks device force check in */
   private var hasUserForceCheckedInDevice = false
+  /** Tracks [Reservation] activated */
+  private var hasReservationActivated = false
   /** [ContentManagerListener] that listens to panel changes in RDW */
   private var rdwPanelChangeListener: ContentManagerListener? = null
 
@@ -123,6 +125,9 @@ class DirectAccessDeviceHandle(
       .invokeOnCompletion { throwable ->
         if (!shouldTrackEndReservation(throwable, reservationFlow.value.sessionState)) {
           return@invokeOnCompletion
+        }
+        if (hasReservationActivated && state.connectedDevice != null) {
+          notificationManager.showReservationExpiredNotification()
         }
 
         if (reservationFlow.value.sessionState == SessionState.EXPIRED) {
@@ -159,6 +164,9 @@ class DirectAccessDeviceHandle(
         SessionState.FINISHED -> ReservationState.COMPLETE
         else -> ReservationState.ERROR
       }
+    if (reservationState == ReservationState.ACTIVE) {
+      hasReservationActivated = true
+    }
     return com.android.sdklib.deviceprovisioner.Reservation(
       reservationState,
       "",
