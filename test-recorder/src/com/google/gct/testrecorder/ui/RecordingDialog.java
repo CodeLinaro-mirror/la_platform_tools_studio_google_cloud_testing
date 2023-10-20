@@ -45,6 +45,7 @@ import com.android.ide.common.repository.GoogleMavenArtifactId;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.gradle.dependencies.DependenciesHelper;
+import com.android.tools.idea.gradle.dependencies.ExactDependencyMatcher;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
@@ -1012,7 +1013,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       private void addArtifact(@NotNull ArtifactDependencySpec dependency,
                                @NotNull List<ArtifactDependencySpec> excludes){
         DependenciesHelper helper = new DependenciesHelper(projectModel);
-        helper.addDependency(ANDROID_TEST_IMPLEMENTATION, dependency.compactNotation(), excludes, gradleBuildModel);
+        String compactNotation = dependency.compactNotation();
+        helper.addDependency(ANDROID_TEST_IMPLEMENTATION,
+                             compactNotation,
+                             excludes,
+                             new ExactDependencyMatcher(compactNotation),
+                             gradleBuildModel);
       }
     }.queue();
   }
