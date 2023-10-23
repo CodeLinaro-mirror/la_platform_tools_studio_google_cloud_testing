@@ -26,6 +26,7 @@ import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxTargetProvider;
 import com.google.common.collect.Lists;
+import com.google.gct.testrecorder.run.TestRecorderInfo;
 import com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxy;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
@@ -65,7 +66,7 @@ public class TestRecorderAction extends AnAction {
   private final static String RECORD_TEST_ACTION_TEXT = "Record Espresso Test";
   public static final Icon TEST_RECORDER_ICON = StudioIcons.Test.RECORD_ESPRESSO_TEST;
   public static final Icon SCRIPT_RECORDER_ICON = IconLoader.getIcon("robo_dot.png", TestRecorderAction.class);
-  public static final Key<Boolean> KEY = Key.create("test.recorder.launch");
+  public static final Key<TestRecorderInfo> KEY = Key.create("test.recorder.launch");
 
   @NotNull
   @Override
@@ -207,7 +208,7 @@ public class TestRecorderAction extends AnAction {
 
     ExecutionEnvironment environment = builder.build();
 
-    environment.putCopyableUserData(KEY, true);
+    environment.putCopyableUserData(KEY, new TestRecorderInfo(isRecordingTest));
 
     ProgramRunnerUtil.executeConfiguration(environment, false, true);
   }

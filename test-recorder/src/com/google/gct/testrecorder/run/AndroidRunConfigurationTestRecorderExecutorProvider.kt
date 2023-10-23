@@ -34,7 +34,7 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
     val configuration = env.runProfile
     if (configuration !is AndroidRunConfiguration) return null
 
-    if (env.getCopyableUserData(TestRecorderAction.KEY) != true) return null
+    val isRecordingTest = env.getCopyableUserData(TestRecorderAction.KEY)?.isRecordingTest ?: return null
 
     val deviceFutures = env.getCopyableUserData(DeviceFutures.KEY)
 
@@ -53,9 +53,11 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
       )
       val activityName = (configuration.getLaunchOptionState(configuration.MODE) as? SpecificActivityLaunch.State)?.ACTIVITY_CLASS ?: ""
 
-      return TestRecorderExecutor(env, baseExecutor, activityName, baseExecutor.facet) { indicator ->
+      return TestRecorderExecutor(env, baseExecutor, activityName, baseExecutor.facet, isRecordingTest) { indicator ->
         runBlockingCancellable { getApplicationIdAndDevices(env, deviceFutures, applicationIdProvider, indicator) }
       }
     }
   }
 }
+
+data class TestRecorderInfo(val isRecordingTest: Boolean)

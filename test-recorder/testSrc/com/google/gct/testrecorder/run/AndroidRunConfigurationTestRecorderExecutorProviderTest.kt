@@ -53,9 +53,10 @@ class AndroidRunConfigurationTestRecorderExecutorProviderTest {
     config.executeMakeBeforeRunStepInTest(device)
 
     val env = ExecutionEnvironmentBuilder.create(DefaultRunExecutor.getRunExecutorInstance(), settings).build()
-    env.putCopyableUserData(TestRecorderAction.KEY, true)
+    env.putCopyableUserData(TestRecorderAction.KEY, TestRecorderInfo(false))
 
     val state = config.getState(DefaultDebugExecutor.getDebugExecutorInstance(), env) as AndroidConfigurationExecutorRunProfileState
     Truth.assertThat(state.executor).isInstanceOf(TestRecorderExecutor::class.java)
+    Truth.assertThat((state.executor as TestRecorderExecutor).isRecordingTest).isFalse()
   }
 }
