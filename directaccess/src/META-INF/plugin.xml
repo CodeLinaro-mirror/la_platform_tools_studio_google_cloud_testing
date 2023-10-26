@@ -15,11 +15,11 @@
   -->
 <idea-plugin>
   <id>com.google.gct.directaccess</id>
-  <name>Firebase Direct Access</name>
+  <name>Device Streaming</name>
   <version>1.0</version>
   <vendor>Google</vendor>
 
-  <description>Enables Firebase Direct Access Tab for Device Manager.</description>
+  <description>Enables Device Streaming Tab for Device Manager.</description>
 
   <depends>org.jetbrains.android</depends>
   <depends>com.google.gct.testing</depends>

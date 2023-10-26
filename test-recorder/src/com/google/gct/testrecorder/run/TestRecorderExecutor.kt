@@ -30,12 +30,14 @@ import com.intellij.execution.ui.RunContentDescriptor
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProgressIndicator
 import org.jetbrains.android.facet.AndroidFacet
+import org.jetbrains.annotations.VisibleForTesting
 
 class TestRecorderExecutor(
   private val env: ExecutionEnvironment,
   private val baseExecutor: AndroidConfigurationExecutor,
   private val specificActivityName: String?,
   private val facet:AndroidFacet,
+  @VisibleForTesting val isRecordingTest: Boolean,
   private val getApplicationIdAndDevices:(indicator: ProgressIndicator) -> Pair<String, List<IDevice>>
 ) : AndroidConfigurationExecutor {
 
@@ -65,7 +67,7 @@ class TestRecorderExecutor(
             env,
             device,
             packageName,
-            true,
+            isRecordingTest,
             specificActivityName,
             session
           )

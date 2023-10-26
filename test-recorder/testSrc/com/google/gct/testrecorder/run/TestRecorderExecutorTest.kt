@@ -1,8 +1,6 @@
 package com.google.gct.testrecorder.run
 
 import com.android.ddmlib.IDevice
-import com.android.testutils.MockitoKt.any
-import com.android.testutils.MockitoKt.eq
 import com.android.testutils.MockitoKt.mock
 import com.android.tools.analytics.UsageTrackerRule
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutor
@@ -21,7 +19,6 @@ import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.progress.ProgressIndicator
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.verify
 
 class TestRecorderExecutorTest  {
 
@@ -36,7 +33,7 @@ class TestRecorderExecutorTest  {
     val settings = RunManager.getInstance(projectRule.project).createConfiguration("app", AndroidRunConfigurationType.getInstance().factory)
 
     val env = ExecutionEnvironmentBuilder.create(DefaultRunExecutor.getRunExecutorInstance(), settings).build()
-    env.putCopyableUserData(TestRecorderAction.KEY, true)
+    env.putCopyableUserData(TestRecorderAction.KEY, TestRecorderInfo(true))
 
     val runStats = RunStats(projectRule.project)
     env.putUserData(RunStats.KEY, runStats)
@@ -67,7 +64,7 @@ class TestRecorderExecutorTest  {
 
     val device = mock<IDevice>()
 
-    val executor = TestRecorderExecutor(env, baseExecutor, "", projectRule.module.androidFacet!!) {
+    val executor = TestRecorderExecutor(env, baseExecutor, "", projectRule.module.androidFacet!!, true) {
       Pair("appId", listOf(device))
     }
 

@@ -72,7 +72,7 @@ class SelectProjectAction(
     { preferredProject, isEnabled ->
       DirectAccessProjectSelectorImpl(preferredProject, isEnabled)
     }
-) : AnAction("Configure Direct Access Project", "text", FirebaseIcons.ACTION_ICON) {
+) : AnAction("Configure Device Streaming Project", "text", FirebaseIcons.ACTION_ICON) {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
@@ -113,7 +113,7 @@ class SelectProjectAction(
           updateRemainingQuota(this, -1)
         }
       add(
-        JBLabel("Firebase Direct Access", JBLabel.LEFT).apply {
+        JBLabel("Device Streaming", JBLabel.LEFT).apply {
           font = AdtUiUtils.DEFAULT_FONT.biggerOn(7f)
         }
       )
@@ -189,7 +189,7 @@ class SelectProjectAction(
         if (reservations == null) {
           // TODO (b/283882413): show different reasons for project without access.
           errorTextPane.text =
-            "$cloudProject does not have access to Direct Access. Select a different project."
+            "$cloudProject does not have access to Device Streaming. Select a different project."
           errorTextPane.isVisible = true
           updateRemainingQuota(remainingMinutesLabel, -1)
         } else {

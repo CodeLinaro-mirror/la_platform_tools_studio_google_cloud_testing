@@ -192,9 +192,7 @@ class DirectAccessDeviceHandle(
           stateFlow.update {
             val reservation =
               it.reservation
-                ?: throw DeviceActionException(
-                    "Reservation required to activate Direct Access Device"
-                  )
+                ?: throw DeviceActionException("Reservation required to activate Streaming Device")
                   .also {
                     // TODO(b/277240160): Add correct failure reason
                     trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
