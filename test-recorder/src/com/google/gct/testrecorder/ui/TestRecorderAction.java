@@ -15,8 +15,6 @@
  */
 package com.google.gct.testrecorder.ui;
 
-import static org.apache.commons.lang.StringUtils.isEmpty;
-
 import com.android.annotations.VisibleForTesting;
 import com.android.ide.common.repository.GoogleMavenArtifactId;
 import com.android.ide.common.repository.GradleCoordinate;
@@ -52,6 +50,7 @@ import com.intellij.openapi.ui.popup.PopupStep;
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.Key;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.popup.list.ListPopupImpl;
 import icons.StudioIcons;
 import java.util.List;
@@ -161,7 +160,7 @@ public class TestRecorderAction extends AnAction {
       attemptLaunchTestRecorderOnConfiguration(project, configurationBase, isRecordingTest);
     }
     catch (ExecutionException e) {
-      String message = isEmpty(e.getMessage()) ? "Unknown error" : e.getMessage();
+      String message = StringUtil.isEmpty(e.getMessage()) ? "Unknown error" : e.getMessage();
       Messages.showDialog(project, message, "Could not launch Espresso Test Recorder", new String[]{"OK"}, 0, null);
     }
   }
