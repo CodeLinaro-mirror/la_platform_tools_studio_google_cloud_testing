@@ -662,6 +662,41 @@ class DirectAccessUsageTrackerTest {
   }
 
   @Test
+  fun trackEndReservationSuccessMetricWhenReservationStateFinished() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection ==
+        DirectAccessConnection.ConnectionState.CONNECTED
+    }
+    val reservationFlow =
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    reservationFlow.waitUntilActive()
+
+    // Simulates force check-in in other project.
+    (reservationFlow as MutableStateFlow).update {
+      it.toBuilder().apply { sessionState = Reservation.SessionState.FINISHED }.build()
+    }
+    yieldUntil { reservationFlow.value.sessionState.isClosed() }
+
+    val studioEvent = findUsageEvent(END_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(END_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+
+    val endReservationDetails = directAccessEvent.endReservationDetails
+    assertThat(endReservationDetails.success).isTrue()
+    assertThat(endReservationDetails.connectionMetrics.maxLatencyMs).isEqualTo(100)
+    assertThat(endReservationDetails.connectionMetrics.p90LatencyMs).isEqualTo(90)
+    assertThat(endReservationDetails.connectionMetrics.p50LatencyMs).isEqualTo(50)
+    assertThat(endReservationDetails.endReservationType).isEqualTo(FORCE_CHECK_IN)
+  }
+
+  @Test
   fun trackEndReservationFailMetricWhenReservationEndsDueToError() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
