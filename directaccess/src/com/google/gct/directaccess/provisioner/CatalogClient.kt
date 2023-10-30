@@ -54,21 +54,17 @@ object CatalogClient {
                         catalogBuildNumber <= ApplicationInfo.getInstance().build
                     })
           }
-          ?.mapNotNull {
-            try {
-              model.createDeviceInfo(it.versionId.toInt())
-            } catch (e: Exception) {
-              logger.info("Could not create DeviceInfo for model: $model", e)
-              null
-            }
-          } ?: listOf()
+          ?.mapNotNull { model.createDeviceInfo(it.versionId.toInt()) } ?: listOf()
       }
   }
 
   private fun isUnfilteredDevices(): Boolean =
     System.getProperty("da_unfiltered_devices").toBoolean()
 
-  private fun AndroidModel.createDeviceInfo(api: Int): DeviceInfo {
+  private fun AndroidModel.createDeviceInfo(api: Int): DeviceInfo? {
+    if (isAnyDeviceInfoValueNull()) {
+      return null
+    }
     val type =
       when (get("formFactor")) {
         // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
@@ -90,6 +86,28 @@ object CatalogClient {
       screenY,
       screenDensity
     )
+  }
+
+  private fun AndroidModel.isAnyDeviceInfoValueNull(): Boolean {
+    val nullValue =
+      when {
+        id == null -> "id"
+        brand == null -> "brand"
+        name == null -> "name"
+        manufacturer == null -> "manufacturer"
+        codename == null -> "codename"
+        screenX == null -> "screenX"
+        screenY == null -> "screenY"
+        screenDensity == null -> "screenDensity"
+        else -> null
+      }
+
+    return if (nullValue == null) {
+      false
+    } else {
+      logger.warn("$nullValue is null for $this")
+      true
+    }
   }
 }
 
