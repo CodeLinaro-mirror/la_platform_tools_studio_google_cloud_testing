@@ -42,6 +42,9 @@ import icons.StudioIcons;
 import java.awt.Color;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import javax.imageio.ImageIO;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -226,5 +229,18 @@ public class CloudTestingUtils {
     catch (Exception e) {
       LOG.warn(e);
     }
+  }
+
+  /**
+   * Returns the timestamp in millis of last midnight in Pacific Time, when quotas usage for firebase cloud projects are refreshed.
+   */
+  public static long getTimestampAtMidnightInPT(Instant instant) {
+    return ZonedDateTime.ofInstant(instant, ZoneId.of("America/Los_Angeles"))
+      .withHour(0)
+      .withMinute(0)
+      .withSecond(0)
+      .withNano(0)
+      .toInstant()
+      .toEpochMilli();
   }
 }

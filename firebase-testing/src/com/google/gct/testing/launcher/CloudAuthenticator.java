@@ -210,7 +210,7 @@ public class CloudAuthenticator {
    */
   public long getRemainingQuota(@NotNull String endpoint, @NotNull String project) {
     Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-    calendar.setTimeInMillis(getTimestampAtMidnightInPDT());
+    calendar.setTimeInMillis(CloudTestingUtils.getTimestampAtMidnightInPT(Instant.now()));
     // Sets up the beginning date of the query interval.
     String date = String.format(Locale.US, "d'%d/%d/%d 7:00'",
                                 calendar.get(Calendar.YEAR),
@@ -253,18 +253,6 @@ public class CloudAuthenticator {
                                          "Failed to retrieve remaining quotas! Please try again later.\n" + e.getLocalizedMessage());
       return -1;
     }
-  }
-
-  /**
-   * Returns the timestamp in millis of last midnight in Pacific Daylight Time, when quotas usage for firebase cloud projects are refreshed.
-   */
-  private long getTimestampAtMidnightInPDT() {
-    long dayInMillis = TimeUnit.DAYS.toMillis(1);
-    long nowInMillis = Instant.now().toEpochMilli();
-    // Millis of the first midnight for UTC-7 time zone.
-    long midnightInMillis = TimeUnit.HOURS.toMillis(7);
-    // Millis of the latest midnight for UTC-7 time zone.
-    return midnightInMillis + (nowInMillis - midnightInMillis) / dayInMillis * dayInMillis;
   }
 
   private long findNumber(@NotNull QueryTimeSeriesResponse item) {
