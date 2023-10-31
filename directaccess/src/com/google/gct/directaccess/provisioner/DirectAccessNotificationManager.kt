@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.intellij.notification.Notification
@@ -125,12 +126,16 @@ class DirectAccessNotificationManager(
           )
           .addAction(
             NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
-              deviceHandle.scope.launch { deviceHandle.activationAction.activate() }
+              deviceHandle.launchCatchingDeviceActionException(project = project) {
+                activationAction.activate()
+              }
             }
           )
           .addAction(
             NotificationAction.createExpiring("Return and erase device") { _, _ ->
-              deviceHandle.scope.launch { deviceHandle.reservationAction.endReservation() }
+              deviceHandle.launchCatchingDeviceActionException(project = project) {
+                reservationAction.endReservation()
+              }
             }
           )
           .setIcon(deviceHandle.icon)
@@ -288,8 +293,8 @@ class DirectAccessNotificationManager(
 
     /** Extends the reservation and expires notification */
     private fun extendReservation() =
-      deviceHandle.scope.launch {
-        deviceHandle.reservationAction.reserve(Duration.ofMinutes(30))
+      deviceHandle.launchCatchingDeviceActionException(project = project) {
+        reservationAction.reserve(Duration.ofMinutes(30))
         expire()
       }
 
