@@ -47,12 +47,12 @@ import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.pom.java.LanguageLevel;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.commons.lang.StringUtils;
 import com.android.tools.sdk.AndroidTargetData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -173,7 +173,7 @@ public class TestCodeMapper {
 
   @VisibleForTesting
   boolean isOverflowMenuButton(String className) {
-    if (StringUtils.isEmpty(className)) {
+    if (StringUtil.isEmpty(className)) {
       return false;
     }
     return className.startsWith("android.") && className.endsWith(".widget.ActionMenuPresenter.OverflowMenuButton");

@@ -17,7 +17,7 @@ package com.google.gct.testrecorder.event;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import org.apache.commons.lang.StringUtils;
+import com.intellij.openapi.util.text.StringUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
@@ -182,7 +182,7 @@ public class TestRecorderEvent extends ElementAction {
   @Override
   public String getRendererString() {
     if (isPermissionsRequest()) {
-      return getIdAttributeDisplayPresentation("", StringUtils.join(requestedPermissions, "<br>"));
+      return getIdAttributeDisplayPresentation("", StringUtil.join(requestedPermissions, "<br>"));
     }
 
     if (isDelayedMessagePost()) {

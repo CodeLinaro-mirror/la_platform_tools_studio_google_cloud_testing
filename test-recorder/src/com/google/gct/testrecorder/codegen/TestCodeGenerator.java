@@ -16,7 +16,6 @@
 package com.google.gct.testrecorder.codegen;
 
 import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
-import static com.google.gct.testrecorder.util.StringHelper.boxString;
 import static com.google.gct.testrecorder.util.StringHelper.getClassName;
 import static com.google.gct.testrecorder.util.StringHelper.getPackageName;
 import static com.google.gct.testrecorder.util.StringHelper.lowerCaseFirstCharacter;
@@ -32,6 +31,7 @@ import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.ui.RecordingDialog;
 import com.google.gct.testrecorder.util.ResourceHelper;
+import com.google.gct.testrecorder.util.StringHelper;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
@@ -58,6 +58,7 @@ import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.progress.impl.CoreProgressManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
@@ -73,7 +74,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
@@ -313,7 +313,7 @@ public class TestCodeGenerator {
     if (!requestedPermissions.isEmpty()) {
       velocityContext.put("HasRequestedPermissions", true);
       velocityContext.put("RequestedPermissions",
-                          StringUtils.join(Collections2.transform(requestedPermissions, permission -> boxString(permission)), ",\n"));
+                          StringUtil.join(Collections2.transform(requestedPermissions, StringHelper::boxString), ",\n"));
     }
 
     velocityContext.put("AddContribImport", codeMapper.isRecyclerViewActionAdded());

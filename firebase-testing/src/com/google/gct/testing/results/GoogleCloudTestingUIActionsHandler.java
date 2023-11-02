@@ -21,6 +21,7 @@ import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.TestFrameworkRunningModel;
 import com.intellij.execution.testframework.actions.ScrollToTestSourceAction;
 import com.intellij.execution.testframework.sm.runner.ProxyFilters;
+import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.util.OpenSourceUtil;
 import org.jetbrains.annotations.NotNull;
@@ -83,7 +84,8 @@ public class GoogleCloudTestingUIActionsHandler extends GoogleCloudTestResultsVi
       @Override
       public void run() {
         if (ScrollToTestSourceAction.isScrollEnabled(model)) {
-          OpenSourceUtil.openSourcesFrom(model.getTreeView(), false);
+          DataContext dataContext = k -> model.getTreeView().getData(k);
+          OpenSourceUtil.openSourcesFrom(dataContext, false);
         }
       }
     }, ModalityState.NON_MODAL);

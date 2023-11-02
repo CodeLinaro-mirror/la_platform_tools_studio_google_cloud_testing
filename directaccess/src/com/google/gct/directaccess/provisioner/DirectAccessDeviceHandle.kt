@@ -36,6 +36,7 @@ import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.google.gct.directaccess.analytics.DirectAccessFeatureSurveys
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
@@ -45,6 +46,7 @@ import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.ContentManagerEvent
@@ -281,6 +283,7 @@ class DirectAccessDeviceHandle(
               reservationFlow.value.expireTime.seconds
             )
           }
+          service<DirectAccessFeatureSurveys>().trackDisconnection()
         }
 
       private val defaultPresentation =
@@ -337,6 +340,7 @@ class DirectAccessDeviceHandle(
             throw DeviceActionException("Could not end reservation", e)
           }
           trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
+          service<DirectAccessFeatureSurveys>().trackDisconnection()
         }
 
       /** [ReservationAction] is enabled through the lifecycle of the device handle. */
@@ -395,6 +399,7 @@ class DirectAccessDeviceHandle(
         }
         trackDisconnectMetric(true)
       }
+    service<DirectAccessFeatureSurveys>().trackConnection()
     return true
   }
 

@@ -19,7 +19,6 @@ import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
-import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adbbridge.Reservation
@@ -36,6 +35,8 @@ import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.DirectAccessProjectSelector
+import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
+import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginStateRule
 import com.google.gct.login.LoginStatus
@@ -43,6 +44,7 @@ import com.google.services.firebase.directaccess.client.FakeDirectAccessReservat
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
@@ -63,6 +65,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
+import org.mockito.Mockito.any
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
@@ -72,6 +75,8 @@ class SelectProjectActionTest {
   private val projectRule = ProjectRule()
   private val popupRule = JBPopupRule()
   private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+  // Simulate the fake properties component using a map
+  private val fakePropertiesComponent = mutableMapOf<Project, String>()
   @get:Rule
   val ruleChain = RuleChain.outerRule(projectRule).around(popupRule).around(loginStateRule)!!
 
@@ -109,7 +114,8 @@ class SelectProjectActionTest {
     val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
     doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
     doAnswer {
-        val cloudProjectName = it.arguments[0] as String
+        val cloudProjectName = it.arguments[0] as? String
+        cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
         cloudProjectManagerFlow.value =
           createCloudProjectManager(
             scope,
@@ -130,7 +136,7 @@ class SelectProjectActionTest {
     assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
       .isInstanceOf(SelectProjectAction::class.java)
 
-    val selectProjectAction = SelectProjectAction { _, isEnabled ->
+    val selectProjectAction = SelectProjectAction { _, isEnabled, _ ->
       FakeDirectAccessProjectSelector(isEnabled)
     }
 
@@ -178,11 +184,22 @@ class SelectProjectActionTest {
         .filter { it.text.endsWith("mins") }
         .first()
     assertThat(remainingMinutesLabel.text).isEqualTo("-- mins")
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unsupportedProjectName)
+
+    textField.text = ERROR_FETCHING_FIREBASE_PROJECT
+    assertThat(fakePropertiesComponent[projectRule.project])
+      .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unsupportedProjectName)
+
+    textField.text = NO_PROJECTS_AVAILABLE
+    yieldUntil { cloudProjectManagerFlow.value == null }
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unsupportedProjectName)
 
     // Select a project that supports direct access.
     textField.text = supportedProjectName
     yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName }
     yieldUntil { !errorPanel.isVisible }
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
 
     yieldUntil { remainingMinutesLabel.text == "60 mins" }
 
@@ -195,13 +212,25 @@ class SelectProjectActionTest {
     Disposer.register(projectRule.disposable, disabledBalloon)
     val disabledTextField = disabledBalloon.component.findAllDescendants<JTextField>().first()
     assertThat(disabledTextField.isEnabled).isFalse()
+
+    selectProjectAction.actionPerformed(event)
+    val errorListingProjectBalloon = popupRule.fakePopupFactory.getNextBalloon()
+    Disposer.register(projectRule.disposable, errorListingProjectBalloon)
+    val textField2 = errorListingProjectBalloon.component.findAllDescendants<JTextField>().first()
+    textField2.text = ERROR_FETCHING_FIREBASE_PROJECT
+    assertThat(fakePropertiesComponent[projectRule.project])
+      .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
+    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
   }
 
   private fun createCloudProjectManager(
     scope: CoroutineScope,
-    name: String,
+    name: String?,
     isAuthorized: Boolean
-  ): DirectAccessCloudProjectManager {
+  ): DirectAccessCloudProjectManager? {
+    if (name == null) {
+      return null
+    }
     val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
     doReturn(CloudProjectEntry("", name)).whenever(mockCloudProjectManager).cloudProject
     val directAccessReservationManager =

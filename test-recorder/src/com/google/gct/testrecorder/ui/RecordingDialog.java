@@ -36,7 +36,6 @@ import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getText;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getViewGroupChildPosition;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.isTextView;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_ESPRESSO_SETUP;
-import static org.apache.commons.lang.StringUtils.isEmpty;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
@@ -46,6 +45,7 @@ import com.android.ide.common.repository.GoogleMavenArtifactId;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.gradle.dependencies.DependenciesHelper;
+import com.android.tools.idea.gradle.dependencies.ExactDependencyMatcher;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
@@ -93,6 +93,7 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.SystemInfoRt;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.psi.PsiClass;
@@ -128,7 +129,6 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
@@ -391,7 +391,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           BasicTreeNode node = (BasicTreeNode) value;
           // Add indent.
           int indent = myNodeIndentMap.get(node);
-          String prefix = StringUtils.repeat("  ", indent);
+          String prefix = StringUtil.repeat("  ", indent);
           // No indent for selected element.
           if (index == -1) {
             prefix = "";
@@ -629,7 +629,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         try {
           FileUtils.write(fileWrapper.getFile(), getJsonForActions(myProject, getAllModelActions()));
         } catch (Exception ex) {
-          String message = isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
+          String message = StringUtil.isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
           Messages.showMessageDialog(myRootPanel, message, "Could not save Robo script to a file", null);
         }
       }
@@ -1013,7 +1013,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       private void addArtifact(@NotNull ArtifactDependencySpec dependency,
                                @NotNull List<ArtifactDependencySpec> excludes){
         DependenciesHelper helper = new DependenciesHelper(projectModel);
-        helper.addDependency(ANDROID_TEST_IMPLEMENTATION, dependency.compactNotation(), excludes, gradleBuildModel);
+        String compactNotation = dependency.compactNotation();
+        helper.addDependency(ANDROID_TEST_IMPLEMENTATION,
+                             compactNotation,
+                             excludes,
+                             new ExactDependencyMatcher(compactNotation),
+                             gradleBuildModel);
       }
     }.queue();
   }
