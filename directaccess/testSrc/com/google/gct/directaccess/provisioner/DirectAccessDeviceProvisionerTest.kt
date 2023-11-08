@@ -570,7 +570,7 @@ class DirectAccessDeviceProvisionerTest {
       extendAction.actionPerformed(mock(), it)
       yieldUntil {
         handle.reservation.expireTime.seconds ==
-          service.instant.epochSecond + TimeUnit.MINUTES.toSeconds(35) + 10
+          handle.reservation.createTime.seconds + TimeUnit.MINUTES.toSeconds(35) + 10
       }
     }
 
