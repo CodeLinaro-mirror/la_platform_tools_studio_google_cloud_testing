@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidModel
+import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.intellij.openapi.application.ApplicationInfo
@@ -54,15 +55,15 @@ object CatalogClient {
                         catalogBuildNumber <= ApplicationInfo.getInstance().build
                     })
           }
-          ?.mapNotNull { model.createDeviceInfo(it.versionId.toInt()) } ?: listOf()
+          ?.mapNotNull { model.createDeviceInfo(it) } ?: listOf()
       }
   }
 
   private fun isUnfilteredDevices(): Boolean =
     System.getProperty("da_unfiltered_devices").toBoolean()
 
-  private fun AndroidModel.createDeviceInfo(api: Int): DeviceInfo? {
-    if (isAnyDeviceInfoValueNull()) {
+  private fun AndroidModel.createDeviceInfo(perVersionInfo: PerAndroidVersionInfo): DeviceInfo? {
+    if (isAnyDeviceInfoValueNull(perVersionInfo)) {
       return null
     }
     val type =
@@ -74,21 +75,26 @@ object CatalogClient {
         "WEARABLE" -> DeviceType.WEAR_OS
         else -> DeviceType.PHONE
       }
+    val deviceAvailabilityEstimateSeconds =
+      perVersionInfo.interactiveDeviceAvailabilityEstimate.substringBefore("s").toLong()
     return DeviceInfo(
       id,
       brand,
       name,
       manufacturer,
       codename,
-      api,
+      perVersionInfo.versionId.toInt(),
       type,
       screenX,
       screenY,
-      screenDensity
+      screenDensity,
+      deviceAvailabilityEstimateSeconds
     )
   }
 
-  private fun AndroidModel.isAnyDeviceInfoValueNull(): Boolean {
+  private fun AndroidModel.isAnyDeviceInfoValueNull(
+    perVersionInfo: PerAndroidVersionInfo
+  ): Boolean {
     val nullValue =
       when {
         id == null -> "id"
@@ -99,6 +105,9 @@ object CatalogClient {
         screenX == null -> "screenX"
         screenY == null -> "screenY"
         screenDensity == null -> "screenDensity"
+        perVersionInfo.versionId == null -> "perVersionInfo.versionId"
+        perVersionInfo.interactiveDeviceAvailabilityEstimate == null ->
+          "perVersionInfo.interactiveDeviceAvailabilityEstimate"
         else -> null
       }
 

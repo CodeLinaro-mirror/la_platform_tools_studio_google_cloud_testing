@@ -356,6 +356,31 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun waitUntilTemplatesBecomeAvailable() = runBlockingWithTimeout {
+    val index =
+      deviceInfoListProvider().indexOfFirst { it.deviceAvailabilityEstimateSeconds == 300L }
+    val template = plugin.templates.value[index] as DirectAccessDeviceTemplate
+    yieldUntil {
+      template.activationAction.presentation.value.icon == StudioIcons.Avd.START_RESERVATION
+    }
+
+    // Reserve a device and cancel it from the waiting dialog.
+    TestDialogManager.setTestDialog(TestDialog.NO)
+    val cancelledJob = scope.launch { template.activationAction.activate() }
+    cancelledJob.join()
+    assertThat(cancelledJob.isCancelled).isTrue()
+    yieldUntil { template.activationAction.presentation.value.enabled }
+
+    // Reserve a device and proceed.
+    TestDialogManager.setTestDialog(TestDialog.YES)
+    val job = scope.launch { template.activationAction.activate() }
+    job.join()
+    assertThat(job.isCancelled).isFalse()
+    assertThat(template.activationAction.presentation.value.enabled).isFalse()
+    yieldUntil { template.activeDevice != null }
+  }
+
+  @Test
   fun deactivateBeforeConnected() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
 

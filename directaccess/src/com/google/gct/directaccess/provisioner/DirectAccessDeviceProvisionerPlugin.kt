@@ -30,9 +30,12 @@ import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.job
@@ -59,9 +62,10 @@ class DirectAccessDeviceProvisionerPlugin(
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
   private val reservationsFlow = MutableStateFlow<List<Reservation>?>(null)
-  // A flow of set with devices that are accessible with the current login state and cloud project.
-  private val accessibleDeviceInfoSetFlow = MutableStateFlow(setOf<DeviceInfo>())
-  private val cachedTemplatesMap = mutableMapOf<DeviceInfo, DirectAccessDeviceTemplate>()
+  // A flow of map for devices that are accessible with the current login state and cloud project.
+  // The mapping is from a string of device id to its full device information.
+  private val accessibleDeviceInfoMapFlow = MutableStateFlow(mapOf<String, DeviceInfo>())
+  private val cachedTemplatesMap = mutableMapOf<String, DirectAccessDeviceTemplate>()
 
   init {
     // Clean up remaining templates when scope is cancelled.
@@ -71,13 +75,14 @@ class DirectAccessDeviceProvisionerPlugin(
       project.service<DirectAccessService>().cloudProjectManager.collectLatest { cloudProjectManager
         ->
         if (cloudProjectManager == null) {
-          accessibleDeviceInfoSetFlow.value = setOf()
+          accessibleDeviceInfoMapFlow.value = mapOf()
           reservationsFlow.value = null
         } else {
           launch {
             cloudProjectManager.accessibleDeviceInfoListFlow.stateFlow.collect {
               newAccessibleDeviceInfoList ->
-              accessibleDeviceInfoSetFlow.value = newAccessibleDeviceInfoList.toSet()
+              accessibleDeviceInfoMapFlow.value =
+                newAccessibleDeviceInfoList.groupBy { it.id }.mapValues { it.value.first() }
               project.service<DirectAccessService>().deviceSelectionListFlow.update {
                 oldDeviceSelectionList ->
                 // Add devices not presented in the oldDeviceSelectionList.
@@ -113,17 +118,21 @@ class DirectAccessDeviceProvisionerPlugin(
               .map { selection -> selection.deviceInfo }
               .map { deviceInfo ->
                 existingDeviceInfoMap[deviceInfo]?.firstOrNull()
-                  ?: cachedTemplatesMap.computeIfAbsent(deviceInfo) {
+                  ?: cachedTemplatesMap.computeIfAbsent(deviceInfo.id) {
                     val templateScope = scope.createChildScope(isSupervisor = true)
+                    val deviceInfoFlow =
+                      accessibleDeviceInfoMapFlow
+                        .mapNotNull { deviceMap -> deviceMap[deviceInfo.id] }
+                        .stateIn(templateScope, SharingStarted.Eagerly, deviceInfo)
                     DirectAccessDeviceTemplate(
                       project,
-                      deviceInfo,
+                      deviceInfoFlow,
                       _devices,
                       templateScope,
-                      reservationsFlow.combine(accessibleDeviceInfoSetFlow) {
+                      reservationsFlow.combine(accessibleDeviceInfoMapFlow) {
                         reservations,
                         deviceInfoSet ->
-                        reservations != null && deviceInfoSet.contains(deviceInfo)
+                        reservations != null && deviceInfoSet[deviceInfo.id] != null
                       }
                     )
                   }
