@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidModel
+import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.intellij.openapi.application.ApplicationInfo
@@ -54,14 +55,14 @@ object CatalogClient {
                         catalogBuildNumber <= ApplicationInfo.getInstance().build
                     })
           }
-          ?.mapNotNull { model.createDeviceInfo(it.versionId.toInt()) } ?: listOf()
+          ?.mapNotNull { model.createDeviceInfo(it) } ?: listOf()
       }
   }
 
   private fun isUnfilteredDevices(): Boolean =
     System.getProperty("da_unfiltered_devices").toBoolean()
 
-  private fun AndroidModel.createDeviceInfo(api: Int): DeviceInfo? {
+  private fun AndroidModel.createDeviceInfo(perVersionInfo: PerAndroidVersionInfo): DeviceInfo? {
     if (isAnyDeviceInfoValueNull()) {
       return null
     }
@@ -74,17 +75,23 @@ object CatalogClient {
         "WEARABLE" -> DeviceType.WEAR_OS
         else -> DeviceType.PHONE
       }
+    val deviceAvailabilityEstimateSeconds =
+      perVersionInfo.interactiveDeviceAvailabilityEstimate
+        ?.ifEmpty { null }
+        ?.substringBefore("s")
+        ?.toLong() ?: return null
     return DeviceInfo(
       id,
       brand,
       name,
       manufacturer,
       codename,
-      api,
+      perVersionInfo.versionId.toInt(),
       type,
       screenX,
       screenY,
-      screenDensity
+      screenDensity,
+      deviceAvailabilityEstimateSeconds
     )
   }
 

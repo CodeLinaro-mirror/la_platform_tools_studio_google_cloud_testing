@@ -26,6 +26,7 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.tools.adbbridge.Reservation
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
@@ -34,6 +35,7 @@ import com.google.services.firebase.directaccess.client.findOrCreateReservation
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import icons.StudioIcons
 import java.time.Duration
 import javax.swing.Icon
@@ -46,18 +48,23 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+val SHOW_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(1)
 
 class DirectAccessDeviceTemplate(
   private val project: Project,
-  val deviceInfo: DeviceInfo,
+  private val deviceInfoFlow: StateFlow<DeviceInfo>,
   private val devices: MutableStateFlow<List<DeviceHandle>>,
   private val scope: CoroutineScope,
   private val isAuthenticatorReady: Flow<Boolean>
 ) : DeviceTemplate {
+  val deviceInfo: DeviceInfo
+    get() = deviceInfoFlow.value
+
   override val id = DeviceId(PLUGIN_ID, true, "model_id=${deviceInfo.id}")
 
   override val properties = deviceInfo.toDeviceProperties()
@@ -116,6 +123,31 @@ class DirectAccessDeviceTemplate(
           throw DeviceActionDisabledException(this)
         }
 
+        val deviceAvailabilityMinutes = deviceInfo.deviceAvailabilityEstimateSeconds / 60
+        if (
+          deviceInfo.deviceAvailabilityEstimateSeconds >
+            SHOW_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds
+        ) {
+          val title = "Reserve ${properties.title}"
+          val message =
+            "The ${properties.title} will be available in around $deviceAvailabilityMinutes minutes.\n" +
+              "You will not be billed for this duration."
+          val result =
+            withContext(AndroidDispatchers.uiThread) {
+              Messages.showOkCancelDialog(
+                message,
+                title,
+                "Reserve",
+                "Cancel",
+                Messages.getQuestionIcon()
+              )
+            }
+          if (result != Messages.OK) {
+            isActivationStarted.value = false
+            throw CancellationException("Device reservation cancelled.")
+          }
+        }
+
         try {
           val reservationName = findOrCreateReservation()
           return createDeviceHandle(reservationName).also { it.activationAction?.activate() }
@@ -161,7 +193,16 @@ class DirectAccessDeviceTemplate(
           .combine(isAuthenticatorReady) { started, authenticatorReady ->
             !started && authenticatorReady
           }
-          .map { enabled -> defaultPresentation.copy(enabled = enabled) }
+          .combine(deviceInfoFlow) { enabled, deviceInfo ->
+            val icon =
+              if (
+                deviceInfo.deviceAvailabilityEstimateSeconds <
+                  SHOW_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds
+              )
+                StudioIcons.Avd.RUN
+              else StudioIcons.Avd.START_RESERVATION
+            defaultPresentation.copy(icon = icon, enabled = enabled)
+          }
           .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
     }
 

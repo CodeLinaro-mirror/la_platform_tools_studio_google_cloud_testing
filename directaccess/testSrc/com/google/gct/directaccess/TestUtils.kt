@@ -42,7 +42,8 @@ object TestUtils {
         DeviceType.PHONE,
         100,
         200,
-        300
+        300,
+        30
       ),
       DeviceInfo(
         "id2",
@@ -54,7 +55,8 @@ object TestUtils {
         DeviceType.PHONE,
         200,
         300,
-        400
+        400,
+        30
       ),
       DeviceInfo(
         "id3",
@@ -66,7 +68,8 @@ object TestUtils {
         DeviceType.PHONE,
         300,
         400,
-        500
+        500,
+        300
       ),
       DeviceInfo(
         "id4",
@@ -78,7 +81,8 @@ object TestUtils {
         DeviceType.WEAR_OS,
         50,
         100,
-        150
+        150,
+        30
       )
     )
   }
@@ -189,6 +193,7 @@ object TestUtils {
       versionId = api
       directAccessVersionInfo =
         DirectAccessVersionInfo().apply { directAccessSupported = isDirectAccessSupported }
+      interactiveDeviceAvailabilityEstimate = "30s"
     }
 
   val androidDeviceCatalog =
