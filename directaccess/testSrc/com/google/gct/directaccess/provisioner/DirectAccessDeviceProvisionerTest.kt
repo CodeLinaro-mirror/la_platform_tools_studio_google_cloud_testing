@@ -58,6 +58,7 @@ import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.LoginStateRule
 import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
@@ -501,7 +502,7 @@ class DirectAccessDeviceProvisionerTest {
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
     handle.deactivationAction.deactivate()
-    yieldUntil { handle.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+    yieldUntil { handle.connectionState is ConnectionState.Disconnected }
 
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
@@ -509,8 +510,8 @@ class DirectAccessDeviceProvisionerTest {
     firstNotificationsList[0].assertDeviceDisconnectedNotification(handle) {
       val reconnectAction = it.actions[0] as NotificationAction
       reconnectAction.actionPerformed(mock(), it)
-      yieldUntil { handle.connectionState != DirectAccessConnection.ConnectionState.DISCONNECTED }
-      assertThat(handle.connectionState).isEqualTo(DirectAccessConnection.ConnectionState.CONNECTED)
+      yieldUntil { handle.connectionState !is ConnectionState.Disconnected }
+      assertThat(handle.connectionState).isInstanceOf(ConnectionState.Connected::class.java)
     }
 
     // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
@@ -528,8 +529,7 @@ class DirectAccessDeviceProvisionerTest {
       val forceCheckInAction = it.actions[1] as NotificationAction
       forceCheckInAction.actionPerformed(mock(), it)
       yieldUntil { handle.reservation.sessionState != Reservation.SessionState.ACTIVE }
-      assertThat(handle.connectionState)
-        .isEqualTo(DirectAccessConnection.ConnectionState.DISCONNECTED)
+      assertThat(handle.connectionState).isInstanceOf(ConnectionState.Disconnected::class.java)
       yieldUntil { plugin.devices.value.isEmpty() }
     }
   }
@@ -678,7 +678,7 @@ class DirectAccessDeviceProvisionerTest {
     }
 
     handle?.deactivationAction?.deactivate()
-    yieldUntil { handle?.connectionState == DirectAccessConnection.ConnectionState.DISCONNECTED }
+    yieldUntil { handle?.connectionState is ConnectionState.Disconnected }
 
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
@@ -819,7 +819,7 @@ class DirectAccessDeviceProvisionerTest {
           scope.createChildScope(true)
         ) {
         override suspend fun endReservation(withGracePeriod: Boolean) {
-          closeConnection()
+          closeConnection(DirectAccessConnection.StateReason.USER_INITIATED)
           // Do not end reservation to simulate delayed/failed end reservation
         }
       }
