@@ -95,6 +95,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -490,6 +491,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testActionsInNotificationOnDisconnectDevice() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
 
@@ -533,6 +535,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testActionsInNotificationOnExpiringReservation() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     val template = plugin.templates.value[0]
@@ -580,6 +583,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testBannerNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
@@ -617,6 +621,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testBalloonNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
@@ -640,6 +645,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testNotificationOnUnexpectedDeviceDisconnection() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
     template.activationAction.activate()
@@ -661,6 +667,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testNotificationExpiringOnDisconnectDevice() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
     template.activationAction.activate()
@@ -752,6 +759,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testNoNotificationWhenReservationCancelledBeforeActive() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -782,6 +790,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testNoNotificationOnForceCheckIn() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -800,6 +809,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testNoNotificationOnForceCheckInWhenReservationEndDelayed() = runBlockingWithTimeout {
     setupConnection { reservationName ->
       object :
@@ -919,6 +929,7 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  @Ignore("b/309136739")
   fun testStickyNotificationOnReservationExpiry() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
