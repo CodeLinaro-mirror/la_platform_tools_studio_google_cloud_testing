@@ -39,7 +39,11 @@ import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.google.gct.directaccess.analytics.DirectAccessFeatureSurveys
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
+import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.StateReason
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
@@ -92,6 +96,9 @@ class DirectAccessDeviceHandle(
   val connection: DirectAccessConnection =
     project.directAccessCloudProjectManager?.connectionManager?.create(reservationName)
       ?: throw RuntimeException("Failed to get connection.")
+
+  private val connectionStateReason: StateReason
+    get() = connection.state.value.connection.reason
 
   val icon: Icon
     get() = sourceTemplate.icon
@@ -224,8 +231,14 @@ class DirectAccessDeviceHandle(
               val reservation = it.reservation ?: return@withContext
               DeviceState.Disconnected(it.properties).withReservation(reservation)
             }
-            // TODO(b/277240160): Add correct failure reason
-            trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+            val failureReason =
+              if (connectionStateReason == StateReason.USER_INITIATED) {
+                // User clicked stopped before the session could activate and device could connect.
+                FailureReason.DISCONNECT_BEFORE_CONNECTED
+              } else {
+                FailureReason.UNKNOWN_FAILURE
+              }
+            trackConnectMetrics(false, failureReason = failureReason)
           }
         }
       }
@@ -247,9 +260,7 @@ class DirectAccessDeviceHandle(
         val connectStartTime = System.currentTimeMillis()
         try {
           withTimeout(TimeUnit.SECONDS.toMillis(20)) {
-            connection.state
-              .takeWhile { it.connection != DirectAccessConnection.ConnectionState.CONNECTED }
-              .collect()
+            connection.state.takeWhile { it.connection !is ConnectionState.Connected }.collect()
           }
           trackConnectMetrics(true, System.currentTimeMillis() - connectStartTime)
         } catch (e: CancellationException) {
@@ -270,7 +281,7 @@ class DirectAccessDeviceHandle(
           val shouldShowNotification = reservationFlow.value.sessionState == SessionState.ACTIVE
           hasUserDisconnectedDevice = true
           try {
-            connection.closeConnection()
+            connection.closeConnection(StateReason.USER_INITIATED)
           } catch (e: Exception) {
             // TODO(b/277240160): Add correct failure reason
             trackDisconnectMetric(false, FailureReason.UNKNOWN_FAILURE)
@@ -390,7 +401,7 @@ class DirectAccessDeviceHandle(
     stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
     scope
       .launch { device.awaitDisconnection() }
-      .invokeOnCompletion { _ ->
+      .invokeOnCompletion { throwable ->
         stateFlow.update {
           DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
         }
@@ -405,11 +416,36 @@ class DirectAccessDeviceHandle(
             )
           }
         }
-        trackDisconnectMetric(true)
+        trackDisconnectMetric(true, connectionStateReason.toFailureReason(throwable))
       }
     service<DirectAccessFeatureSurveys>().trackConnection()
     return true
   }
+
+  private fun StateReason.toFailureReason(throwable: Throwable?): FailureReason? {
+    return if (throwable != null) {
+      getScopeCancelledReason()
+    } else {
+      when (this) {
+        StateReason.UNKNOWN -> FailureReason.UNKNOWN_FAILURE
+        StateReason.INIT -> FailureReason.DISCONNECT_BEFORE_CONNECTED
+        StateReason.SESSION_ENDED -> FailureReason.SESSION_ENDED
+        StateReason.CONNECTION_FAILED -> FailureReason.CONNECTION_FAILED
+        StateReason.ADB_DISCONNECTED -> FailureReason.ADB_DISCONNECTED
+        StateReason.LATENCY_DISCONNECT -> FailureReason.LATENCY_DISCONNECT
+        StateReason.SCOPE_CANCELLED -> getScopeCancelledReason()
+        else -> null
+      }
+    }
+  }
+
+  private fun getScopeCancelledReason() =
+    when {
+      reservationFlow.value.sessionState.isClosed() -> FailureReason.SESSION_ENDED
+      service<LoginState>().loginStatus.value !is LoginStatus.LoggedIn ->
+        FailureReason.USER_LOGGED_OUT
+      else -> FailureReason.UNKNOWN_FAILURE
+    }
 
   private fun trackConnectMetrics(
     wasSuccessful: Boolean,

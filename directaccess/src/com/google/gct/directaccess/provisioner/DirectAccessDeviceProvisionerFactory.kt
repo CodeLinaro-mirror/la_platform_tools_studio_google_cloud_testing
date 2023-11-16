@@ -17,14 +17,14 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerFactory
-import com.android.tools.idea.flags.ExternalSettings
+import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
 
 class DirectAccessDeviceProvisionerFactory : DeviceProvisionerFactory {
   override val isEnabled: Boolean
-    get() = service<ExternalSettings>().enableDeviceStreaming
+    get() = service<DirectAccessConfiguration>().isEnabled
 
   override fun create(coroutineScope: CoroutineScope, project: Project): DeviceProvisionerPlugin =
     DirectAccessDeviceProvisionerPlugin(coroutineScope, project)

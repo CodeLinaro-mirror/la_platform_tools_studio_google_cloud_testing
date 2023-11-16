@@ -17,8 +17,8 @@ package com.google.gct.testing.launcher;
 
 import com.android.annotations.Nullable;
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager;
 import com.google.api.services.monitoring.v3.Monitoring;
@@ -31,6 +31,7 @@ import com.google.api.services.testing.Testing;
 import com.google.api.services.testing.model.AndroidDeviceCatalog;
 import com.google.api.services.toolresults.ToolResults;
 import com.google.gct.login.GoogleLogin;
+import com.google.gct.login.IGoogleLoginCompletedCallback;
 import com.google.gct.testing.CloudTestingUtils;
 import java.io.IOException;
 import java.time.Instant;
@@ -38,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 
@@ -301,7 +301,7 @@ public class CloudAuthenticator {
   @NotNull
   private HttpTransport createHttpTransport() {
     try {
-      return GoogleNetHttpTransport.newTrustedTransport();
+      return new NetHttpTransport();
     }
     catch (Exception e) {
       System.err.println(e.getMessage());
@@ -316,7 +316,7 @@ public class CloudAuthenticator {
     final GoogleLogin googleLogin = GoogleLogin.getInstance();
     Credential credential = googleLogin.getCredential();
     if (credential == null) {
-      googleLogin.logIn();
+      googleLogin.logIn(null, (IGoogleLoginCompletedCallback)null);
       credential = googleLogin.getCredential();
       return credential != null;
     }

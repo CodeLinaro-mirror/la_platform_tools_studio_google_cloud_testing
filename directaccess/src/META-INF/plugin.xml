@@ -33,6 +33,9 @@
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
+    <applicationConfigurable groupId="experimental" id="device.streaming"
+                             provider="com.google.gct.directaccess.settings.DirectAccessConfigurableProvider"
+                             displayName="Device Streaming"/>
     <notificationGroup id="Direct Access" displayType="BALLOON"/>
     <notificationGroup id="Direct Access Sticky" displayType="STICKY_BALLOON" />
   </extensions>
