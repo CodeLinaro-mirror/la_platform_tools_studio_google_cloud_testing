@@ -32,9 +32,9 @@ import com.android.AndroidXConstants;
 import com.android.annotations.VisibleForTesting;
 import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.ide.common.resources.ResourceItem;
+import com.android.ide.common.resources.ResourceRepository;
 import com.android.resources.ResourceType;
 import com.android.tools.idea.res.StudioResourceRepositoryManager;
-import com.android.tools.res.LocalResourceRepository;
 import com.android.utils.Pair;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -384,7 +384,7 @@ public class TestCodeMapper {
 
     String testCodeId = "R.id." + parsedId.getSecond();
     if (parsedId.getFirst().equals(myApplicationId)) {
-      LocalResourceRepository projectResources = StudioResourceRepositoryManager.getInstance(myModule).getProjectResources();
+      ResourceRepository projectResources = StudioResourceRepositoryManager.getInstance(myModule).getProjectResources();
       if (!projectResources.hasResources(ResourceNamespace.RES_AUTO, ResourceType.ID, parsedId.getSecond())) {
         // For some reason, library resources are evaluated by debugger as application resources, so find the containing library and
         // use its package name to qualify the resource id.
