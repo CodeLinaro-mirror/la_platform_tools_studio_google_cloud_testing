@@ -19,6 +19,7 @@ import com.android.adblib.DeviceList
 import com.android.adblib.DevicePropertyNames
 import com.android.adblib.DeviceSelector
 import com.android.adblib.DeviceState
+import com.android.adblib.connectedDevicesTracker
 import com.android.adblib.scope
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
@@ -53,6 +54,7 @@ import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.reservation
+import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.LoginStateRule
@@ -96,7 +98,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -112,6 +113,7 @@ class DirectAccessDeviceProvisionerTest {
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
   private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
+  private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
@@ -119,6 +121,7 @@ class DirectAccessDeviceProvisionerTest {
       .around(grpcConnectionRule)
       .around(loginStateRule)
       .around(fakeToolWindowRule)
+      .around(cleanUpNotificationRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -483,7 +486,7 @@ class DirectAccessDeviceProvisionerTest {
     // Device removed after logout.
     loginStateRule.state.value = LoginStatus.LoggedOut
     yieldUntil {
-      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
+      provisioner.templates.value.all { (it as DirectAccessDeviceTemplate).activeDevice == null }
     }
     yieldUntil { provisioner.devices.value.isEmpty() }
 
@@ -517,7 +520,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testActionsInNotificationOnDisconnectDevice() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
 
@@ -560,7 +562,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testActionsInNotificationOnExpiringReservation() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     val template = plugin.templates.value[0]
@@ -608,7 +609,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testBannerNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
@@ -646,7 +646,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testBalloonNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
@@ -670,7 +669,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testNotificationOnUnexpectedDeviceDisconnection() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
     template.activationAction.activate()
@@ -692,22 +690,18 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testNotificationExpiringOnDisconnectDevice() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
-    template.activationAction.activate()
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     yieldUntil { provisioner.devices.value.isNotEmpty() }
-    val handle = (template as DirectAccessDeviceTemplate).activeDevice
-    handle?.reservation?.let {
-      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
-    }
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
-    handle?.deactivationAction?.deactivate()
-    yieldUntil { handle?.connectionState is ConnectionState.Disconnected }
+    handle.deactivationAction.deactivate()
+    yieldUntil { handle.connectionState is ConnectionState.Disconnected }
 
     val firstNotificationsList = getNotifications(projectRule.project)
     assertThat(firstNotificationsList.size).isEqualTo(1)
-    handle?.activationAction?.activate()
+    handle.activationAction.activate()
 
     yieldUntil { firstNotificationsList[0].isExpired }
     // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
@@ -716,12 +710,12 @@ class DirectAccessDeviceProvisionerTest {
 
     // Device will reconnect after previous action. Disconnect again to show notification for force
     // check-in
-    handle?.deactivationAction?.deactivate()
+    handle.deactivationAction.deactivate()
 
     val secondNotificationsList = getNotifications(projectRule.project)
     assertThat(secondNotificationsList.size).isEqualTo(1)
 
-    handle?.reservationAction?.endReservation()
+    handle.reservationAction.endReservation()
     yieldUntil { getNotifications(projectRule.project).isEmpty() }
   }
 
@@ -784,7 +778,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testNoNotificationWhenReservationCancelledBeforeActive() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -815,12 +808,12 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testNoNotificationOnForceCheckIn() = runBlockingWithTimeout {
     setupConnection { reservationName ->
       object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope) {
         override suspend fun endReservation(withGracePeriod: Boolean) {
           session.hostServices.disconnect(deviceAddress()!!)
+          yieldUntil { session.connectedDevicesTracker.connectedDevices.value.isEmpty() }
           super.endReservation(withGracePeriod)
         }
       }
@@ -842,7 +835,6 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testNoNotificationOnForceCheckInWhenReservationEndDelayed() = runBlockingWithTimeout {
     setupConnection { reservationName ->
       object :
@@ -962,8 +954,20 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
-  @Ignore("b/309136739")
   fun testStickyNotificationOnReservationExpiry() = runBlockingWithTimeout {
+    setupConnection { reservationName ->
+      object :
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
+        override suspend fun closeConnection(stateReason: DirectAccessConnection.StateReason) {
+          session.hostServices.disconnect(deviceAddress()!!)
+          super.closeConnection(stateReason)
+        }
+      }
+    }
     val deviceInfo = deviceInfoListProvider()[0]
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -986,12 +990,14 @@ class DirectAccessDeviceProvisionerTest {
     session.hostServices.devices =
       DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
     yieldUntil { handle.state is Connected }
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
 
     directAccessReservationManager.cancelReservation(flow.value.name)
 
     yieldUntil { !flow.value.isActive() }
-    assertThat(template.activeDevice).isNull()
+    yieldUntil { template.activeDevice == null }
 
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
     val notificationsList = getNotifications(projectRule.project)
     assertThat(notificationsList.size).isEqualTo(1)
 

@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
+import com.android.adblib.deviceInfo
 import com.android.adblib.deviceProperties
 import com.android.adblib.serialNumber
 import com.android.sdklib.deviceprovisioner.ActivationAction
@@ -120,6 +121,8 @@ class DirectAccessDeviceHandle(
   private var hasUserForceCheckedInDevice = false
   /** Tracks [Reservation] activated */
   private var hasReservationActivated = false
+  /** Tracks reservation expired shown */
+  private var hasShownReservationExpiredNotification = false
   /** [ContentManagerListener] that listens to panel changes in RDW */
   private var rdwPanelChangeListener: ContentManagerListener? = null
 
@@ -138,7 +141,7 @@ class DirectAccessDeviceHandle(
           return@invokeOnCompletion
         }
         if (hasReservationActivated && state.connectedDevice != null) {
-          notificationManager.showReservationExpiredNotification()
+          showReservationExpiredNotification()
         }
 
         when (sessionState) {
@@ -200,6 +203,13 @@ class DirectAccessDeviceHandle(
           }
         copy(status = newStatus, reservation = reservation)
       }
+    }
+
+  private fun showReservationExpiredNotification() =
+    synchronized(this) {
+      if (hasShownReservationExpiredNotification) return@synchronized
+      notificationManager.showReservationExpiredNotification()
+      hasShownReservationExpiredNotification = true
     }
 
   override val activationAction =
@@ -417,6 +427,9 @@ class DirectAccessDeviceHandle(
             notificationManager.showDeviceDisconnectedNotification(
               state.reservation?.endTime?.epochSecond
             )
+          }
+          if (reservationFlow.value.sessionState.isClosed()) {
+            showReservationExpiredNotification()
           }
         }
         trackDisconnectMetric(true, connectionStateReason.toFailureReason(throwable))
