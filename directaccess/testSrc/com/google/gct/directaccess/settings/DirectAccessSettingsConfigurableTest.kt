@@ -17,10 +17,10 @@ package com.google.gct.directaccess.settings
 
 import com.android.flags.junit.FlagRule
 import com.android.tools.adtui.swing.FakeUi
+import com.android.tools.idea.flags.ExperimentalConfigurable.ApplyState
 import com.android.tools.idea.flags.StudioFlags
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.components.service
-import com.intellij.openapi.options.UnnamedConfigurable
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RuleChain
@@ -51,7 +51,7 @@ class DirectAccessSettingsConfigurableTest {
 
     val contributor = DirectAccessConfigurableContributor()
     assertThat(contributor.getName()).isEqualTo("Device Streaming")
-    val configurable = contributor.createConfigurable(projectRule.project) as UnnamedConfigurable
+    val configurable = contributor.createConfigurable(projectRule.project)
     val component = configurable.createComponent()!!
 
     val ui = FakeUi(component)
@@ -59,19 +59,24 @@ class DirectAccessSettingsConfigurableTest {
       ui.getComponent<JCheckBox> { it.text == "Enable Device Streaming" }
 
     assertThat(configurable.isModified).isFalse()
+    assertThat(configurable.preApplyCallback()).isEqualTo(ApplyState.OK)
     assertThat(isDeviceStreamingEnabledCheckBox.isEnabled).isTrue()
     assertThat(isDeviceStreamingEnabledCheckBox.isSelected).isTrue()
 
     isDeviceStreamingEnabledCheckBox.doClick()
     assertThat(isDeviceStreamingEnabledCheckBox.isSelected).isFalse()
     assertThat(configurable.isModified).isTrue()
+    assertThat(configurable.preApplyCallback()).isEqualTo(ApplyState.RESTART)
 
     isDeviceStreamingEnabledCheckBox.doClick()
     configurable.apply()
     assertThat(service<DirectAccessConfiguration>().isEnabled).isTrue()
     assertThat(configurable.isModified).isFalse()
+    assertThat(configurable.preApplyCallback()).isEqualTo(ApplyState.OK)
 
     isDeviceStreamingEnabledCheckBox.isSelected = false
+    assertThat(configurable.isModified).isTrue()
+    assertThat(configurable.preApplyCallback()).isEqualTo(ApplyState.RESTART)
     configurable.reset()
     assertThat(isDeviceStreamingEnabledCheckBox.isSelected).isTrue()
   }

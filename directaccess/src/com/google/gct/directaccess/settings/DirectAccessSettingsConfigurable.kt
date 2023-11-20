@@ -17,9 +17,7 @@ package com.google.gct.directaccess.settings
 
 import com.android.tools.idea.flags.ExperimentalConfigurable
 import com.android.tools.idea.flags.ExperimentalConfigurable.ApplyState
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
-import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
@@ -48,30 +46,10 @@ class DirectAccessSettingsConfigurable : ExperimentalConfigurable {
     state.isEnabled != isDeviceStreamingEnabledCheckBox?.isSelected
 
   override fun preApplyCallback(): ApplyState {
-    val app = ApplicationManager.getApplication()
-    if (app.isUnitTestMode) {
-      return ApplyState.OK
+    return when {
+      isModified() -> ApplyState.RESTART
+      else -> ApplyState.OK
     }
-
-    if (isModified()) {
-      val okText = if (app.isRestartCapable) "Restart" else "Exit"
-      val message =
-        "A restart of Android Studio is required to apply changes related to Device Streaming.\n\n" +
-          "Do you want to proceed?"
-      return when (
-        Messages.showOkCancelDialog(
-          message,
-          "Restart",
-          okText,
-          "Cancel",
-          Messages.getQuestionIcon()
-        )
-      ) {
-        Messages.OK -> ApplyState.RESTART
-        else -> ApplyState.BLOCK
-      }
-    }
-    return ApplyState.OK
   }
 
   override fun apply() {
