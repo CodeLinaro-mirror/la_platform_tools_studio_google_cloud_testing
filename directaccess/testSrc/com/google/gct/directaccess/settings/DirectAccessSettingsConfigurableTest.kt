@@ -20,7 +20,7 @@ import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.idea.flags.StudioFlags
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.components.service
-import com.intellij.openapi.options.SearchableConfigurable
+import com.intellij.openapi.options.UnnamedConfigurable
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RuleChain
@@ -32,7 +32,7 @@ import org.junit.Rule
 import org.junit.Test
 
 @RunsInEdt
-class DirectAccessSettingsPageTest {
+class DirectAccessSettingsConfigurableTest {
 
   private val projectRule = ProjectRule()
   @get:Rule
@@ -49,11 +49,10 @@ class DirectAccessSettingsPageTest {
     // DirectAccessConfiguration is loaded the same value as DIRECT_ACCESS flag.
     assertThat(service<DirectAccessConfiguration>().isEnabled).isTrue()
 
-    val provider = DirectAccessConfigurableProvider()
-    val configurable = provider.createConfigurable() as SearchableConfigurable
+    val contributor = DirectAccessConfigurableContributor()
+    assertThat(contributor.getName()).isEqualTo("Device Streaming")
+    val configurable = contributor.createConfigurable(projectRule.project) as UnnamedConfigurable
     val component = configurable.createComponent()!!
-    assertThat(configurable.displayName).isEqualTo("Device Streaming")
-    assertThat(configurable.id).isEqualTo("device.streaming.options")
 
     val ui = FakeUi(component)
     val isDeviceStreamingEnabledCheckBox =

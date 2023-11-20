@@ -15,18 +15,18 @@
  */
 package com.google.gct.directaccess.settings
 
+import com.android.tools.idea.flags.ExperimentalConfigurable
+import com.android.tools.idea.flags.ExperimentalConfigurable.ApplyState
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
-import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
 import javax.swing.JComponent
 
-class DirectAccessSettingsPage : SearchableConfigurable, Configurable.NoScroll {
-  private lateinit var isDeviceStreamingEnabledCheckBox: JBCheckBox
+class DirectAccessSettingsConfigurable : ExperimentalConfigurable {
+  private var isDeviceStreamingEnabledCheckBox: JBCheckBox? = null
 
   private val state = service<DirectAccessConfiguration>().state
 
@@ -45,33 +45,40 @@ class DirectAccessSettingsPage : SearchableConfigurable, Configurable.NoScroll {
   }
 
   override fun isModified(): Boolean =
-    state.isEnabled != isDeviceStreamingEnabledCheckBox.isSelected
+    state.isEnabled != isDeviceStreamingEnabledCheckBox?.isSelected
 
-  override fun apply() {
+  override fun preApplyCallback(): ApplyState {
     val app = ApplicationManager.getApplication()
     if (app.isUnitTestMode) {
-      state.isEnabled = isDeviceStreamingEnabledCheckBox.isSelected
-      return
+      return ApplyState.OK
     }
 
-    val okText = if (app.isRestartCapable) "Restart" else "Exit"
-    val message =
-      "A restart of Android Studio is required to apply changes related to Device Streaming.\n\n" +
-        "Do you want to proceed?"
-    val result: Int =
-      Messages.showOkCancelDialog(message, "Restart", okText, "Cancel", Messages.getQuestionIcon())
-
-    if (result == Messages.OK) {
-      state.isEnabled = isDeviceStreamingEnabledCheckBox.isSelected
-      app.exit(false, true, true)
+    if (isModified()) {
+      val okText = if (app.isRestartCapable) "Restart" else "Exit"
+      val message =
+        "A restart of Android Studio is required to apply changes related to Device Streaming.\n\n" +
+          "Do you want to proceed?"
+      return when (
+        Messages.showOkCancelDialog(
+          message,
+          "Restart",
+          okText,
+          "Cancel",
+          Messages.getQuestionIcon()
+        )
+      ) {
+        Messages.OK -> ApplyState.RESTART
+        else -> ApplyState.BLOCK
+      }
     }
+    return ApplyState.OK
+  }
+
+  override fun apply() {
+    isDeviceStreamingEnabledCheckBox?.let { state.isEnabled = it.isSelected }
   }
 
   override fun reset() {
-    isDeviceStreamingEnabledCheckBox.isSelected = state.isEnabled
+    isDeviceStreamingEnabledCheckBox?.isSelected = state.isEnabled
   }
-
-  override fun getDisplayName(): String = "Device Streaming"
-
-  override fun getId(): String = "device.streaming.options"
 }
