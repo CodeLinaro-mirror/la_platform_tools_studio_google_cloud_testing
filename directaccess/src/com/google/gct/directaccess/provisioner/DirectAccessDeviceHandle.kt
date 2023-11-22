@@ -78,6 +78,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 private val EXTENSION_TIMEOUT = Duration.ofSeconds(10)
+// TODO - Remove once Reservation has a field for max duration
+// go/da-table-row/9pyBLLoGz3pexgO3l2U4Ca
+private val MAX_SESSION_DURATION = Duration.ofHours(3)
 
 class DirectAccessDeviceHandle(
   private val project: Project,
@@ -130,33 +133,33 @@ class DirectAccessDeviceHandle(
     scope
       .launch { reservationFlow.takeWhile { !it.sessionState.isClosed() }.collect() }
       .invokeOnCompletion { throwable ->
-        if (!shouldTrackEndReservation(throwable, reservationFlow.value.sessionState)) {
+        val sessionState = reservationFlow.value.sessionState
+        if (!shouldTrackEndReservation(throwable, sessionState)) {
           return@invokeOnCompletion
         }
         if (hasReservationActivated && state.connectedDevice != null) {
           notificationManager.showReservationExpiredNotification()
         }
 
-        if (reservationFlow.value.sessionState == SessionState.EXPIRED) {
-          trackEndReservation(true, EndReservationType.EXPIRE)
-        } else {
-          trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
+        when (sessionState) {
+          SessionState.EXPIRED -> trackEndReservation(true, EndReservationType.EXPIRE)
+          SessionState.FINISHED -> trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
+          else ->
+            trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
         }
       }
   }
 
   /**
-   * End reservation should not be tracked if:
-   * 1. User has not force checked in the device since it is already tracked
-   * 2. The reservation state is still REQUESTED, PENDING or ACTIVE
-   *
-   * End reservation should be tracked when:
-   * 1. The throwable is null
-   * 2. If the throwable is [CancellationException]
+   * End reservation should be tracked when the session is closed and the throwable is null or
+   * [CancellationException] It should not be tracked if the session is not closed.
    */
   private fun shouldTrackEndReservation(throwable: Throwable?, sessionState: SessionState) =
-    if (hasUserForceCheckedInDevice || !sessionState.isClosed()) false
-    else throwable?.let { it is CancellationException } ?: true
+    if (sessionState.isClosed()) {
+      throwable?.let { it is CancellationException } ?: true
+    } else {
+      false
+    }
 
   /** Map Reservation to its device provisioner format. */
   private fun mapReservation(
@@ -178,7 +181,8 @@ class DirectAccessDeviceHandle(
       reservationState,
       "",
       Instant.ofEpochSecond(reservation.createTime.seconds),
-      Instant.ofEpochSecond(reservation.expireTime.seconds)
+      Instant.ofEpochSecond(reservation.expireTime.seconds),
+      MAX_SESSION_DURATION
     )
   }
 
@@ -358,7 +362,6 @@ class DirectAccessDeviceHandle(
             )
             throw DeviceActionException("Could not end reservation", e)
           }
-          trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
           service<DirectAccessFeatureSurveys>().trackDisconnection()
         }
 

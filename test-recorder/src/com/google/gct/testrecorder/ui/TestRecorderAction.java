@@ -16,7 +16,6 @@
 package com.google.gct.testrecorder.ui;
 
 import com.android.annotations.VisibleForTesting;
-import com.android.ide.common.repository.GoogleMavenArtifactId;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
@@ -99,6 +98,13 @@ public class TestRecorderAction extends AnAction {
       return;
     }
 
+    // Disable Espresso Test Recorder for Compose projects, since Espresso Testing Framework does not support Compose.
+    TestRecorderRunConfigurationProxy testRecorderConfigurationProxy = TestRecorderRunConfigurationProxy.getInstance(getSuitableRunConfigurations(project).get(0));
+    if (ProjectSystemUtil.getModuleSystem(testRecorderConfigurationProxy.getModule()).getUsesCompose()) {
+      presentation.setEnabled(false);
+      return;
+    }
+
     presentation.setEnabled(true);
   }
 
@@ -177,20 +183,6 @@ public class TestRecorderAction extends AnAction {
       String message = "Espresso Test Recorder does not support projects with native C code.";
       Messages.showDialog(project, message, "Espresso test cannot be recorded", new String[]{"OK"}, 0, null);
       return;
-    }
-
-    Module module = testRecorderConfigurationProxy.getModule();
-    // Do not launch Espresso Test Recorder for Compose projects, since Espresso Testing Framework does not support Compose.
-    AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(module);
-    for (GoogleMavenArtifactId artifactId : GoogleMavenArtifactId.values()) {
-      if (artifactId.getMavenGroupId().startsWith("androidx.compose.") ) {
-        GradleCoordinate coordinate = moduleSystem.getResolvedDependency(artifactId.getCoordinate("+"));
-        if (coordinate != null) {
-          String message = "Espresso Testing Framework does not support Compose projects.";
-          Messages.showDialog(project, message, "Espresso test cannot be recorded", new String[]{"OK"}, 0, null);
-          return;
-        }
-      }
     }
 
     RunnerAndConfigurationSettings settings = RunManager.getInstance(project).findSettings(configurationBase);

@@ -792,6 +792,14 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   @Ignore("b/309136739")
   fun testNoNotificationOnForceCheckIn() = runBlockingWithTimeout {
+    setupConnection { reservationName ->
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope) {
+        override suspend fun endReservation(withGracePeriod: Boolean) {
+          session.hostServices.disconnect(deviceAddress()!!)
+          super.endReservation(withGracePeriod)
+        }
+      }
+    }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
