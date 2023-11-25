@@ -33,9 +33,6 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
   override fun createAndroidConfigurationExecutor(env: ExecutionEnvironment): AndroidConfigurationExecutor? {
     val configuration = env.runProfile
     if (configuration !is AndroidRunConfiguration) return null
-    if (configuration.androidDebuggerContext.debuggerType == "Auto") {
-      configuration.androidDebuggerContext.debuggerType = "Java"
-    }
 
     val isRecordingTest = env.getCopyableUserData(TestRecorderAction.KEY)?.isRecordingTest ?: return null
 
