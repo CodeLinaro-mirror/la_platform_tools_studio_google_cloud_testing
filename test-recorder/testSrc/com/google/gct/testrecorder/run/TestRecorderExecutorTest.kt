@@ -6,6 +6,7 @@ import com.android.tools.analytics.UsageTrackerRule
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutor
 import com.android.tools.idea.execution.common.assertTaskPresentedInStats
 import com.android.tools.idea.execution.common.stats.RunStats
+import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfigurationType
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.util.androidFacet
@@ -20,7 +21,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import org.junit.Rule
 import org.junit.Test
 
-class TestRecorderExecutorTest  {
+class TestRecorderExecutorTest {
 
 
   @get:Rule
@@ -37,6 +38,8 @@ class TestRecorderExecutorTest  {
 
     val runStats = RunStats(projectRule.project)
     env.putUserData(RunStats.KEY, runStats)
+
+    val startingDebuggerType = (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType
 
     var debugInvoked = false
 
@@ -73,5 +76,7 @@ class TestRecorderExecutorTest  {
 
     assertThat(debugInvoked).isTrue()
     assertTaskPresentedInStats(usageTrackerRule.usages, "CLEAR_APP_STORAGE_TASK")
+
+    assertThat((env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType).isEqualTo(startingDebuggerType)
   }
 }

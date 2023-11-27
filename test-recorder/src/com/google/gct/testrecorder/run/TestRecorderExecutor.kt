@@ -19,6 +19,7 @@ import com.android.ddmlib.IDevice
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutor
 import com.android.tools.idea.execution.common.clearAppStorage
 import com.android.tools.idea.execution.common.stats.RunStats
+import com.android.tools.idea.run.AndroidRunConfiguration
 import com.google.gct.testrecorder.debugger.TestRecorderDebugProcessListener
 import com.google.gct.testrecorder.settings.TestRecorderSettings
 import com.intellij.debugger.impl.DebuggerManagerListener
@@ -58,7 +59,12 @@ class TestRecorderExecutor(
       clearAppStorage(env.project, device, packageName, RunStats.from(env))
     }
 
-
+    // Launching ETR is not supported when dual debugging windows are opened. If debugger type is configured to "Detect Automatically",
+    // temporarily set it to "Java only".
+    val startingDebuggerType = (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType
+    if (startingDebuggerType == "Auto") {
+      (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType = "Java"
+    }
     val session = object : DebuggerManagerListener {
       override fun sessionCreated(session: DebuggerSession) {
         session.process.addDebugProcessListener(
@@ -82,9 +88,9 @@ class TestRecorderExecutor(
       return baseExecutor.debug(indicator)
     } finally {
       busConnection.disconnect()
+      (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType = startingDebuggerType
     }
   }
-
 
   override val configuration =
     env.runProfile as? RunConfiguration ?: throw RuntimeException("Test recorder should only be run for RunConfiguration")
