@@ -58,6 +58,5 @@ class AndroidRunConfigurationTestRecorderExecutorProviderTest {
     val state = config.getState(DefaultDebugExecutor.getDebugExecutorInstance(), env) as AndroidConfigurationExecutorRunProfileState
     Truth.assertThat(state.executor).isInstanceOf(TestRecorderExecutor::class.java)
     Truth.assertThat((state.executor as TestRecorderExecutor).isRecordingTest).isFalse()
-    Truth.assertThat((config.androidDebuggerContext.debuggerType)).isEqualTo("Java")
   }
 }

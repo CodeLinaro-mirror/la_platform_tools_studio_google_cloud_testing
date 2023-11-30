@@ -15,13 +15,17 @@
  */
 package com.google.gct.directaccess.settings
 
+import com.android.tools.idea.flags.ExperimentalConfigurable
+import com.android.tools.idea.flags.ExperimentalSettingsContributor
 import com.android.tools.idea.flags.StudioFlags
-import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.options.ConfigurableProvider
+import com.intellij.openapi.project.Project
 
-class DirectAccessConfigurableProvider : ConfigurableProvider() {
+class DirectAccessConfigurableContributor : ExperimentalSettingsContributor {
+  override fun getName() = "Device Streaming"
 
-  override fun createConfigurable(): Configurable = DirectAccessSettingsPage()
+  override fun createConfigurable(project: Project): ExperimentalConfigurable =
+    DirectAccessSettingsConfigurable()
 
-  override fun canCreateConfigurable() = StudioFlags.DIRECT_ACCESS_SETTINGS_PAGE.get()
+  override fun shouldCreateConfigurable(project: Project) =
+    StudioFlags.DIRECT_ACCESS_SETTINGS_PAGE.get()
 }
