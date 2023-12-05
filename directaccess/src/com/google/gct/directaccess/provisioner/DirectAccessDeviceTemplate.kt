@@ -53,7 +53,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-val SHOW_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(1)
+val SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(1)
+val LONG_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(15)
 
 class DirectAccessDeviceTemplate(
   private val project: Project,
@@ -123,32 +124,8 @@ class DirectAccessDeviceTemplate(
           throw DeviceActionDisabledException(this)
         }
 
-        val deviceAvailabilityMinutes = deviceInfo.deviceAvailabilityEstimateSeconds / 60
-        if (
-          deviceInfo.deviceAvailabilityEstimateSeconds >
-            SHOW_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds
-        ) {
-          val title = "Reserve ${properties.title}"
-          val message =
-            "The ${properties.title} will be available in around $deviceAvailabilityMinutes minutes.\n" +
-              "You will not be billed for this duration."
-          val result =
-            withContext(AndroidDispatchers.uiThread) {
-              Messages.showOkCancelDialog(
-                message,
-                title,
-                "Reserve",
-                "Cancel",
-                Messages.getQuestionIcon()
-              )
-            }
-          if (result != Messages.OK) {
-            isActivationStarted.value = false
-            throw CancellationException("Device reservation cancelled.")
-          }
-        }
-
         try {
+          confirmWaitingTime()
           val reservationName = findOrCreateReservation()
           return createDeviceHandle(reservationName).also { it.activationAction?.activate() }
         } catch (e: CancellationException) {
@@ -157,6 +134,37 @@ class DirectAccessDeviceTemplate(
           isActivationStarted.value = false
           throw DeviceActionException("Unable to reserve device.", e)
         }
+      }
+
+      private suspend fun confirmWaitingTime() {
+        deviceInfo.deviceAvailabilityEstimateSeconds
+          ?.let { seconds ->
+            when {
+              seconds < SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds -> null
+              seconds < LONG_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds -> "less than"
+              else -> "more than"
+            }
+          }
+          ?.let { waitingTimeText ->
+            val title = "Reserve ${properties.title}"
+            val message =
+              "The ${properties.title} will be available in $waitingTimeText 15 minutes.\n" +
+                "You will not be billed for this duration."
+            val result =
+              withContext(AndroidDispatchers.uiThread) {
+                Messages.showOkCancelDialog(
+                  message,
+                  title,
+                  "Reserve",
+                  "Cancel",
+                  Messages.getQuestionIcon()
+                )
+              }
+            if (result != Messages.OK) {
+              isActivationStarted.value = false
+              throw CancellationException("Device reservation cancelled.")
+            }
+          }
       }
 
       private fun findOrCreateReservation(): String {
@@ -194,13 +202,16 @@ class DirectAccessDeviceTemplate(
             !started && authenticatorReady
           }
           .combine(deviceInfoFlow) { enabled, deviceInfo ->
+            // TODO(b/314857500): Improve user experience with null
+            // deviceAvailabilityEstimateSeconds.
             val icon =
               if (
-                deviceInfo.deviceAvailabilityEstimateSeconds <
-                  SHOW_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds
+                deviceInfo.deviceAvailabilityEstimateSeconds?.let {
+                  it >= SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds
+                } == true
               )
-                StudioIcons.Avd.RUN
-              else StudioIcons.Avd.START_RESERVATION
+                StudioIcons.Avd.START_RESERVATION
+              else StudioIcons.Avd.RUN
             defaultPresentation.copy(icon = icon, enabled = enabled)
           }
           .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)

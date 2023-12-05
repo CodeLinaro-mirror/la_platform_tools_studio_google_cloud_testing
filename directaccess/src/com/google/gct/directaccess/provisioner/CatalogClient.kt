@@ -63,9 +63,7 @@ object CatalogClient {
     System.getProperty("da_unfiltered_devices").toBoolean()
 
   private fun AndroidModel.createDeviceInfo(perVersionInfo: PerAndroidVersionInfo): DeviceInfo? {
-    if (isAnyDeviceInfoValueNull(perVersionInfo)) {
-      return null
-    }
+    if (isAnyCriticalDeviceInfoValueNull()) return null
     val type =
       when (get("formFactor")) {
         // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
@@ -76,7 +74,7 @@ object CatalogClient {
         else -> DeviceType.PHONE
       }
     val deviceAvailabilityEstimateSeconds =
-      perVersionInfo.interactiveDeviceAvailabilityEstimate.substringBefore("s").toLong()
+      perVersionInfo.interactiveDeviceAvailabilityEstimate?.substringBefore("s")?.toLong()
     return DeviceInfo(
       id,
       brand,
@@ -92,9 +90,7 @@ object CatalogClient {
     )
   }
 
-  private fun AndroidModel.isAnyDeviceInfoValueNull(
-    perVersionInfo: PerAndroidVersionInfo
-  ): Boolean {
+  private fun AndroidModel.isAnyCriticalDeviceInfoValueNull(): Boolean {
     val nullValue =
       when {
         id == null -> "id"
@@ -105,9 +101,6 @@ object CatalogClient {
         screenX == null -> "screenX"
         screenY == null -> "screenY"
         screenDensity == null -> "screenDensity"
-        perVersionInfo.versionId == null -> "perVersionInfo.versionId"
-        perVersionInfo.interactiveDeviceAvailabilityEstimate == null ->
-          "perVersionInfo.interactiveDeviceAvailabilityEstimate"
         else -> null
       }
 
