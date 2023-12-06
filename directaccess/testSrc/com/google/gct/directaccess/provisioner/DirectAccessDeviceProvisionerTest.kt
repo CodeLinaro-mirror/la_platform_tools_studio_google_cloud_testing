@@ -92,6 +92,7 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import javax.swing.JLabel
+import junit.framework.TestCase.fail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -439,7 +440,12 @@ class DirectAccessDeviceProvisionerTest {
 
     val template = plugin.templates.value[0]
     // Activate a new device from template.
-    template.activationAction.activate()
+    try {
+      template.activationAction.activate()
+      fail("Expected an exception to be thrown")
+    } catch (ignore: Exception) {
+      // This is an expected exception.
+    }
     yieldUntil { provisioner.devices.value.isNotEmpty() }
     val device = provisioner.devices.value[0]
     // Device disconnected with an exception thrown from DirectAccessConnection.

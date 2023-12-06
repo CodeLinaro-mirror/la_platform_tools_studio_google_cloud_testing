@@ -123,16 +123,30 @@ class DirectAccessDeviceTemplate(
         if (!isActivationStarted.compareAndSet(expect = false, update = true)) {
           throw DeviceActionDisabledException(this)
         }
+        confirmWaitingTime()
+
+        val reservationName =
+          try {
+            findOrCreateReservation()
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            isActivationStarted.value = false
+            throw DeviceActionException("Failed to reserve a device. Please try again.")
+          }
 
         try {
-          confirmWaitingTime()
-          val reservationName = findOrCreateReservation()
           return createDeviceHandle(reservationName).also { it.activationAction?.activate() }
         } catch (e: CancellationException) {
+          isActivationStarted.value = false
+          throw e
+        } catch (e: DeviceActionException) {
+          isActivationStarted.value = false
+          // Re-throw exception to propagate the message present in the exception
           throw e
         } catch (e: Exception) {
           isActivationStarted.value = false
-          throw DeviceActionException("Unable to reserve device.", e)
+          throw DeviceActionException("Failed to connect to device. Please try again.", e)
         }
       }
 

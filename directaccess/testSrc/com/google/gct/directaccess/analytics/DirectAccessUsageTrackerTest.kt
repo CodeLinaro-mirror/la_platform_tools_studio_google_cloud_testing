@@ -79,6 +79,7 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import java.time.Duration
+import junit.framework.TestCase.fail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -245,6 +246,7 @@ class DirectAccessUsageTrackerTest {
     // Activate device
     try {
       template.activationAction.activate()
+      fail("Expected an exception to be thrown")
     } catch (ignore: DeviceActionException) {
       // This is an expected exception.
     }
@@ -305,6 +307,7 @@ class DirectAccessUsageTrackerTest {
     // Activate device
     try {
       template.activationAction.activate()
+      fail("Expected an exception to be thrown")
     } catch (ignore: Exception) {
       // This is an expected exception.
     }
@@ -347,9 +350,16 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    var exceptionCount = 0
 
     repeat(5) {
-      if (it > 0) handle.activationAction.activate()
+      if (it > 0) {
+        try {
+          handle.activationAction.activate()
+        } catch (ignore: Exception) {
+          exceptionCount++
+        }
+      }
 
       val studioEvent = findUsageEvent(CONNECT_DEVICE)
       assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -358,6 +368,7 @@ class DirectAccessUsageTrackerTest {
       handle.deactivationAction.deactivate()
       tracker.usages.clear()
     }
+    assertThat(exceptionCount).isEqualTo(3)
   }
 
   @Test
@@ -418,6 +429,7 @@ class DirectAccessUsageTrackerTest {
 
     try {
       template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+      fail("Expected an exception to be thrown")
     } catch (e: Exception) {
       // This is an expected exception.
     }
@@ -569,6 +581,7 @@ class DirectAccessUsageTrackerTest {
 
     try {
       handle.deactivationAction.deactivate()
+      fail("Expected an exception to be thrown")
     } catch (e: Exception) {
       // This is an expected exception.
     }
@@ -766,6 +779,7 @@ class DirectAccessUsageTrackerTest {
 
     try {
       handle.reservationAction.endReservation()
+      fail("Expected an exception to be thrown")
     } catch (ignore: Exception) {
       // This is an expected exception.
     }

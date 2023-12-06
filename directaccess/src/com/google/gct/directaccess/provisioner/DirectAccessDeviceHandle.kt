@@ -223,7 +223,8 @@ class DirectAccessDeviceHandle(
           stateFlow.update {
             val reservation =
               it.reservation
-                ?: throw DeviceActionException("Reservation required to activate Streaming Device")
+                // This state should not be possible since the reservation is mapped on every update
+                ?: throw IllegalStateException("Reservation required to activate Device Streaming.")
                   .also {
                     // TODO(b/277240160): Add correct failure reason
                     trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
@@ -242,7 +243,11 @@ class DirectAccessDeviceHandle(
             connection.connect()
           } catch (e: Exception) {
             stateFlow.update {
-              val reservation = it.reservation ?: return@withContext
+              val reservation =
+                it.reservation
+                  // This state should not be possible since the reservation is mapped on every
+                  // update
+                  ?: throw IllegalStateException("Reservation required to connect to device.")
               DeviceState.Disconnected(it.properties).withReservation(reservation)
             }
             val failureReason =
@@ -253,6 +258,7 @@ class DirectAccessDeviceHandle(
                 FailureReason.UNKNOWN_FAILURE
               }
             trackConnectMetrics(false, failureReason = failureReason)
+            throw DeviceActionException("Failed to connect to device. Please try again.", e)
           }
         }
       }
@@ -299,7 +305,7 @@ class DirectAccessDeviceHandle(
           } catch (e: Exception) {
             // TODO(b/277240160): Add correct failure reason
             trackDisconnectMetric(false, FailureReason.UNKNOWN_FAILURE)
-            throw e
+            throw DeviceActionException("Failed to disconnect from device. Please try again.", e)
           }
           stateFlow.update {
             when (it) {
@@ -345,14 +351,14 @@ class DirectAccessDeviceHandle(
           // TODO(b/277240160): Add correct failure reason here as well as below
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw DeviceActionException(
-            "Reservation not extended within ${EXTENSION_TIMEOUT.seconds} seconds"
+            "Failed to extend reservation within ${EXTENSION_TIMEOUT.seconds} seconds. Please try again."
           )
         } catch (e: CancellationException) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw e
         } catch (e: Exception) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
-          throw DeviceActionException("Could not extend reservation", e)
+          throw DeviceActionException("Failed to extend reservation. Please try again.", e)
         }
         return state.reservation?.endTime
           ?: throw DeviceActionException("Extended reservation end time not available.")
@@ -370,7 +376,7 @@ class DirectAccessDeviceHandle(
               EndReservationType.FORCE_CHECK_IN,
               FailureReason.UNKNOWN_FAILURE
             )
-            throw DeviceActionException("Could not end reservation", e)
+            throw DeviceActionException("Failed to end reservation. Please try again.", e)
           }
           service<DirectAccessFeatureSurveys>().trackDisconnection()
         }
