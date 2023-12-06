@@ -17,11 +17,21 @@ package com.google.gct.directaccess.ui
 
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.testutils.MockitoKt.mock
+import com.android.testutils.MockitoKt.whenever
+import com.android.tools.idea.concurrency.AndroidExecutors
+import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.services.firebase.FirebaseProjectClientRule
-import com.intellij.testFramework.ApplicationRule
+import com.intellij.openapi.application.ModalityState
+import com.intellij.testFramework.ProjectRule
+import com.intellij.testFramework.replaceService
+import com.intellij.util.application
+import com.intellij.util.concurrency.AppExecutorUtil
+import java.util.concurrent.CountDownLatch
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
 import org.junit.Before
@@ -30,7 +40,7 @@ import org.junit.Test
 
 class DirectAccessProjectSelectorTest {
 
-  @get:Rule val applicationRule = ApplicationRule()
+  @get:Rule val projectRule = ProjectRule()
   @get:Rule val firebaseProjectClientRule = FirebaseProjectClientRule()
   private val scope = CoroutineScope(EmptyCoroutineContext)
   private lateinit var selector: DirectAccessProjectSelectorImpl
@@ -82,5 +92,31 @@ class DirectAccessProjectSelectorTest {
     assertThat(selector.model.size).isEqualTo(1)
     assertThat(selector.model.selectedItem).isEqualTo("Error fetching firebase projects")
     assertThat(selector.isEnabled).isFalse()
+  }
+
+  @Test
+  fun testModelSetInUiThread() = runBlockingWithTimeout {
+    val countDownLatch = CountDownLatch(1)
+    val mockAndroidExecutors = mock<AndroidExecutors>()
+    val fakeUiExecutor: (ModalityState, Runnable) -> Unit = { _, runnable ->
+      if (runnable.toString().contains("DirectAccessProjectSelectorImpl\$refreshProjects")) {
+        countDownLatch.countDown()
+      }
+      runnable.run()
+    }
+    whenever(mockAndroidExecutors.uiThreadExecutor).thenReturn(fakeUiExecutor)
+    application.replaceService(
+      AndroidExecutors::class.java,
+      AndroidExecutors(
+        fakeUiExecutor,
+        AppExecutorUtil.getAppExecutorService(),
+        AndroidExecutors.getInstance().diskIoThreadExecutor
+      ),
+      projectRule.disposable
+    )
+    selector = DirectAccessProjectSelectorImpl("preferredProject", true, scope)
+
+    yieldUntil { selector.isEnabled }
+    assertThat(countDownLatch.count).isEqualTo(0)
   }
 }
