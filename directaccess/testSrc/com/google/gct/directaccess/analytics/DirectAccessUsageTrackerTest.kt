@@ -45,6 +45,7 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.provisioner.PLUGIN_ID
+import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStateRule
@@ -98,9 +99,14 @@ class DirectAccessUsageTrackerTest {
   private val projectRule = ProjectRule()
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
   private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+  private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
 
   @get:Rule
-  val ruleChain = RuleChain.outerRule(projectRule).around(grpcConnectionRule).around(loginStateRule)
+  val ruleChain: RuleChain =
+    RuleChain.outerRule(projectRule)
+      .around(grpcConnectionRule)
+      .around(loginStateRule)
+      .around(cleanUpNotificationRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -487,6 +493,11 @@ class DirectAccessUsageTrackerTest {
         it.toBuilder().apply { sessionState = Reservation.SessionState.EXPIRED }.build()
       }
       yieldUntil { reservationFlow.value.sessionState.isClosed() }
+
+      // Wait for the end reservation event.
+      // This also ensures that the sticky notification for reservation end is shown
+      // This notification is then cleaned by the rule
+      findUsageEvent(END_RESERVATION)
 
       val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
       assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)

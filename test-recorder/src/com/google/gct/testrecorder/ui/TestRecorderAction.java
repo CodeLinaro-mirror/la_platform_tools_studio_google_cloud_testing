@@ -16,10 +16,8 @@
 package com.google.gct.testrecorder.ui;
 
 import com.android.annotations.VisibleForTesting;
-import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
-import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxTargetProvider;
 import com.google.common.collect.Lists;
@@ -41,7 +39,6 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -99,7 +96,12 @@ public class TestRecorderAction extends AnAction {
     }
 
     // Disable Espresso Test Recorder for Compose projects, since Espresso Testing Framework does not support Compose.
-    TestRecorderRunConfigurationProxy testRecorderConfigurationProxy = TestRecorderRunConfigurationProxy.getInstance(getSuitableRunConfigurations(project).get(0));
+    List<RunConfiguration> runConfigurations = getSuitableRunConfigurations(project);
+    if (runConfigurations.isEmpty()) {
+      presentation.setEnabled(false);
+      return;
+    }
+    TestRecorderRunConfigurationProxy testRecorderConfigurationProxy = TestRecorderRunConfigurationProxy.getInstance(runConfigurations.get(0));
     if (ProjectSystemUtil.getModuleSystem(testRecorderConfigurationProxy.getModule()).getUsesCompose()) {
       presentation.setEnabled(false);
       return;

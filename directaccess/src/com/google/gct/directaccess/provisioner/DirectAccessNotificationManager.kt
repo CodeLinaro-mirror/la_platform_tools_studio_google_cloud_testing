@@ -166,7 +166,7 @@ class DirectAccessNotificationManager(
     if (reservationExpiringNotification.notificationVisible) reservationExpiringNotification.show()
   }
 
-  fun showReservationExpiredNotification() {
+  fun showReservationExpiredNotification() =
     stickyNotificationGroup
       .createNotification(
         "$deviceName session ended",
@@ -183,7 +183,6 @@ class DirectAccessNotificationManager(
         }
       )
       .notify(project)
-  }
 
   private fun getDeviceDisconnectedNotificationPhrase(reservationExpireTime: Long): String? {
     val timeRemaining =
