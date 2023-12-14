@@ -66,7 +66,7 @@ private val loginLink =
     "Log in",
     object : AnAction() {
       override fun actionPerformed(e: AnActionEvent) {
-        GoogleLogin.instance.logIn()
+        GoogleLogin.instance.logIn(null, null)
       }
     }
   )
