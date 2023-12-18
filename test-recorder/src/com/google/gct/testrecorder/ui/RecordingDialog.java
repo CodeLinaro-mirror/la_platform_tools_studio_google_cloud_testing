@@ -490,12 +490,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   }
 
   private static String getLatestDependencyVersion(GoogleMavenArtifactId artifactId, String fallbackVersion) {
-    String latestIdentifier = RepositoryUrlManager.get().getArtifactComponentIdentifier(artifactId, true);
-    if (latestIdentifier != null) {
-      com.android.ide.common.gradle.Component component = com.android.ide.common.gradle.Component.Companion.tryParse(latestIdentifier);
-      if (component != null) {
-        return component.getVersion().toString();
-      }
+    com.android.ide.common.gradle.Component latestComponent = RepositoryUrlManager.get().getArtifactComponent(artifactId, true);
+    if (latestComponent != null) {
+      return latestComponent.getVersion().toString();
     }
 
     //Fallback to some default version.
