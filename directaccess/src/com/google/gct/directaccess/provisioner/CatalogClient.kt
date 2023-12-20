@@ -43,10 +43,9 @@ object CatalogClient {
         model.perVersionInfo
           ?.filter { perVersionInfo ->
             perVersionInfo.versionId?.toIntOrNull()?.let { it >= 26 } == true &&
-              // TODO(b/292642744): Remove isUnfilteredDevices when a more robust solution is
-              //                    implemented.
               (isUnfilteredDevices() ||
                 perVersionInfo.directAccessVersionInfo?.directAccessSupported == true &&
+                  perVersionInfo.deviceCapacity != "DEVICE_CAPACITY_NONE" &&
                   BuildNumber.fromString(
                       perVersionInfo.directAccessVersionInfo.minimumAndroidStudioVersion
                     )
