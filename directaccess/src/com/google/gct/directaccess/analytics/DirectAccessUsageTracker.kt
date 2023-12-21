@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.analytics
 
 import com.android.tools.analytics.UsageTracker
+import com.android.tools.idea.stats.AndroidStudioUsageTracker
 import com.android.tools.idea.stats.AnonymizerUtil
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionMetrics
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
@@ -162,6 +163,7 @@ object DirectAccessUsageTracker {
         kind = AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT
         deviceInfo = deviceInformation
         directAccessUsageEvent = usageEvent
+        productDetails = AndroidStudioUsageTracker.productDetails
       }
     )
   }

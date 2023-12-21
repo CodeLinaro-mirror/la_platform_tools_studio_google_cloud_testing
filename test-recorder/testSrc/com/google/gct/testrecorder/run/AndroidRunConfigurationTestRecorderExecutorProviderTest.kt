@@ -11,7 +11,6 @@ import com.android.tools.idea.run.AndroidRunConfigurationType
 import com.android.tools.idea.run.DeviceFutures
 import com.android.tools.idea.run.editor.DeployTarget
 import com.android.tools.idea.run.editor.DeployTargetState
-import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfigurationType
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.executeMakeBeforeRunStepInTest
 import com.android.tools.idea.testing.mockDeviceFor
@@ -35,7 +34,7 @@ class AndroidRunConfigurationTestRecorderExecutorProviderTest {
 
   @Test
   fun produceCorrectExecutor() {
-    val config = object : AndroidRunConfiguration(projectRule.project, AndroidTestRunConfigurationType.getInstance().factory) {
+    val config = object : AndroidRunConfiguration(projectRule.project, AndroidRunConfigurationType.getInstance().factory) {
       override fun getDeployTarget(): DeployTarget {
         return object : DeployTarget {
           override fun hasCustomRunProfileState(executor: Executor) = false

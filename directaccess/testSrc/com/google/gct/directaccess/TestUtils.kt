@@ -43,7 +43,7 @@ object TestUtils {
         100,
         200,
         300,
-        30
+        null,
       ),
       DeviceInfo(
         "id2",
@@ -187,6 +187,23 @@ object TestUtils {
         )
     }
 
+  private val phoneWithNoCapacity =
+    AndroidModel().apply {
+      manufacturer = "Google"
+      name = "Phone with no capacity"
+      brand = "Google"
+      codename = "phone-with-no-capacity"
+      id = codename
+      supportedVersionIds = listOf("25")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
+      perVersionInfo =
+        listOf(generatePerVersionInfo().apply { deviceCapacity = "DEVICE_CAPACITY_NONE" })
+    }
+
   private fun generatePerVersionInfo(api: String = "32", isDirectAccessSupported: Boolean = true) =
     PerAndroidVersionInfo().apply {
       deviceCapacity = "DEVICE_CAPACITY_HIGH"
@@ -202,7 +219,8 @@ object TestUtils {
       wearable,
       tablet,
       phoneLessThanApi26,
-      phoneSupportedOnHigherASVersion
+      phoneSupportedOnHigherASVersion,
+      phoneWithNoCapacity
     )
 
   val androidDeviceCatalogWithMissingFields =

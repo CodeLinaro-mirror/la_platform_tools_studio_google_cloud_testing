@@ -793,6 +793,13 @@ class DirectAccessUsageTrackerTest {
       .also {
         assertThat(it.deviceInfo.deviceProvisionerId).isEqualTo(PLUGIN_ID)
         assertThat(it.deviceInfo.deviceType).isEqualTo(DeviceType.CLOUD_PHYSICAL)
+        assertThat(it.hasProductDetails()).isTrue()
+        with(it.productDetails) {
+          assertThat(hasProduct()).isTrue()
+          assertThat(hasBuild()).isTrue()
+          assertThat(hasVersion()).isTrue()
+          assertThat(hasChannel()).isTrue()
+        }
       }
   }
 

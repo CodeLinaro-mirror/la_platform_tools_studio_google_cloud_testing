@@ -82,19 +82,25 @@ class DirectAccessProjectSelectorImpl(
       } catch (e: Exception) {
         null
       }
-    if (projects == null) {
-      model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
-      updateSelectedItem(ERROR_FETCHING_FIREBASE_PROJECT)
-      paintErrorText()
-      isEnabled = false
-    } else if (projects.isEmpty()) {
-      model = CollectionComboBoxModel(listOf(NO_PROJECTS_AVAILABLE))
-      updateSelectedItem(NO_PROJECTS_AVAILABLE)
-      isEnabled = false
-    } else {
-      model = CollectionComboBoxModel(projects)
-      updateSelectedItem(preferredProject)
-      isEnabled = shouldEnable
+    withContext(AndroidDispatchers.uiThread) {
+      when {
+        projects == null -> {
+          model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
+          updateSelectedItem(ERROR_FETCHING_FIREBASE_PROJECT)
+          isEnabled = false
+          paintErrorText()
+        }
+        projects.isEmpty() -> {
+          model = CollectionComboBoxModel(listOf(NO_PROJECTS_AVAILABLE))
+          updateSelectedItem(NO_PROJECTS_AVAILABLE)
+          isEnabled = false
+        }
+        else -> {
+          model = CollectionComboBoxModel(projects)
+          updateSelectedItem(preferredProject)
+          isEnabled = shouldEnable
+        }
+      }
     }
   }
 
@@ -103,11 +109,11 @@ class DirectAccessProjectSelectorImpl(
     textField.disabledTextColor = NamedColorUtil.getErrorForeground()
   }
 
-  private suspend fun updateSelectedItem(item: String) {
+  private fun updateSelectedItem(item: String) {
     if (!isPreferredProjectApplied) {
       isReady.value = true
       isPreferredProjectApplied = true
-      withContext(AndroidDispatchers.uiThread) { selectedItem = item }
+      selectedItem = item
     }
     selectedProject.value = selectedItem as String
   }

@@ -92,7 +92,7 @@ class SelectProjectActionTest {
         true
       }
       .whenever(mockGoogleLogin)
-      .logIn()
+      .logIn(null, null)
     ApplicationManager.getApplication()
       .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
 
