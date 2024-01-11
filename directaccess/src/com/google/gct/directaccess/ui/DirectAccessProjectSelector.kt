@@ -21,6 +21,7 @@ import com.google.services.firebase.FirebaseProjectClient
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.CollectionComboBoxModel
 import com.intellij.util.ui.NamedColorUtil
+import java.awt.Color
 import javax.swing.JComponent
 import javax.swing.JTextField
 import kotlinx.coroutines.CoroutineScope
@@ -67,6 +68,7 @@ class DirectAccessProjectSelectorImpl(
     renderer = DirectAccessProjectSelectorRenderer
     model = CollectionComboBoxModel(listOf("Loading..."))
     isEnabled = false
+    setDisabledTextColor(NamedColorUtil.getInactiveTextColor())
     if (!shouldEnable) {
       toolTipText = "Stop reservations to change projects"
     }
@@ -88,7 +90,7 @@ class DirectAccessProjectSelectorImpl(
           model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
           updateSelectedItem(ERROR_FETCHING_FIREBASE_PROJECT)
           isEnabled = false
-          paintErrorText()
+          setDisabledTextColor(NamedColorUtil.getErrorForeground())
         }
         projects.isEmpty() -> {
           model = CollectionComboBoxModel(listOf(NO_PROJECTS_AVAILABLE))
@@ -104,9 +106,9 @@ class DirectAccessProjectSelectorImpl(
     }
   }
 
-  private fun paintErrorText() {
+  private fun setDisabledTextColor(color: Color) {
     val textField = editor.editorComponent as JTextField
-    textField.disabledTextColor = NamedColorUtil.getErrorForeground()
+    textField.disabledTextColor = color
   }
 
   private fun updateSelectedItem(item: String) {

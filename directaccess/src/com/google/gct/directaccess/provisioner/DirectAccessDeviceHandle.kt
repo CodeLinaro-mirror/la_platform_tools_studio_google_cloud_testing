@@ -411,7 +411,9 @@ class DirectAccessDeviceHandle(
         icon = this@DirectAccessDeviceHandle.icon
       }
 
-    stateFlow.update { DeviceState.Connected(deviceProperties, device, it.reservation) }
+    stateFlow.update {
+      DeviceState.Connected(deviceProperties, device, reservation = it.reservation)
+    }
     scope
       .launch { device.awaitDisconnection() }
       .invokeOnCompletion { throwable ->

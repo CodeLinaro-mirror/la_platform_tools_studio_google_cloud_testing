@@ -24,11 +24,15 @@ import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.intellij.util.application
 import com.intellij.util.concurrency.AppExecutorUtil
+import com.intellij.util.ui.NamedColorUtil
+import java.awt.Color
 import java.util.concurrent.CountDownLatch
+import javax.swing.JTextField
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Runnable
@@ -60,6 +64,8 @@ class DirectAccessProjectSelectorTest {
 
     assertThat(selector.model.size).isEqualTo(1)
     assertThat(selector.model.selectedItem).isEqualTo("Loading...")
+    assertThat(selector.isEnabled).isFalse()
+    selector.assertDisabledTextColor(NamedColorUtil.getInactiveTextColor())
   }
 
   @Test
@@ -92,6 +98,18 @@ class DirectAccessProjectSelectorTest {
     assertThat(selector.model.size).isEqualTo(1)
     assertThat(selector.model.selectedItem).isEqualTo("Error fetching firebase projects")
     assertThat(selector.isEnabled).isFalse()
+    selector.assertDisabledTextColor(NamedColorUtil.getErrorForeground())
+  }
+
+  @Test
+  fun testSelectorDisabledIfShouldEnableIsFalse() = runBlockingWithTimeout {
+    selector = DirectAccessProjectSelectorImpl(projectList.last(), false, scope)
+
+    yieldUntil { selector.model.size != 1 }
+
+    assertThat(selector.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.model.selectedItem == projectList.last() }
+    selector.assertDisabledTextColor(NamedColorUtil.getInactiveTextColor())
   }
 
   @Test
@@ -119,4 +137,9 @@ class DirectAccessProjectSelectorTest {
     yieldUntil { selector.isEnabled }
     assertThat(countDownLatch.count).isEqualTo(0)
   }
+}
+
+private fun DirectAccessProjectSelector.assertDisabledTextColor(color: Color) {
+  val textField = (this as ComboBox<*>).editor.editorComponent as JTextField
+  assertThat(textField.disabledTextColor).isEqualTo(color)
 }
