@@ -85,12 +85,16 @@ class DirectAccessDeviceProvisionerPlugin(
                 newAccessibleDeviceInfoList.groupBy { it.id }.mapValues { it.value.first() }
               project.service<DirectAccessService>().deviceSelectionListFlow.update {
                 oldDeviceSelectionList ->
-                // Add devices not presented in the oldDeviceSelectionList.
-                val oldDeviceInfoSet =
-                  oldDeviceSelectionList.map { selection -> selection.deviceInfo }.toSet()
-                val addedSelectionList =
-                  (newAccessibleDeviceInfoList - oldDeviceInfoSet).map { DeviceSelection(true, it) }
-                addedSelectionList + oldDeviceSelectionList
+                val accessibleDeviceIdSet = newAccessibleDeviceInfoList.map { it.id }.toSet()
+                val deselectedDeviceIdSet =
+                  oldDeviceSelectionList.filter { !it.isSelected }.map { it.deviceInfo.id }.toSet()
+                val accessibleDeviceSelectionList =
+                  newAccessibleDeviceInfoList.map {
+                    DeviceSelection(it.id !in deselectedDeviceIdSet, it)
+                  }
+                val inaccessibleDeviceSelectionList =
+                  oldDeviceSelectionList.filter { it.deviceInfo.id !in accessibleDeviceIdSet }
+                accessibleDeviceSelectionList + inaccessibleDeviceSelectionList
               }
             }
           }

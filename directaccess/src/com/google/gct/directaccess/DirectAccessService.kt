@@ -15,10 +15,8 @@
  */
 package com.google.gct.directaccess
 
-import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStatus
-import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -35,14 +33,19 @@ class DirectAccessService(val project: Project, scope: CoroutineScope) : Disposa
   val cloudProjectManager: StateFlow<DirectAccessCloudProjectManager?> = _cloudProjectManager
 
   /** A flow of devices with selected states. */
-  val deviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
+  val deviceSelectionListFlow =
+    MutableStateFlow(
+      project.service<DirectAccessPersistentStateComponent>().state.deviceSelectionList.map {
+        it.createDeviceSelection()
+      }
+    )
 
   @Synchronized
   fun selectCloudProject(cloudProject: String?) {
     val cloudProjectEntry =
       cloudProject?.let {
         // Stores the last non-null cloud project in PropertiesComponent.
-        PropertiesComponent.getInstance(project).setValue("direct.access.project", it)
+        project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject = it
         getCloudProject(cloudProject)
       }
     _cloudProjectManager.value =
@@ -54,11 +57,17 @@ class DirectAccessService(val project: Project, scope: CoroutineScope) : Disposa
       service<LoginState>().loginStatus.collect {
         if (it is LoginStatus.LoggedIn) {
           selectCloudProject(
-            PropertiesComponent.getInstance(project).getValue("direct.access.project")
+            project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
           )
         } else {
           selectCloudProject(null)
         }
+      }
+    }
+    scope.launch {
+      deviceSelectionListFlow.collect { deviceSelectionList ->
+        project.service<DirectAccessPersistentStateComponent>().state.deviceSelectionList =
+          deviceSelectionList.map { it.toPersistentDeviceSelectionData() }.toMutableList()
       }
     }
   }
