@@ -146,25 +146,25 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   public static final String ANDROIDX_TEST_INSTRUMENTATION_RUNNER = "androidx.test.runner.AndroidJUnitRunner";
 
   /** The minimal version of espresso-core in build.gradle that does not require updating for importing LargeTest. */
-  private static final Version MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST = Version.Companion.parse("2.2.2");
+  private static final Version MIN_ESPRESSO_CORE_VERSION_FOR_LARGE_TEST = Version.parse("2.2.2");
 
   /** The minimal version of rules in build.gradle that does not require updating for importing LargeTest. */
-  private static final Version MIN_RULES_VERSION_FOR_LARGE_TEST = Version.Companion.parse("0.5");
+  private static final Version MIN_RULES_VERSION_FOR_LARGE_TEST = Version.parse("0.5");
 
   /** The minimal version of espresso-core in build.gradle that does not require updating for using GrantPermissionRule. */
-  private static final Version MIN_ESPRESSO_CORE_VERSION_FOR_GRANT_PERMISSION_RULE = Version.Companion.parse("3.0.0");
+  private static final Version MIN_ESPRESSO_CORE_VERSION_FOR_GRANT_PERMISSION_RULE = Version.parse("3.0.0");
 
   /** The minimal version of rules in build.gradle that does not require updating for using GrantPermissionRule. */
-  private static final Version MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE = Version.Companion.parse("1.0.0");
+  private static final Version MIN_RULES_VERSION_FOR_GRANT_PERMISSION_RULE = Version.parse("1.0.0");
 
   /** The minimal version of androidx espresso-core in build.gradle that does not require updating. */
-  private static final Version MIN_ANDROIDX_ESPRESSO_CORE_VERSION = Version.Companion.parse("3.5.0");
+  private static final Version MIN_ANDROIDX_ESPRESSO_CORE_VERSION = Version.parse("3.5.0");
 
   /** The minimal version of androidx rules in build.gradle that does not require updating. */
-  private static final Version MIN_ANDROIDX_RULES_VERSION = Version.Companion.parse("1.5.0");
+  private static final Version MIN_ANDROIDX_RULES_VERSION = Version.parse("1.5.0");
 
   /** The minimal version of androidx ext junit in build.gradle that does not require updating. */
-  private static final Version MIN_ANDROIDX_EXT_JUNIT_VERSION = Version.Companion.parse("1.1.5");
+  private static final Version MIN_ANDROIDX_EXT_JUNIT_VERSION = Version.parse("1.1.5");
 
   /** Version of espresso-core added/updated in build.gradle, when missing or obsolete. Should be used only via its accessor method. */
   private static String espressoCoreVersion = null;
