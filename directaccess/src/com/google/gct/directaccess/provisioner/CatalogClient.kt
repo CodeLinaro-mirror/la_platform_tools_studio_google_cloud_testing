@@ -77,7 +77,8 @@ object CatalogClient {
     return DeviceInfo(
       id,
       brand,
-      name,
+      if (name.startsWith("$manufacturer ", true)) name.substring(manufacturer.length + 1)
+      else name,
       manufacturer,
       codename,
       perVersionInfo.versionId.toInt(),

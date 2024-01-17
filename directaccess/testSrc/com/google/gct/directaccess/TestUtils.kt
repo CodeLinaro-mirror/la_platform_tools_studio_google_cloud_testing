@@ -106,7 +106,7 @@ object TestUtils {
   private val wearable =
     AndroidModel().apply {
       manufacturer = "Google"
-      name = "Watch"
+      name = "Google Watch"
       brand = "Google"
       codename = "watch"
       id = codename
