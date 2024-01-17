@@ -88,9 +88,7 @@ private val loginLink =
 class SelectProjectAction(
   private val builder: (String, Boolean, CoroutineScope) -> DirectAccessProjectSelector =
     { preferredProject, isEnabled, scope ->
-      DirectAccessProjectSelectorImpl(preferredProject, isEnabled, scope).apply {
-        isEditable = true
-      }
+      DirectAccessProjectSelectorImpl(preferredProject, isEnabled, scope)
     }
 ) : AnAction("Configure Device Streaming Project", "text", FirebaseIcons.ACTION_ICON) {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT

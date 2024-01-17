@@ -24,7 +24,6 @@ import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.ui.ComboBox
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.intellij.util.application
@@ -62,9 +61,9 @@ class DirectAccessProjectSelectorTest {
     scope.cancel()
     selector = DirectAccessProjectSelectorImpl(projectList.last(), true, scope)
 
-    assertThat(selector.model.size).isEqualTo(1)
-    assertThat(selector.model.selectedItem).isEqualTo("Loading...")
-    assertThat(selector.isEnabled).isFalse()
+    assertThat(selector.comboBox.model.size).isEqualTo(1)
+    assertThat(selector.comboBox.model.selectedItem).isEqualTo("Loading...")
+    assertThat(selector.comboBox.isEnabled).isFalse()
     selector.assertDisabledTextColor(NamedColorUtil.getInactiveTextColor())
   }
 
@@ -72,20 +71,22 @@ class DirectAccessProjectSelectorTest {
   fun testProjectsLoadedInSelector() = runBlockingWithTimeout {
     selector = DirectAccessProjectSelectorImpl(projectList.last(), true, scope)
 
-    yieldUntil { selector.model.size != 1 }
+    yieldUntil { selector.comboBox.model.size != 1 }
 
-    assertThat(selector.model.size).isEqualTo(projectList.size)
-    yieldUntil { selector.model.selectedItem == projectList.last() }
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.comboBox.model.selectedItem == projectList.last() }
+    assertThat(selector.components[0]).isEqualTo(selector.comboBox)
   }
 
   @Test
   fun testSelectedItemDefaultWhenPreferredProjectNotInList() = runBlockingWithTimeout {
     selector = DirectAccessProjectSelectorImpl("nonExistentProject", true, scope)
 
-    yieldUntil { selector.model.size != 1 }
+    yieldUntil { selector.comboBox.model.size != 1 }
 
-    assertThat(selector.model.size).isEqualTo(projectList.size)
-    yieldUntil { selector.model.selectedItem == projectList[0] }
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.comboBox.model.selectedItem == projectList[0] }
+    assertThat(selector.components[0]).isEqualTo(selector.comboBox)
   }
 
   @Test
@@ -95,20 +96,34 @@ class DirectAccessProjectSelectorTest {
 
     yieldUntil { scope.coroutineContext.job.children.toList().isEmpty() }
 
-    assertThat(selector.model.size).isEqualTo(1)
-    assertThat(selector.model.selectedItem).isEqualTo("Error fetching firebase projects")
-    assertThat(selector.isEnabled).isFalse()
+    assertThat(selector.comboBox.isVisible).isTrue()
+    assertThat(selector.comboBox.model.size).isEqualTo(1)
+    assertThat(selector.comboBox.model.selectedItem).isEqualTo("Error fetching firebase projects")
+    assertThat(selector.comboBox.isEnabled).isFalse()
     selector.assertDisabledTextColor(NamedColorUtil.getErrorForeground())
+  }
+
+  @Test
+  fun testEmptyProjectListShowsLink() = runBlockingWithTimeout {
+    projectList = firebaseProjectClientRule.setupFirebaseClient(numProjects = 0).toMutableList()
+    selector = DirectAccessProjectSelectorImpl("preferredProject", true, scope)
+
+    yieldUntil { /*scope.coroutineContext.job.children.toList().isEmpty()*/
+      selector.createProjectHyperlink.isVisible
+    }
+
+    assertThat(selector.createProjectHyperlink.isVisible).isTrue()
+    assertThat(selector.comboBox.isVisible).isFalse()
   }
 
   @Test
   fun testSelectorDisabledIfShouldEnableIsFalse() = runBlockingWithTimeout {
     selector = DirectAccessProjectSelectorImpl(projectList.last(), false, scope)
 
-    yieldUntil { selector.model.size != 1 }
+    yieldUntil { selector.comboBox.model.size != 1 }
 
-    assertThat(selector.model.size).isEqualTo(projectList.size)
-    yieldUntil { selector.model.selectedItem == projectList.last() }
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.comboBox.model.selectedItem == projectList.last() }
     selector.assertDisabledTextColor(NamedColorUtil.getInactiveTextColor())
   }
 
@@ -134,12 +149,12 @@ class DirectAccessProjectSelectorTest {
     )
     selector = DirectAccessProjectSelectorImpl("preferredProject", true, scope)
 
-    yieldUntil { selector.isEnabled }
+    yieldUntil { selector.comboBox.isEnabled }
     assertThat(countDownLatch.count).isEqualTo(0)
   }
 }
 
-private fun DirectAccessProjectSelector.assertDisabledTextColor(color: Color) {
-  val textField = (this as ComboBox<*>).editor.editorComponent as JTextField
+private fun DirectAccessProjectSelectorImpl.assertDisabledTextColor(color: Color) {
+  val textField = comboBox.editor.editorComponent as JTextField
   assertThat(textField.disabledTextColor).isEqualTo(color)
 }
