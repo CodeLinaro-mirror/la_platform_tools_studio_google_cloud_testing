@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess
 
+import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidDeviceCatalog
@@ -22,12 +23,14 @@ import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.DirectAccessVersionInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationsManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.flow.update
 
 object TestUtils {
   val deviceInfoListProvider = {
@@ -255,4 +258,13 @@ object TestUtils {
       .value
       ?.reservationListFlowWithException
       ?.refresh()
+
+  suspend fun Project.showAllTemplates(verifyOldSelection: (List<DeviceSelection>) -> Unit = {}) {
+    yieldUntil { service<DirectAccessService>().deviceSelectionListFlow.value.isNotEmpty() }
+    val deviceSelectionListFlow = service<DirectAccessService>().deviceSelectionListFlow
+    verifyOldSelection(deviceSelectionListFlow.value)
+    deviceSelectionListFlow.update {
+      it.map { selection -> DeviceSelection(true, selection.deviceInfo) }
+    }
+  }
 }

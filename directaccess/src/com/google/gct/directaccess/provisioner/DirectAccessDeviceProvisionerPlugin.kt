@@ -16,14 +16,19 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
+import com.android.sdklib.deviceprovisioner.CreateDeviceTemplateAction
+import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.tools.adbbridge.Reservation
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
+import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.directAccessCloudProjectManager
+import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -32,6 +37,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.mapNotNull
@@ -86,11 +92,11 @@ class DirectAccessDeviceProvisionerPlugin(
               project.service<DirectAccessService>().deviceSelectionListFlow.update {
                 oldDeviceSelectionList ->
                 val accessibleDeviceIdSet = newAccessibleDeviceInfoList.map { it.id }.toSet()
-                val deselectedDeviceIdSet =
-                  oldDeviceSelectionList.filter { !it.isSelected }.map { it.deviceInfo.id }.toSet()
+                val selectedDeviceIdSet =
+                  oldDeviceSelectionList.filter { it.isSelected }.map { it.deviceInfo.id }.toSet()
                 val accessibleDeviceSelectionList =
                   newAccessibleDeviceInfoList.map {
-                    DeviceSelection(it.id !in deselectedDeviceIdSet, it)
+                    DeviceSelection(it.id in selectedDeviceIdSet, it)
                   }
                 val inaccessibleDeviceSelectionList =
                   oldDeviceSelectionList.filter { it.deviceInfo.id !in accessibleDeviceIdSet }
@@ -207,4 +213,18 @@ class DirectAccessDeviceProvisionerPlugin(
     }
     return null
   }
+
+  override val createDeviceTemplateAction =
+    object : CreateDeviceTemplateAction {
+      override suspend fun create() {
+        withContext(AndroidDispatchers.uiThread) { SelectDeviceDialog(project).show() }
+      }
+
+      override val presentation: StateFlow<DeviceAction.Presentation> =
+        MutableStateFlow(
+            StudioDefaultDeviceActionPresentation.fromContext()
+              .copy(label = "Select Remote Devices")
+          )
+          .asStateFlow()
+    }
 }

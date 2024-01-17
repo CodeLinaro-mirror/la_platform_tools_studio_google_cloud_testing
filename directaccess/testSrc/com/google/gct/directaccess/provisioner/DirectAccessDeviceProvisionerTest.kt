@@ -54,6 +54,7 @@ import com.google.gct.directaccess.TestUtils.deviceName
 import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.reservation
+import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
@@ -155,6 +156,11 @@ class DirectAccessDeviceProvisionerTest {
     }
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
+    projectRule.project.showAllTemplates { selectionList ->
+      // Templates are not added to the provisioner automatically after switching to a cloud project
+      // with access to more devices.
+      selectionList.forEach { assertThat(it.isSelected).isFalse() }
+    }
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
 
@@ -912,8 +918,10 @@ class DirectAccessDeviceProvisionerTest {
       plugin.templates.value.map { (it as DirectAccessDeviceTemplate).deviceInfo }
 
     withContext(AndroidDispatchers.uiThread) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
+      createModalDialogAndInteractWithIt({
+        scope.launch { plugin.createDeviceTemplateAction.create() }
+      }) {
+        val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
         val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
         assertThat(icons)
@@ -938,8 +946,10 @@ class DirectAccessDeviceProvisionerTest {
 
     // Re-select a template
     withContext(AndroidDispatchers.uiThread) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
+      createModalDialogAndInteractWithIt({
+        scope.launch { plugin.createDeviceTemplateAction.create() }
+      }) {
+        val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
         val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
         checkboxList[1].isSelected = true
