@@ -83,6 +83,7 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
 import com.studiogrpc.testutils.GrpcConnectionRule
@@ -991,6 +992,60 @@ class DirectAccessDeviceProvisionerTest {
       createModalDialogAndInteractWithIt({ dialog.show() }) {
         assertThat(dialog.deviceTable.componentCount).isEqualTo(3)
         dialog.clickDefaultButton()
+      }
+    }
+  }
+
+  @RunsInEdt
+  @Test
+  fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
+    assertThat(plugin.templates.value.size).isEqualTo(4)
+
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
+        // Case-insensitive search
+        searchTextField.text = "GoOgLe       WaTcH"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(1)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel Watch")
+
+        // Search for devices with 6 in their name
+        searchTextField.text = "6"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6")
+        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel 6 Pro")
+
+        // Search for api 33
+        searchTextField.text = "33"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6 Pro")
+        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel Watch")
+
+        // Search matching no device
+        searchTextField.text = "no match search"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
+      }
+    }
+  }
+
+  @RunsInEdt
+  @Test
+  fun testSelectDeviceDialogWhenNoAvailableDevicesToSelect() = runBlockingWithTimeout {
+    (plugin.templates as MutableStateFlow).value = emptyList()
+    assertThat(plugin.templates.value.isEmpty()).isTrue()
+
+    (projectRule.project.service<DirectAccessService>().cloudProjectManager as MutableStateFlow)
+      .value = null
+    projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value = emptyList()
+
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
+        val label = dialog.contentPanel.findAllDescendants<JLabel>().map { it.text }.first()
+        assertThat(label).isEqualTo("No devices to select")
       }
     }
   }
