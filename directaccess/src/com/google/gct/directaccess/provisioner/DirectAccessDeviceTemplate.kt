@@ -315,13 +315,7 @@ internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DirectAcce
       }
     resolution = Resolution(info.screenX, info.screenY)
     density = info.screenDensity
-    icon =
-      when (type) {
-        DeviceType.WEAR_OS -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
-        DeviceType.TV -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
-        DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
-        else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
-      }
+    icon = info.icon
     populateDeviceInfoProto(PLUGIN_ID, null, emptyMap(), connectionCount.toString())
   }
 }

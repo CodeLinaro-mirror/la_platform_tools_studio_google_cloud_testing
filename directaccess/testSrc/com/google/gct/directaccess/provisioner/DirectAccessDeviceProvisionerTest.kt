@@ -86,9 +86,12 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
 import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
+import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
+import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import javax.swing.JLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -243,8 +246,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
     assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
-    assertThat(provisioner.templates.value[0].properties.icon)
-      .isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+    assertThat(provisioner.templates.value[0].properties.icon).isEqualTo(FIREBASE_DEVICE_PHONE)
     assertThat(provisioner.templates.value[0].properties.isRemote).isTrue()
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
     assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
@@ -325,7 +327,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(state.value).isInstanceOf(Connected::class.java)
     assertThat(state.value.reservation!!.stateMessage).isEmpty()
     with(state.value.properties) {
-      assertThat(icon).isEqualTo(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+      assertThat(icon).isEqualTo(FIREBASE_DEVICE_PHONE)
       assertThat(androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
       assertThat(model).isEqualTo(deviceInfo.name)
       assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer)
@@ -349,7 +351,7 @@ class DirectAccessDeviceProvisionerTest {
 
     // Deactivate the device.
     state.value.connectedDevice!!.scope.cancel()
-    device.deactivationAction!!.deactivate()
+    device.deactivationAction.deactivate()
     // Cancel Reservation.
     fakeConnection.endReservation()
     yieldUntil { plugin.devices.value.isEmpty() }
@@ -887,13 +889,13 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   fun testCorrectIconForPhone() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
-    testCorrectIcon(template, StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+    testCorrectIcon(template, FIREBASE_DEVICE_PHONE)
   }
 
   @Test
   fun testCorrectIconForWatch() = runBlockingWithTimeout {
     val template = plugin.templates.value[3] as DirectAccessDeviceTemplate
-    testCorrectIcon(template, StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR)
+    testCorrectIcon(template, FIREBASE_DEVICE_WEAR)
   }
 
   @RunsInEdt
@@ -907,6 +909,14 @@ class DirectAccessDeviceProvisionerTest {
       val dialog = SelectDeviceDialog(projectRule.project)
       createModalDialogAndInteractWithIt({ dialog.show() }) {
         assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
+        assertThat(icons)
+          .containsExactly(
+            FIREBASE_DEVICE_PHONE,
+            FIREBASE_DEVICE_PHONE,
+            FIREBASE_DEVICE_PHONE,
+            FIREBASE_DEVICE_WEAR
+          )
         val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
         checkboxList.forEach { assertThat(it.isSelected).isTrue() }
 

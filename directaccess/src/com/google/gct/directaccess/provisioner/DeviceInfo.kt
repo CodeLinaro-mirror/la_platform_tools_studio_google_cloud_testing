@@ -16,6 +16,11 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.tools.idea.devicemanager.DeviceType
+import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
+import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
+import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
+import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
+import javax.swing.Icon
 
 data class DeviceInfo(
   val id: String,
@@ -32,3 +37,12 @@ data class DeviceInfo(
 )
 
 data class DeviceSelection(var isSelected: Boolean, val deviceInfo: DeviceInfo)
+
+internal val DeviceInfo.icon: Icon
+  get() =
+    when (type) {
+      DeviceType.PHONE -> FIREBASE_DEVICE_PHONE
+      DeviceType.TV -> FIREBASE_DEVICE_TV
+      DeviceType.WEAR_OS -> FIREBASE_DEVICE_WEAR
+      DeviceType.AUTOMOTIVE -> FIREBASE_DEVICE_CAR
+    }
