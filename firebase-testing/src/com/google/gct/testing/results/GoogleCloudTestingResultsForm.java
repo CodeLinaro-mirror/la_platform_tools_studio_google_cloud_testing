@@ -27,9 +27,8 @@ import com.intellij.execution.testframework.TestTreeView;
 import com.intellij.execution.testframework.TestsUIUtil;
 import com.intellij.execution.testframework.ToolbarPanel;
 import com.intellij.execution.testframework.sm.runner.ui.TestsPresentationUtil;
-import com.intellij.execution.testframework.ui.AbstractTestTreeBuilder;
 import com.intellij.execution.testframework.ui.TestResultsPanel;
-import com.intellij.execution.testframework.ui.TestsProgressAnimator;
+import com.intellij.ide.util.treeView.IndexComparator;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.progress.util.ColorProgressBar;
@@ -37,6 +36,8 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.JBColor;
+import com.intellij.ui.tree.AsyncTreeModel;
+import com.intellij.ui.tree.StructureTreeModel;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.text.DateFormatUtil;
 import java.awt.Color;
@@ -50,7 +51,6 @@ import javax.swing.AbstractAction;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
-import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -63,8 +63,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
   public static final Color DARK_YELLOW = JBColor.YELLOW.darker();
 
   private GoogleCloudTestTreeView myTreeView;
-
-  private TestsProgressAnimator myTestAnimator;
 
   /**
    * Fake parent suite for all tests and suites
@@ -138,10 +136,13 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
 
     final GoogleCloudTestTreeStructure structure = new GoogleCloudTestTreeStructure(myProject, myTestsRootNode);
     myTreeBuilder = new GoogleCloudTestTreeBuilder(myTreeView, structure);
+    StructureTreeModel structureTreeModel = new StructureTreeModel<>(structure, IndexComparator.INSTANCE, myProject);
+    AsyncTreeModel asyncTreeModel = new AsyncTreeModel(structureTreeModel, true, myProject);
+    myTreeView.setModel(asyncTreeModel);
+    myTreeBuilder.setModel(structureTreeModel);
     myTreeBuilder.setTestsComparator(this);
     Disposer.register(this, myTreeBuilder);
-
-    myTestAnimator = new MyAnimator(myTreeBuilder);
+    Disposer.register(this, asyncTreeModel);
 
     //TODO always hide root node
     //myTreeView.setRootVisible(false);
@@ -158,8 +159,8 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
    */
   @Override
   public void onTestingStarted(@NotNull GoogleCloudTestProxy.GoogleCloudRootTestProxy testsRoot, boolean printTestingStartedTime) {
-    myTestAnimator.setCurrentTestCase(myTestsRootNode);
 
+    myTreeBuilder.updateFromRoot();
     // Status line
     myStatusLine.setStatusColor(ColorProgressBar.GREEN);
 
@@ -191,7 +192,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     updateStatusLabel(true);
     updateIconProgress();
 
-    myTestAnimator.stopMovie();
     myTreeBuilder.updateFromRoot();
 
     LvcsHelper.addLabel(this);
@@ -285,7 +285,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     final GoogleCloudTestTreeStructure treeStructure = myTreeBuilder.getGoogleCloudTestTreeStructure();
     treeStructure.setFilter(filter);
 
-    myTreeBuilder.queueUpdate();
+    myTreeBuilder.updateFromRoot();
   }
 
   @Override
@@ -380,8 +380,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
     // Tree
     myTreeBuilder.updateTestsSubtree(parentSuite);
     myTreeBuilder.repaintWithParents(newTestOrSuite);
-
-    myTestAnimator.setCurrentTestCase(newTestOrSuite);
   }
 
   private void fireOnTestNodeAdded(final GoogleCloudTestProxy test) {
@@ -464,12 +462,6 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
       doneTestCount = myFinishedTestCount + myFailedTestCount + myIgnoredTestCount;
     }
     TestsUIUtil.showIconProgress(myProject, doneTestCount, totalTestCount, myFailedTestCount, true);
-  }
-
-  private static class MyAnimator extends TestsProgressAnimator {
-    public MyAnimator(final AbstractTestTreeBuilder builder) {
-      super(builder);
-    }
   }
 
   private void updateCountersAndProgressOnTestCount(final int count, final boolean isCustomMessage) {

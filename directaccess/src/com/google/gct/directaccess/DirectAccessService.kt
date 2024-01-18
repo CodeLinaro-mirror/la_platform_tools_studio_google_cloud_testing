@@ -15,7 +15,6 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStatus
@@ -24,18 +23,16 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 @Service(Service.Level.PROJECT)
-class DirectAccessService(val project: Project) : Disposable {
-  private val scope = AndroidCoroutineScope(this)
+class DirectAccessService(val project: Project, scope: CoroutineScope) : Disposable {
 
   private val _cloudProjectManager = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
   val cloudProjectManager: StateFlow<DirectAccessCloudProjectManager?> = _cloudProjectManager
-  val cloudProject: String?
-    get() = cloudProjectManager.value?.cloudProject?.name
 
   /** A flow of devices with selected states. */
   val deviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())

@@ -15,20 +15,18 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.createChildScope
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.CoroutineScope
 
 /**
  * An application level service that maps a user project to its [DirectAccessCloudProjectManager] so
  * that different projects with the same cloud project share the same manager.
  */
 @Service
-class DirectAccessApplicationService : Disposable {
+class DirectAccessApplicationService(private val scope: CoroutineScope) {
 
-  private val scope = AndroidCoroutineScope(this)
   /** A mapping from a user project to its selected cloud project. */
   private val cloudProjectMap = mutableMapOf<Project, CloudProjectEntry>()
   /** A mapping from a cloud project to its [DirectAccessCloudProjectManager]. */
@@ -65,6 +63,4 @@ class DirectAccessApplicationService : Disposable {
       DirectAccessCloudProjectManager(it, scope.createChildScope(true))
     }
   }
-
-  override fun dispose() = Unit
 }
