@@ -131,7 +131,7 @@ class SelectProjectActionTest {
     projectRule.project.replaceService(
       DeviceProvisionerService::class.java,
       mockDeviceProvisionerService,
-      projectRule.disposable
+      projectRule.disposable,
     )
 
     val mockDirectAccessService = mock<DirectAccessService>()
@@ -143,7 +143,7 @@ class SelectProjectActionTest {
           createCloudProjectManager(
             scope,
             cloudProjectName,
-            cloudProjectName == supportedProjectName
+            cloudProjectName == supportedProjectName,
           )
         runBlocking { permissionFlow.refresh() }
         Unit
@@ -154,7 +154,7 @@ class SelectProjectActionTest {
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
-      projectRule.disposable
+      projectRule.disposable,
     )
 
     assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
@@ -175,7 +175,7 @@ class SelectProjectActionTest {
             else -> null
           }
         },
-        mouseEvent
+        mouseEvent,
       )
 
     // Start select action before login.
@@ -305,7 +305,7 @@ class SelectProjectActionTest {
   private fun createCloudProjectManager(
     scope: CoroutineScope,
     name: String?,
-    isAuthorized: Boolean
+    isAuthorized: Boolean,
   ): DirectAccessCloudProjectManager? {
     if (name == null) {
       return null

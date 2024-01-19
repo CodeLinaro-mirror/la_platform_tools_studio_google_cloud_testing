@@ -82,7 +82,7 @@ private val loginLink =
       override fun actionPerformed(e: AnActionEvent) {
         GoogleLogin.instance.logIn(null, null)
       }
-    }
+    },
   )
 
 class SelectProjectAction(
@@ -165,7 +165,7 @@ class SelectProjectAction(
                   // Disable the selector if there are connected devices.
                   it.state is DeviceState.Connected
                 },
-                scope
+                scope,
               )
             add(selector.component)
             scope.launch {
@@ -214,7 +214,7 @@ class SelectProjectAction(
     cloudProject: String,
     balloon: Balloon,
     errorTextPane: JTextPane,
-    remainingMinutesLabel: JBLabel
+    remainingMinutesLabel: JBLabel,
   ) {
     if (cloudProject.isEmpty() || cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
       withContext(AndroidDispatchers.uiThread) { balloon.revalidate() }
@@ -245,7 +245,7 @@ class SelectProjectAction(
               remainingMinutesLabel,
               withContext(Dispatchers.IO) {
                 project.directAccessCloudProjectManager?.remainingMinutes ?: -1
-              }
+              },
             )
             balloon.revalidate()
           }
@@ -258,7 +258,7 @@ class SelectProjectAction(
   private fun getErrorMessage(
     cloudProject: String,
     permission: DirectAccessPermissionStatus,
-    exception: Exception?
+    exception: Exception?,
   ): String? {
     return if (exception != null) {
       getErrorMessageFromException(cloudProject, permission, exception)
@@ -279,7 +279,7 @@ class SelectProjectAction(
   private fun getErrorMessageFromException(
     cloudProject: String,
     permission: DirectAccessPermissionStatus,
-    exception: Exception
+    exception: Exception,
   ) =
     if (exception is StatusRuntimeException) {
       getStatusCodeErrorMessage(cloudProject, permission, exception)
@@ -290,7 +290,7 @@ class SelectProjectAction(
   private fun getStatusCodeErrorMessage(
     cloudProject: String,
     permission: DirectAccessPermissionStatus,
-    exception: StatusRuntimeException
+    exception: StatusRuntimeException,
   ) =
     if (exception.status.code == Status.Code.PERMISSION_DENIED) {
       val description = exception.status.description

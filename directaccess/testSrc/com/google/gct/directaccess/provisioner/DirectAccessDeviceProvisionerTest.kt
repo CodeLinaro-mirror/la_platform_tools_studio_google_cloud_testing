@@ -150,7 +150,7 @@ class DirectAccessDeviceProvisionerTest {
       FakeDirectAccessConnection(
         directAccessReservationManager,
         reservationName,
-        scope.createChildScope(true)
+        scope.createChildScope(true),
       )
     }
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
@@ -178,7 +178,7 @@ class DirectAccessDeviceProvisionerTest {
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
-      projectRule.disposable
+      projectRule.disposable,
     )
 
     // Sets up deviceSelectionListFlow.
@@ -216,12 +216,12 @@ class DirectAccessDeviceProvisionerTest {
           session.deviceServices.configureShellV2Command(
             DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
             "getprop",
-            "Foo"
+            "Foo",
           )
           session.deviceServices.configureShellCommand(
             DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
             "wm size",
-            "Physical size: 1080x2400"
+            "Physical size: 1080x2400",
           )
         }
       }
@@ -320,7 +320,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
         DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer + suffix,
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name + suffix,
-      )
+      ),
     )
     session.hostServices.devices =
       DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
@@ -430,7 +430,7 @@ class DirectAccessDeviceProvisionerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun connect() {
           throw RuntimeException("Failed connection.")
@@ -601,7 +601,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
         DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
-      )
+      ),
     )
     session.hostServices.devices =
       DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
@@ -611,7 +611,7 @@ class DirectAccessDeviceProvisionerTest {
     directAccessReservationManager.extendReservation(
       handle.reservation.name,
       Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
-      DirectAccessReservationManager.ReservationExtendType.TTL
+      DirectAccessReservationManager.ReservationExtendType.TTL,
     )
 
     yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
@@ -644,7 +644,7 @@ class DirectAccessDeviceProvisionerTest {
     directAccessReservationManager.extendReservation(
       handle.reservation.name,
       Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
-      DirectAccessReservationManager.ReservationExtendType.TTL
+      DirectAccessReservationManager.ReservationExtendType.TTL,
     )
 
     yieldUntil { bannerNotifications.isNotEmpty() }
@@ -684,7 +684,7 @@ class DirectAccessDeviceProvisionerTest {
     directAccessReservationManager.extendReservation(
       handle.reservation.name,
       Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
-      DirectAccessReservationManager.ReservationExtendType.TTL
+      DirectAccessReservationManager.ReservationExtendType.TTL,
     )
 
     assertThat(bannerNotifications.isEmpty()).isTrue()
@@ -749,7 +749,7 @@ class DirectAccessDeviceProvisionerTest {
     val reservation =
       directAccessReservationManager.createReservation(
         deviceInfo.codename,
-        deviceInfo.api.toString()
+        deviceInfo.api.toString(),
       )
     directAccessReservationManager.fetchReservationFlow(reservation.name).waitUntilActive()
     projectRule.project.refreshReservations()
@@ -786,7 +786,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
         DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
-      )
+      ),
     )
     session.hostServices.devices =
       DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
@@ -865,7 +865,7 @@ class DirectAccessDeviceProvisionerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun endReservation(withGracePeriod: Boolean) {
           closeConnection(DirectAccessConnection.StateReason.USER_INITIATED)
@@ -921,7 +921,7 @@ class DirectAccessDeviceProvisionerTest {
             FIREBASE_DEVICE_PHONE,
             FIREBASE_DEVICE_PHONE,
             FIREBASE_DEVICE_PHONE,
-            FIREBASE_DEVICE_WEAR
+            FIREBASE_DEVICE_WEAR,
           )
         val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
         checkboxList.forEach { assertThat(it.isSelected).isTrue() }
@@ -992,7 +992,7 @@ class DirectAccessDeviceProvisionerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun closeConnection(stateReason: DirectAccessConnection.StateReason) {
           session.hostServices.disconnect(deviceAddress()!!)
@@ -1017,7 +1017,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
         DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
-      )
+      ),
     )
     session.hostServices.devices =
       DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
@@ -1063,7 +1063,7 @@ class DirectAccessDeviceProvisionerTest {
   private suspend fun Notification.assertReservationExpiringNotification(
     handle: DirectAccessDeviceHandle,
     waitForNotificationExpiry: Boolean,
-    actionAssertBlock: suspend (Notification) -> Unit
+    actionAssertBlock: suspend (Notification) -> Unit,
   ) =
     assertDeviceNotification(
       RESERVATION_EXPIRING_BANNER_TITLE,
@@ -1071,12 +1071,12 @@ class DirectAccessDeviceProvisionerTest {
       handle.icon,
       listOf("Extend 30 mins"),
       waitForNotificationExpiry,
-      actionAssertBlock
+      actionAssertBlock,
     )
 
   private suspend fun Notification.assertDeviceDisconnectedNotification(
     handle: DirectAccessDeviceHandle,
-    actionAssertBlock: suspend (Notification) -> Unit
+    actionAssertBlock: suspend (Notification) -> Unit,
   ) =
     assertDeviceNotification(
       "${handle.deviceName} on Firebase stopped",
@@ -1084,7 +1084,7 @@ class DirectAccessDeviceProvisionerTest {
       handle.icon,
       listOf("Reconnect to Device", "Return and erase device"),
       true,
-      actionAssertBlock
+      actionAssertBlock,
     )
 
   private suspend fun Notification.assertDeviceNotification(
@@ -1093,7 +1093,7 @@ class DirectAccessDeviceProvisionerTest {
     deviceIcon: Icon,
     actionTitles: List<String>,
     waitForNotificationExpiry: Boolean,
-    actionAssertBlock: suspend (Notification) -> Unit
+    actionAssertBlock: suspend (Notification) -> Unit,
   ) {
     assertThat(groupId).isEqualTo("Direct Access")
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
@@ -1126,7 +1126,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
         DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
-      )
+      ),
     )
     session.hostServices.connect(handle.connection.deviceAddress()!!)
     return handle

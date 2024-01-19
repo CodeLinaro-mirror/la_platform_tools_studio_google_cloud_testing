@@ -33,7 +33,7 @@ data class DeviceInfo(
   val screenX: Int,
   val screenY: Int,
   val screenDensity: Int,
-  val deviceAvailabilityEstimateSeconds: Long?
+  val deviceAvailabilityEstimateSeconds: Long?,
 )
 
 data class DeviceSelection(var isSelected: Boolean, val deviceInfo: DeviceInfo)

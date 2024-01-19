@@ -128,9 +128,9 @@ class DirectAccessProjectSelectorTest {
       AndroidExecutors(
         fakeUiExecutor,
         AppExecutorUtil.getAppExecutorService(),
-        AndroidExecutors.getInstance().diskIoThreadExecutor
+        AndroidExecutors.getInstance().diskIoThreadExecutor,
       ),
-      projectRule.disposable
+      projectRule.disposable,
     )
     selector = DirectAccessProjectSelectorImpl("preferredProject", true, scope)
 

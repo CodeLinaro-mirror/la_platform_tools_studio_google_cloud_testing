@@ -96,7 +96,7 @@ class DirectAccessMultiProjectTest {
       .replaceService(
         AdbLibApplicationService::class.java,
         mockAdbLibApplicationService,
-        disposable
+        disposable,
       )
 
     mockGoogleLogin = mock()
@@ -114,7 +114,7 @@ class DirectAccessMultiProjectTest {
       .replaceService(
         DirectAccessServiceSetup::class.java,
         mockDirectAccessServiceSetup,
-        disposable
+        disposable,
       )
 
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
@@ -145,7 +145,7 @@ class DirectAccessMultiProjectTest {
       project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
     reservationManager.createReservation(
       template1.deviceInfo.codename,
-      template1.deviceInfo.api.toString()
+      template1.deviceInfo.api.toString(),
     )
     project1.refreshReservations()
     plugin1.devices.takeWhile { it.isEmpty() }.collect()

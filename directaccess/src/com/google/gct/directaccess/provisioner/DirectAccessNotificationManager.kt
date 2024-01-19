@@ -71,7 +71,7 @@ const val RESERVATION_EXPIRING_BANNER_TITLE = "Reservation ending in 5 mins"
 @OptIn(ExperimentalCoroutinesApi::class)
 class DirectAccessNotificationManager(
   private val project: Project,
-  private val deviceHandle: DirectAccessDeviceHandle
+  private val deviceHandle: DirectAccessDeviceHandle,
 ) {
   private var deviceDisconnectedNotification: Notification? = null
   private val reservationExpiringNotification =
@@ -140,7 +140,7 @@ class DirectAccessNotificationManager(
           .createNotification(
             "$deviceName on Firebase stopped",
             message,
-            NotificationType.INFORMATION
+            NotificationType.INFORMATION,
           )
           .addAction(
             NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
@@ -171,7 +171,7 @@ class DirectAccessNotificationManager(
       .createNotification(
         "$deviceName session ended",
         "Your device session ended at $formattedEndTime. The device was returned and erased.",
-        NotificationType.INFORMATION
+        NotificationType.INFORMATION,
       )
       .setIcon(deviceHandle.icon)
       .addAction(
@@ -213,7 +213,7 @@ class DirectAccessNotificationManager(
   /** Show reservation expiring notification depending on user visible content */
   private class ReservationExpiringNotification(
     private val project: Project,
-    private val deviceHandle: DirectAccessDeviceHandle
+    private val deviceHandle: DirectAccessDeviceHandle,
   ) {
 
     /** Panel for this [DirectAccessDeviceHandle] */
@@ -319,7 +319,7 @@ class DirectAccessNotificationManager(
         .createNotification(
           RESERVATION_EXPIRING_BANNER_TITLE,
           "${deviceHandle.sourceTemplate.properties.title} will disconnect in 5 mins. Extend reservation to continue access to the device.",
-          NotificationType.INFORMATION
+          NotificationType.INFORMATION,
         )
         .addAction(
           NotificationAction.createExpiring("Extend 30 mins") { _, _ -> extendReservation() }

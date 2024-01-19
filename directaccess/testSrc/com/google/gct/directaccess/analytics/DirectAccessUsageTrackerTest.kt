@@ -133,16 +133,12 @@ class DirectAccessUsageTrackerTest {
       FakeDirectAccessConnection(
         directAccessReservationManager,
         reservationName,
-        scope.createChildScope(true)
+        scope.createChildScope(true),
       )
     }
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
-    plugin =
-      DirectAccessDeviceProvisionerPlugin(
-        session.scope,
-        projectRule.project,
-      )
+    plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
@@ -166,7 +162,7 @@ class DirectAccessUsageTrackerTest {
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
-      projectRule.disposable
+      projectRule.disposable,
     )
 
     // Sets up deviceSelectionListFlow.
@@ -204,12 +200,12 @@ class DirectAccessUsageTrackerTest {
           session.deviceServices.configureShellV2Command(
             DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
             "getprop",
-            "Foo"
+            "Foo",
           )
           session.deviceServices.configureShellCommand(
             DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
             "wm size",
-            "Physical size: 1080x2400"
+            "Physical size: 1080x2400",
           )
         }
       }
@@ -297,7 +293,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun connect() = throw Exception()
       }
@@ -335,7 +331,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         private var connectCount = 0
 
@@ -413,7 +409,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun extendReservation(duration: Duration) = throw Exception()
       }
@@ -562,7 +558,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun closeConnection(stateReason: DirectAccessConnection.StateReason) =
           throw Exception()
@@ -762,7 +758,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun endReservation(withGracePeriod: Boolean) = throw Exception()
       }
@@ -822,7 +818,7 @@ class DirectAccessUsageTrackerTest {
 
   private fun getSuccessFulDisconnectTestConnection(
     reservationName: String,
-    deviceScope: CoroutineScope
+    deviceScope: CoroutineScope,
   ) =
     object :
       FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {

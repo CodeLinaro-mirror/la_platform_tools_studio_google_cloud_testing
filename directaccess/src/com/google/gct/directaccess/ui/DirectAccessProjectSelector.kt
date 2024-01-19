@@ -52,7 +52,7 @@ interface DirectAccessProjectSelector {
 class DirectAccessProjectSelectorImpl(
   private val preferredProject: String,
   private val shouldEnable: Boolean,
-  scope: CoroutineScope
+  scope: CoroutineScope,
 ) : DirectAccessProjectSelector, ComboBox<String>() {
 
   override val component: JComponent

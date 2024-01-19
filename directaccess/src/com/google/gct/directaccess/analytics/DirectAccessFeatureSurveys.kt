@@ -90,7 +90,7 @@ class DirectAccessFeatureSurveys(val calendar: () -> Calendar = { Calendar.getIn
       notificationGroup.createNotification(
         "Device Streaming feature surveys",
         "Would you like to take a brief survey based on your recent activity to help us improve Android Studio?",
-        NotificationType.INFORMATION
+        NotificationType.INFORMATION,
       )
 
     notification.addAction(

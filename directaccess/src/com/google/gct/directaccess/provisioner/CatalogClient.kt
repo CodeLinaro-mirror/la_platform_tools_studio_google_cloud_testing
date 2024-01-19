@@ -85,7 +85,7 @@ object CatalogClient {
       screenX,
       screenY,
       screenDensity,
-      deviceAvailabilityEstimateSeconds
+      deviceAvailabilityEstimateSeconds,
     )
   }
 

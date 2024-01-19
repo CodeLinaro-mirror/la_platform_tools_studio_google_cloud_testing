@@ -56,7 +56,7 @@ object TestUtils {
         200,
         300,
         400,
-        30
+        30,
       ),
       DeviceInfo(
         "id3",
@@ -69,7 +69,7 @@ object TestUtils {
         300,
         400,
         500,
-        300
+        300,
       ),
       DeviceInfo(
         "id4",
@@ -82,8 +82,8 @@ object TestUtils {
         50,
         100,
         150,
-        30
-      )
+        30,
+      ),
     )
   }
 
@@ -220,7 +220,7 @@ object TestUtils {
       tablet,
       phoneLessThanApi26,
       phoneSupportedOnHigherASVersion,
-      phoneWithNoCapacity
+      phoneWithNoCapacity,
     )
 
   val androidDeviceCatalogWithMissingFields =
@@ -230,7 +230,7 @@ object TestUtils {
       tablet,
       invalidDevice,
       phoneLessThanApi26,
-      phoneSupportedOnHigherASVersion
+      phoneSupportedOnHigherASVersion,
     )
 
   private fun createDeviceCatalog(vararg androidModels: AndroidModel) =

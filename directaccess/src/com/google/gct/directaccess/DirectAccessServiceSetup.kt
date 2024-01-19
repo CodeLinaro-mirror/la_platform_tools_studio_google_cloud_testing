@@ -45,6 +45,6 @@ class DirectAccessServiceSetup {
   fun getAccessibleDeviceInfoList(cloudProject: String?): List<DeviceInfo> =
     CatalogClient.getAvailableDevices(
       "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
-      cloudProject
+      cloudProject,
     )
 }

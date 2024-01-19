@@ -74,7 +74,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       it.map { deviceSelection ->
         DeviceSelection(
           deviceSelection.deviceInfo in selectedDeviceInfoSet,
-          deviceSelection.deviceInfo
+          deviceSelection.deviceInfo,
         )
       }
     }

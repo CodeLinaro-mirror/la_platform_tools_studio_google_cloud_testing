@@ -47,7 +47,7 @@ data class CloudProjectEntry(val user: String, val name: String)
  */
 class DirectAccessCloudProjectManager(
   val cloudProject: CloudProjectEntry,
-  private val scope: CoroutineScope
+  private val scope: CoroutineScope,
 ) : AutoCloseable {
 
   val remainingMinutes: Long
@@ -55,14 +55,14 @@ class DirectAccessCloudProjectManager(
       CloudAuthenticator.getInstance()
         .getRemainingQuota(
           "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}",
-          "projects/${cloudProject.name}"
+          "projects/${cloudProject.name}",
         )
 
   val reservationManager: DirectAccessReservationManager =
     DirectAccessReservationManager(
       cloudProject.name,
       scope.createChildScope(true),
-      service<DirectAccessServiceSetup>().channel
+      service<DirectAccessServiceSetup>().channel,
     ) {
       service<DirectAccessServiceSetup>().fetchAccessToken()
     }

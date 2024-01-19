@@ -51,7 +51,7 @@ const val PLUGIN_ID = "FirebaseDirectAccess"
  */
 class DirectAccessDeviceProvisionerPlugin(
   private val scope: CoroutineScope,
-  private val project: Project
+  private val project: Project,
 ) : DeviceProvisionerPlugin {
   // TODO: find a proper priority
   override val priority: Int = 120
@@ -134,7 +134,7 @@ class DirectAccessDeviceProvisionerPlugin(
                         reservations,
                         deviceInfoSet ->
                         reservations != null && deviceInfoSet[deviceInfo.id] != null
-                      }
+                      },
                     )
                   }
               }
@@ -147,7 +147,7 @@ class DirectAccessDeviceProvisionerPlugin(
   @VisibleForTesting
   suspend fun matchReservations(
     templates: List<DirectAccessDeviceTemplate>,
-    reservations: List<Reservation>?
+    reservations: List<Reservation>?,
   ): Unit =
     withContext(NonCancellable) {
       if (reservations == null) {

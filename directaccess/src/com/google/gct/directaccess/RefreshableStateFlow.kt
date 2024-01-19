@@ -37,7 +37,7 @@ import kotlinx.coroutines.withContext
 class RefreshableStateFlow<T>(
   scope: CoroutineScope,
   refreshIntervalMs: Long,
-  private val refresher: () -> T
+  private val refresher: () -> T,
 ) {
   private val mutex = Mutex(false)
 

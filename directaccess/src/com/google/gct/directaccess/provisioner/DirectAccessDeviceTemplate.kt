@@ -61,7 +61,7 @@ class DirectAccessDeviceTemplate(
   private val deviceInfoFlow: StateFlow<DeviceInfo>,
   private val devices: MutableStateFlow<List<DeviceHandle>>,
   private val scope: CoroutineScope,
-  private val isAuthenticatorReady: Flow<Boolean>
+  private val isAuthenticatorReady: Flow<Boolean>,
 ) : DeviceTemplate {
   val deviceInfo: DeviceInfo
     get() = deviceInfoFlow.value
@@ -171,7 +171,7 @@ class DirectAccessDeviceTemplate(
                   title,
                   "Reserve",
                   "Cancel",
-                  Messages.getQuestionIcon()
+                  Messages.getQuestionIcon(),
                 )
               }
             if (result != Messages.OK) {
@@ -190,7 +190,7 @@ class DirectAccessDeviceTemplate(
           try {
             reservationManager.findOrCreateReservation(
               deviceInfo.codename,
-              deviceInfo.api.toString()
+              deviceInfo.api.toString(),
             )
           } catch (e: Exception) {
             // TODO(b/277240160): Add correct failure reason
@@ -200,7 +200,7 @@ class DirectAccessDeviceTemplate(
         if (startTime != 0L) {
           scope.logReserveMetricWhenReservationActive(
             reservationManager.fetchReservationFlow(reservationName),
-            startTime
+            startTime,
           )
         }
         scope.launch {
@@ -271,7 +271,7 @@ class DirectAccessDeviceTemplate(
         deviceScope,
         this@DirectAccessDeviceTemplate,
         DeviceState.Disconnected(properties),
-        reservationName
+        reservationName,
       )
       .also { activeDevice = it }
   }
@@ -288,13 +288,13 @@ class DirectAccessDeviceTemplate(
 
   private fun CoroutineScope.logReserveMetricWhenReservationActive(
     reservationFlow: StateFlow<Reservation>,
-    reserveStartTime: Long
+    reserveStartTime: Long,
   ) = launch {
     reservationFlow.waitUntilActive()
     trackReserveDevice(
       true,
       System.currentTimeMillis() - reserveStartTime,
-      reservationFlow.value.name
+      reservationFlow.value.name,
     )
   }
 
@@ -302,14 +302,14 @@ class DirectAccessDeviceTemplate(
     wasSuccessful: Boolean,
     timeToReserve: Long? = null,
     reservationName: String? = null,
-    failureReason: FailureReason? = null
+    failureReason: FailureReason? = null,
   ) {
     DirectAccessUsageTracker.trackReserveDevice(
       wasSuccessful,
       timeToReserve,
       reservationName,
       properties.deviceInfoProto,
-      failureReason
+      failureReason,
     )
   }
 }
