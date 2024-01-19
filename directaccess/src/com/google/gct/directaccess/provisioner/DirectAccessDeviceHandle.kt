@@ -16,7 +16,6 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
-import com.android.adblib.deviceInfo
 import com.android.adblib.deviceProperties
 import com.android.adblib.serialNumber
 import com.android.sdklib.deviceprovisioner.ActivationAction
@@ -250,15 +249,20 @@ class DirectAccessDeviceHandle(
                   ?: throw IllegalStateException("Reservation required to connect to device.")
               DeviceState.Disconnected(it.properties).withReservation(reservation)
             }
+            val activationCancelled = connectionStateReason == StateReason.USER_INITIATED
             val failureReason =
-              if (connectionStateReason == StateReason.USER_INITIATED) {
-                // User clicked stopped before the session could activate and device could connect.
+              if (activationCancelled) {
+                // User clicked stop before the session could activate and device could connect.
                 FailureReason.DISCONNECT_BEFORE_CONNECTED
               } else {
                 FailureReason.UNKNOWN_FAILURE
               }
             trackConnectMetrics(false, failureReason = failureReason)
-            throw DeviceActionException("Failed to connect to device. Please try again.", e)
+            if (activationCancelled) {
+              throw CancellationException("Device activation was cancelled")
+            } else {
+              throw DeviceActionException("Failed to connect to device. Please try again.", e)
+            }
           }
         }
       }

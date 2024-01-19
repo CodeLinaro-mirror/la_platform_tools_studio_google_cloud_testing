@@ -338,7 +338,17 @@ class DirectAccessUsageTrackerTest {
         private var connectCount = 0
 
         override suspend fun connect() {
-          if (++connectCount > 2) throw Exception()
+          if (++connectCount > 2) {
+            // The real connect() will update its state on failure
+            state.update {
+              it.copy(
+                DirectAccessConnection.ConnectionState.Disconnected(
+                  DirectAccessConnection.StateReason.CONNECTION_FAILED
+                )
+              )
+            }
+            throw Exception()
+          }
           super.connect()
         }
       }

@@ -25,6 +25,7 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
+import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
@@ -94,7 +95,8 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import javax.swing.JLabel
-import junit.framework.TestCase.fail
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -103,6 +105,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.junit.After
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -450,16 +453,63 @@ class DirectAccessDeviceProvisionerTest {
     try {
       template.activationAction.activate()
       fail("Expected an exception to be thrown")
-    } catch (ignore: Exception) {
+    } catch (e: Exception) {
       // This is an expected exception.
+      assertThat(e).isInstanceOf(DeviceActionException::class.java)
     }
+
+    // Even though activation failed, we still have a reservation and a DeviceHandle.
     yieldUntil { provisioner.devices.value.isNotEmpty() }
     val device = provisioner.devices.value[0]
     // Device disconnected with an exception thrown from DirectAccessConnection.
     val state = device.stateFlow
     assertThat(state.value.isTransitioning).isFalse()
     assertThat(state.value).isInstanceOf(Disconnected::class.java)
+    assertThat(state.value.reservation).isNotNull()
     yieldUntil { device.activationAction?.presentation?.value?.enabled == true }
+  }
+
+  @Test
+  fun activationCancelled() = runBlockingWithTimeout {
+    val latch = CompletableDeferred<Unit>()
+
+    setupConnection { reservationName ->
+      object :
+        FakeDirectAccessConnection(
+          directAccessReservationManager,
+          reservationName,
+          scope.createChildScope(true)
+        ) {
+        private val connectionScope = scope.createChildScope(isSupervisor = true)
+
+        override suspend fun connect() {
+          withContext(connectionScope.coroutineContext) { latch.await() }
+        }
+
+        override suspend fun closeConnection(stateReason: DirectAccessConnection.StateReason) {
+          super.closeConnection(stateReason)
+          connectionScope.cancel()
+        }
+      }
+    }
+
+    val template = plugin.templates.value[0]
+    val activateJob = launch {
+      // Activate a new device from template.
+      try {
+        template.activationAction.activate()
+        fail("Expected cancellation")
+      } catch (e: Exception) {
+        assertThat(e).isInstanceOf(CancellationException::class.java)
+      }
+    }
+
+    // Wait until the handle is created, then deactivate it
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val device = provisioner.devices.value[0]
+    device.deactivationAction!!.deactivate()
+
+    activateJob.join()
   }
 
   @Test
