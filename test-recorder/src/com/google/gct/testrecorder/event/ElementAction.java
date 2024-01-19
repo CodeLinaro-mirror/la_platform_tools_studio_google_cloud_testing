@@ -19,6 +19,7 @@ import com.android.utils.Pair;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.ui.JBColor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -128,7 +129,7 @@ public abstract class ElementAction {
   }
 
   protected String getIdAttributeDisplayPresentation(String idAttributeKind, String idAttributeValue) {
-    final String idTextColor = isUnderDarcula() ? "#eeeeee" : "#111111";
+    final String idTextColor = !JBColor.isBright() ? "#eeeeee" : "#111111";
     return idAttributeKind + " <span style='color: " + idTextColor + "; font-weight: bold;'>" + idAttributeValue + "</span>";
   }
 

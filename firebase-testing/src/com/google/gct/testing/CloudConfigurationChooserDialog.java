@@ -122,7 +122,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
 
     this.configurationKind = configurationKind;
 
-    myConfigurationInfoPanel.setPreferredSize(new Dimension(490, UIUtil.isUnderDarcula() ? 153 : 156));
+    myConfigurationInfoPanel.setPreferredSize(new Dimension(490, !JBColor.isBright() ? 153 : 156));
     // Note that we are editing the list we were given.
     // This could be dangerous.
     this.editableConfigurations = editableConfigurations;

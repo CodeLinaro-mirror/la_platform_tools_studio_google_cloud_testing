@@ -19,6 +19,7 @@ import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.intellij.openapi.util.text.StringUtil;
 
+import com.intellij.ui.JBColor;
 import javax.swing.*;
 import java.awt.*;
 
@@ -41,7 +42,7 @@ public class TestRecorderListRenderer extends DefaultListCellRenderer {
 
   @Override
   public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-    final String outerDivTextColor = isUnderDarcula() ? "#cccccc" : "#333333";
+    final String outerDivTextColor = !JBColor.isBright() ? "#cccccc" : "#333333";
 
     String renderString;
     if (value instanceof TestRecorderEvent) {
@@ -82,18 +83,20 @@ public class TestRecorderListRenderer extends DefaultListCellRenderer {
 
     // Change background color such that adjacent elements have different background.
     if (index % 2 != 0) {
-      if (isUnderDarcula()) {
+      if (!JBColor.isBright()) {
         component.setBackground(Color.decode("#333333"));
-      } else {
+      }
+      else {
         component.setBackground(Color.decode("#f6f6f6"));
       }
     }
 
     // Change background color for assertions (overrides adjacency color scheme).
     if (value instanceof TestRecorderAssertion) {
-      if (isUnderDarcula()) {
+      if (!JBColor.isBright()) {
         component.setBackground(Color.decode("#505050"));
-      } else {
+      }
+      else {
         component.setBackground(Color.decode("#fffae6"));
       }
     }

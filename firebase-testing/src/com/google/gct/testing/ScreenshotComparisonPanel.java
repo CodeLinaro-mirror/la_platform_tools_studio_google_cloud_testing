@@ -33,6 +33,7 @@ import com.intellij.openapi.fileChooser.ex.FileSaverDialogImpl;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
+import com.intellij.ui.JBColor;
 import com.intellij.util.ui.UIUtil;
 
 import javax.imageio.ImageIO;
@@ -64,7 +65,7 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
     }
   };
   public static final Color GREEN = new Color(61, 138, 78);
-  public static final Color RED = UIUtil.isUnderDarcula() ? CloudTestingUtils.makeDarker(new Color(183, 14, 10), 2) : new Color(183, 14, 10);
+  public static final Color RED = !JBColor.isBright() ? CloudTestingUtils.makeDarker(new Color(183, 14, 10), 2) : new Color(183, 14, 10);
 
   private final ScreenshotComparisonDialog parent;
   private final AbstractTestProxy testTreeRoot;
@@ -151,7 +152,7 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
   }
 
   public void init(@Nullable ScreenshotComparisonPanel clonedPanel) {
-    if (UIUtil.isUnderDarcula()) {
+    if (!JBColor.isBright()) {
       myConfigurationChooserPanel.setBackground(CloudTestingUtils.makeDarker(UIUtil.getPanelBackground(), 1));
     }
 
@@ -403,7 +404,7 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
 
   private void createTabsAndBorders(String status, Icon icon, Color color) {
     myScreenshotPanel.setBorder(new MatteBorder(8, 2, 2, 2, color));
-    if (UIUtil.isUnderDarcula()) {
+    if (!JBColor.isBright()) {
       myScreenshotPanel.setBackground(CloudTestingUtils.makeDarker(UIUtil.getPanelBackground(), 1));
     }
     myButtonPanel.removeAll();
