@@ -36,6 +36,7 @@ import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessFeatureSurveys
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
@@ -480,6 +481,7 @@ class DirectAccessDeviceHandle(
       reservationFlow.value.sessionState.isClosed() -> FailureReason.SESSION_ENDED
       service<LoginState>().loginStatus.value !is LoginStatus.LoggedIn ->
         FailureReason.USER_LOGGED_OUT
+      project.service<DirectAccessService>().isProjectClosing -> FailureReason.PROJECT_CLOSING
       else -> FailureReason.UNKNOWN_FAILURE
     }
 

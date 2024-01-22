@@ -21,6 +21,10 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.project.ProjectManagerListener
+import com.intellij.util.application
+import com.intellij.util.messages.MessageBusConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +43,11 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
         it.createDeviceSelection()
       }
     )
+  /** Connection to application message bus to listen to project closing events */
+  private val messageBusConnection: MessageBusConnection
+  /** Tracks studio project closing */
+  var isProjectClosing: Boolean = false
+    private set
 
   @Synchronized
   fun selectCloudProject(cloudProject: String?) {
@@ -70,9 +79,25 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
           deviceSelectionList.map { it.toPersistentDeviceSelectionData() }.toMutableList()
       }
     }
+
+    messageBusConnection =
+      application.messageBus.connect(this).apply {
+        subscribe(
+          ProjectManager.TOPIC,
+          object : ProjectManagerListener {
+            override fun projectClosing(closingProject: Project) {
+              if (closingProject != project) return
+              // We don't close device connections from here since the devices might be connected in
+              // another studio project using the same ConnectionManager
+              isProjectClosing = true
+            }
+          },
+        )
+      }
   }
 
   override fun dispose() {
+    messageBusConnection.disconnect()
     selectCloudProject(null)
   }
 
