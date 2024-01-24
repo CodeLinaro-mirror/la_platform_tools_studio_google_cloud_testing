@@ -146,8 +146,16 @@ class DirectAccessDeviceHandle(
         when (sessionState) {
           SessionState.EXPIRED -> trackEndReservation(true, EndReservationType.EXPIRE)
           SessionState.FINISHED -> trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
-          else ->
+          SessionState.ERROR ->
             trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
+          SessionState.UNAVAILABLE ->
+            trackEndReservation(
+              false,
+              EndReservationType.ERROR,
+              FailureReason.FAILED_TO_ALLOCATE_DEVICE,
+            )
+          else ->
+            trackEndReservation(false, EndReservationType.UNKNOWN, FailureReason.UNKNOWN_FAILURE)
         }
       }
   }

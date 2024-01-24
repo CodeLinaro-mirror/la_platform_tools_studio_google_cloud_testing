@@ -73,6 +73,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservati
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.SIXTY_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.THIRTY_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.FAILED_TO_ALLOCATE_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -759,6 +760,37 @@ class DirectAccessUsageTrackerTest {
     assertThat(endReservationDetails.connectionMetrics.maxLatencyMs).isEqualTo(100)
     assertThat(endReservationDetails.connectionMetrics.p90LatencyMs).isEqualTo(90)
     assertThat(endReservationDetails.connectionMetrics.p50LatencyMs).isEqualTo(50)
+    assertThat(endReservationDetails.endReservationType).isEqualTo(ERROR)
+  }
+
+  @Test
+  fun testEndReservationFailMetricWhenDeviceNotAllocated() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection is
+        DirectAccessConnection.ConnectionState.Connected
+    }
+    val reservationFlow =
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    reservationFlow.waitUntilActive()
+    (reservationFlow as MutableStateFlow).update {
+      it.toBuilder().apply { sessionState = Reservation.SessionState.UNAVAILABLE }.build()
+    }
+    yieldUntil { reservationFlow.value.sessionState == Reservation.SessionState.UNAVAILABLE }
+
+    val studioEvent = findUsageEvent(END_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(END_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason).isEqualTo(FAILED_TO_ALLOCATE_DEVICE)
+
+    val endReservationDetails = directAccessEvent.endReservationDetails
+    assertThat(endReservationDetails.success).isFalse()
     assertThat(endReservationDetails.endReservationType).isEqualTo(ERROR)
   }
 
