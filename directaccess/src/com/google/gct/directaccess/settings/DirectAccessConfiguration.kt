@@ -24,7 +24,7 @@ import com.intellij.openapi.components.StoragePathMacros
 
 @com.intellij.openapi.components.State(
   name = "DirectAccessConfiguration",
-  storages = [(Storage(StoragePathMacros.NON_ROAMABLE_FILE))]
+  storages = [(Storage(StoragePathMacros.NON_ROAMABLE_FILE))],
 )
 @Service
 class DirectAccessConfiguration :

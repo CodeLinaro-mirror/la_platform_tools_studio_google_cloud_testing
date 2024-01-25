@@ -1009,13 +1009,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
       private void addArtifact(@NotNull ArtifactDependencySpec dependency,
                                @NotNull List<ArtifactDependencySpec> excludes){
-        DependenciesHelper helper = new DependenciesHelper(projectModel);
         String compactNotation = dependency.compactNotation();
-        helper.addDependency(ANDROID_TEST_IMPLEMENTATION,
-                             compactNotation,
-                             excludes,
-                             gradleBuildModel,
-                             new ExactDependencyMatcher(ANDROID_TEST_IMPLEMENTATION, compactNotation));
+        DependenciesHelper.withModel(projectModel).addDependency(ANDROID_TEST_IMPLEMENTATION,
+                                                                 compactNotation,
+                                                                 excludes,
+                                                                 gradleBuildModel,
+                                                                 new ExactDependencyMatcher(ANDROID_TEST_IMPLEMENTATION, compactNotation));
       }
     }.queue();
   }

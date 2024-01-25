@@ -46,7 +46,7 @@ class CatalogClientTest {
     whenever(
         mockCloudAuthenticator.getAndroidDeviceCatalogForEnvironment(
           Mockito.anyString(),
-          Mockito.anyString()
+          Mockito.anyString(),
         )
       )
       .thenReturn(deviceCatalog)

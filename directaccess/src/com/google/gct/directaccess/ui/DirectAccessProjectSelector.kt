@@ -20,15 +20,19 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.services.firebase.FirebaseProjectClient
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.CollectionComboBoxModel
+import com.intellij.ui.HyperlinkLabel
 import com.intellij.util.ui.NamedColorUtil
+import java.awt.CardLayout
 import java.awt.Color
 import javax.swing.JComponent
+import javax.swing.JPanel
 import javax.swing.JTextField
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.VisibleForTesting
 
 internal const val ERROR_FETCHING_FIREBASE_PROJECT = "Error fetching firebase projects"
 internal const val NO_PROJECTS_AVAILABLE = "No project available"
@@ -52,8 +56,11 @@ interface DirectAccessProjectSelector {
 class DirectAccessProjectSelectorImpl(
   private val preferredProject: String,
   private val shouldEnable: Boolean,
-  scope: CoroutineScope
-) : DirectAccessProjectSelector, ComboBox<String>() {
+  scope: CoroutineScope,
+) : DirectAccessProjectSelector, JPanel(CardLayout()) {
+
+  private val noProjectsCard = "no projects"
+  private val projectSelectorCard = "project selector"
 
   override val component: JComponent
     get() = this
@@ -62,20 +69,20 @@ class DirectAccessProjectSelectorImpl(
 
   override val isReady = MutableStateFlow(false)
 
-  private var isPreferredProjectApplied = false
+  @VisibleForTesting internal val comboBox = MyComboBox(scope)
+  @VisibleForTesting
+  internal val createProjectHyperlink =
+    HyperlinkLabel("Create a Firebase project...").apply {
+      setHyperlinkTarget("https://console.firebase.google.com")
+    }
 
   init {
-    renderer = DirectAccessProjectSelectorRenderer
-    model = CollectionComboBoxModel(listOf("Loading..."))
-    isEnabled = false
-    setDisabledTextColor(NamedColorUtil.getInactiveTextColor())
-    if (!shouldEnable) {
-      toolTipText = "Stop reservations to change projects"
-    }
-    preferredSize = null
+    add(comboBox, projectSelectorCard)
+    add(createProjectHyperlink, noProjectsCard)
     scope.refreshProjects()
-    addItemListener { scope.launch { updateSelectedItem(it.item as String) } }
   }
+
+  private fun showCard(card: String) = (layout as CardLayout).show(this, card)
 
   private fun CoroutineScope.refreshProjects() = launch {
     val projects =
@@ -85,6 +92,28 @@ class DirectAccessProjectSelectorImpl(
         null
       }
     withContext(AndroidDispatchers.uiThread) {
+      showCard(if (projects?.isEmpty() == true) noProjectsCard else projectSelectorCard)
+      comboBox.updateProjects(projects)
+    }
+  }
+
+  inner class MyComboBox(scope: CoroutineScope) : ComboBox<String>() {
+    private var isPreferredProjectApplied = false
+
+    init {
+      isEditable = false
+      renderer = DirectAccessProjectSelectorRenderer
+      model = CollectionComboBoxModel(listOf("Loading..."))
+      isEnabled = false
+      setDisabledTextColor(NamedColorUtil.getInactiveTextColor())
+      if (!shouldEnable) {
+        toolTipText = "Stop reservations to change projects"
+      }
+      preferredSize = null
+      addItemListener { scope.launch { updateSelectedItem(it.item as String) } }
+    }
+
+    fun updateProjects(projects: List<String>?) {
       when {
         projects == null -> {
           model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
@@ -104,19 +133,19 @@ class DirectAccessProjectSelectorImpl(
         }
       }
     }
-  }
 
-  private fun setDisabledTextColor(color: Color) {
-    val textField = editor.editorComponent as JTextField
-    textField.disabledTextColor = color
-  }
-
-  private fun updateSelectedItem(item: String) {
-    if (!isPreferredProjectApplied) {
-      isReady.value = true
-      isPreferredProjectApplied = true
-      selectedItem = item
+    private fun setDisabledTextColor(color: Color) {
+      val textField = editor.editorComponent as JTextField
+      textField.disabledTextColor = color
     }
-    selectedProject.value = selectedItem as String
+
+    private fun updateSelectedItem(item: String) {
+      if (!isPreferredProjectApplied) {
+        isReady.value = true
+        isPreferredProjectApplied = true
+        selectedItem = item
+      }
+      selectedProject.value = selectedItem as String
+    }
   }
 }

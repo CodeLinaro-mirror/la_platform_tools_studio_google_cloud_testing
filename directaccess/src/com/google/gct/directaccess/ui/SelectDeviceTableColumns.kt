@@ -19,9 +19,9 @@ import com.android.tools.adtui.categorytable.Attribute.Companion.stringAttribute
 import com.android.tools.adtui.categorytable.Column
 import com.android.tools.adtui.categorytable.LabelColumn
 import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.gct.directaccess.provisioner.icon
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
-import icons.StudioIcons
 
 data class SelectDeviceRowData(var isSelected: Boolean, val deviceInfo: DeviceInfo)
 
@@ -47,8 +47,7 @@ internal object SelectDeviceTableColumns {
     override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
     override val attribute = stringAttribute<SelectDeviceRowData> { "" }
 
-    override fun createUi(rowValue: SelectDeviceRowData) =
-      JBLabel(StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE)
+    override fun createUi(rowValue: SelectDeviceRowData) = JBLabel(rowValue.deviceInfo.icon)
 
     override fun updateValue(rowValue: SelectDeviceRowData, component: JBLabel, value: String) =
       Unit
@@ -58,42 +57,42 @@ internal object SelectDeviceTableColumns {
     LabelColumn<SelectDeviceRowData>(
       "Manufacturer",
       Column.SizeConstraint(min = 100, preferred = 200),
-      stringAttribute { it.deviceInfo.manufacturer }
+      stringAttribute { it.deviceInfo.manufacturer },
     )
 
   object Name :
     LabelColumn<SelectDeviceRowData>(
       "Name",
       Column.SizeConstraint(min = 150, preferred = 300),
-      stringAttribute { it.deviceInfo.name }
+      stringAttribute { it.deviceInfo.name },
     )
 
   object Api :
     LabelColumn<SelectDeviceRowData>(
       "API",
       Column.SizeConstraint(min = 20, max = 65),
-      stringAttribute { it.deviceInfo.api.toString() }
+      stringAttribute { it.deviceInfo.api.toString() },
     )
 
   object Width :
     LabelColumn<SelectDeviceRowData>(
       "Width",
       Column.SizeConstraint(min = 40, max = 85),
-      stringAttribute { it.deviceInfo.screenX.toString() }
+      stringAttribute { it.deviceInfo.screenX.toString() },
     )
 
   object Height :
     LabelColumn<SelectDeviceRowData>(
       "Height",
       Column.SizeConstraint(min = 40, max = 85),
-      stringAttribute { it.deviceInfo.screenY.toString() }
+      stringAttribute { it.deviceInfo.screenY.toString() },
     )
 
   object Dpi :
     LabelColumn<SelectDeviceRowData>(
       "dpi",
       Column.SizeConstraint(min = 30, max = 85),
-      stringAttribute { it.deviceInfo.screenDensity.toString() }
+      stringAttribute { it.deviceInfo.screenDensity.toString() },
     )
 
   val columns = listOf(Selected, DeviceIcon, Manufacturer, Name, Api, Width, Height, Dpi)

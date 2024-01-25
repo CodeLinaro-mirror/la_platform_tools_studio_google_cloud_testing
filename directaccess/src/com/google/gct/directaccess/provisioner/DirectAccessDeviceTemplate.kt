@@ -61,7 +61,7 @@ class DirectAccessDeviceTemplate(
   private val deviceInfoFlow: StateFlow<DeviceInfo>,
   private val devices: MutableStateFlow<List<DeviceHandle>>,
   private val scope: CoroutineScope,
-  private val isAuthenticatorReady: Flow<Boolean>
+  private val isAuthenticatorReady: Flow<Boolean>,
 ) : DeviceTemplate {
   val deviceInfo: DeviceInfo
     get() = deviceInfoFlow.value
@@ -123,16 +123,30 @@ class DirectAccessDeviceTemplate(
         if (!isActivationStarted.compareAndSet(expect = false, update = true)) {
           throw DeviceActionDisabledException(this)
         }
+        confirmWaitingTime()
+
+        val reservationName =
+          try {
+            findOrCreateReservation()
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            isActivationStarted.value = false
+            throw DeviceActionException("Failed to reserve a device. Please try again.")
+          }
 
         try {
-          confirmWaitingTime()
-          val reservationName = findOrCreateReservation()
           return createDeviceHandle(reservationName).also { it.activationAction?.activate() }
         } catch (e: CancellationException) {
+          isActivationStarted.value = false
+          throw e
+        } catch (e: DeviceActionException) {
+          isActivationStarted.value = false
+          // Re-throw exception to propagate the message present in the exception
           throw e
         } catch (e: Exception) {
           isActivationStarted.value = false
-          throw DeviceActionException("Unable to reserve device.", e)
+          throw DeviceActionException("Failed to connect to device. Please try again.", e)
         }
       }
 
@@ -157,7 +171,7 @@ class DirectAccessDeviceTemplate(
                   title,
                   "Reserve",
                   "Cancel",
-                  Messages.getQuestionIcon()
+                  Messages.getQuestionIcon(),
                 )
               }
             if (result != Messages.OK) {
@@ -176,7 +190,7 @@ class DirectAccessDeviceTemplate(
           try {
             reservationManager.findOrCreateReservation(
               deviceInfo.codename,
-              deviceInfo.api.toString()
+              deviceInfo.api.toString(),
             )
           } catch (e: Exception) {
             // TODO(b/277240160): Add correct failure reason
@@ -186,10 +200,12 @@ class DirectAccessDeviceTemplate(
         if (startTime != 0L) {
           scope.logReserveMetricWhenReservationActive(
             reservationManager.fetchReservationFlow(reservationName),
-            startTime
+            startTime,
           )
         }
-        scope.launch { project.directAccessCloudProjectManager?.reservationListFlow?.refresh() }
+        scope.launch {
+          project.directAccessCloudProjectManager?.reservationListFlowWithException?.refresh()
+        }
         return reservationName
       }
 
@@ -255,7 +271,7 @@ class DirectAccessDeviceTemplate(
         deviceScope,
         this@DirectAccessDeviceTemplate,
         DeviceState.Disconnected(properties),
-        reservationName
+        reservationName,
       )
       .also { activeDevice = it }
   }
@@ -272,13 +288,13 @@ class DirectAccessDeviceTemplate(
 
   private fun CoroutineScope.logReserveMetricWhenReservationActive(
     reservationFlow: StateFlow<Reservation>,
-    reserveStartTime: Long
+    reserveStartTime: Long,
   ) = launch {
     reservationFlow.waitUntilActive()
     trackReserveDevice(
       true,
       System.currentTimeMillis() - reserveStartTime,
-      reservationFlow.value.name
+      reservationFlow.value.name,
     )
   }
 
@@ -286,14 +302,14 @@ class DirectAccessDeviceTemplate(
     wasSuccessful: Boolean,
     timeToReserve: Long? = null,
     reservationName: String? = null,
-    failureReason: FailureReason? = null
+    failureReason: FailureReason? = null,
   ) {
     DirectAccessUsageTracker.trackReserveDevice(
       wasSuccessful,
       timeToReserve,
       reservationName,
       properties.deviceInfoProto,
-      failureReason
+      failureReason,
     )
   }
 }
@@ -313,13 +329,7 @@ internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DirectAcce
       }
     resolution = Resolution(info.screenX, info.screenY)
     density = info.screenDensity
-    icon =
-      when (type) {
-        DeviceType.WEAR_OS -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
-        DeviceType.TV -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
-        DeviceType.AUTOMOTIVE -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
-        else -> StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
-      }
+    icon = info.icon
     populateDeviceInfoProto(PLUGIN_ID, null, emptyMap(), connectionCount.toString())
   }
 }

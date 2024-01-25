@@ -16,6 +16,7 @@
 package com.google.gct.testing.ui;
 
 import com.google.gct.testing.CloudTestingUtils;
+import com.intellij.ui.JBColor;
 import com.intellij.util.ui.UIUtil;
 
 import javax.imageio.ImageIO;
@@ -41,8 +42,8 @@ public class AddCompareScreenshotPanel {
   private final ImageIcon COMPARE_REGULAR;
   private final ImageIcon COMPARE_HOVER;
 
-  private final Color regularColor = UIUtil.isUnderDarcula() ? Color.gray : Color.lightGray;
-  private final Color hoverColor = UIUtil.isUnderDarcula() ? Color.lightGray : Color.gray;
+  private final Color regularColor = !JBColor.isBright() ? Color.gray : Color.lightGray;
+  private final Color hoverColor = !JBColor.isBright() ? Color.lightGray : Color.gray;
 
   private final Border regularBorder = createDashedBorder(regularColor, 4, 5, 3, true);
   private final Border hoverBorder = createDashedBorder(hoverColor, 4, 5, 3, true);
@@ -68,7 +69,7 @@ public class AddCompareScreenshotPanel {
       e.printStackTrace();
     }
 
-    COMPARE_HOVER = UIUtil.isUnderDarcula() ? new ImageIcon(brightImage) : new ImageIcon(darkImage);
+    COMPARE_HOVER = !JBColor.isBright() ? new ImageIcon(brightImage) : new ImageIcon(darkImage);
     COMPARE_REGULAR = new ImageIcon(lightImage);
 
     textLabel.setForeground(Color.gray);

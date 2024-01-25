@@ -42,14 +42,14 @@ class FakeToolWindowRule(private val projectRule: ProjectRule) : ExternalResourc
     project.replaceService(
       ToolWindowManager::class.java,
       FakeToolWindowManager(projectRule.project, fakeToolWindow),
-      projectRule.disposable
+      projectRule.disposable,
     )
   }
 }
 
 private class FakeToolWindowManager(
   project: Project,
-  private val fakeRunningDeviceWindow: ToolWindow
+  private val fakeRunningDeviceWindow: ToolWindow,
 ) : ToolWindowHeadlessManagerImpl(project) {
   override fun getToolWindow(id: String?): ToolWindow? {
     return if (id == RUNNING_DEVICES_TOOL_WINDOW_ID) fakeRunningDeviceWindow

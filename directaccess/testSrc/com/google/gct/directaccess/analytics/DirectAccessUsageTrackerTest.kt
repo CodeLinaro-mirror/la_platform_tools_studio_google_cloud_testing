@@ -40,6 +40,7 @@ import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.reservation
+import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
@@ -79,6 +80,7 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.studiogrpc.testutils.GrpcConnectionRule
 import java.time.Duration
+import junit.framework.TestCase.fail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -132,17 +134,14 @@ class DirectAccessUsageTrackerTest {
       FakeDirectAccessConnection(
         directAccessReservationManager,
         reservationName,
-        scope.createChildScope(true)
+        scope.createChildScope(true),
       )
     }
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
-    plugin =
-      DirectAccessDeviceProvisionerPlugin(
-        session.scope,
-        projectRule.project,
-      )
+    plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
+    projectRule.project.showAllTemplates()
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
 
@@ -165,7 +164,7 @@ class DirectAccessUsageTrackerTest {
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
-      projectRule.disposable
+      projectRule.disposable,
     )
 
     // Sets up deviceSelectionListFlow.
@@ -180,10 +179,10 @@ class DirectAccessUsageTrackerTest {
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
         if (loginStateRule.state.value is LoginStatus.LoggedIn)
-          directAccessReservationManager.listReservations()
-        else null
+          Pair(directAccessReservationManager.listReservations(), null)
+        else Pair(null, Exception())
       }
-    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlow
+    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) { TestUtils.deviceInfoListProvider() }
@@ -203,12 +202,12 @@ class DirectAccessUsageTrackerTest {
           session.deviceServices.configureShellV2Command(
             DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
             "getprop",
-            "Foo"
+            "Foo",
           )
           session.deviceServices.configureShellCommand(
             DeviceSelector.fromSerialNumber("localhost:${fakeConnection.port}"),
             "wm size",
-            "Physical size: 1080x2400"
+            "Physical size: 1080x2400",
           )
         }
       }
@@ -245,6 +244,7 @@ class DirectAccessUsageTrackerTest {
     // Activate device
     try {
       template.activationAction.activate()
+      fail("Expected an exception to be thrown")
     } catch (ignore: DeviceActionException) {
       // This is an expected exception.
     }
@@ -295,7 +295,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun connect() = throw Exception()
       }
@@ -305,6 +305,7 @@ class DirectAccessUsageTrackerTest {
     // Activate device
     try {
       template.activationAction.activate()
+      fail("Expected an exception to be thrown")
     } catch (ignore: Exception) {
       // This is an expected exception.
     }
@@ -332,12 +333,22 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         private var connectCount = 0
 
         override suspend fun connect() {
-          if (++connectCount > 2) throw Exception()
+          if (++connectCount > 2) {
+            // The real connect() will update its state on failure
+            state.update {
+              it.copy(
+                DirectAccessConnection.ConnectionState.Disconnected(
+                  DirectAccessConnection.StateReason.CONNECTION_FAILED
+                )
+              )
+            }
+            throw Exception()
+          }
           super.connect()
         }
       }
@@ -347,9 +358,16 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    var exceptionCount = 0
 
     repeat(5) {
-      if (it > 0) handle.activationAction.activate()
+      if (it > 0) {
+        try {
+          handle.activationAction.activate()
+        } catch (ignore: Exception) {
+          exceptionCount++
+        }
+      }
 
       val studioEvent = findUsageEvent(CONNECT_DEVICE)
       assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -358,6 +376,7 @@ class DirectAccessUsageTrackerTest {
       handle.deactivationAction.deactivate()
       tracker.usages.clear()
     }
+    assertThat(exceptionCount).isEqualTo(3)
   }
 
   @Test
@@ -402,7 +421,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun extendReservation(duration: Duration) = throw Exception()
       }
@@ -418,6 +437,7 @@ class DirectAccessUsageTrackerTest {
 
     try {
       template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+      fail("Expected an exception to be thrown")
     } catch (e: Exception) {
       // This is an expected exception.
     }
@@ -550,7 +570,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun closeConnection(stateReason: DirectAccessConnection.StateReason) =
           throw Exception()
@@ -569,6 +589,7 @@ class DirectAccessUsageTrackerTest {
 
     try {
       handle.deactivationAction.deactivate()
+      fail("Expected an exception to be thrown")
     } catch (e: Exception) {
       // This is an expected exception.
     }
@@ -749,7 +770,7 @@ class DirectAccessUsageTrackerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         override suspend fun endReservation(withGracePeriod: Boolean) = throw Exception()
       }
@@ -766,6 +787,7 @@ class DirectAccessUsageTrackerTest {
 
     try {
       handle.reservationAction.endReservation()
+      fail("Expected an exception to be thrown")
     } catch (ignore: Exception) {
       // This is an expected exception.
     }
@@ -808,7 +830,7 @@ class DirectAccessUsageTrackerTest {
 
   private fun getSuccessFulDisconnectTestConnection(
     reservationName: String,
-    deviceScope: CoroutineScope
+    deviceScope: CoroutineScope,
   ) =
     object :
       FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {

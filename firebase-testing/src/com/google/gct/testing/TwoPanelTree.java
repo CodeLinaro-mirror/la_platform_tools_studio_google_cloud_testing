@@ -651,7 +651,7 @@ public class TwoPanelTree extends MouseAdapter implements ListSelectionListener,
         myRadioButton.setEnabled(false);
       }
 
-      if (!myRadioButton.isEnabled() && UIUtil.isUnderDarcula()) {
+      if (!myRadioButton.isEnabled() && !JBColor.isBright()) {
         // Show visually that radio buttons are disabled (should be done explicitly in Darcula mode).
         myRadioButton.setBackground(CloudTestingUtils.makeDarker(Color.LIGHT_GRAY, 7));
       }

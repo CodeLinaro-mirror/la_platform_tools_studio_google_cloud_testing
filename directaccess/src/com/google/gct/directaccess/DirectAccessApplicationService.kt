@@ -36,7 +36,7 @@ class DirectAccessApplicationService(private val scope: CoroutineScope) {
   @Synchronized
   fun registerCloudProject(
     project: Project,
-    cloudProject: CloudProjectEntry?
+    cloudProject: CloudProjectEntry?,
   ): DirectAccessCloudProjectManager? {
     val existingCloudProject = cloudProjectMap[project]
     if (existingCloudProject == cloudProject) {

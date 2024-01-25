@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess
 
+import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidDeviceCatalog
@@ -22,12 +23,14 @@ import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.DirectAccessVersionInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.directaccess.provisioner.DeviceInfo
+import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationsManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.flow.update
 
 object TestUtils {
   val deviceInfoListProvider = {
@@ -56,7 +59,7 @@ object TestUtils {
         200,
         300,
         400,
-        30
+        30,
       ),
       DeviceInfo(
         "id3",
@@ -69,7 +72,7 @@ object TestUtils {
         300,
         400,
         500,
-        300
+        300,
       ),
       DeviceInfo(
         "id4",
@@ -82,8 +85,8 @@ object TestUtils {
         50,
         100,
         150,
-        30
-      )
+        30,
+      ),
     )
   }
 
@@ -106,7 +109,7 @@ object TestUtils {
   private val wearable =
     AndroidModel().apply {
       manufacturer = "Google"
-      name = "Watch"
+      name = "Google Watch"
       brand = "Google"
       codename = "watch"
       id = codename
@@ -220,7 +223,7 @@ object TestUtils {
       tablet,
       phoneLessThanApi26,
       phoneSupportedOnHigherASVersion,
-      phoneWithNoCapacity
+      phoneWithNoCapacity,
     )
 
   val androidDeviceCatalogWithMissingFields =
@@ -230,7 +233,7 @@ object TestUtils {
       tablet,
       invalidDevice,
       phoneLessThanApi26,
-      phoneSupportedOnHigherASVersion
+      phoneSupportedOnHigherASVersion,
     )
 
   private fun createDeviceCatalog(vararg androidModels: AndroidModel) =
@@ -250,5 +253,18 @@ object TestUtils {
       .getNotificationsOfType(Notification::class.java, project)
 
   suspend fun Project.refreshReservations() =
-    service<DirectAccessService>().cloudProjectManager.value?.reservationListFlow?.refresh()
+    service<DirectAccessService>()
+      .cloudProjectManager
+      .value
+      ?.reservationListFlowWithException
+      ?.refresh()
+
+  suspend fun Project.showAllTemplates(verifyOldSelection: (List<DeviceSelection>) -> Unit = {}) {
+    yieldUntil { service<DirectAccessService>().deviceSelectionListFlow.value.isNotEmpty() }
+    val deviceSelectionListFlow = service<DirectAccessService>().deviceSelectionListFlow
+    verifyOldSelection(deviceSelectionListFlow.value)
+    deviceSelectionListFlow.update {
+      it.map { selection -> DeviceSelection(true, selection.deviceInfo) }
+    }
+  }
 }

@@ -37,7 +37,7 @@ object DirectAccessUsageTracker {
     timeToReserveMs: Long?,
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
-    failReason: DirectAccessUsageEvent.FailureReason? = null
+    failReason: DirectAccessUsageEvent.FailureReason? = null,
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -59,7 +59,7 @@ object DirectAccessUsageTracker {
     timeToConnectMs: Long?,
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
-    failReason: DirectAccessUsageEvent.FailureReason? = null
+    failReason: DirectAccessUsageEvent.FailureReason? = null,
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -82,7 +82,7 @@ object DirectAccessUsageTracker {
     wasUserDisconnected: Boolean,
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
-    failReason: DirectAccessUsageEvent.FailureReason? = null
+    failReason: DirectAccessUsageEvent.FailureReason? = null,
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -105,7 +105,7 @@ object DirectAccessUsageTracker {
     latencyMetrics: DirectAccessConnectionMetrics,
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
-    failReason: DirectAccessUsageEvent.FailureReason? = null
+    failReason: DirectAccessUsageEvent.FailureReason? = null,
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -135,7 +135,7 @@ object DirectAccessUsageTracker {
     extendDuration: Duration,
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
-    failReason: DirectAccessUsageEvent.FailureReason? = null
+    failReason: DirectAccessUsageEvent.FailureReason? = null,
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -171,7 +171,7 @@ object DirectAccessUsageTracker {
   private fun createDirectAccessUsageEvent(
     deviceSession: String?,
     failReason: DirectAccessUsageEvent.FailureReason? = null,
-    eventBuilder: DirectAccessUsageEvent.Builder.() -> Unit
+    eventBuilder: DirectAccessUsageEvent.Builder.() -> Unit,
   ) =
     DirectAccessUsageEvent.newBuilder()
       .apply {

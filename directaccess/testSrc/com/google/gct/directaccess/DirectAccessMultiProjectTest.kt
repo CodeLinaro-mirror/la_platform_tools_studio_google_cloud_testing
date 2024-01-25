@@ -27,6 +27,7 @@ import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.TestUtils.refreshReservations
+import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
@@ -96,7 +97,7 @@ class DirectAccessMultiProjectTest {
       .replaceService(
         AdbLibApplicationService::class.java,
         mockAdbLibApplicationService,
-        disposable
+        disposable,
       )
 
     mockGoogleLogin = mock()
@@ -114,16 +115,18 @@ class DirectAccessMultiProjectTest {
       .replaceService(
         DirectAccessServiceSetup::class.java,
         mockDirectAccessServiceSetup,
-        disposable
+        disposable,
       )
 
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
-    plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
+    plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
     provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
     provisioner2 = DeviceProvisioner.create(session, listOf(plugin2), testDeviceIcons)
 
     project1.service<DirectAccessService>().selectCloudProject("test-project")
     project2.service<DirectAccessService>().selectCloudProject("test-project")
+    project1.showAllTemplates()
+    project2.showAllTemplates()
 
     yieldUntil { provisioner1.templates.value.isNotEmpty() }
     yieldUntil { provisioner2.templates.value.isNotEmpty() }
@@ -145,7 +148,7 @@ class DirectAccessMultiProjectTest {
       project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
     reservationManager.createReservation(
       template1.deviceInfo.codename,
-      template1.deviceInfo.api.toString()
+      template1.deviceInfo.api.toString(),
     )
     project1.refreshReservations()
     plugin1.devices.takeWhile { it.isEmpty() }.collect()

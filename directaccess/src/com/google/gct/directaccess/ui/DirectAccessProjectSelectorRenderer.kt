@@ -27,7 +27,7 @@ object DirectAccessProjectSelectorRenderer : ColoredListCellRenderer<String>() {
     value: String?,
     index: Int,
     selected: Boolean,
-    hasFocus: Boolean
+    hasFocus: Boolean,
   ) {
     if (value == null) {
       append("[none]", SimpleTextAttributes.ERROR_ATTRIBUTES)

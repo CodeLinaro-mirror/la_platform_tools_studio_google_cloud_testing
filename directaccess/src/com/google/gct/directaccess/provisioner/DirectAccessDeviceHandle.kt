@@ -16,7 +16,6 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
-import com.android.adblib.deviceInfo
 import com.android.adblib.deviceProperties
 import com.android.adblib.serialNumber
 import com.android.sdklib.deviceprovisioner.ActivationAction
@@ -88,7 +87,7 @@ class DirectAccessDeviceHandle(
   override val scope: CoroutineScope,
   override val sourceTemplate: DirectAccessDeviceTemplate,
   initialState: DeviceState,
-  private val reservationName: String
+  private val reservationName: String,
 ) : DeviceHandle {
 
   override val id = DeviceId(PLUGIN_ID, false, "reservation=${reservationName}")
@@ -185,7 +184,7 @@ class DirectAccessDeviceHandle(
       "",
       Instant.ofEpochSecond(reservation.createTime.seconds),
       Instant.ofEpochSecond(reservation.expireTime.seconds),
-      MAX_SESSION_DURATION
+      MAX_SESSION_DURATION,
     )
   }
 
@@ -223,7 +222,8 @@ class DirectAccessDeviceHandle(
           stateFlow.update {
             val reservation =
               it.reservation
-                ?: throw DeviceActionException("Reservation required to activate Streaming Device")
+                // This state should not be possible since the reservation is mapped on every update
+                ?: throw IllegalStateException("Reservation required to activate Device Streaming.")
                   .also {
                     // TODO(b/277240160): Add correct failure reason
                     trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
@@ -242,17 +242,27 @@ class DirectAccessDeviceHandle(
             connection.connect()
           } catch (e: Exception) {
             stateFlow.update {
-              val reservation = it.reservation ?: return@withContext
+              val reservation =
+                it.reservation
+                  // This state should not be possible since the reservation is mapped on every
+                  // update
+                  ?: throw IllegalStateException("Reservation required to connect to device.")
               DeviceState.Disconnected(it.properties).withReservation(reservation)
             }
+            val activationCancelled = connectionStateReason == StateReason.USER_INITIATED
             val failureReason =
-              if (connectionStateReason == StateReason.USER_INITIATED) {
-                // User clicked stopped before the session could activate and device could connect.
+              if (activationCancelled) {
+                // User clicked stop before the session could activate and device could connect.
                 FailureReason.DISCONNECT_BEFORE_CONNECTED
               } else {
                 FailureReason.UNKNOWN_FAILURE
               }
             trackConnectMetrics(false, failureReason = failureReason)
+            if (activationCancelled) {
+              throw CancellationException("Device activation was cancelled")
+            } else {
+              throw DeviceActionException("Failed to connect to device. Please try again.", e)
+            }
           }
         }
       }
@@ -299,7 +309,7 @@ class DirectAccessDeviceHandle(
           } catch (e: Exception) {
             // TODO(b/277240160): Add correct failure reason
             trackDisconnectMetric(false, FailureReason.UNKNOWN_FAILURE)
-            throw e
+            throw DeviceActionException("Failed to disconnect from device. Please try again.", e)
           }
           stateFlow.update {
             when (it) {
@@ -345,14 +355,14 @@ class DirectAccessDeviceHandle(
           // TODO(b/277240160): Add correct failure reason here as well as below
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw DeviceActionException(
-            "Reservation not extended within ${EXTENSION_TIMEOUT.seconds} seconds"
+            "Failed to extend reservation within ${EXTENSION_TIMEOUT.seconds} seconds. Please try again."
           )
         } catch (e: CancellationException) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw e
         } catch (e: Exception) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
-          throw DeviceActionException("Could not extend reservation", e)
+          throw DeviceActionException("Failed to extend reservation. Please try again.", e)
         }
         return state.reservation?.endTime
           ?: throw DeviceActionException("Extended reservation end time not available.")
@@ -368,9 +378,9 @@ class DirectAccessDeviceHandle(
             trackEndReservation(
               false,
               EndReservationType.FORCE_CHECK_IN,
-              FailureReason.UNKNOWN_FAILURE
+              FailureReason.UNKNOWN_FAILURE,
             )
-            throw DeviceActionException("Could not end reservation", e)
+            throw DeviceActionException("Failed to end reservation. Please try again.", e)
           }
           service<DirectAccessFeatureSurveys>().trackDisconnection()
         }
@@ -406,7 +416,7 @@ class DirectAccessDeviceHandle(
           PLUGIN_ID,
           device.serialNumber,
           properties,
-          connectionAttempts.toString()
+          connectionAttempts.toString(),
         )
         icon = this@DirectAccessDeviceHandle.icon
       }
@@ -468,7 +478,7 @@ class DirectAccessDeviceHandle(
   private fun trackConnectMetrics(
     wasSuccessful: Boolean,
     timeToConnectMs: Long? = null,
-    failureReason: FailureReason? = null
+    failureReason: FailureReason? = null,
   ) =
     DirectAccessUsageTracker.trackConnectDevice(
       wasSuccessful,
@@ -476,20 +486,20 @@ class DirectAccessDeviceHandle(
       timeToConnectMs,
       reservationName,
       state.properties.deviceInfoProto,
-      failureReason
+      failureReason,
     )
 
   private fun trackExtendReservation(
     wasSuccessful: Boolean,
     duration: Duration,
-    failReason: FailureReason? = null
+    failReason: FailureReason? = null,
   ) =
     DirectAccessUsageTracker.trackExtendReservation(
       wasSuccessful,
       duration,
       reservationName,
       state.properties.deviceInfoProto,
-      failReason
+      failReason,
     )
 
   private fun trackDisconnectMetric(wasSuccessful: Boolean, failureReason: FailureReason? = null) {
@@ -498,7 +508,7 @@ class DirectAccessDeviceHandle(
       hasUserDisconnectedDevice,
       reservationName,
       state.properties.deviceInfoProto,
-      failureReason
+      failureReason,
     )
     hasUserDisconnectedDevice = false
   }
@@ -506,7 +516,7 @@ class DirectAccessDeviceHandle(
   private fun trackEndReservation(
     wasSuccessful: Boolean,
     endType: EndReservationType,
-    failureReason: FailureReason? = null
+    failureReason: FailureReason? = null,
   ) =
     DirectAccessUsageTracker.trackEndReservation(
       wasSuccessful,
@@ -515,7 +525,7 @@ class DirectAccessDeviceHandle(
       connection.latencyMetrics,
       reservationName,
       state.properties.deviceInfoProto,
-      failureReason
+      failureReason,
     )
 
   private fun getTotalReservationTime(): Long {

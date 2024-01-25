@@ -37,7 +37,7 @@ import kotlinx.coroutines.withContext
 class RefreshableStateFlow<T>(
   scope: CoroutineScope,
   refreshIntervalMs: Long,
-  private val refresher: () -> T
+  private val refresher: () -> T,
 ) {
   private val mutex = Mutex(false)
 
@@ -46,6 +46,12 @@ class RefreshableStateFlow<T>(
   private val _stateFlow = MutableStateFlow(refresher())
 
   val stateFlow: StateFlow<T> = _stateFlow
+
+  /**
+   * Current value of the flow. Does not refresh the flow. Call refresh() to get refreshed value.
+   */
+  val value: T
+    get() = stateFlow.value
 
   init {
     scope.launch {
