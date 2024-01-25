@@ -88,18 +88,18 @@ class DirectAccessDeviceProvisionerPlugin(
             cloudProjectManager.accessibleDeviceInfoListFlow.stateFlow.collect {
               newAccessibleDeviceInfoList ->
               accessibleDeviceInfoMapFlow.value =
-                newAccessibleDeviceInfoList.groupBy { it.id }.mapValues { it.value.first() }
+                newAccessibleDeviceInfoList.groupBy { it.key }.mapValues { it.value.first() }
               project.service<DirectAccessService>().deviceSelectionListFlow.update {
                 oldDeviceSelectionList ->
-                val accessibleDeviceIdSet = newAccessibleDeviceInfoList.map { it.id }.toSet()
-                val selectedDeviceIdSet =
-                  oldDeviceSelectionList.filter { it.isSelected }.map { it.deviceInfo.id }.toSet()
+                val accessibleDeviceKeySet = newAccessibleDeviceInfoList.map { it.key }.toSet()
+                val selectedDeviceKeySet =
+                  oldDeviceSelectionList.filter { it.isSelected }.map { it.deviceInfo.key }.toSet()
                 val accessibleDeviceSelectionList =
                   newAccessibleDeviceInfoList.map {
-                    DeviceSelection(it.id in selectedDeviceIdSet, it)
+                    DeviceSelection(it.key in selectedDeviceKeySet, it)
                   }
                 val inaccessibleDeviceSelectionList =
-                  oldDeviceSelectionList.filter { it.deviceInfo.id !in accessibleDeviceIdSet }
+                  oldDeviceSelectionList.filter { it.deviceInfo.key !in accessibleDeviceKeySet }
                 accessibleDeviceSelectionList + inaccessibleDeviceSelectionList
               }
             }
@@ -129,11 +129,11 @@ class DirectAccessDeviceProvisionerPlugin(
               .map { selection -> selection.deviceInfo }
               .map { deviceInfo ->
                 existingDeviceInfoMap[deviceInfo]?.firstOrNull()
-                  ?: cachedTemplatesMap.computeIfAbsent(deviceInfo.id) {
+                  ?: cachedTemplatesMap.computeIfAbsent(deviceInfo.key) {
                     val templateScope = scope.createChildScope(isSupervisor = true)
                     val deviceInfoFlow =
                       accessibleDeviceInfoMapFlow
-                        .mapNotNull { deviceMap -> deviceMap[deviceInfo.id] }
+                        .mapNotNull { deviceMap -> deviceMap[deviceInfo.key] }
                         .stateIn(templateScope, SharingStarted.Eagerly, deviceInfo)
                     DirectAccessDeviceTemplate(
                       project,
@@ -142,8 +142,8 @@ class DirectAccessDeviceProvisionerPlugin(
                       templateScope,
                       reservationsFlow.combine(accessibleDeviceInfoMapFlow) {
                         reservations,
-                        deviceInfoSet ->
-                        reservations != null && deviceInfoSet[deviceInfo.id] != null
+                        deviceInfoMap ->
+                        reservations != null && deviceInfoMap[deviceInfo.key] != null
                       },
                     )
                   }

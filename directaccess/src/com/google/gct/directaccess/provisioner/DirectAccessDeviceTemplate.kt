@@ -66,7 +66,7 @@ class DirectAccessDeviceTemplate(
   val deviceInfo: DeviceInfo
     get() = deviceInfoFlow.value
 
-  override val id = DeviceId(PLUGIN_ID, true, "model_id=${deviceInfo.id}")
+  override val id = DeviceId(PLUGIN_ID, true, "model_id=${deviceInfo.key}")
 
   override val properties = deviceInfo.toDeviceProperties()
 

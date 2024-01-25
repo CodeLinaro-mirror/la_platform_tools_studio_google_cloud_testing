@@ -252,7 +252,7 @@ class DirectAccessDeviceProvisionerTest {
     provisioner.templates.value[0].id.apply {
       assertThat(isTemplate).isTrue()
       assertThat(pluginId).isEqualTo(PLUGIN_ID)
-      assertThat(identifier).isEqualTo("model_id=id1")
+      assertThat(identifier).isEqualTo("model_id=id1/31")
     }
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
@@ -271,6 +271,10 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[3].properties.resolution).isEqualTo(Resolution(50, 100))
     assertThat(provisioner.templates.value[3].properties.density).isEqualTo(150)
     assertThat(provisioner.templates.value[3].properties.isRemote).isTrue()
+    assertThat(provisioner.templates.value[4].properties.title).isEqualTo("Google Pixel Watch")
+    assertThat(provisioner.templates.value[4].properties.resolution).isEqualTo(Resolution(50, 100))
+    assertThat(provisioner.templates.value[4].properties.density).isEqualTo(150)
+    assertThat(provisioner.templates.value[4].properties.isRemote).isTrue()
 
     // Log out
     loginStateRule.state.value = LoginStatus.LoggedOut
@@ -478,7 +482,7 @@ class DirectAccessDeviceProvisionerTest {
         FakeDirectAccessConnection(
           directAccessReservationManager,
           reservationName,
-          scope.createChildScope(true)
+          scope.createChildScope(true),
         ) {
         private val connectionScope = scope.createChildScope(isSupervisor = true)
 
@@ -964,7 +968,7 @@ class DirectAccessDeviceProvisionerTest {
   @RunsInEdt
   @Test
   fun selectTemplates() = runBlockingWithTimeout {
-    assertThat(plugin.templates.value.size).isEqualTo(4)
+    assertThat(plugin.templates.value.size).isEqualTo(5)
     val deviceInfoList =
       plugin.templates.value.map { (it as DirectAccessDeviceTemplate).deviceInfo }
 
@@ -973,13 +977,14 @@ class DirectAccessDeviceProvisionerTest {
         scope.launch { plugin.createDeviceTemplateAction.create() }
       }) {
         val dialog = it as SelectDeviceDialog
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
         val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
         assertThat(icons)
           .containsExactly(
             FIREBASE_DEVICE_PHONE,
             FIREBASE_DEVICE_PHONE,
             FIREBASE_DEVICE_PHONE,
+            FIREBASE_DEVICE_WEAR,
             FIREBASE_DEVICE_WEAR,
           )
         val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
@@ -990,7 +995,7 @@ class DirectAccessDeviceProvisionerTest {
         dialog.clickDefaultButton()
       }
     }
-    yieldUntil { plugin.templates.value.size == 2 }
+    yieldUntil { plugin.templates.value.size == 3 }
     var templates = plugin.templates.value
     assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
     assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
@@ -1001,13 +1006,13 @@ class DirectAccessDeviceProvisionerTest {
         scope.launch { plugin.createDeviceTemplateAction.create() }
       }) {
         val dialog = it as SelectDeviceDialog
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
         val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
         checkboxList[1].isSelected = true
         dialog.clickDefaultButton()
       }
     }
-    yieldUntil { plugin.templates.value.size == 3 }
+    yieldUntil { plugin.templates.value.size == 4 }
     templates = plugin.templates.value
     assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
     assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[1])
@@ -1017,30 +1022,30 @@ class DirectAccessDeviceProvisionerTest {
   @RunsInEdt
   @Test
   fun selectTemplatesAfterLogout() = runBlockingWithTimeout {
-    assertThat(plugin.templates.value.size).isEqualTo(4)
+    assertThat(plugin.templates.value.size).isEqualTo(5)
     // Same templates after logout.
     loginStateRule.state.value = LoginStatus.LoggedOut
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
-    assertThat(plugin.templates.value.size).isEqualTo(4)
+    assertThat(plugin.templates.value.size).isEqualTo(5)
 
     // De-select a template.
     withContext(AndroidDispatchers.uiThread) {
       val dialog = SelectDeviceDialog(projectRule.project)
       createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
         val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
         checkboxList[1].isSelected = false
         dialog.clickDefaultButton()
       }
     }
-    yieldUntil { plugin.templates.value.size == 3 }
+    yieldUntil { plugin.templates.value.size == 4 }
     // The de-selected device info gets removed from the table.
     withContext(AndroidDispatchers.uiThread) {
       val dialog = SelectDeviceDialog(projectRule.project)
       createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(3)
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
         dialog.clickDefaultButton()
       }
     }
@@ -1049,16 +1054,16 @@ class DirectAccessDeviceProvisionerTest {
   @RunsInEdt
   @Test
   fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
-    assertThat(plugin.templates.value.size).isEqualTo(4)
+    assertThat(plugin.templates.value.size).isEqualTo(5)
 
     withContext(AndroidDispatchers.uiThread) {
       val dialog = SelectDeviceDialog(projectRule.project)
       createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
         val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
         // Case-insensitive search
         searchTextField.text = "GoOgLe       WaTcH"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(1)
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
         assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel Watch")
 
         // Search for devices with 6 in their name
