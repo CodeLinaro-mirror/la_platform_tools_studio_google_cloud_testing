@@ -161,9 +161,9 @@ class DirectAccessDeviceProvisionerTest {
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
     projectRule.project.showAllTemplates { selectionList ->
-      // Templates are all added to the provisioner automatically after switching to a cloud project
+      // Templates are not added to the provisioner automatically after switching to a cloud project
       // with access to more devices.
-      selectionList.forEach { assertThat(it.isSelected).isTrue() }
+      selectionList.forEach { assertThat(it.isSelected).isFalse() }
     }
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
@@ -185,6 +185,7 @@ class DirectAccessDeviceProvisionerTest {
     val deviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
     doReturn(deviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
+    doReturn(scope).whenever(mockDirectAccessService).scope
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
@@ -1021,38 +1022,6 @@ class DirectAccessDeviceProvisionerTest {
 
   @RunsInEdt
   @Test
-  fun selectTemplatesAfterLogout() = runBlockingWithTimeout {
-    assertThat(plugin.templates.value.size).isEqualTo(5)
-    // Same templates after logout.
-    loginStateRule.state.value = LoginStatus.LoggedOut
-    yieldUntil {
-      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
-    }
-    assertThat(plugin.templates.value.size).isEqualTo(5)
-
-    // De-select a template.
-    withContext(AndroidDispatchers.uiThread) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
-        checkboxList[1].isSelected = false
-        dialog.clickDefaultButton()
-      }
-    }
-    yieldUntil { plugin.templates.value.size == 4 }
-    // The de-selected device info gets removed from the table.
-    withContext(AndroidDispatchers.uiThread) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(4)
-        dialog.clickDefaultButton()
-      }
-    }
-  }
-
-  @RunsInEdt
-  @Test
   fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
     assertThat(plugin.templates.value.size).isEqualTo(5)
 
@@ -1099,8 +1068,6 @@ class DirectAccessDeviceProvisionerTest {
       val dialog = SelectDeviceDialog(projectRule.project)
       createModalDialogAndInteractWithIt({ dialog.show() }) {
         assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
-        val label = dialog.contentPanel.findAllDescendants<JLabel>().map { it.text }.first()
-        assertThat(label).isEqualTo("No devices to select")
       }
     }
   }

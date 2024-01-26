@@ -15,21 +15,23 @@
  */
 package com.google.gct.directaccess.ui.actions
 
-import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
+import com.android.testutils.waitForCondition
 import com.android.tools.adbbridge.Reservation
+import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
+import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
+import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
-import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
@@ -39,35 +41,36 @@ import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.SERVICES_USE
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
+import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
-import com.google.gct.directaccess.ui.DirectAccessProjectSelector
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
+import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginStateRule
 import com.google.gct.login.LoginStatus
+import com.google.services.firebase.FirebaseProjectClientRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
-import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
+import icons.StudioIcons
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
-import javax.swing.JTextField
-import javax.swing.JTextPane
-import javax.swing.event.DocumentEvent
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -76,23 +79,46 @@ import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
 const val SELECT_PROJECT_ID = "SelectProjectAction"
+private val TIMEOUT = 100.seconds
 
 class SelectProjectActionTest {
-  private val projectRule = ProjectRule()
-  private val popupRule = JBPopupRule()
-  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
-  // Simulate the fake properties component using a map
-  private val fakePropertiesComponent = mutableMapOf<Project, String>()
-  @get:Rule
-  val ruleChain = RuleChain.outerRule(projectRule).around(popupRule).around(loginStateRule)!!
-
   private val apiDisabledProject = "apiDisabledProject"
   private val unsupportedTestProjectWithServiceUse = "unsupportedTestProjectWithServiceUse"
   private val unsupportedTestProjectWithoutServiceUse = "unsupportedTestProjectWithoutServiceUse"
   private val viewerTestProject = "viewerTestProject"
   private val unknownPermissionTestProject = "unknownPermissionTestProject"
   private val supportedProjectName = "supportedTestProject"
-  private val scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+
+  private val projectRule = ProjectRule()
+  private val popupRule = JBPopupRule()
+  private val loginStateRule = LoginStateRule()
+  private val firebaseProjectClientRule =
+    FirebaseProjectClientRule().apply {
+      setupFirebaseClient(
+        throwErrorOnExecute = false,
+        returnMalformedJson = false,
+        projectList =
+          listOf(
+            apiDisabledProject,
+            unknownPermissionTestProject,
+            unsupportedTestProjectWithoutServiceUse,
+            viewerTestProject,
+            unknownPermissionTestProject,
+            supportedProjectName,
+          ),
+      )
+    }
+
+  // Simulate the fake properties component using a map
+  private val fakePropertiesComponent = mutableMapOf<Project, String>()
+  @get:Rule
+  val ruleChain =
+    RuleChain.outerRule(projectRule)
+      .around(popupRule)
+      .around(loginStateRule)
+      .around(firebaseProjectClientRule)!!
+
+  private val scope = CoroutineScope(Dispatchers.IO)
   private val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
   private val permissionFlow =
     RefreshableStateFlow(scope, Long.MAX_VALUE) {
@@ -111,11 +137,13 @@ class SelectProjectActionTest {
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlocking {
+    enableHeadlessDialogs(projectRule.disposable)
     var isLoggedIn = false
     val mockGoogleLogin = mock<GoogleLogin>()
     doAnswer { isLoggedIn }.whenever(mockGoogleLogin).isLoggedIn
     doAnswer {
         isLoggedIn = true
+        loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
         true
       }
       .whenever(mockGoogleLogin)
@@ -136,6 +164,9 @@ class SelectProjectActionTest {
 
     val mockDirectAccessService = mock<DirectAccessService>()
     doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
+    doReturn(scope).whenever(mockDirectAccessService).scope
+    val mockDeviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
+    doReturn(mockDeviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doAnswer {
         val cloudProjectName = it.arguments[0] as? String
         cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
@@ -160,15 +191,13 @@ class SelectProjectActionTest {
     assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
       .isInstanceOf(SelectProjectAction::class.java)
 
-    val selectProjectAction = SelectProjectAction { _, isEnabled, _ ->
-      FakeDirectAccessProjectSelector(isEnabled)
-    }
+    val selectDeviceAction = SelectProjectAction()
 
-    // Click the project selection button.
+    // Click the device selection button.
     val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
     val event =
       TestActionEvent.createTestEvent(
-        selectProjectAction,
+        selectDeviceAction,
         {
           when (it) {
             CommonDataKeys.PROJECT.name -> projectRule.project
@@ -178,128 +207,155 @@ class SelectProjectActionTest {
         mouseEvent,
       )
 
-    // Start select action before login.
-    selectProjectAction.actionPerformed(event)
-    val loginBalloon = popupRule.fakePopupFactory.getNextBalloon()
-    Disposer.register(projectRule.disposable, loginBalloon)
-    val action = loginBalloon.component.findAllDescendants<AnActionLink>().first()
-    assertThat(action.text).isEqualTo("Log in")
-    action.doClick()
+    withContext(AndroidDispatchers.uiThread) {
+      createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
+        // Start select action before login.
+        val dialog = it as SelectDeviceDialog
+        val action = dialog.rootPane.findAllDescendants<AnActionLink>().first()
+        assertThat(action.text).isEqualTo("Log in to Google")
+        action.doClick()
 
-    // Start select action after login.
-    selectProjectAction.actionPerformed(event)
-    val selectBalloon = popupRule.fakePopupFactory.getNextBalloon()
-    Disposer.register(projectRule.disposable, selectBalloon)
-    // Select a project that does not support direct access.
-    exceptionToThrow =
-      Status.PERMISSION_DENIED.withDescription("Not authorized for project").asRuntimeException()
-    val textField = selectBalloon.component.findAllDescendants<JTextField>().first()
-    assertThat(textField.isEnabled).isTrue()
-    textField.text = unsupportedTestProjectWithServiceUse
-    yieldUntil {
-      cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithServiceUse
+        waitForCondition { loginStateRule.state.value is LoginStatus.LoggedIn }
+        waitForCondition {
+          dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
+        }
+        val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
+        waitForCondition { comboBox.model.size > 1 }
+
+        // Select a project that does not support direct access.
+        exceptionToThrow =
+          Status.PERMISSION_DENIED.withDescription("Not authorized for project")
+            .asRuntimeException()
+        comboBox.model.selectedItem = unsupportedTestProjectWithServiceUse
+        waitForCondition {
+          cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithServiceUse
+        }
+        val label =
+          dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
+            label.icon == StudioIcons.Common.ERROR
+          }
+        waitForCondition {
+          label
+            .getHtmlFilteredText()
+            .contains(
+              "You do not have access to Device Streaming in project $unsupportedTestProjectWithServiceUse."
+            )
+        }
+
+        // Select a project with disabled Cloud Testing API
+        exceptionToThrow =
+          Status.PERMISSION_DENIED.withDescription(
+              "Cloud Testing API has not been used in project $apiDisabledProject before or it is disabled."
+            )
+            .asRuntimeException()
+        comboBox.model.selectedItem = apiDisabledProject
+        waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == apiDisabledProject }
+        waitForCondition {
+          label
+            .getHtmlFilteredText()
+            .contains(
+              "Cloud Testing API is not enabled in your project $apiDisabledProject. Enable it by visiting Google Cloud console."
+            )
+        }
+
+        // Select a project without service use permission
+        exceptionToThrow =
+          Status.PERMISSION_DENIED.withDescription(
+              "Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission"
+            )
+            .asRuntimeException()
+        comboBox.model.selectedItem = unsupportedTestProjectWithoutServiceUse
+        waitForCondition {
+          cloudProjectManagerFlow.value?.cloudProject?.name ==
+            unsupportedTestProjectWithoutServiceUse
+        }
+        waitForCondition {
+          label
+            .getHtmlFilteredText()
+            .contains(
+              "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
+            )
+        }
+
+        // Select a project with viewer permission
+        exceptionToThrow = null
+        comboBox.model.selectedItem = viewerTestProject
+        waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == viewerTestProject }
+        waitForCondition {
+          label
+            .getHtmlFilteredText()
+            .contains(
+              "You do not have full access to Device Streaming in project $viewerTestProject. You are missing the following permissions:" +
+                permissionFlow.value.missingPermissions.joinToString("")
+            )
+        }
+
+        // Select a project with a mix of permission
+        comboBox.model.selectedItem = unknownPermissionTestProject
+        waitForCondition {
+          cloudProjectManagerFlow.value?.cloudProject?.name == unknownPermissionTestProject
+        }
+        waitForCondition {
+          label
+            .getHtmlFilteredText()
+            .contains(
+              "You do not have full access to Device Streaming in project $unknownPermissionTestProject. You are missing the following permissions:" +
+                permissionFlow.value.missingPermissions.joinToString("")
+            )
+        }
+
+        val usedMinutesLabel =
+          dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
+            usedLabel.text.endsWith("mins used")
+          }
+        val remainingMinutesLabel =
+          dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
+            usedLabel.text.endsWith("mins remaining")
+          }
+
+        assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
+        assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
+        assertThat(fakePropertiesComponent[projectRule.project])
+          .isEqualTo(unknownPermissionTestProject)
+
+        comboBox.model.selectedItem = ERROR_FETCHING_FIREBASE_PROJECT
+        assertThat(fakePropertiesComponent[projectRule.project])
+          .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
+        assertThat(fakePropertiesComponent[projectRule.project])
+          .isEqualTo(unknownPermissionTestProject)
+
+        comboBox.model.selectedItem = NO_PROJECTS_AVAILABLE
+        waitForCondition { cloudProjectManagerFlow.value == null }
+        assertThat(fakePropertiesComponent[projectRule.project])
+          .isEqualTo(unknownPermissionTestProject)
+
+        // Select a project that supports direct access.
+        comboBox.model.selectedItem = supportedProjectName
+        waitForCondition {
+          cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
+        }
+        assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
+        assertThat(label.getHtmlFilteredText()).isEqualTo("")
+
+        waitForCondition { usedMinutesLabel.text == "60 mins used" }
+        waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
+        dialog.clickDefaultButton()
+      }
     }
-
-    val errorPanel = selectBalloon.component.findAllDescendants<JTextPane>().first()
-
-    yieldUntil { errorPanel.text.isNotEmpty() }
-    assertThat(errorPanel.getHtmlFilteredText())
-      .contains(
-        "You do not have access to Device Streaming in project $unsupportedTestProjectWithServiceUse."
-      )
-
-    // Select a project with disabled Cloud Testing API
-    exceptionToThrow =
-      Status.PERMISSION_DENIED.withDescription(
-          "Cloud Testing API has not been used in project $apiDisabledProject before or it is disabled."
-        )
-        .asRuntimeException()
-    textField.text = apiDisabledProject
-    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == apiDisabledProject }
-    assertThat(errorPanel.getHtmlFilteredText())
-      .contains(
-        "Cloud Testing API is not enabled in your project $apiDisabledProject. Enable it by visiting Google Cloud console."
-      )
-
-    // Select a project without service use permission
-    exceptionToThrow =
-      Status.PERMISSION_DENIED.withDescription(
-          "Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission"
-        )
-        .asRuntimeException()
-    textField.text = unsupportedTestProjectWithoutServiceUse
-    yieldUntil {
-      cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithoutServiceUse
-    }
-    yieldUntil { errorPanel.text.contains(unsupportedTestProjectWithoutServiceUse) }
-    assertThat(errorPanel.getHtmlFilteredText())
-      .contains(
-        "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
-      )
-
-    // Select a project with viewer permission
-    exceptionToThrow = null
-    textField.text = viewerTestProject
-    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == viewerTestProject }
-    yieldUntil { errorPanel.text.contains(viewerTestProject) }
-    assertThat(errorPanel.getHtmlFilteredText())
-      .contains(
-        "You do not have full access to Device Streaming in project $viewerTestProject. You are missing the following permissions:" +
-          permissionFlow.value.missingPermissions.joinToString("")
-      )
-
-    // Select a project with a mix of permission
-    textField.text = unknownPermissionTestProject
-    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == unknownPermissionTestProject }
-    yieldUntil { errorPanel.text.contains(unknownPermissionTestProject) }
-    assertThat(errorPanel.getHtmlFilteredText())
-      .contains(
-        "You do not have full access to Device Streaming in project $unknownPermissionTestProject. You are missing the following permissions:" +
-          permissionFlow.value.missingPermissions.joinToString("")
-      )
-    val remainingMinutesLabel =
-      selectBalloon.component
-        .findAllDescendants<JBLabel>()
-        .filter { it.text.endsWith("mins") }
-        .first()
-    assertThat(remainingMinutesLabel.text).isEqualTo("-- mins")
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
-
-    textField.text = ERROR_FETCHING_FIREBASE_PROJECT
-    assertThat(fakePropertiesComponent[projectRule.project])
-      .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
-
-    textField.text = NO_PROJECTS_AVAILABLE
-    yieldUntil { cloudProjectManagerFlow.value == null }
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
-
-    // Select a project that supports direct access.
-    textField.text = supportedProjectName
-    yieldUntil { cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName }
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
-    assertThat(errorPanel.getHtmlFilteredText()).isEqualTo("")
-
-    yieldUntil { remainingMinutesLabel.text == "60 mins" }
 
     // Start a device and the selector will be disabled.
     val mockDeviceHandle = mock<DirectAccessDeviceHandle>()
     doReturn(mock<DeviceState.Connected>()).whenever(mockDeviceHandle).state
     devices.value = listOf(mockDeviceHandle)
-    selectProjectAction.actionPerformed(event)
-    val disabledBalloon = popupRule.fakePopupFactory.getNextBalloon()
-    Disposer.register(projectRule.disposable, disabledBalloon)
-    val disabledTextField = disabledBalloon.component.findAllDescendants<JTextField>().first()
-    assertThat(disabledTextField.isEnabled).isFalse()
 
-    selectProjectAction.actionPerformed(event)
-    val errorListingProjectBalloon = popupRule.fakePopupFactory.getNextBalloon()
-    Disposer.register(projectRule.disposable, errorListingProjectBalloon)
-    val textField2 = errorListingProjectBalloon.component.findAllDescendants<JTextField>().first()
-    textField2.text = ERROR_FETCHING_FIREBASE_PROJECT
-    assertThat(fakePropertiesComponent[projectRule.project])
-      .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
-    assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
+    withContext(AndroidDispatchers.uiThread) {
+      createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) { dialog ->
+        val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
+        assertThat(selector.isEnabled).isFalse()
+        assertThat(selector.toolTipText).isEqualTo("Stop reservations to change projects")
+        dialog.clickDefaultButton()
+      }
+    }
   }
 
   private fun createCloudProjectManager(
@@ -327,7 +383,7 @@ class SelectProjectActionTest {
         else Pair(null, exceptionToThrow)
       }
     doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
-    doReturn(60L).whenever(mockCloudProjectManager).remainingMinutes
+    doReturn(Pair(60L, 70L)).whenever(mockCloudProjectManager).usageQuota
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
@@ -342,21 +398,7 @@ class SelectProjectActionTest {
   }
 }
 
-class FakeDirectAccessProjectSelector(isEnabled: Boolean) : DirectAccessProjectSelector {
-  override val component =
-    JTextField("").apply {
-      this.isEnabled = isEnabled
-      document.addDocumentListener(
-        object : DocumentAdapter() {
-          override fun textChanged(e: DocumentEvent) {
-            selectedProject.value = text
-          }
-        }
-      )
-    }
-  override val selectedProject = MutableStateFlow("")
-  override val isReady = MutableStateFlow(true)
-}
+private fun waitForCondition(condition: () -> Boolean) = waitForCondition(TIMEOUT, condition)
 
-private fun JTextPane.getHtmlFilteredText() =
-  text.replace(Regex("<[^>]*>"), "").replace("\n", "").replace(Regex(" +"), " ").trim()
+private fun JBLabel.getHtmlFilteredText() =
+  toolTipText.replace(Regex("<[^>]*>"), "").replace("\n", "").replace(Regex(" +"), " ").trim()

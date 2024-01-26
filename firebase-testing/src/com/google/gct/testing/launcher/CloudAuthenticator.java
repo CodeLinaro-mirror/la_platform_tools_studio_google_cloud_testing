@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
+import kotlin.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 
@@ -203,12 +204,13 @@ public class CloudAuthenticator {
   }
 
   /**
-   * Returns remaining quota in minutes for the endPoint and project, -1 if not available.
+   * Returns a pair of usage and limit numbers of quota in minutes for the endPoint and project, null if not available.
    *
    * @param endpoint end point of the monitoring backend, effective only for the first calling
    * @param project  name of the cloud project
    */
-  public long getRemainingQuota(@NotNull String endpoint, @NotNull String project) {
+  @Nullable
+  public Pair<Long, Long> getQuotaUsageAndLimit(@NotNull String endpoint, @NotNull String project) {
     Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     calendar.setTimeInMillis(CloudTestingUtils.getTimestampAtMidnightInPT(Instant.now()));
     // Sets up the beginning date of the query interval.
@@ -228,7 +230,7 @@ public class CloudAuthenticator {
       );
       // Response does not has enough data to determine usage.
       if (usageResponse.size() < 2) {
-        return -1;
+        return null;
       }
       long usageNumber = sumNumbers(usageResponse);
       QueryTimeSeriesResponse limitResponse = queryMonitoring(
@@ -243,15 +245,15 @@ public class CloudAuthenticator {
       long limitNumber = findNumber(limitResponse);
       // Response does not has enough data to determine usage limit.
       if (usageResponse.size() < 2) {
-        return -1;
+        return null;
       }
-      return limitNumber - usageNumber;
+      return new Pair<>(usageNumber, limitNumber);
     }
     catch (Exception e) {
       // TODO: Surface errors in the UI.
       CloudTestingUtils.showErrorMessage(null, "Error retrieving remaining quotas",
                                          "Failed to retrieve remaining quotas! Please try again later.\n" + e.getLocalizedMessage());
-      return -1;
+      return null;
     }
   }
 

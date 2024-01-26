@@ -27,6 +27,7 @@ import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.services.firebase.directaccess.client.isClosed
@@ -91,16 +92,26 @@ class DirectAccessDeviceProvisionerPlugin(
                 newAccessibleDeviceInfoList.groupBy { it.key }.mapValues { it.value.first() }
               project.service<DirectAccessService>().deviceSelectionListFlow.update {
                 oldDeviceSelectionList ->
-                val accessibleDeviceIdSet = newAccessibleDeviceInfoList.map { it.id }.toSet()
-                val deselectedDeviceIdSet =
-                  oldDeviceSelectionList.filter { !it.isSelected }.map { it.deviceInfo.id }.toSet()
-                val accessibleDeviceSelectionList =
-                  newAccessibleDeviceInfoList.map {
-                    DeviceSelection(it.id !in deselectedDeviceIdSet, it)
-                  }
-                val inaccessibleDeviceSelectionList =
-                  oldDeviceSelectionList.filter { it.deviceInfo.id !in accessibleDeviceIdSet }
-                accessibleDeviceSelectionList + inaccessibleDeviceSelectionList
+                // A device will occur in the new list if it was selected with the previous project
+                // or accessible with the new project.
+                val selectedDeviceSelectionList = oldDeviceSelectionList.filter { it.isSelected }
+                val selectedDeviceKeySet =
+                  selectedDeviceSelectionList.map { it.deviceInfo.key }.toSet()
+
+                val unSelectedDeviceList =
+                  newAccessibleDeviceInfoList
+                    .ifEmpty {
+                      try {
+                        // If no devices are accessible with the new project, use the public device
+                        // list instead.
+                        service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(null)
+                      } catch (e: Exception) {
+                        listOf()
+                      }
+                    }
+                    .filter { it.key !in selectedDeviceKeySet }
+                selectedDeviceSelectionList +
+                  unSelectedDeviceList.map { DeviceSelection(false, it) }
               }
             }
           }

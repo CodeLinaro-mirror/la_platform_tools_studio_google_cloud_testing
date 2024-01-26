@@ -15,37 +15,110 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.android.adblib.utils.createChildScope
+import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.categorytable.CategoryTable
+import com.android.tools.adtui.common.AdtUiUtils
 import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.io.grpc.Status
+import com.android.tools.idea.io.grpc.StatusRuntimeException
+import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
+import com.google.gct.login.GoogleLogin
+import com.google.gct.login.LoginState
+import com.google.gct.login.LoginStatus
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.ui.BrowserHyperlinkListener
 import com.intellij.ui.DocumentAdapter
+import com.intellij.ui.HyperlinkLabel
 import com.intellij.ui.SearchTextField
+import com.intellij.ui.TitledSeparator
+import com.intellij.ui.components.AnActionLink
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.panels.HorizontalLayout
+import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.util.maximumHeight
+import com.intellij.ui.util.maximumWidth
+import com.intellij.ui.util.minimumHeight
 import com.intellij.ui.util.preferredHeight
 import com.intellij.ui.util.preferredWidth
+import com.intellij.util.ui.HTMLEditorKitBuilder
+import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
+import icons.StudioIcons
+import java.awt.BorderLayout
+import java.awt.CardLayout
+import java.awt.Dimension
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import javax.swing.BoxLayout
 import javax.swing.JComponent
-import javax.swing.JLabel
+import javax.swing.JEditorPane
 import javax.swing.JPanel
+import javax.swing.JTextPane
 import javax.swing.event.DocumentEvent
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.VisibleForTesting
 
+private const val CLOUD_TEST_API_ENABLE_LINK =
+  "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
+private const val SELECTION_TABLE_MINIMUM_HEIGHT = 240
+
 class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
+  val scope = project.service<DirectAccessService>().scope.createChildScope(true)
+
+  private val uiDispatcher: CoroutineDispatcher
+    get() = AndroidDispatchers.uiThread(ModalityState.any())
+
+  private val loginLink =
+    AnActionLink(
+      "Log in to Google",
+      object : AnAction() {
+        override fun actionPerformed(e: AnActionEvent) {
+          GoogleLogin.instance.logIn(null, null)
+        }
+      },
+    )
+
+  private val viewAllProjectsHyperlink =
+    HyperlinkLabel("View All Projects").apply {
+      setHyperlinkTarget("https://console.firebase.google.com")
+    }
+
+  private val isDirectAccessEnabled =
+    service<LoginState>()
+      .loginStatus
+      .map { it is LoginStatus.LoggedIn }
+      .stateIn(
+        scope,
+        SharingStarted.Eagerly,
+        service<LoginState>().loginStatus.value is LoginStatus.LoggedIn,
+      )
 
   @VisibleForTesting
   val deviceTable =
-    CategoryTable(
-      SelectDeviceTableColumns.columns,
-      coroutineDispatcher = AndroidDispatchers.uiThread,
-    )
+    CategoryTable(SelectDeviceTableColumns.columns, primaryKey = { it.deviceInfo.key })
 
   private val searchTextField =
     SearchTextField().apply {
@@ -68,28 +141,36 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
   private var deviceRowDataList: List<SelectDeviceRowData> = emptyList()
 
-  private fun updateDeviceRowDataList() {
+  private fun updateDeviceRowDataList(wasDeviceRowDataListUpdated: Boolean = true) {
     val accessibleDeviceInfoSet =
       project.directAccessCloudProjectManager
         ?.accessibleDeviceInfoListFlow
         ?.stateFlow
         ?.value
+        ?.map { it.key }
         ?.toSet() ?: setOf()
+    val oldSelectedDeviceInfoSet =
+      deviceRowDataList.filter { it.isSelected }.map { it.deviceInfo.key }.toSet()
     deviceRowDataList =
       project
         .service<DirectAccessService>()
         .deviceSelectionListFlow
         .value
-        .filter {
-          it.applySearchFilter() && (it.isSelected || it.deviceInfo in accessibleDeviceInfoSet)
+        .filter { it.applySearchFilter() }
+        .map {
+          SelectDeviceRowData(
+            it.deviceInfo.key in accessibleDeviceInfoSet,
+            if (wasDeviceRowDataListUpdated) it.deviceInfo.key in oldSelectedDeviceInfoSet
+            else it.isSelected,
+            it.deviceInfo,
+          )
         }
-        .map { SelectDeviceRowData(it.isSelected, it.deviceInfo) }
         .sortedBy { it.deviceInfo.title }
   }
 
   init {
     title = "Select Devices"
-    updateDeviceRowDataList()
+    updateDeviceRowDataList(false)
     init()
   }
 
@@ -110,11 +191,173 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     }
   }
 
+  override fun dispose() {
+    super.dispose()
+    scope.cancel()
+  }
+
   override fun createCenterPanel(): JComponent {
-    if (deviceRowDataList.isEmpty()) {
-      return JLabel("No devices to select").apply { preferredWidth = deviceTable.preferredWidth }
+    val topPanel = JPanel(VerticalLayout(5))
+    topPanel.add(createTitleLabel("Device Streaming in Android Studio"))
+    topPanel.add(
+      createTextPane(topPanel).apply {
+        text =
+          "Device Streaming in Android Studio provides secure direct ADB access to a wide range of Android devices hosted by Firebase," +
+            " which you can use to debug and interact with your app. <br>" +
+            "Log in and select a Firebase Spark plan project for limited access at no cost," +
+            " or select a Blaze project for pay-as-you-go access that’s billed monthly. " +
+            "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>↗"
+      }
+    )
+    topPanel.add(TitledSeparator("Firebase Project Information"))
+    topPanel.add(createSelectProjectComponent())
+    topPanel.add(TitledSeparator("Select Devices"))
+    topPanel.add(
+      createTextPane(topPanel).apply {
+        text =
+          "Select the devices you want to access. The devices you select are added to the Device Manager " +
+            "and deploy target dropdown menu in the main toolbar."
+        foreground = UIUtil.getLabelDisabledForeground()
+      }
+    )
+
+    val panel = JPanel(BorderLayout(0, 5))
+    panel.add(topPanel, BorderLayout.NORTH)
+    panel.add(createTableComponent(), BorderLayout.CENTER)
+
+    // TODO(b/323428328) configure colors properly.
+    TreeWalker(panel).descendantStream().forEach { it.background = null }
+    return panel
+  }
+
+  private fun createTextPane(container: JPanel): JTextPane =
+    object : JTextPane() {
+      init {
+        isEditable = false
+        editorKit = HTMLEditorKitBuilder.simple()
+        contentType = "text/html"
+        maximumWidth = deviceTable.preferredWidth
+        size
+        font = UIUtil.getLabelFont()
+        addHyperlinkListener(BrowserHyperlinkListener.INSTANCE)
+        addComponentListener(
+          object : ComponentAdapter() {
+            override fun componentResized(e: ComponentEvent) {
+              super.componentResized(e)
+              scope.launch { withContext(uiDispatcher) { container.revalidate() } }
+            }
+          }
+        )
+      }
+
+      override fun updateUI() {
+        super.updateUI()
+        putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
+      }
+
+      override fun getPreferredSize(): Dimension {
+        return ui.getPreferredSize(container)
+      }
     }
-    return JPanel().apply {
+
+  private fun createTitleLabel(text: String, biggerOn: Float = 3f) =
+    JBLabel(text, JBLabel.LEFT).apply { font = AdtUiUtils.DEFAULT_FONT.biggerOn(biggerOn).asBold() }
+
+  private fun createSelectProjectComponent(): JPanel {
+    val panel = JPanel(VerticalLayout(5)).apply { border = JBUI.Borders.empty(5, 10) }
+    val chooseProjectPanel = JPanel(HorizontalLayout(5))
+
+    chooseProjectPanel.add(JBLabel("Choose Project:"))
+    val selectorLayout = CardLayout()
+    val selectorPanel = JPanel(selectorLayout)
+
+    val usedMinutesLabel = JBLabel()
+    val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelDisabledForeground() }
+    updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
+
+    val updateSelector: (Boolean) -> Unit = { enabled ->
+      selectorPanel.add(
+        if (enabled) {
+          val component = JPanel(HorizontalLayout(5))
+          val selector =
+            DirectAccessProjectSelectorImpl(
+              project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
+                ?: "",
+              project
+                .service<DeviceProvisionerService>()
+                .deviceProvisioner
+                .devices
+                .value
+                .filterIsInstance<DirectAccessDeviceHandle>()
+                .none {
+                  // Disable the selector if there are connected devices.
+                  it.state is DeviceState.Connected
+                },
+              scope,
+            )
+          component.add(selector.component)
+          val errorIcon =
+            JBLabel().apply {
+              icon = StudioIcons.Common.ERROR
+              isVisible = false
+            }
+          component.add(errorIcon)
+          scope.launch(uiDispatcher) {
+            selector.selectedProject.collect {
+              onProjectChanged(
+                project,
+                it,
+                panel,
+                errorIcon,
+                usedMinutesLabel,
+                remainingMinutesLabel,
+              )
+              updateDeviceRowDataList()
+              deviceTable.values.forEach { deviceTable.removeRow(it) }
+              deviceRowDataList.forEach { deviceTable.addOrUpdateRow(it) }
+              panel.revalidate()
+              panel.repaint()
+            }
+          }
+          component
+        } else {
+          loginLink
+        },
+        enabled.toString(),
+      )
+      selectorLayout.show(selectorPanel, enabled.toString())
+    }
+    var isNowEnabled = isDirectAccessEnabled.value
+    updateSelector(isDirectAccessEnabled.value)
+
+    val usagePanel =
+      JPanel(HorizontalLayout(5)).apply {
+        add(usedMinutesLabel)
+        add(remainingMinutesLabel)
+      }
+    val viewAllProjectsPanel =
+      JPanel(HorizontalLayout(0)).apply {
+        add(viewAllProjectsHyperlink, HorizontalLayout.LEFT)
+        isVisible = isDirectAccessEnabled.value
+      }
+    scope.launch {
+      isDirectAccessEnabled.collect {
+        if (it != isNowEnabled) {
+          isNowEnabled = it
+          updateSelector(isNowEnabled)
+          viewAllProjectsPanel.isVisible = isNowEnabled
+        }
+      }
+    }
+    chooseProjectPanel.add(selectorPanel)
+    panel.add(chooseProjectPanel)
+    panel.add(viewAllProjectsPanel)
+    panel.add(usagePanel)
+    return panel
+  }
+
+  private fun createTableComponent() =
+    JPanel().apply {
       layout = BoxLayout(this, BoxLayout.Y_AXIS)
       add(searchTextField)
       deviceRowDataList.forEach { deviceTable.addOrUpdateRow(it) }
@@ -122,10 +365,141 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       searchTextField.preferredWidth = preferredWidth
       // Show a smaller window for an appropriate size of dialog.
       // Showing all devices causes the dialog to be very tall.
-      preferredHeight =
-        deviceRowDataList.size.coerceIn(1, 13) *
-          deviceTable.preferredHeight.div(deviceRowDataList.size)
+      minimumHeight = SELECTION_TABLE_MINIMUM_HEIGHT
+      preferredHeight = minimumHeight
+
+      scope.launch(uiDispatcher) {
+        project.service<DirectAccessService>().deviceSelectionListFlow.collect {
+          updateDeviceRowDataList()
+          deviceTable.values.forEach { deviceTable.removeRow(it) }
+          deviceRowDataList.forEach { deviceTable.addOrUpdateRow(it) }
+        }
+      }
     }
+
+  private suspend fun onProjectChanged(
+    project: Project,
+    cloudProject: String,
+    parent: JPanel,
+    errorIcon: JBLabel,
+    usedMinutesLabel: JBLabel,
+    remainingMinutesLabel: JBLabel,
+  ) {
+    if (cloudProject.isEmpty() || cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
+      withContext(AndroidDispatchers.uiThread) { parent.revalidate() }
+      return
+    } else if (cloudProject == NO_PROJECTS_AVAILABLE) {
+      project.service<DirectAccessService>().selectCloudProject(null)
+      return
+    }
+    project.service<DirectAccessService>().selectCloudProject(cloudProject)
+    withContext(uiDispatcher) {
+      parent.revalidate()
+      launch {
+        val permission =
+          project.directAccessCloudProjectManager?.permissionFlow?.value
+            ?: throw RuntimeException("Unable to retrieve permission")
+        val reservationListException =
+          project.directAccessCloudProjectManager?.reservationListFlowWithException?.value?.second
+        val errorMessage = getErrorMessage(cloudProject, permission, reservationListException)
+        if (errorMessage != null) {
+          errorIcon.toolTipText = errorMessage
+          errorIcon.isVisible = true
+          errorIcon.revalidate()
+          errorIcon.repaint()
+          updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
+        } else {
+          errorIcon.toolTipText = ""
+          errorIcon.isVisible = false
+          launch {
+            updateRemainingQuota(
+              usedMinutesLabel,
+              remainingMinutesLabel,
+              withContext(Dispatchers.IO) { project.directAccessCloudProjectManager?.usageQuota },
+            )
+            parent.revalidate()
+          }
+        }
+        parent.revalidate()
+      }
+    }
+  }
+
+  private fun getErrorMessage(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: Exception?,
+  ): String? {
+    return if (exception != null) {
+      getErrorMessageFromException(cloudProject, permission, exception)
+    } else {
+      when (permission) {
+        is DirectAccessPermissionStatus.None ->
+          "You do not have access to Device Streaming in project $cloudProject."
+        is DirectAccessPermissionStatus.Viewer,
+        is DirectAccessPermissionStatus.MissingServiceUse,
+        is DirectAccessPermissionStatus.Unknown ->
+          "You do not have full access to Device Streaming in project $cloudProject. You are missing the following permissions:<br>" +
+            permission.missingPermissions.joinToString("<br>")
+        is DirectAccessPermissionStatus.Full -> null
+      }
+    }
+  }
+
+  private fun getErrorMessageFromException(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: Exception,
+  ) =
+    if (exception is StatusRuntimeException) {
+      getStatusCodeErrorMessage(cloudProject, permission, exception)
+    } else {
+      "An unknown error occurred when checking your permissions."
+    }
+
+  private fun getStatusCodeErrorMessage(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: StatusRuntimeException,
+  ) =
+    if (exception.status.code == Status.Code.PERMISSION_DENIED) {
+      val description = exception.status.description
+      val apiDisabledString =
+        "Cloud Testing API has not been used in project $cloudProject before or it is disabled."
+      val serviceUsageMissing = "Grant the caller the roles/serviceusage.serviceUsageConsumer role"
+      when {
+        description?.contains(apiDisabledString, true) == true ->
+          "Cloud Testing API is not enabled in your project $cloudProject. Enable it by visiting <a href=\"$CLOUD_TEST_API_ENABLE_LINK$cloudProject\">Google Cloud console</a>."
+        description?.contains(serviceUsageMissing, true) == true -> {
+          if (permission.missingPermissions == FULL_PERMISSIONS_SET) {
+            "You do not have access to Device Streaming in project $cloudProject."
+          } else {
+            "You do not have full access to Device Streaming in project $cloudProject. You are missing the following permissions:<br>" +
+              permission.missingPermissions.joinToString("<br>")
+          }
+        }
+        else -> "You do not have access to Device Streaming in project $cloudProject."
+      }
+    } else {
+      "An unknown error occurred when checking your permissions."
+    }
+
+  private fun updateRemainingQuota(
+    usedMinutesLabel: JBLabel,
+    remainingMinutesLabel: JBLabel,
+    quota: Pair<Long, Long>?,
+  ) {
+    usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
+    val remainingText =
+      quota?.let {
+        val remainingMinutes = it.second - it.first
+        when {
+          remainingMinutes < 0 -> "--"
+          remainingMinutes < 30 -> "less than 30"
+          else -> remainingMinutes.toString()
+        }
+      } ?: "--"
+    remainingMinutesLabel.text = "$remainingText mins remaining"
   }
 
   override fun doOKAction() {

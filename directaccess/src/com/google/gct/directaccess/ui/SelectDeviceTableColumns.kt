@@ -18,12 +18,18 @@ package com.google.gct.directaccess.ui
 import com.android.tools.adtui.categorytable.Attribute.Companion.stringAttribute
 import com.android.tools.adtui.categorytable.Column
 import com.android.tools.adtui.categorytable.LabelColumn
+import com.android.tools.adtui.common.ColoredIconGenerator
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.icon
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.jetbrains.jsonSchema.impl.nestedCompletions.letIf
 
-data class SelectDeviceRowData(var isSelected: Boolean, val deviceInfo: DeviceInfo)
+data class SelectDeviceRowData(
+  val isEnabled: Boolean,
+  var isSelected: Boolean,
+  val deviceInfo: DeviceInfo,
+)
 
 internal object SelectDeviceTableColumns {
 
@@ -47,7 +53,12 @@ internal object SelectDeviceTableColumns {
     override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
     override val attribute = stringAttribute<SelectDeviceRowData> { "" }
 
-    override fun createUi(rowValue: SelectDeviceRowData) = JBLabel(rowValue.deviceInfo.icon)
+    override fun createUi(rowValue: SelectDeviceRowData) =
+      JBLabel(
+        rowValue.deviceInfo.icon.letIf(!rowValue.isEnabled) {
+          ColoredIconGenerator.generateDeEmphasizedIcon(it)
+        }
+      )
 
     override fun updateValue(rowValue: SelectDeviceRowData, component: JBLabel, value: String) =
       Unit

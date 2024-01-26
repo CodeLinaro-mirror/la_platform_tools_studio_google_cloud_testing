@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 @Service(Service.Level.PROJECT)
-class DirectAccessService(val project: Project, scope: CoroutineScope) : Disposable {
+class DirectAccessService(val project: Project, val scope: CoroutineScope) : Disposable {
 
   private val _cloudProjectManager = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
   val cloudProjectManager: StateFlow<DirectAccessCloudProjectManager?> = _cloudProjectManager

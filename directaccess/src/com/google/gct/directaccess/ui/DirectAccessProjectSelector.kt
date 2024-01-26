@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.services.firebase.FirebaseProjectClient
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.CollectionComboBoxModel
 import com.intellij.ui.HyperlinkLabel
@@ -27,6 +28,7 @@ import java.awt.Color
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JTextField
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,6 +78,9 @@ class DirectAccessProjectSelectorImpl(
       setHyperlinkTarget("https://console.firebase.google.com")
     }
 
+  private val uiDispatcher: CoroutineDispatcher
+    get() = AndroidDispatchers.uiThread(ModalityState.any())
+
   init {
     add(comboBox, projectSelectorCard)
     add(createProjectHyperlink, noProjectsCard)
@@ -91,7 +96,7 @@ class DirectAccessProjectSelectorImpl(
       } catch (e: Exception) {
         null
       }
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(uiDispatcher) {
       showCard(if (projects?.isEmpty() == true) noProjectsCard else projectSelectorCard)
       comboBox.updateProjects(projects)
     }
@@ -110,7 +115,7 @@ class DirectAccessProjectSelectorImpl(
         toolTipText = "Stop reservations to change projects"
       }
       preferredSize = null
-      addItemListener { scope.launch { updateSelectedItem(it.item as String) } }
+      addItemListener { scope.launch(uiDispatcher) { updateSelectedItem(it.item as String) } }
     }
 
     fun updateProjects(projects: List<String>?) {
