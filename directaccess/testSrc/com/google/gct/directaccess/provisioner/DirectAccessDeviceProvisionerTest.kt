@@ -161,9 +161,9 @@ class DirectAccessDeviceProvisionerTest {
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
     projectRule.project.showAllTemplates { selectionList ->
-      // Templates are not added to the provisioner automatically after switching to a cloud project
+      // Templates are all added to the provisioner automatically after switching to a cloud project
       // with access to more devices.
-      selectionList.forEach { assertThat(it.isSelected).isFalse() }
+      selectionList.forEach { assertThat(it.isSelected).isTrue() }
     }
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
