@@ -34,7 +34,10 @@ data class DeviceInfo(
   val screenY: Int,
   val screenDensity: Int,
   val deviceAvailabilityEstimateSeconds: Long?,
-)
+) {
+  /** A string key to distinguish itself from other [DeviceInfo]s. */
+  val key = "$id/$api"
+}
 
 data class DeviceSelection(var isSelected: Boolean, val deviceInfo: DeviceInfo)
 
