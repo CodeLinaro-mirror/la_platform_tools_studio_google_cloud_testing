@@ -15,6 +15,7 @@
  */
 package com.google.gct.testing.android;
 
+import com.android.tools.idea.run.AndroidDevice;
 import com.android.tools.idea.run.DeviceFutures;
 import com.android.tools.idea.run.TargetSelectionMode;
 import com.android.tools.idea.run.ValidationError;
@@ -109,6 +110,12 @@ public class CloudTestMatrixTargetProvider extends DeployTargetProvider {
         // This runs when a developer debugs (not runs) an Android instrumented test. Use the device selected in the drop down.
         DeviceAndSnapshotComboBoxTargetProvider provider = DeviceAndSnapshotComboBoxTargetProvider.getInstance();
         return provider.getDeployTarget(project).getDevices(project);
+      }
+
+      @Override
+      public @NotNull List<AndroidDevice> getAndroidDevices(@NotNull Project project) {
+        DeviceAndSnapshotComboBoxTargetProvider provider = DeviceAndSnapshotComboBoxTargetProvider.getInstance();
+        return provider.getDeployTarget(project).getAndroidDevices(project);
       }
     };
   }

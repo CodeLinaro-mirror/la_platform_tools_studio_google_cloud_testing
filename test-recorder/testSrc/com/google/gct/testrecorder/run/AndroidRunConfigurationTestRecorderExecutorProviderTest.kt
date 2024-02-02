@@ -6,6 +6,7 @@ import com.android.sdklib.devices.Abi
 import com.android.testutils.MockitoKt
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutorRunProfileState
 import com.android.tools.idea.gradle.project.sync.snapshots.AndroidCoreTestProject
+import com.android.tools.idea.run.AndroidDevice
 import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfigurationType
 import com.android.tools.idea.run.DeviceFutures
@@ -42,6 +43,8 @@ class AndroidRunConfigurationTestRecorderExecutorProviderTest {
           override fun getRunProfileState(executor: Executor, env: ExecutionEnvironment, state: DeployTargetState) = null
 
           override fun getDevices(project: Project) = DeviceFutures.forDevices(listOf(MockitoKt.mock<IDevice>()))
+
+          override fun getAndroidDevices(project: Project): List<AndroidDevice> = throw UnsupportedOperationException()
         }
       }
     }
