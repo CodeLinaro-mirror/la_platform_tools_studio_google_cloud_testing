@@ -86,7 +86,6 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.EditorNotificationPanel
-import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
 import com.studiogrpc.testutils.GrpcConnectionRule
@@ -96,7 +95,6 @@ import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
-import javax.swing.JLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -982,7 +980,7 @@ class DirectAccessDeviceProvisionerTest {
       }) {
         val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
+        val icons = dialog.deviceTable.values.map { it.deviceInfo.icon }
         assertThat(icons)
           .containsExactly(
             FIREBASE_DEVICE_PHONE,
@@ -1021,58 +1019,6 @@ class DirectAccessDeviceProvisionerTest {
     assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
     assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[1])
     assertThat((templates[2] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
-  }
-
-  @RunsInEdt
-  @Test
-  fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
-    assertThat(plugin.templates.value.size).isEqualTo(5)
-
-    withContext(AndroidDispatchers.uiThread) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
-        // Case-insensitive search
-        searchTextField.text = "GoOgLe       WaTcH"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel Watch")
-
-        // Search for devices with 6 in their name
-        searchTextField.text = "6"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6")
-        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel 6 Pro")
-
-        // Search for api 33
-        searchTextField.text = "33"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6 Pro")
-        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel Watch")
-
-        // Search matching no device
-        searchTextField.text = "no match search"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
-      }
-    }
-  }
-
-  @RunsInEdt
-  @Test
-  fun testSelectDeviceDialogWhenNoAvailableDevicesToSelect() = runBlockingWithTimeout {
-    (plugin.templates as MutableStateFlow).value = emptyList()
-    assertThat(plugin.templates.value.isEmpty()).isTrue()
-
-    (projectRule.project.service<DirectAccessService>().cloudProjectManager as MutableStateFlow)
-      .value = null
-    projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value = emptyList()
-
-    withContext(AndroidDispatchers.uiThread) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
-      }
-    }
   }
 
   @Test

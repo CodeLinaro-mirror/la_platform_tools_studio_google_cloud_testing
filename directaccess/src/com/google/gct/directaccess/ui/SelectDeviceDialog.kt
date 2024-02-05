@@ -140,9 +140,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       addDocumentListener(
         object : DocumentAdapter() {
           override fun textChanged(e: DocumentEvent) {
-            updateDeviceRowDataList()
-            deviceTable.values.forEach { deviceTable.removeRow(it) }
-            deviceRowDataList.forEach { deviceTable.addOrUpdateRow(it) }
+            updateTable()
           }
         }
       )
@@ -168,7 +166,6 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         .service<DirectAccessService>()
         .deviceSelectionListFlow
         .value
-        .filter { it.applySearchFilter() }
         .map {
           SelectDeviceRowData(
             it.deviceInfo.key in accessibleDeviceInfoSet,
@@ -197,13 +194,24 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     }
   }
 
+  private fun updateTable() {
+    deviceTable.values.forEach { deviceTable.removeRow(it) }
+    deviceRowDataList.filter { it.applySearchFilter() }.forEach { deviceTable.addOrUpdateRow(it) }
+  }
+
+  /** Updates the device list followed by updating the table */
+  private fun refreshTableData() {
+    updateDeviceRowDataList()
+    updateTable()
+  }
+
   init {
     title = "Select Devices"
     updateDeviceRowDataList(false)
     init()
   }
 
-  private fun DeviceSelection.applySearchFilter(): Boolean {
+  private fun SelectDeviceRowData.applySearchFilter(): Boolean {
     if (searchText.isEmpty()) return true
     val words = searchText.split(Regex(" +"))
     return words.all {
@@ -233,7 +241,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         text =
           "Device Streaming in Android Studio provides secure direct ADB access to a wide range of Android devices hosted by Firebase," +
             " which you can use to debug and interact with your app. <br>" +
-            "Log in and select a Firebase Spark plan project for limited access at no cost," +
+            "${if (isDirectAccessEnabled.value) "Select" else "Log in and select"} a Firebase Spark plan project for limited access at no cost," +
             " or select a Blaze project for pay-as-you-go access that’s billed monthly. " +
             "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>↗"
       }
@@ -341,9 +349,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                 usedMinutesLabel,
                 remainingMinutesLabel,
               )
-              updateDeviceRowDataList()
-              deviceTable.values.forEach { deviceTable.removeRow(it) }
-              deviceRowDataList.forEach { deviceTable.addOrUpdateRow(it) }
+              refreshTableData()
               panel.revalidate()
               panel.repaint()
             }
@@ -399,9 +405,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
       scope.launch(uiDispatcher) {
         project.service<DirectAccessService>().deviceSelectionListFlow.collect {
-          updateDeviceRowDataList()
-          deviceTable.values.forEach { deviceTable.removeRow(it) }
-          deviceRowDataList.forEach { deviceTable.addOrUpdateRow(it) }
+          refreshTableData()
         }
       }
     }
