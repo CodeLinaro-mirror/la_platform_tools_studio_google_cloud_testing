@@ -53,7 +53,7 @@ class DirectAccessCloudProjectManager(
   /** A pair of usage and limit numbers of quota in minutes. */
   val usageQuota: Pair<Long, Long>?
     get() =
-      CloudAuthenticator.getInstance()
+      service<CloudAuthenticator>()
         .getQuotaUsageAndLimit(
           "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}",
           "projects/${cloudProject.name}",

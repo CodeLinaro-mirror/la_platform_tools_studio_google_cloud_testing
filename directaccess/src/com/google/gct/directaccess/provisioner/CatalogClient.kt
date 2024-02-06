@@ -21,6 +21,7 @@ import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.login.GoogleLogin
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.intellij.openapi.application.ApplicationInfo
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.BuildNumber
 
@@ -35,7 +36,7 @@ object CatalogClient {
     }
 
     val catalog =
-      CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint, cloudProject)
+      service<CloudAuthenticator>().getAndroidDeviceCatalogForEnvironment(endpoint, cloudProject)
 
     return catalog.models
       .filter { it.form == "PHYSICAL" }

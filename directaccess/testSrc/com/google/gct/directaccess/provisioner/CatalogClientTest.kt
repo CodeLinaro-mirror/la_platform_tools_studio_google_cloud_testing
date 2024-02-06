@@ -39,7 +39,7 @@ class CatalogClientTest {
     val mockGoogleLoginService = projectRule.mockService(GoogleLogin::class.java)
     whenever(mockGoogleLoginService.isLoggedIn).thenReturn(true)
 
-    CloudAuthenticator.setInstance(mockCloudAuthenticator)
+    projectRule.replaceService(CloudAuthenticator::class.java, mockCloudAuthenticator)
   }
 
   private fun setupCloudAuthenticator(deviceCatalog: AndroidDeviceCatalog) =

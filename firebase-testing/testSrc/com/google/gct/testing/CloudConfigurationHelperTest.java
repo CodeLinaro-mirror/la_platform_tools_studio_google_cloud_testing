@@ -32,7 +32,7 @@ public class CloudConfigurationHelperTest extends AndroidTestCase {
 
   public void testDefaultConfigurations() {
     CloudAuthenticator cloudAuthenticator = Mockito.mock(CloudAuthenticator.class);
-    CloudAuthenticator.setInstance(cloudAuthenticator);
+    replaceApplicationService(CloudAuthenticator.class, cloudAuthenticator);
 
     Mockito.when(cloudAuthenticator.getAndroidDeviceCatalog()).thenReturn(createAndroidDeviceCatalog());
 
