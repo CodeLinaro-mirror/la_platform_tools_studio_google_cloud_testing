@@ -23,8 +23,8 @@ import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.waitForCondition
 import com.android.tools.adbbridge.Reservation
+import com.android.tools.adtui.swing.HeadlessDialogRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
-import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.concurrency.AndroidDispatchers
@@ -48,7 +48,9 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.LoginUsersRule
+import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
 import com.intellij.ide.ui.customization.CustomActionsSchema
@@ -114,6 +116,7 @@ class SelectProjectActionTest {
   val ruleChain =
     RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
       .around(projectRule)
+      .around(HeadlessDialogRule())
       .around(popupRule)
       .around(loginUsersRule)
       .around(firebaseProjectClientRule)!!
@@ -137,8 +140,6 @@ class SelectProjectActionTest {
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlocking {
-    enableHeadlessDialogs(projectRule.disposable)
-
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
     val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
@@ -342,6 +343,39 @@ class SelectProjectActionTest {
         assertThat(selector.isEnabled).isFalse()
         assertThat(selector.toolTipText).isEqualTo("Stop reservations to change projects")
         dialog.clickDefaultButton()
+      }
+    }
+  }
+
+  @RunsInEdt
+  @Test
+  fun testAuthorizeLink() = runBlocking {
+    // Log in as a user without the firebase feature
+    loginUsersRule.setActiveUser("test@google.com", features = setOf())
+    val selectDeviceAction = SelectProjectAction()
+
+    // Click the device selection button.
+    val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
+    val event =
+      TestActionEvent.createTestEvent(
+        selectDeviceAction,
+        {
+          when (it) {
+            CommonDataKeys.PROJECT.name -> projectRule.project
+            else -> null
+          }
+        },
+        mouseEvent,
+      )
+
+    withContext(AndroidDispatchers.uiThread) {
+      createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
+        val dialog = it as SelectDeviceDialog
+        val action = dialog.rootPane.findAllDescendants<AnActionLink>().first()
+        assertThat(action.text).isEqualTo("Authorize Firebase")
+        action.doClick()
+
+        waitForCondition { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
       }
     }
   }

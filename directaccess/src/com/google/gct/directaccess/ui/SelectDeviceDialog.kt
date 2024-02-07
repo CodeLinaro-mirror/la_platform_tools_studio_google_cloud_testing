@@ -96,7 +96,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
   private val loginLink =
     AnActionLink(
-      "Log in to Google",
+      if (service<GoogleLoginService>().isLoggedIn()) "Authorize Firebase" else "Log in to Google",
       object : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
           LoginFeature.feature<FirebaseLoginFeature>()
