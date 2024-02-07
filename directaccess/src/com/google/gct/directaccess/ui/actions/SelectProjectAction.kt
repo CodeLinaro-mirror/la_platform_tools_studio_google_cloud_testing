@@ -15,19 +15,40 @@
  */
 package com.google.gct.directaccess.ui.actions
 
+import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
+import com.intellij.ui.LayeredIcon.Companion.layeredIcon
 import icons.FirebaseIcons
+import icons.StudioIcons
+import org.jetbrains.annotations.VisibleForTesting
+
+@VisibleForTesting
+val firebaseIconWithErrors = layeredIcon {
+  arrayOf(FirebaseIcons.ACTION_ICON, StudioIcons.Emulator.Snapshots.INVALID_SNAPSHOT_DECORATOR)
+}
 
 class SelectProjectAction :
   AnAction("Configure Device Streaming Project", "text", FirebaseIcons.ACTION_ICON) {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
+    // An exception will be caught here only when a project is selected and its cloudProjectManager
+    // fails to fetch reservations.
+    val hasErrorAfterProjectSelection =
+      e.project
+        ?.service<DirectAccessService>()
+        ?.cloudProjectManager
+        ?.value
+        ?.reservationListFlowWithException
+        ?.value
+        ?.second != null
+    e.presentation.icon =
+      if (hasErrorAfterProjectSelection) firebaseIconWithErrors else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = service<DirectAccessConfiguration>().isEnabled
   }
 

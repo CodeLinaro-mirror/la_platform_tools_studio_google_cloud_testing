@@ -297,6 +297,22 @@ class SelectProjectActionTest {
               "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
             )
         }
+        dialog.clickDefaultButton()
+      }
+
+      selectDeviceAction.update(event)
+      assertThat(event.presentation.icon).isEqualTo(firebaseIconWithErrors)
+
+      createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
+        val dialog = it as SelectDeviceDialog
+        waitForCondition {
+          dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
+        }
+        val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
+        val label =
+          dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
+            label.icon == StudioIcons.Common.ERROR
+          }
 
         // Select a project with viewer permission
         exceptionToThrow = null
