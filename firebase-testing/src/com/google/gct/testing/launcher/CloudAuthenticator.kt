@@ -259,15 +259,6 @@ class CloudAuthenticator(scope: CoroutineScope) {
       return Pair(usageNumber, limitNumber)
     } catch (e: Exception) {
       // TODO: Surface errors in the UI.
-      CloudTestingUtils.showErrorMessage(
-        null,
-        "Error retrieving remaining quotas",
-        """
-                                                 Failed to retrieve remaining quotas! Please try again later.
-                                                 ${e.localizedMessage}
-                                                 """
-          .trimIndent(),
-      )
       return null
     }
   }
@@ -279,10 +270,15 @@ class CloudAuthenticator(scope: CoroutineScope) {
   }
 
   private fun sumNumbers(item: QueryTimeSeriesResponse): Long {
-    val timeSeriesData = (item["timeSeriesData"] as ArrayList<*>?)!![0] as TimeSeriesData
-    return timeSeriesData.pointData
+    return (item["timeSeriesData"] as ArrayList<*>)
       .stream()
-      .mapToLong { a: PointData -> a.getValues()[0].int64Value }
+      .mapToLong { timeSeriesData ->
+        (timeSeriesData as TimeSeriesData)
+          .pointData
+          .stream()
+          .mapToLong { a: PointData -> a.getValues()[0].int64Value }
+          .sum()
+      }
       .sum()
   }
 

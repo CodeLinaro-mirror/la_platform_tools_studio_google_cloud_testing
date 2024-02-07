@@ -422,7 +422,13 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
             updateRemainingQuota(
               usedMinutesLabel,
               remainingMinutesLabel,
-              withContext(Dispatchers.IO) { project.directAccessCloudProjectManager?.usageQuota },
+              withContext(Dispatchers.IO) {
+                try {
+                  project.directAccessCloudProjectManager?.usageQuota
+                } catch (e: Exception) {
+                  null
+                }
+              },
             )
             parent.revalidate()
           }
