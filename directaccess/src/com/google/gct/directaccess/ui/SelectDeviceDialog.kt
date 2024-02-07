@@ -35,6 +35,7 @@ import com.google.gct.login.LoginState
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
@@ -87,6 +88,10 @@ import org.jetbrains.annotations.VisibleForTesting
 private const val CLOUD_TEST_API_ENABLE_LINK =
   "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
 private const val SELECTION_TABLE_MINIMUM_HEIGHT = 240
+
+const val ONBOARDING_WORKFLOW_KEY = "direct.access.onboarding"
+
+private val PRESELECTED_DEVICE_KEY_SET = setOf("shiba/34", "felix/33", "b0q/33", "gts8uwifi/33")
 
 class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
@@ -173,6 +178,23 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           )
         }
         .sortedBy { it.deviceInfo.title }
+
+    if (
+      !PropertiesComponent.getInstance().getBoolean(ONBOARDING_WORKFLOW_KEY, false) &&
+        deviceRowDataList.isNotEmpty() &&
+        deviceRowDataList.count { it.isSelected } == 0
+    ) {
+      var count = 0
+      deviceRowDataList.forEach {
+        if (it.isEnabled && it.deviceInfo.key in PRESELECTED_DEVICE_KEY_SET) {
+          it.isSelected = true
+          ++count
+        }
+      }
+      if (count > 0) {
+        PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, true)
+      }
+    }
   }
 
   init {

@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.ui.actions
 
+import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
@@ -28,6 +29,7 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.Status
@@ -43,10 +45,12 @@ import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.SERVICES_USE
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
+import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
+import com.google.gct.directaccess.ui.ONBOARDING_WORKFLOW_KEY
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.LoginUsersRule
@@ -54,6 +58,7 @@ import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
 import com.intellij.ide.ui.customization.CustomActionsSchema
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -72,6 +77,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -137,6 +144,31 @@ class SelectProjectActionTest {
     }
   private var exceptionToThrow: StatusRuntimeException? = null
 
+  private val preselectedDeviceInfo =
+    DeviceInfo(
+      id = "shiba",
+      brand = "google",
+      name = "Pixel 8",
+      manufacturer = "Google",
+      codename = "shiba",
+      api = 34,
+      type = DeviceType.PHONE,
+      screenX = 1080,
+      screenY = 2400,
+      screenDensity = 420,
+      deviceAvailabilityEstimateSeconds = 30,
+    )
+
+  @Before
+  fun setUp() {
+    PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
+  }
+
+  @After
+  fun tearDown() {
+    PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
+  }
+
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlocking {
@@ -154,7 +186,7 @@ class SelectProjectActionTest {
     val mockDirectAccessService = mock<DirectAccessService>()
     doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
     doReturn(scope).whenever(mockDirectAccessService).scope
-    val mockDeviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
+    val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
     doReturn(mockDeviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doAnswer {
         val cloudProjectName = it.arguments[0] as? String
@@ -328,8 +360,20 @@ class SelectProjectActionTest {
 
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
         waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
+
+        mockDeviceSelectionListFlow.value =
+          (TestUtils.deviceInfoListProvider() + preselectedDeviceInfo).map {
+            DeviceSelection(false, it)
+          }
+        waitForCondition {
+          PropertiesComponent.getInstance().getBoolean(ONBOARDING_WORKFLOW_KEY, false)
+        }
         dialog.clickDefaultButton()
       }
+
+      yieldUntil { mockDeviceSelectionListFlow.value.any { it.isSelected } }
+      val selectedDeviceInfo = mockDeviceSelectionListFlow.value.first { it.isSelected }.deviceInfo
+      assertThat(selectedDeviceInfo).isEqualTo(preselectedDeviceInfo)
     }
 
     // Start a device and the selector will be disabled.
@@ -409,7 +453,7 @@ class SelectProjectActionTest {
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (isAuthorized) TestUtils.deviceInfoListProvider() else listOf()
+        if (isAuthorized) TestUtils.deviceInfoListProvider() + preselectedDeviceInfo else listOf()
       }
     doReturn(accessibleDeviceInfoListFlow)
       .whenever(mockCloudProjectManager)
