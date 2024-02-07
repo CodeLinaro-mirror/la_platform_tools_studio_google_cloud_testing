@@ -15,12 +15,9 @@
  */
 package com.google.gct.directaccess
 
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager
 import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsRequest
 import com.google.common.annotations.VisibleForTesting
-import com.google.gct.login.GoogleLogin
+import com.google.gct.testing.launcher.CloudAuthenticator
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 
@@ -71,11 +68,6 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
     get() = this !in missingPermissions
 
   companion object {
-    // Create and use single instance of transport and JSON factory
-    // rather than creating one each time.
-    private val httpTransport = NetHttpTransport()
-    private val jsonFactory = GsonFactory.getDefaultInstance()
-
     @VisibleForTesting
     internal fun parseFrom(permissions: Set<String>): DirectAccessPermissionStatus {
       // None of the permissions requested exist on the user's IAM role
@@ -103,7 +95,8 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
         TestIamPermissionsRequest().apply { permissions = FULL_PERMISSIONS_SET.toList() }
       val response =
         try {
-          getCloudResourceManager(cloudProject.user)
+          service<CloudAuthenticator>()
+            .cloudResourceManager
             .projects()
             .testIamPermissions("projects/${cloudProject.name}", request)
             .execute()
@@ -118,16 +111,5 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
       val permissions = response.permissions ?: emptyList()
       return parseFrom(permissions.toSet())
     }
-
-    private fun getCloudResourceManager(user: String) =
-      CloudResourceManager.Builder(httpTransport, jsonFactory) { request ->
-          request.apply {
-            connectTimeout = 30_000 // 30 seconds
-            readTimeout = 30_000 // 30 seconds
-            service<GoogleLogin>().allUsers[user]?.credential?.initialize(this)
-          }
-        }
-        .setApplicationName("Android Studio")
-        .build()
   }
 }
