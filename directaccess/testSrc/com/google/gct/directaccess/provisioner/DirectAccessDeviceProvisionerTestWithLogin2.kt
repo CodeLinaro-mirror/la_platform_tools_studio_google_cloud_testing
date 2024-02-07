@@ -61,8 +61,7 @@ import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
-import com.google.gct.login.LoginStateRule
-import com.google.gct.login.LoginStatus
+import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -117,21 +116,21 @@ import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 
-class DirectAccessDeviceProvisionerTest {
+class DirectAccessDeviceProvisionerTestWithLogin2 {
 
   private val service = FakeDirectAccessGrpcService()
   private val projectRule = ProjectRule()
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
-  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+  private val loginUsersRule = LoginUsersRule()
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
-    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, false))
+    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
       .around(projectRule)
       .around(grpcConnectionRule)
-      .around(loginStateRule)
+      .around(loginUsersRule)
       .around(fakeToolWindowRule)
       .around(cleanUpNotificationRule)
 
@@ -145,6 +144,7 @@ class DirectAccessDeviceProvisionerTest {
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    loginUsersRule.setActiveUser("test@google.com")
     enableHeadlessDialogs(projectRule.disposable)
     TestDialogManager.setTestDialog(TestDialog.YES)
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
@@ -197,16 +197,15 @@ class DirectAccessDeviceProvisionerTest {
 
     // Sets up deviceSelectionListFlow.
     scope.launch {
-      loginStateRule.state.collect {
-        cloudProjectManagerFlow.value =
-          if (it is LoginStatus.LoggedIn) mockCloudProjectManager else null
+      loginUsersRule.loginService.activeUserFlow.collect {
+        cloudProjectManagerFlow.value = if (it != null) mockCloudProjectManager else null
       }
     }
 
     // Sets up APIs im cloudProjectManager
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (loginStateRule.state.value is LoginStatus.LoggedIn && isOAuthTokenAvailable)
+        if (loginUsersRule.loginService.isLoggedIn() && isOAuthTokenAvailable)
           Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
@@ -281,21 +280,21 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[4].properties.isRemote).isTrue()
 
     // Log out
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
 
     // Login without access.
     isOAuthTokenAvailable = false
-    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
+    loginUsersRule.setActiveUser("test@google.com")
     projectRule.project.refreshReservations()
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
     // Login with access.
     isOAuthTokenAvailable = true
-    loginStateRule.state.value = LoginStatus.LoggedIn("test2@gmail.com")
+    loginUsersRule.setActiveUser("test2@google.com")
     projectRule.project.refreshReservations()
     yieldUntil {
       provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
@@ -573,14 +572,14 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
     // Device removed after logout.
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
     yieldUntil {
       provisioner.templates.value.all { (it as DirectAccessDeviceTemplate).activeDevice == null }
     }
     yieldUntil { provisioner.devices.value.isEmpty() }
 
     // Login again to re-discover the device.
-    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
+    loginUsersRule.setActiveUser("test@google.com")
     yieldUntil {
       projectRule.project.service<DirectAccessService>().cloudProjectManager.value != null
     }

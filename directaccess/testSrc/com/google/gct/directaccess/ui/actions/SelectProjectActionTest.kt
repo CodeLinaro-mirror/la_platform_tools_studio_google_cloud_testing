@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.ui.actions
 
+import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
@@ -28,6 +29,7 @@ import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
@@ -46,14 +48,11 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.SelectDeviceDialog
-import com.google.gct.login.GoogleLogin
-import com.google.gct.login.LoginStateRule
-import com.google.gct.login.LoginStatus
+import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.testFramework.ProjectRule
@@ -91,7 +90,7 @@ class SelectProjectActionTest {
 
   private val projectRule = ProjectRule()
   private val popupRule = JBPopupRule()
-  private val loginStateRule = LoginStateRule()
+  private val loginUsersRule = LoginUsersRule()
   private val firebaseProjectClientRule =
     FirebaseProjectClientRule().apply {
       setupFirebaseClient(
@@ -113,9 +112,10 @@ class SelectProjectActionTest {
   private val fakePropertiesComponent = mutableMapOf<Project, String>()
   @get:Rule
   val ruleChain =
-    RuleChain.outerRule(projectRule)
+    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
+      .around(projectRule)
       .around(popupRule)
-      .around(loginStateRule)
+      .around(loginUsersRule)
       .around(firebaseProjectClientRule)!!
 
   private val scope = CoroutineScope(Dispatchers.IO)
@@ -138,18 +138,6 @@ class SelectProjectActionTest {
   @Test
   fun testSelectProjectAction() = runBlocking {
     enableHeadlessDialogs(projectRule.disposable)
-    var isLoggedIn = false
-    val mockGoogleLogin = mock<GoogleLogin>()
-    doAnswer { isLoggedIn }.whenever(mockGoogleLogin).isLoggedIn
-    doAnswer {
-        isLoggedIn = true
-        loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
-        true
-      }
-      .whenever(mockGoogleLogin)
-      .logIn(null, null)
-    ApplicationManager.getApplication()
-      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
 
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
@@ -215,7 +203,7 @@ class SelectProjectActionTest {
         assertThat(action.text).isEqualTo("Log in to Google")
         action.doClick()
 
-        waitForCondition { loginStateRule.state.value is LoginStatus.LoggedIn }
+        waitForCondition { loginUsersRule.loginService.isLoggedIn() }
         waitForCondition {
           dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
         }

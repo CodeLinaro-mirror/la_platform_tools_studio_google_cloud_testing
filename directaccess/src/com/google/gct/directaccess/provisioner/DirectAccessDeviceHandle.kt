@@ -40,8 +40,9 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessFeatureSurveys
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
-import com.google.gct.login.LoginState
-import com.google.gct.login.LoginStatus
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginFeature
+import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.StateReason
@@ -479,7 +480,7 @@ class DirectAccessDeviceHandle(
   private fun getScopeCancelledReason() =
     when {
       reservationFlow.value.sessionState.isClosed() -> FailureReason.SESSION_ENDED
-      service<LoginState>().loginStatus.value !is LoginStatus.LoggedIn ->
+      !service<GoogleLoginService>().isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) ->
         FailureReason.USER_LOGGED_OUT
       project.service<DirectAccessService>().isProjectClosing -> FailureReason.PROJECT_CLOSING
       else -> FailureReason.UNKNOWN_FAILURE

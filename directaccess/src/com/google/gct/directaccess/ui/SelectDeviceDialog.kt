@@ -31,11 +31,13 @@ import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
-import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginState
-import com.google.gct.login.LoginStatus
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginFeature
+import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -74,6 +76,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -96,7 +99,11 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       "Log in to Google",
       object : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
-          GoogleLogin.instance.logIn(null, null)
+          LoginFeature.feature<FirebaseLoginFeature>()
+            .logInAsync(
+              parentComponent =
+                e.dataContext.getData(PlatformCoreDataKeys.CONTEXT_COMPONENT) as? JComponent
+            )
         }
       },
     )
@@ -107,13 +114,13 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     }
 
   private val isDirectAccessEnabled =
-    service<LoginState>()
-      .loginStatus
-      .map { it is LoginStatus.LoggedIn }
+    (if (service<GoogleLoginService>().useOldVersion) service<LoginState>().loginStatus
+      else service<GoogleLoginService>().activeUserFlow)
+      .map { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
       .stateIn(
         scope,
         SharingStarted.Eagerly,
-        service<LoginState>().loginStatus.value is LoginStatus.LoggedIn,
+        LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn(),
       )
 
   @VisibleForTesting

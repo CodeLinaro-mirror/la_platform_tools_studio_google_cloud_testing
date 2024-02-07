@@ -28,10 +28,11 @@ import com.google.api.services.storage.Storage
 import com.google.api.services.testing.Testing
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.toolresults.ToolResults
-import com.google.gct.login.GoogleLogin
-import com.google.gct.login.IGoogleLoginCompletedCallback
 import com.google.gct.login.LoginState
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginFeature
 import com.google.gct.testing.CloudTestingUtils
+import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import java.io.IOException
@@ -39,8 +40,11 @@ import java.time.Instant
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+
+private const val APPLICATION_NAME = "GCTL"
 
 @Service
 class CloudAuthenticator(scope: CoroutineScope) {
@@ -57,7 +61,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   init {
     scope.launch {
-      service<LoginState>().loginStatus.collect {
+      fun reset() {
         myHttpTransport = null
         myStorage = null
         myCloudResourceManager = null
@@ -65,17 +69,22 @@ class CloudAuthenticator(scope: CoroutineScope) {
         myMonitoring = null
         myToolresults = null
       }
+
+      if (service<GoogleLoginService>().useOldVersion) {
+        service<LoginState>().loginStatus.collect { reset() }
+      } else {
+        service<GoogleLoginService>().activeUserFlow.collect { reset() }
+      }
     }
   }
+
+  val firebaseFeature = LoginFeature.feature<FirebaseLoginFeature>()
+  private val credential = firebaseFeature.credential()
 
   val storage: Storage
     get() {
       return myStorage
-        ?: Storage.Builder(
-            myHttpTransport,
-            GsonFactory.getDefaultInstance(),
-            GoogleLogin.instance.getCredential(),
-          )
+        ?: Storage.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myStorage = it }
@@ -83,20 +92,12 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   fun recreateTestAndToolResults(testBackendUrl: String?, toolResultsBackendUrl: String?) {
     myTest =
-      Testing.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          GoogleLogin.instance.getCredential(),
-        )
+      Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(testBackendUrl)
         .build()
     myToolresults =
-      ToolResults.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          GoogleLogin.instance.getCredential(),
-        )
+      ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(toolResultsBackendUrl)
         .build()
@@ -108,7 +109,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
         ?: CloudResourceManager.Builder(
             myHttpTransport,
             GsonFactory.getDefaultInstance(),
-            GoogleLogin.instance.getCredential(),
+            credential,
           )
           .setApplicationName(APPLICATION_NAME)
           .build()
@@ -122,11 +123,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   /** Get a test client pointing to the given backend. */
   private fun getTest(endpoint: String?): Testing {
     return myTest
-      ?: Testing.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          GoogleLogin.instance.getCredential(),
-        )
+      ?: Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
         .setApplicationName(APPLICATION_NAME)
         .apply {
           if (endpoint != null) {
@@ -139,11 +136,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   private fun getMonitoring(endpoint: String?): Monitoring {
     return myMonitoring
-      ?: Monitoring.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          GoogleLogin.instance.getCredential(),
-        )
+      ?: Monitoring.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
         .setApplicationName(APPLICATION_NAME)
         .apply {
           if (endpoint != null) {
@@ -309,18 +302,13 @@ class CloudAuthenticator(scope: CoroutineScope) {
   val toolresults: ToolResults
     get() =
       myToolresults
-        ?: ToolResults.Builder(
-            myHttpTransport,
-            GsonFactory.getDefaultInstance(),
-            GoogleLogin.instance.getCredential(),
-          )
+        ?: ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myToolresults = it }
 
   fun prepareCredential() {
-    val googleLogin = GoogleLogin.instance
-    if (!googleLogin.isLoggedIn) {
+    if (!firebaseFeature.isLoggedIn()) {
       if (!authorize()) {
         throw RuntimeException(
           "Failed to authorize to Google Cloud! Please check if you set the correct user account."
@@ -329,28 +317,25 @@ class CloudAuthenticator(scope: CoroutineScope) {
     }
   }
 
+  /** Authorizes the installed application to access user's protected data. */
+  fun authorize(): Boolean {
+    if (!firebaseFeature.isLoggedIn()) {
+      val complete = CompletableFuture<Nothing>()
+      firebaseFeature.logInAsync { complete.complete(null) }
+      complete.get()
+    }
+    return firebaseFeature.isLoggedIn()
+  }
+
   companion object {
-    private const val APPLICATION_NAME = "GCTL"
 
     @JvmStatic
     val instance: CloudAuthenticator
       get() = service<CloudAuthenticator>()
 
-    /** Authorizes the installed application to access user's protected data. */
     @JvmStatic
-    fun authorize(): Boolean {
-      val googleLogin = GoogleLogin.instance
-      var credential = googleLogin.getCredential()
-      if (credential == null) {
-        googleLogin.logIn(null, null as IGoogleLoginCompletedCallback?)
-        credential = googleLogin.getCredential()
-        return credential != null
-      }
-      return true
-    }
-
-    @JvmStatic
+    @Deprecated("Just check the status directly")
     val isUserLoggedIn: Boolean
-      get() = GoogleLogin.instance.getCredential() != null
+      get() = LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn()
   }
 }

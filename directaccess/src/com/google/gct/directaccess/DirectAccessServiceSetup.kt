@@ -21,8 +21,11 @@ import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.android.tools.idea.io.netty.channel.ChannelOption
 import com.google.gct.directaccess.provisioner.CatalogClient
 import com.google.gct.directaccess.provisioner.DeviceInfo
-import com.google.gct.login.GoogleLogin
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginFeature
+import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 
 /**
  * A setup service with methods that are used by other services in direct access module and can be
@@ -36,7 +39,7 @@ class DirectAccessServiceSetup {
       .build()
 
   fun fetchAccessToken(): String? =
-    GoogleLogin.instance.activeUser?.googleLoginState?.fetchAccessToken()
+    service<GoogleLoginService>().fetchOAuth2Token(LoginFeature.feature<FirebaseLoginFeature>())
 
   /**
    * Returns a list of device info that are accessible with the current login state and

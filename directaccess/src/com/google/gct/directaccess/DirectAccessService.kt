@@ -17,6 +17,9 @@ package com.google.gct.directaccess
 
 import com.google.gct.login.LoginState
 import com.google.gct.login.LoginStatus
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginFeature
+import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -63,13 +66,26 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
 
   init {
     scope.launch {
-      service<LoginState>().loginStatus.collect {
-        if (it is LoginStatus.LoggedIn) {
-          selectCloudProject(
-            project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
-          )
-        } else {
-          selectCloudProject(null)
+      val loginService = service<GoogleLoginService>()
+      if (loginService.useOldVersion) {
+        service<LoginState>().loginStatus.collect {
+          if (it is LoginStatus.LoggedIn) {
+            selectCloudProject(
+              project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
+            )
+          } else {
+            selectCloudProject(null)
+          }
+        }
+      } else {
+        loginService.activeUserFlow.collect {
+          if (it?.isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) == true) {
+            selectCloudProject(
+              project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
+            )
+          } else {
+            selectCloudProject(null)
+          }
         }
       }
     }
@@ -102,8 +118,7 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
   }
 
   private fun getCloudProject(name: String): CloudProjectEntry? {
-    val user =
-      (service<LoginState>().loginStatus.value as? LoginStatus.LoggedIn)?.email ?: return null
+    val user = service<GoogleLoginService>().getEmail() ?: return null
     return CloudProjectEntry(user, name)
   }
 }

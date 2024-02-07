@@ -20,6 +20,7 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
+import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
@@ -30,6 +31,7 @@ import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -47,10 +49,8 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlug
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.provisioner.PLUGIN_ID
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
-import com.google.gct.login.GoogleLogin
-import com.google.gct.login.LoginState
-import com.google.gct.login.LoginStateRule
-import com.google.gct.login.LoginStatus
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.StateReason
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -77,7 +77,6 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReaso
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.FAILED_TO_ALLOCATE_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.PROJECT_CLOSING
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
@@ -107,14 +106,15 @@ class DirectAccessUsageTrackerTest {
   private val service = FakeDirectAccessGrpcService()
   private val projectRule = ProjectRule()
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
-  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+  private val loginUsersRule = LoginUsersRule()
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
-    RuleChain.outerRule(projectRule)
+    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
+      .around(projectRule)
       .around(grpcConnectionRule)
-      .around(loginStateRule)
+      .around(loginUsersRule)
       .around(cleanUpNotificationRule)
 
   private val session = FakeAdbSession()
@@ -124,14 +124,10 @@ class DirectAccessUsageTrackerTest {
   private lateinit var fakeConnection: FakeDirectAccessConnection
   private lateinit var scope: CoroutineScope
   private lateinit var tracker: TestUsageTracker
-  private lateinit var mockGoogleLogin: GoogleLogin
 
   @Before
   fun setUp() = runBlockingWithTimeout {
-    mockGoogleLogin = mock()
-    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
-    ApplicationManager.getApplication()
-      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
+    loginUsersRule.setActiveUser("test@google.com")
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
       DirectAccessReservationManager("test-project", scope, grpcConnectionRule.channel) {
@@ -190,16 +186,15 @@ class DirectAccessUsageTrackerTest {
 
     // Sets up deviceSelectionListFlow.
     scope.launch {
-      service<LoginState>().loginStatus.collect {
-        cloudProjectManagerFlow.value =
-          if (it is LoginStatus.LoggedIn) mockCloudProjectManager else null
+      service<GoogleLoginService>().activeUserFlow.collect {
+        cloudProjectManagerFlow.value = if (it == null) null else mockCloudProjectManager
       }
     }
 
     // Sets up APIs in cloudProjectManager.
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (loginStateRule.state.value is LoginStatus.LoggedIn)
+        if (service<GoogleLoginService>().isLoggedIn())
           Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
@@ -556,7 +551,7 @@ class DirectAccessUsageTrackerTest {
       template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
     }
 
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
 
     val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -685,7 +680,7 @@ class DirectAccessUsageTrackerTest {
       template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
     }
 
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
 
     findUsageEvent(DISCONNECT_DEVICE)
 

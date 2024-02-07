@@ -29,9 +29,7 @@ import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
-import com.google.gct.login.GoogleLogin
-import com.google.gct.login.LoginStateRule
-import com.google.gct.login.LoginStatus
+import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -54,16 +52,16 @@ class DirectAccessPersistentStateComponentTest {
 
   private val service = FakeDirectAccessGrpcService()
   private val projectRule = ProjectRule()
-  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
-  private lateinit var mockGoogleLogin: GoogleLogin
+  private val loginUsersRule = LoginUsersRule()
 
   @get:Rule
   val ruleChain =
     RuleChain(
+      FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true),
       projectRule,
+      loginUsersRule,
       EdtRule(),
-      loginStateRule,
       grpcConnectionRule,
       FlagRule(StudioFlags.DIRECT_ACCESS_SETTINGS_PAGE, true),
     )
@@ -110,11 +108,6 @@ class DirectAccessPersistentStateComponentTest {
         projectRule.disposable,
       )
 
-    mockGoogleLogin = mock()
-    doReturn(true).whenever(mockGoogleLogin).isLoggedIn
-    ApplicationManager.getApplication()
-      .replaceService(GoogleLogin::class.java, mockGoogleLogin, projectRule.disposable)
-
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     doReturn(listOf(deviceInfo))
       .whenever(mockDirectAccessServiceSetup)
@@ -127,6 +120,7 @@ class DirectAccessPersistentStateComponentTest {
         mockDirectAccessServiceSetup,
         projectRule.disposable,
       )
+    loginUsersRule.setActiveUser("test@google.com")
   }
 
   @After
@@ -167,10 +161,11 @@ class DirectAccessPersistentStateComponentTest {
 
   @Test
   fun testPersistentStateComponentUpdated() = runBlockingWithTimeout {
+    val state = projectRule.project.service<DirectAccessPersistentStateComponent>().state
+    yieldUntil { state.selectedCloudProject == "" }
     projectRule.project.service<DirectAccessService>().selectCloudProject(CLOUD_PROJECT_NAME)
     projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value =
       listOf(DeviceSelection(true, deviceInfo))
-    val state = projectRule.project.service<DirectAccessPersistentStateComponent>().state
     yieldUntil { state.selectedCloudProject == CLOUD_PROJECT_NAME }
     yieldUntil { state.deviceSelectionList.size == 1 }
     assertThat(state.deviceSelectionList[0]).isEqualTo(persistentDeviceSelectionData)

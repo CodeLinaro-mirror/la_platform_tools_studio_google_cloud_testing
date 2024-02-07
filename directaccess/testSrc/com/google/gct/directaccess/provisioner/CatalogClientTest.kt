@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.devicemanager.DeviceType
@@ -23,7 +24,7 @@ import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalog
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalogWithMissingFields
-import com.google.gct.login.GoogleLogin
+import com.google.gct.login2.GoogleLoginService
 import com.google.gct.testing.launcher.CloudAuthenticator
 import org.junit.Before
 import org.junit.Rule
@@ -36,9 +37,9 @@ class CatalogClientTest {
 
   @Before
   fun setUp() {
-    val mockGoogleLoginService = projectRule.mockService(GoogleLogin::class.java)
-    whenever(mockGoogleLoginService.isLoggedIn).thenReturn(true)
-
+    val mockLoginService: GoogleLoginService = mock()
+    whenever(mockLoginService.isLoggedIn(any())).thenReturn(true)
+    projectRule.replaceService(GoogleLoginService::class.java, mockLoginService)
     projectRule.replaceService(CloudAuthenticator::class.java, mockCloudAuthenticator)
   }
 
