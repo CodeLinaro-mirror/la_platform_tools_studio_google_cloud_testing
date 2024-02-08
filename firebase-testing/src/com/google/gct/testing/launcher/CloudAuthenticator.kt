@@ -78,13 +78,12 @@ class CloudAuthenticator(scope: CoroutineScope) {
     }
   }
 
-  val firebaseFeature = LoginFeature.feature<FirebaseLoginFeature>()
-  private val credential = firebaseFeature.credential()
+  private val firebaseFeature = LoginFeature.feature<FirebaseLoginFeature>()
 
   val storage: Storage
     get() {
       return myStorage
-        ?: Storage.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
+        ?: Storage.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myStorage = it }
@@ -92,12 +91,12 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   fun recreateTestAndToolResults(testBackendUrl: String?, toolResultsBackendUrl: String?) {
     myTest =
-      Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
+      Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(testBackendUrl)
         .build()
     myToolresults =
-      ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
+      ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(toolResultsBackendUrl)
         .build()
@@ -109,7 +108,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
         ?: CloudResourceManager.Builder(
             myHttpTransport,
             GsonFactory.getDefaultInstance(),
-            credential,
+            firebaseFeature.credential(),
           )
           .setApplicationName(APPLICATION_NAME)
           .build()
@@ -123,7 +122,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   /** Get a test client pointing to the given backend. */
   private fun getTest(endpoint: String?): Testing {
     return myTest
-      ?: Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
+      ?: Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
         .setApplicationName(APPLICATION_NAME)
         .apply {
           if (endpoint != null) {
@@ -136,7 +135,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   private fun getMonitoring(endpoint: String?): Monitoring {
     return myMonitoring
-      ?: Monitoring.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
+      ?: Monitoring.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
         .setApplicationName(APPLICATION_NAME)
         .apply {
           if (endpoint != null) {
@@ -298,7 +297,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   val toolresults: ToolResults
     get() =
       myToolresults
-        ?: ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), credential)
+        ?: ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myToolresults = it }
