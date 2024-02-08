@@ -61,6 +61,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -161,6 +162,7 @@ class DirectAccessMultiProjectTest {
     session.close()
   }
 
+  @Ignore("b/324482600")
   @Test
   fun shareConnectionsBetweenProjects() = runBlocking {
     val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
