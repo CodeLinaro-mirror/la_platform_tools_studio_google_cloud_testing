@@ -20,7 +20,6 @@ import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.checkDirectAccessPermission
 import com.google.gct.directaccess.provisioner.DeviceInfo
-import com.google.gct.testing.launcher.CloudAuthenticator
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.isActive
@@ -61,10 +60,13 @@ class DirectAccessCloudProjectManager(
   val usageQuota: Pair<Long, Long>?
     get() {
       val endpoint = "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}"
+      val serviceFilter = StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
       val project = "projects/${cloudProject.name}"
       // Try to get and enable monthly quota.
       val monthlyQuota =
-        service<CloudAuthenticator>().getQuotaUsageAndLimit(endpoint, project, true)
+        service<CloudClientService>()
+          .client
+          .getQuotaUsageAndLimit(endpoint, serviceFilter, project, true)
       if (monthlyQuota != null) {
         service<DirectAccessApplicationService>().isMonthlyBillingEnabled = true
         return monthlyQuota
@@ -72,7 +74,9 @@ class DirectAccessCloudProjectManager(
         // Get daily quota instead when monthly quota is disabled.
         // TODO (b/328524309) Remove daily quota once monthly quota are enabled.
         if (!service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-          return service<CloudAuthenticator>().getQuotaUsageAndLimit(endpoint, project, false)
+          return service<CloudClientService>()
+            .client
+            .getQuotaUsageAndLimit(endpoint, serviceFilter, project, false)
         }
         return null
       }
@@ -122,7 +126,7 @@ class DirectAccessCloudProjectManager(
   val isBillingEnabledFlow: RefreshableStateFlow<Boolean?> =
     RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(30)) {
       try {
-        service<CloudAuthenticator>().isBillingEnabled(cloudProject.name)
+        service<CloudClientService>().client.isBillingEnabled(cloudProject.name)
       } catch (e: Exception) {
         null
       }

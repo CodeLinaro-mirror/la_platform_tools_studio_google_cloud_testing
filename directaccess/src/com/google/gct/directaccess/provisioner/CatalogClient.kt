@@ -18,51 +18,20 @@ package com.google.gct.directaccess.provisioner
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.PerAndroidVersionInfo
-import com.google.gct.login2.GoogleLoginService
-import com.google.gct.login2.LoginFeature
-import com.google.gct.testing.launcher.CloudAuthenticator
-import com.google.services.firebase.FirebaseLoginFeature
-import com.intellij.openapi.application.ApplicationInfo
+import com.google.gct.directaccess.CloudClientService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.util.BuildNumber
 
 object CatalogClient {
 
   private val logger = Logger.getInstance(CatalogClient::class.java)
 
-  /** Returns available devices to be accessed directly. */
-  fun getAvailableDevices(endpoint: String, cloudProject: String?): List<DeviceInfo> {
-    if (!service<GoogleLoginService>().isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>())) {
-      throw NotLoggedInException()
+  /** Returns devices available for streaming, filtered based on Studio version. */
+  fun getAvailableDevices(endpoint: String, cloudProject: String?): List<DeviceInfo> =
+    service<CloudClientService>().getAvailableDevices(endpoint, cloudProject).mapNotNull {
+      (model, perVersionInfo) ->
+      model.createDeviceInfo(perVersionInfo)
     }
-
-    val catalog =
-      service<CloudAuthenticator>().getAndroidDeviceCatalogForEnvironment(endpoint, cloudProject)
-
-    return catalog.models
-      .filter { it.form == "PHYSICAL" }
-      .flatMap { model ->
-        model.perVersionInfo
-          ?.filter { perVersionInfo ->
-            perVersionInfo.versionId?.toIntOrNull()?.let { it >= 26 } == true &&
-              (isUnfilteredDevices() ||
-                perVersionInfo.directAccessVersionInfo?.directAccessSupported == true &&
-                  perVersionInfo.deviceCapacity != "DEVICE_CAPACITY_NONE" &&
-                  BuildNumber.fromString(
-                      perVersionInfo.directAccessVersionInfo.minimumAndroidStudioVersion
-                    )
-                    .let { catalogBuildNumber ->
-                      catalogBuildNumber == null ||
-                        catalogBuildNumber <= ApplicationInfo.getInstance().build
-                    })
-          }
-          ?.mapNotNull { model.createDeviceInfo(it) } ?: listOf()
-      }
-  }
-
-  private fun isUnfilteredDevices(): Boolean =
-    System.getProperty("da_unfiltered_devices").toBoolean()
 
   private fun AndroidModel.createDeviceInfo(perVersionInfo: PerAndroidVersionInfo): DeviceInfo? {
     if (isAnyCriticalDeviceInfoValueNull()) return null
@@ -115,5 +84,3 @@ object CatalogClient {
     }
   }
 }
-
-class NotLoggedInException : Exception("Not logged in")

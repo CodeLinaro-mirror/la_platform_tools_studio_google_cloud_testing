@@ -29,7 +29,6 @@ iml_module(
         "//tools/studio/google/cloud/tools/google-login-plugin:google-login-as[module]",
         "//tools/adt/idea/.idea/libraries:studio-proto",
         "//tools/adt/idea/.idea/libraries:studio-grpc",
-        "//tools/studio/google/cloud/testing/firebase-testing[module]",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
         "//tools/adt/idea/.idea/libraries:mockito[test]",
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",

@@ -17,7 +17,6 @@ package com.google.gct.directaccess
 
 import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsRequest
 import com.google.common.annotations.VisibleForTesting
-import com.google.gct.testing.launcher.CloudAuthenticator
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 
@@ -61,12 +60,6 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
   /** User has full DA admin permissions */
   class Full : DirectAccessPermissionStatus(emptySet())
 
-  val serviceUsage: Boolean
-    get() = SERVICES_USE.allowed
-
-  private val String.allowed: Boolean
-    get() = this !in missingPermissions
-
   companion object {
     @VisibleForTesting
     internal fun parseFrom(permissions: Set<String>): DirectAccessPermissionStatus {
@@ -95,7 +88,8 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
         TestIamPermissionsRequest().apply { permissions = FULL_PERMISSIONS_SET.toList() }
       val response =
         try {
-          service<CloudAuthenticator>()
+          service<CloudClientService>()
+            .client
             .cloudResourceManager
             .projects()
             .testIamPermissions("projects/${cloudProject.name}", request)
