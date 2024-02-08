@@ -35,6 +35,8 @@ import com.google.gct.login.LoginState
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
+import com.intellij.ide.BrowserUtil
+import com.intellij.ide.HelpTooltip
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -436,7 +438,20 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           project.directAccessCloudProjectManager?.reservationListFlowWithException?.value?.second
         val errorMessage = getErrorMessage(cloudProject, permission, reservationListException)
         if (errorMessage != null) {
-          errorIcon.toolTipText = errorMessage
+          val (linkText, link) =
+            when {
+              errorMessage.contains("Google Cloud console") ->
+                Pair("Google Cloud console", "$CLOUD_TEST_API_ENABLE_LINK$cloudProject")
+              else ->
+                Pair(
+                  "Learn More",
+                  "http://d.android.com/r/studio-ui/device-streaming/help/permissions",
+                )
+            }
+          HelpTooltip()
+            .setDescription(errorMessage)
+            .setLink(linkText) { BrowserUtil.browse(link) }
+            .installOn(errorIcon)
           errorIcon.isVisible = true
           errorIcon.revalidate()
           errorIcon.repaint()
@@ -508,7 +523,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       val serviceUsageMissing = "Grant the caller the roles/serviceusage.serviceUsageConsumer role"
       when {
         description?.contains(apiDisabledString, true) == true ->
-          "Cloud Testing API is not enabled in your project $cloudProject. Enable it by visiting <a href=\"$CLOUD_TEST_API_ENABLE_LINK$cloudProject\">Google Cloud console</a>."
+          "Cloud Testing API is not enabled in your project $cloudProject. Enable it by visiting Google Cloud console."
         description?.contains(serviceUsageMissing, true) == true -> {
           if (permission.missingPermissions == FULL_PERMISSIONS_SET) {
             "You do not have access to Device Streaming in project $cloudProject."
