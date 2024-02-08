@@ -19,12 +19,15 @@ import static com.google.gct.testing.CloudTestingUtils.linkifyEditorPane;
 import static com.google.gct.testing.CloudTestingUtils.prepareCreateFirebaseProjectAnchor;
 import static com.google.gct.testing.CloudTestingUtils.preparePricingAnchor;
 import static com.google.gct.testing.android.CloudConfiguration.Kind.MATRIX;
-import static com.google.gct.testing.launcher.CloudAuthenticator.authorize;
 import static com.google.gct.testing.launcher.CloudAuthenticator.isUserLoggedIn;
 
 import com.android.tools.idea.run.editor.DeployTargetConfigurable;
 import com.android.tools.idea.run.editor.DeployTargetConfigurableContext;
 import com.android.tools.idea.run.editor.DeployTargetState;
+import com.google.gct.login2.GoogleLoginService;
+import com.google.gct.login2.LoginFeature;
+import com.google.gct.testing.launcher.CloudAuthenticator;
+import com.google.services.firebase.FirebaseLoginFeature;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -32,6 +35,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.actionSystem.impl.ActionButton;
 import com.intellij.openapi.actionSystem.impl.PresentationFactory;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.uiDesigner.core.GridConstraints;
@@ -72,7 +76,8 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
       @Override
       public void actionPerformed(ActionEvent e) {
         myFacet = context.getModule() == null ? null : AndroidFacet.getInstance(context.getModule());
-        if (isUserLoggedIn()) {
+        if (ApplicationManager.getApplication().getService(GoogleLoginService.class).isLoggedIn(
+          LoginFeature.Companion.getEP_NAME().findExtension(FirebaseLoginFeature.class))) {
           myCloudConfigurationComboBox.setFacet(myFacet);
           myCloudProjectSelector.setFacet(myFacet);
         }
@@ -93,7 +98,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     connectToCloudButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
-        authorize();
+        CloudAuthenticator.getInstance().authorize();
         updateVisibility();
       }
     });

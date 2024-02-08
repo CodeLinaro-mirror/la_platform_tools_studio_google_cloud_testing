@@ -18,9 +18,12 @@ package com.google.gct.directaccess.provisioner
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.PerAndroidVersionInfo
-import com.google.gct.login.GoogleLogin
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginFeature
 import com.google.gct.testing.launcher.CloudAuthenticator
+import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.application.ApplicationInfo
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.BuildNumber
 
@@ -30,12 +33,12 @@ object CatalogClient {
 
   /** Returns available devices to be accessed directly. */
   fun getAvailableDevices(endpoint: String, cloudProject: String?): List<DeviceInfo> {
-    if (!GoogleLogin.instance.isLoggedIn) {
+    if (!service<GoogleLoginService>().isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>())) {
       throw NotLoggedInException()
     }
 
     val catalog =
-      CloudAuthenticator.getInstance().getAndroidDeviceCatalogForEnvironment(endpoint, cloudProject)
+      service<CloudAuthenticator>().getAndroidDeviceCatalogForEnvironment(endpoint, cloudProject)
 
     return catalog.models
       .filter { it.form == "PHYSICAL" }

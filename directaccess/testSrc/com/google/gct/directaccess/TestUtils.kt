@@ -103,6 +103,25 @@ object TestUtils {
     )
   }
 
+  val extendedDeviceInfoListProvider = {
+    deviceInfoListProvider() +
+      listOf(
+        DeviceInfo(
+          "id5",
+          "SomeBrand",
+          "SomeName",
+          "SomeBrand",
+          "codename5",
+          33,
+          DeviceType.PHONE,
+          300,
+          400,
+          500,
+          10,
+        )
+      )
+  }
+
   private val phone =
     AndroidModel().apply {
       manufacturer = "Google"

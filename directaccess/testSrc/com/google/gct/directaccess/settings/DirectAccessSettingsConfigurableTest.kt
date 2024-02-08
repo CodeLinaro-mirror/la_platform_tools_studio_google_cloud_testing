@@ -56,7 +56,7 @@ class DirectAccessSettingsConfigurableTest {
 
     val ui = FakeUi(component)
     val isDeviceStreamingEnabledCheckBox =
-      ui.getComponent<JCheckBox> { it.text == "Enable Device Streaming" }
+      ui.getComponent<JCheckBox> { it.text == "Enable Device Streaming in Android Studio" }
 
     assertThat(configurable.isModified).isFalse()
     assertThat(configurable.preApplyCallback()).isEqualTo(ApplyState.OK)

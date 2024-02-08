@@ -31,11 +31,10 @@ class DirectAccessSettingsConfigurable : ExperimentalConfigurable {
   override fun createComponent(): JComponent = panel {
     row {
       isDeviceStreamingEnabledCheckBox =
-        checkBox("Enable Device Streaming")
+        checkBox("Enable Device Streaming in Android Studio")
           .comment(
-            "Enable only if you are enrolled in the Device Streaming Alpha program. " +
-              "<a href=\"https://services.google.com/fb/forms/androiddevicestreaming\">Click here</a>" +
-              " to sign up"
+            "Device Streaming in Android Studio is currently in Alpha. " +
+              "<a href=\"https://developer.android.com/studio/preview/android-device-streaming\">Learn more</a>"
           )
           .bindSelected(state::isEnabled)
           .component

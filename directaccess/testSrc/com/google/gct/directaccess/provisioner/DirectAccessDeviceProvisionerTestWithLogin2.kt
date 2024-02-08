@@ -61,8 +61,7 @@ import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
-import com.google.gct.login.LoginStateRule
-import com.google.gct.login.LoginStatus
+import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -86,6 +85,7 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
 import com.studiogrpc.testutils.GrpcConnectionRule
@@ -95,6 +95,7 @@ import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import javax.swing.JLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -115,21 +116,21 @@ import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 
-class DirectAccessDeviceProvisionerTest {
+class DirectAccessDeviceProvisionerTestWithLogin2 {
 
   private val service = FakeDirectAccessGrpcService()
   private val projectRule = ProjectRule()
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
-  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+  private val loginUsersRule = LoginUsersRule()
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
-    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, false))
+    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
       .around(projectRule)
       .around(grpcConnectionRule)
-      .around(loginStateRule)
+      .around(loginUsersRule)
       .around(fakeToolWindowRule)
       .around(cleanUpNotificationRule)
 
@@ -143,6 +144,7 @@ class DirectAccessDeviceProvisionerTest {
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    loginUsersRule.setActiveUser("test@google.com")
     enableHeadlessDialogs(projectRule.disposable)
     TestDialogManager.setTestDialog(TestDialog.YES)
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
@@ -195,16 +197,15 @@ class DirectAccessDeviceProvisionerTest {
 
     // Sets up deviceSelectionListFlow.
     scope.launch {
-      loginStateRule.state.collect {
-        cloudProjectManagerFlow.value =
-          if (it is LoginStatus.LoggedIn) mockCloudProjectManager else null
+      loginUsersRule.loginService.activeUserFlow.collect {
+        cloudProjectManagerFlow.value = if (it != null) mockCloudProjectManager else null
       }
     }
 
     // Sets up APIs im cloudProjectManager
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (loginStateRule.state.value is LoginStatus.LoggedIn && isOAuthTokenAvailable)
+        if (loginUsersRule.loginService.isLoggedIn() && isOAuthTokenAvailable)
           Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
@@ -279,21 +280,21 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[4].properties.isRemote).isTrue()
 
     // Log out
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
 
     // Login without access.
     isOAuthTokenAvailable = false
-    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
+    loginUsersRule.setActiveUser("test@google.com")
     projectRule.project.refreshReservations()
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
     // Login with access.
     isOAuthTokenAvailable = true
-    loginStateRule.state.value = LoginStatus.LoggedIn("test2@gmail.com")
+    loginUsersRule.setActiveUser("test2@google.com")
     projectRule.project.refreshReservations()
     yieldUntil {
       provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
@@ -571,14 +572,14 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
     // Device removed after logout.
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
     yieldUntil {
       provisioner.templates.value.all { (it as DirectAccessDeviceTemplate).activeDevice == null }
     }
     yieldUntil { provisioner.devices.value.isEmpty() }
 
     // Login again to re-discover the device.
-    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
+    loginUsersRule.setActiveUser("test@google.com")
     yieldUntil {
       projectRule.project.service<DirectAccessService>().cloudProjectManager.value != null
     }
@@ -980,7 +981,7 @@ class DirectAccessDeviceProvisionerTest {
       }) {
         val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val icons = dialog.deviceTable.values.map { it.deviceInfo.icon }
+        val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
         assertThat(icons)
           .containsExactly(
             FIREBASE_DEVICE_PHONE,
@@ -1019,6 +1020,58 @@ class DirectAccessDeviceProvisionerTest {
     assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
     assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[1])
     assertThat((templates[2] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
+  }
+
+  @RunsInEdt
+  @Test
+  fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
+    assertThat(plugin.templates.value.size).isEqualTo(5)
+
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
+        val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
+        // Case-insensitive search
+        searchTextField.text = "GoOgLe       WaTcH"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel Watch")
+
+        // Search for devices with 6 in their name
+        searchTextField.text = "6"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6")
+        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel 6 Pro")
+
+        // Search for api 33
+        searchTextField.text = "33"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6 Pro")
+        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel Watch")
+
+        // Search matching no device
+        searchTextField.text = "no match search"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
+      }
+    }
+  }
+
+  @RunsInEdt
+  @Test
+  fun testSelectDeviceDialogWhenNoAvailableDevicesToSelect() = runBlockingWithTimeout {
+    (plugin.templates as MutableStateFlow).value = emptyList()
+    assertThat(plugin.templates.value.isEmpty()).isTrue()
+
+    (projectRule.project.service<DirectAccessService>().cloudProjectManager as MutableStateFlow)
+      .value = null
+    projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value = emptyList()
+
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
+      }
+    }
   }
 
   @Test
