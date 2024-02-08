@@ -57,6 +57,7 @@ import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
+import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -70,6 +71,7 @@ import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
 import icons.StudioIcons
 import java.awt.event.MouseEvent
+import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
@@ -79,7 +81,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -172,9 +173,6 @@ class SelectProjectActionTest {
 
   @RunsInEdt
   @Test
-  @Ignore(
-    "b/324356628"
-  ) // Test fails since error text is not set on component tooltip but on custom tooltip.
   fun testSelectProjectAction() = runBlocking {
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
@@ -261,7 +259,7 @@ class SelectProjectActionTest {
           }
         waitForCondition {
           label
-            .getHtmlFilteredText()
+            .getHelpToolTipText()
             .contains(
               "You do not have access to Device Streaming in project $unsupportedTestProjectWithServiceUse."
             )
@@ -277,7 +275,7 @@ class SelectProjectActionTest {
         waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == apiDisabledProject }
         waitForCondition {
           label
-            .getHtmlFilteredText()
+            .getHelpToolTipText()
             .contains(
               "Cloud Testing API is not enabled in your project $apiDisabledProject. Enable it by visiting Google Cloud console."
             )
@@ -296,7 +294,7 @@ class SelectProjectActionTest {
         }
         waitForCondition {
           label
-            .getHtmlFilteredText()
+            .getHelpToolTipText()
             .contains(
               "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
             )
@@ -324,7 +322,7 @@ class SelectProjectActionTest {
         waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == viewerTestProject }
         waitForCondition {
           label
-            .getHtmlFilteredText()
+            .getHelpToolTipText()
             .contains(
               "You do not have full access to Device Streaming in project $viewerTestProject. You are missing the following permissions:" +
                 permissionFlow.value.missingPermissions.joinToString("")
@@ -338,7 +336,7 @@ class SelectProjectActionTest {
         }
         waitForCondition {
           label
-            .getHtmlFilteredText()
+            .getHelpToolTipText()
             .contains(
               "You do not have full access to Device Streaming in project $unknownPermissionTestProject. You are missing the following permissions:" +
                 permissionFlow.value.missingPermissions.joinToString("")
@@ -376,7 +374,7 @@ class SelectProjectActionTest {
           cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
         }
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
-        assertThat(label.getHtmlFilteredText()).isEqualTo("")
+        assertThat(label.getHelpToolTipText()).isEqualTo("")
 
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
         waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
@@ -486,5 +484,10 @@ class SelectProjectActionTest {
 
 private fun waitForCondition(condition: () -> Boolean) = waitForCondition(TIMEOUT, condition)
 
-private fun JBLabel.getHtmlFilteredText() =
-  toolTipText.replace(Regex("<[^>]*>"), "").replace("\n", "").replace(Regex(" +"), " ").trim()
+private fun JBLabel.getHelpToolTipText(): String {
+  if (!isVisible) return ""
+  val tooltip = HelpTooltip.getTooltipFor(this) ?: return ""
+  val tooltipPanel = tooltip.createTipPanel()
+  val text = buildString { tooltipPanel.findAllDescendants<JLabel>().forEach { append(it.text) } }
+  return text.replace(Regex("<[^>]*>"), "").replace("\n", "").replace(Regex(" +"), " ").trim()
+}
