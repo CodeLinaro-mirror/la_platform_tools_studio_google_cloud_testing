@@ -91,7 +91,6 @@ class DirectAccessMultiProjectTest {
   private val projectRule2 = ProjectRule()
   private val oldLoginRule = GoogleLoginServiceRule { projectRule1.disposable }
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
-  private val loginUsersRule = LoginUsersRule()
 
   @get:Rule
   val chain =
@@ -99,7 +98,6 @@ class DirectAccessMultiProjectTest {
       .around(projectRule1)
       .around(projectRule2)
       .around(oldLoginRule)
-      .around(loginUsersRule)
       .around(grpcConnectionRule)
 
   private val project1: Project
