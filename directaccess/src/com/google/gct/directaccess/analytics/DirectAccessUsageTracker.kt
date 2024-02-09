@@ -29,9 +29,14 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccess
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import java.time.Duration
+import kotlinx.coroutines.CoroutineScope
 
-object DirectAccessUsageTracker {
+@Service
+class DirectAccessUsageTracker(val scope: CoroutineScope) {
+
   fun trackReserveDevice(
     wasSuccessful: Boolean,
     timeToReserveMs: Long?,
@@ -180,4 +185,8 @@ object DirectAccessUsageTracker {
         failReason?.let { failureReason = it }
       }
       .build()
+
+  companion object {
+    fun getInstance(): DirectAccessUsageTracker = service()
+  }
 }

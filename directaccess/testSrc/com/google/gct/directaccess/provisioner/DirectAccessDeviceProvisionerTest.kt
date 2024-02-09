@@ -58,9 +58,11 @@ import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.showAllTemplates
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.login.GoogleLogin
 import com.google.gct.login.LoginStateRule
 import com.google.gct.login.LoginStatus
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
@@ -79,6 +81,7 @@ import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationDisplayType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
@@ -148,6 +151,13 @@ class DirectAccessDeviceProvisionerTest {
     enableHeadlessDialogs(projectRule.disposable)
     TestDialogManager.setTestDialog(TestDialog.YES)
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+    val usageTracker = mock<DirectAccessUsageTracker>()
+    whenever(usageTracker.scope).thenReturn(scope)
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessUsageTracker::class.java, usageTracker, projectRule.disposable)
+    ApplicationManager.getApplication()
+      .replaceService(GoogleLogin::class.java, mock(), projectRule.disposable)
+
     isOAuthTokenAvailable = true
     directAccessReservationManager =
       DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
@@ -175,7 +185,7 @@ class DirectAccessDeviceProvisionerTest {
   fun tearDown() = runBlockingWithTimeout {
     TestDialogManager.setTestDialog(null)
     scope.cancel()
-    session.close()
+    session.closeAndJoin()
   }
 
   private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {

@@ -304,13 +304,14 @@ class DirectAccessDeviceTemplate(
     reservationName: String? = null,
     failureReason: FailureReason? = null,
   ) {
-    DirectAccessUsageTracker.trackReserveDevice(
-      wasSuccessful,
-      timeToReserve,
-      reservationName,
-      properties.deviceInfoProto,
-      failureReason,
-    )
+    DirectAccessUsageTracker.getInstance()
+      .trackReserveDevice(
+        wasSuccessful,
+        timeToReserve,
+        reservationName,
+        properties.deviceInfoProto,
+        failureReason,
+      )
   }
 }
 
