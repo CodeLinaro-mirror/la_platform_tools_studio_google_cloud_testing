@@ -145,6 +145,8 @@ class DirectAccessMultiProjectTest {
     provisioner2 = DeviceProvisioner.create(session, listOf(plugin2), testDeviceIcons)
     oldLoginRule.loginState.value = LoginStatus.LoggedIn("test@google.com")
 
+    yieldUntil { project1.service<DirectAccessService>().cloudProjectManager.value != null }
+    yieldUntil { project2.service<DirectAccessService>().cloudProjectManager.value != null }
     project1.service<DirectAccessService>().selectCloudProject("test-project")
     project2.service<DirectAccessService>().selectCloudProject("test-project")
     project1.showAllTemplates()
