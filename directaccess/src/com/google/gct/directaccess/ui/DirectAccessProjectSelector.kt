@@ -75,7 +75,7 @@ class DirectAccessProjectSelectorImpl(
   @VisibleForTesting
   internal val createProjectHyperlink =
     HyperlinkLabel("Create a Firebase project...").apply {
-      setHyperlinkTarget("https://console.firebase.google.com")
+      setHyperlinkTarget(userSpecificFirebaseConsoleLink)
     }
 
   private val uiDispatcher: CoroutineDispatcher

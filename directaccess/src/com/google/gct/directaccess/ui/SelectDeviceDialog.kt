@@ -79,7 +79,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -94,6 +93,9 @@ private const val SELECTION_TABLE_MINIMUM_HEIGHT = 240
 const val ONBOARDING_WORKFLOW_KEY = "direct.access.onboarding"
 
 private val PRESELECTED_DEVICE_KEY_SET = setOf("shiba/34", "felix/33", "b0q/33", "gts8uwifi/33")
+
+val userSpecificFirebaseConsoleLink: String
+  get() = "https://console.firebase.google.com?authuser=${service<GoogleLoginService>().getEmail()}"
 
 class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
@@ -117,7 +119,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
   private val viewAllProjectsHyperlink =
     HyperlinkLabel("View All Projects").apply {
-      setHyperlinkTarget("https://console.firebase.google.com")
+      setHyperlinkTarget(userSpecificFirebaseConsoleLink)
     }
 
   private val isDirectAccessEnabled =
