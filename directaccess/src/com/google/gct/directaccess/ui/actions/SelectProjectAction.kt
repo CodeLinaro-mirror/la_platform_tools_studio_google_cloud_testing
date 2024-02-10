@@ -37,16 +37,12 @@ class SelectProjectAction :
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
+    val cloudProjectManager = e.project?.service<DirectAccessService>()?.cloudProjectManager?.value
     // An exception will be caught here only when a project is selected and its cloudProjectManager
     // fails to fetch reservations.
     val hasErrorAfterProjectSelection =
-      e.project
-        ?.service<DirectAccessService>()
-        ?.cloudProjectManager
-        ?.value
-        ?.reservationListFlowWithException
-        ?.value
-        ?.second != null
+      cloudProjectManager != null &&
+        cloudProjectManager.reservationListFlowWithException.value.second != null
     e.presentation.icon =
       if (hasErrorAfterProjectSelection) firebaseIconWithErrors else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = service<DirectAccessConfiguration>().isEnabled

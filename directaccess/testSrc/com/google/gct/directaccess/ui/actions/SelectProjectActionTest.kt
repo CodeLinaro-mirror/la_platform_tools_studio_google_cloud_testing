@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.ui.actions
 
+import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceHandle
@@ -69,6 +70,7 @@ import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
+import icons.FirebaseIcons
 import icons.StudioIcons
 import java.awt.event.MouseEvent
 import javax.swing.JLabel
@@ -173,7 +175,7 @@ class SelectProjectActionTest {
 
   @RunsInEdt
   @Test
-  fun testSelectProjectAction() = runBlocking {
+  fun testSelectProjectAction() = runBlockingWithTimeout {
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
     val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
@@ -411,7 +413,7 @@ class SelectProjectActionTest {
 
   @RunsInEdt
   @Test
-  fun testAuthorizeLink() = runBlocking {
+  fun testAuthorizeLink() = runBlockingWithTimeout {
     // Log in as a user without the firebase feature
     loginUsersRule.setActiveUser("test@google.com", features = setOf())
     val selectDeviceAction = SelectProjectAction()
@@ -440,6 +442,20 @@ class SelectProjectActionTest {
         waitForCondition { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
       }
     }
+  }
+
+  @Test
+  fun testIconWhenCloudProjectManagerNull() = runBlockingWithTimeout {
+    val selectDeviceAction = SelectProjectAction()
+    val event =
+      TestActionEvent.createTestEvent {
+        when (it) {
+          CommonDataKeys.PROJECT.name -> projectRule.project
+          else -> null
+        }
+      }
+    selectDeviceAction.update(event)
+    assertThat(selectDeviceAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
   }
 
   private fun createCloudProjectManager(

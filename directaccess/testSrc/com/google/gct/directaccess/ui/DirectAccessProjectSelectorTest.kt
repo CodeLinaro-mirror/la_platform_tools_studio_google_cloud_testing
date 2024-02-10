@@ -152,6 +152,17 @@ class DirectAccessProjectSelectorTest {
     yieldUntil { selector.comboBox.isEnabled }
     assertThat(countDownLatch.count).isEqualTo(0)
   }
+
+  @Test
+  fun testFirstProjectEmptyWhenPreferredProjectNotSet() = runBlockingWithTimeout {
+    projectList = firebaseProjectClientRule.setupFirebaseClient().toMutableList()
+    selector = DirectAccessProjectSelectorImpl("", true, scope)
+
+    yieldUntil { selector.comboBox.model.size != 1 }
+
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size + 1)
+    yieldUntil { selector.comboBox.model.selectedItem == "" }
+  }
 }
 
 private fun DirectAccessProjectSelectorImpl.assertDisabledTextColor(color: Color) {

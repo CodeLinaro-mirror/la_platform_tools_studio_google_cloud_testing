@@ -422,10 +422,11 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
   ) {
-    if (cloudProject.isEmpty() || cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
+    errorIcon.isVisible = false
+    if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
       withContext(AndroidDispatchers.uiThread) { parent.revalidate() }
       return
-    } else if (cloudProject == NO_PROJECTS_AVAILABLE) {
+    } else if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
       project.service<DirectAccessService>().selectCloudProject(null)
       return
     }

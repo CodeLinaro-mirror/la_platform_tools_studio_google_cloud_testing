@@ -246,6 +246,22 @@ class DirectAccessMultiProjectWithLogin2Test {
         projectRule1.disposable,
       )
 
+    val mockPersistentService = mock<DirectAccessPersistentStateComponent>()
+    val fakePersistentState =
+      DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
+    doReturn(fakePersistentState).whenever(mockPersistentService).state
+
+    project1.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule1.disposable,
+    )
+    project2.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule2.disposable,
+    )
+
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
     plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
     provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
