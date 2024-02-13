@@ -19,7 +19,6 @@ import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.categorytable.CategoryTable
-import com.android.tools.adtui.common.AdtUiUtils
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.io.grpc.Status
@@ -61,6 +60,7 @@ import com.intellij.ui.util.minimumHeight
 import com.intellij.ui.util.preferredHeight
 import com.intellij.ui.util.preferredWidth
 import com.intellij.util.ui.HTMLEditorKitBuilder
+import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
@@ -88,7 +88,7 @@ import org.jetbrains.annotations.VisibleForTesting
 
 private const val CLOUD_TEST_API_ENABLE_LINK =
   "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
-private const val SELECTION_TABLE_MINIMUM_HEIGHT = 240
+private const val SELECTION_TABLE_MINIMUM_HEIGHT = 385
 
 const val ONBOARDING_WORKFLOW_KEY = "direct.access.onboarding"
 
@@ -137,7 +137,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     CategoryTable(SelectDeviceTableColumns.columns, primaryKey = { it.deviceInfo.key })
 
   private val searchTextField =
-    SearchTextField().apply {
+    SearchTextField(false).apply {
       // If the table is empty and the user decides to resize the dialog,
       // searchTextField gets resized. Set max height to preferred height to avoid that.
       maximumHeight = preferredHeight
@@ -258,7 +258,6 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         text =
           "Select the devices you want to access. The devices you select are added to the Device Manager " +
             "and deploy target dropdown menu in the main toolbar."
-        foreground = UIUtil.getLabelDisabledForeground()
       }
     )
 
@@ -301,8 +300,8 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       }
     }
 
-  private fun createTitleLabel(text: String, biggerOn: Float = 3f) =
-    JBLabel(text, JBLabel.LEFT).apply { font = AdtUiUtils.DEFAULT_FONT.biggerOn(biggerOn).asBold() }
+  private fun createTitleLabel(text: String) =
+    JBLabel(text, JBLabel.LEFT).apply { font = JBFont.h2() }
 
   private fun createSelectProjectComponent(): JPanel {
     val panel = JPanel(VerticalLayout(5)).apply { border = JBUI.Borders.empty(5, 10) }
@@ -313,7 +312,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     val selectorPanel = JPanel(selectorLayout)
 
     val usedMinutesLabel = JBLabel()
-    val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelDisabledForeground() }
+    val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
     updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
 
     val updateSelector: (Boolean) -> Unit = { enabled ->
