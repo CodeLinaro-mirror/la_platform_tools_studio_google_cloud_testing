@@ -23,10 +23,17 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.testing.launcher.CloudAuthenticator
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
+import com.google.services.firebase.directaccess.client.isActive
+import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.time.withTimeout
 
 /**
  * The data class representing a cloud project.
@@ -101,6 +108,29 @@ class DirectAccessCloudProjectManager(
     }
 
   override fun close() {
+    // Put reservations in grace period when the last studio project
+    // using this cloud project manager is closed.
+    runBlocking {
+      withTimeout(Duration.ofSeconds(2)) {
+        connectionManager.connections.values
+          .map { scope.launch { it.endReservation(true) } }
+          .joinAll()
+      }
+    }
+
+    runBlocking {
+      withTimeout(Duration.ofSeconds(2)) {
+        reservationListFlowWithException.value.first
+          ?.mapNotNull {
+            if (!it.sessionState.isClosed() && !it.isActive()) {
+              scope.launch { reservationManager.cancelReservation(it.name) }
+            } else {
+              null
+            }
+          }
+          ?.joinAll()
+      }
+    }
     scope.cancel()
   }
 }

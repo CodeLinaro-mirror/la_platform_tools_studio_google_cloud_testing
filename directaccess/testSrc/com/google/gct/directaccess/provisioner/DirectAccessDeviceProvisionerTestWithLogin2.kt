@@ -33,6 +33,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
+import com.android.testutils.MockitoKt
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -106,6 +107,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.fail
@@ -196,6 +198,9 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     doReturn(deviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
     doReturn(scope).whenever(mockDirectAccessService).scope
+    doAnswer { runBlocking { fakeConnection.endReservation(true) } }
+      .whenever(mockDirectAccessService)
+      .selectCloudProject(MockitoKt.eq(null))
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
@@ -1144,6 +1149,20 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     yieldUntil { notification.isExpired }
     // New device was created from the template
     yieldUntil { template.activeDevice != null }
+  }
+
+  @Test
+  fun testReservationInGracePeriodWhenProjectClosed() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val reservation = handle.reservation
+    directAccessReservationManager.fetchReservationFlow(reservation.name).waitUntilActive()
+
+    // Simulate project closing
+    projectRule.project.service<DirectAccessService>().selectCloudProject(null)
+
+    yieldUntil { handle.connectionState is ConnectionState.Disconnected }
+    yieldUntil { handle.reservation.expireTime.seconds != reservation.expireTime.seconds }
   }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {

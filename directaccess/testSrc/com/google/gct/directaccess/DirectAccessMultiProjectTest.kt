@@ -24,6 +24,7 @@ import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
+import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.NamedExternalResource
@@ -68,6 +69,7 @@ import org.junit.rules.RuleChain
 import org.junit.runner.Description
 import org.mockito.Mockito.doReturn
 
+@Ignore("b/324482600")
 class DirectAccessMultiProjectTest {
   private class GoogleLoginServiceRule(val disposable: () -> Disposable) : NamedExternalResource() {
     val loginState = MutableStateFlow<LoginStatus>(LoginStatus.LoggedOut)
@@ -162,7 +164,6 @@ class DirectAccessMultiProjectTest {
     session.close()
   }
 
-  @Ignore("b/324482600")
   @Test
   fun shareConnectionsBetweenProjects() = runBlocking {
     val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
@@ -184,6 +185,37 @@ class DirectAccessMultiProjectTest {
     }
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
+  }
+
+  @Test
+  fun testReservationNotEndedWhenOneProjectClosed() = runBlockingWithTimeout {
+    val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
+    val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
+    assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
+    // Create a reservation from project1.
+    val reservationManager =
+      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(
+      template1.deviceInfo.codename,
+      template1.deviceInfo.api.toString(),
+    )
+
+    project1.refreshReservations()
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+
+    // Close the first project
+    service<DirectAccessApplicationService>().registerCloudProject(project1, null)
+
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+    assertThat(reservationManager.listReservations()[0].sessionState)
+      .isEqualTo(SessionState.REQUESTED)
+
+    // Close the second project
+    service<DirectAccessApplicationService>().registerCloudProject(project2, null)
+
+    val reservationList = reservationManager.listReservations()
+    assertThat(reservationList.size).isEqualTo(1)
+    assertThat(reservationList[0].sessionState).isEqualTo(SessionState.FINISHED)
   }
 }
 
@@ -301,5 +333,36 @@ class DirectAccessMultiProjectWithLogin2Test {
     }
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
+  }
+
+  @Test
+  fun testReservationNotEndedWhenOneProjectClosed() = runBlockingWithTimeout {
+    val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
+    val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
+    assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
+    // Create a reservation from project1.
+    val reservationManager =
+      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(
+      template1.deviceInfo.codename,
+      template1.deviceInfo.api.toString(),
+    )
+
+    project1.refreshReservations()
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+
+    // Close the first project
+    service<DirectAccessApplicationService>().registerCloudProject(project1, null)
+
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+    assertThat(reservationManager.listReservations()[0].sessionState)
+      .isEqualTo(SessionState.REQUESTED)
+
+    // Close the second project
+    service<DirectAccessApplicationService>().registerCloudProject(project2, null)
+
+    val reservationList = reservationManager.listReservations()
+    assertThat(reservationList.size).isEqualTo(1)
+    assertThat(reservationList[0].sessionState).isEqualTo(SessionState.FINISHED)
   }
 }
