@@ -132,7 +132,14 @@ class DirectAccessDeviceTemplate(
             throw e
           } catch (e: Exception) {
             isActivationStarted.value = false
-            throw DeviceActionException("Failed to reserve a device. Please try again.")
+            if (e.localizedMessage.contains("RESOURCE_EXHAUSTED")) {
+              throw DeviceActionException(
+                "All Spark plan minutes for the current period have been used. " +
+                  "Upgrade to a Blaze plan to immediately continue using this service.",
+                e,
+              )
+            }
+            throw DeviceActionException("Failed to reserve a device. Please try again.", e)
           }
 
         try {
