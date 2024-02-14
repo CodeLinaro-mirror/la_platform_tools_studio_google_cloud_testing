@@ -62,14 +62,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.junit.runner.Description
 import org.mockito.Mockito.doReturn
 
-@Ignore("b/324482600")
 class DirectAccessMultiProjectTest {
   private class GoogleLoginServiceRule(val disposable: () -> Disposable) : NamedExternalResource() {
     val loginState = MutableStateFlow<LoginStatus>(LoginStatus.LoggedOut)
@@ -141,16 +139,30 @@ class DirectAccessMultiProjectTest {
         projectRule1.disposable,
       )
 
+    val mockPersistentService = mock<DirectAccessPersistentStateComponent>()
+    val fakePersistentState =
+      DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
+    doReturn(fakePersistentState).whenever(mockPersistentService).state
+
+    project1.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule1.disposable,
+    )
+    project2.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule2.disposable,
+    )
+
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
     plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
     provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
     provisioner2 = DeviceProvisioner.create(session, listOf(plugin2), testDeviceIcons)
     oldLoginRule.loginState.value = LoginStatus.LoggedIn("test@google.com")
 
-    yieldUntil { project1.service<DirectAccessService>().cloudProjectManager.value != null }
-    yieldUntil { project2.service<DirectAccessService>().cloudProjectManager.value != null }
-    project1.service<DirectAccessService>().selectCloudProject("test-project")
-    project2.service<DirectAccessService>().selectCloudProject("test-project")
+    yieldUntil { project1.directAccessCloudProjectManager != null }
+    yieldUntil { project2.directAccessCloudProjectManager != null }
     project1.showAllTemplates()
     project2.showAllTemplates()
 
