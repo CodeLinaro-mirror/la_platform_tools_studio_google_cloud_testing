@@ -79,8 +79,10 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -343,6 +345,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
             }
           component.add(errorIcon)
           scope.launch(uiDispatcher) {
+            selector.isReady.takeWhile { !it }.collect()
             selector.selectedProject.collect {
               onProjectChanged(
                 project,
