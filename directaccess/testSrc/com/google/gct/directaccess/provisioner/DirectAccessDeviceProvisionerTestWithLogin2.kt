@@ -63,6 +63,7 @@ import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
@@ -82,6 +83,7 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.testFramework.ProjectRule
@@ -1163,6 +1165,62 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
 
     yieldUntil { handle.connectionState is ConnectionState.Disconnected }
     yieldUntil { handle.reservation.expireTime.seconds != reservation.expireTime.seconds }
+  }
+
+  @Test
+  fun testDevicesReturnedWhenUserLogsOut() = runBlockingWithTimeout {
+    service<GoogleLoginService>().logIn()
+    var port = 12345
+    plugin.templates.value.forEach {
+      setupConnection { reservationName ->
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++)
+      }
+      val handle = it.activationAction.activate() as DirectAccessDeviceHandle
+      session.hostServices.connect(handle.connection.deviceAddress()!!)
+      yieldUntil { handle.state is Connected }
+    }
+    yieldUntil { plugin.devices.value.size == plugin.templates.value.size }
+
+    // Setup dialog such that user agrees to return devices while signing out
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message)
+        .isEqualTo(
+          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+        )
+      Messages.YES
+    }
+    service<GoogleLoginService>().logOutAllUsersAsync()
+
+    yieldUntil { plugin.devices.value.isEmpty() }
+    assertThat(service<GoogleLoginService>().isLoggedIn()).isFalse()
+  }
+
+  @Test
+  fun testDevicesNotReturnedWhenUserDeclinesLogOut() = runBlockingWithTimeout {
+    var port = 12345
+    service<GoogleLoginService>().logIn()
+    plugin.templates.value.forEach {
+      setupConnection { reservationName ->
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++)
+      }
+      val handle = it.activationAction.activate() as DirectAccessDeviceHandle
+      session.hostServices.connect(handle.connection.deviceAddress()!!)
+      yieldUntil { handle.state is Connected }
+    }
+    yieldUntil { plugin.devices.value.size == plugin.templates.value.size }
+
+    // Setup dialog such that user declines to return devices while signing out
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message)
+        .isEqualTo(
+          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+        )
+      Messages.NO
+    }
+    service<GoogleLoginService>().logOutAllUsersAsync()
+
+    assertThat(plugin.devices.value.size).isEqualTo(plugin.templates.value.size)
+    assertThat(service<GoogleLoginService>().isLoggedIn()).isTrue()
   }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {

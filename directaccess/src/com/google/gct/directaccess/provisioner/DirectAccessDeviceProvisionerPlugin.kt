@@ -20,19 +20,27 @@ import com.android.sdklib.deviceprovisioner.CreateDeviceTemplateAction
 import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
+import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.util.Disposer
+import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +56,8 @@ import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.time.withTimeout
 import kotlinx.coroutines.withContext
 
 const val PLUGIN_ID = "FirebaseDirectAccess"
@@ -59,7 +69,7 @@ const val PLUGIN_ID = "FirebaseDirectAccess"
 class DirectAccessDeviceProvisionerPlugin(
   private val scope: CoroutineScope,
   private val project: Project,
-) : DeviceProvisionerPlugin {
+) : DeviceProvisionerPlugin, Disposable {
   // TODO: find a proper priority
   override val priority: Int = 120
 
@@ -74,7 +84,51 @@ class DirectAccessDeviceProvisionerPlugin(
   private val accessibleDeviceInfoMapFlow = MutableStateFlow(mapOf<String, DeviceInfo>())
   private val cachedTemplatesMap = mutableMapOf<String, DirectAccessDeviceTemplate>()
 
+  private val vetoableLogOutListener =
+    object : VetoableLogoutListener {
+      private val deviceList: List<DirectAccessDeviceHandle>
+        get() =
+          devices.value.filterIsInstance<DirectAccessDeviceHandle>().filter {
+            it.state is DeviceState.Connected
+          }
+
+      override fun canLogout(): Boolean {
+        val (title, message) =
+          when (deviceList.size) {
+            0 -> return true
+            1 -> {
+              Pair(
+                "Firebase ${deviceList[0].sourceTemplate.properties.title} is connected",
+                "Return and erase the device to end the session?\nActive sessions consume quota after Android Studio is closed.",
+              )
+            }
+            else -> {
+              Pair(
+                "Firebase devices connected",
+                "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed.",
+              )
+            }
+          }
+        return Messages.showYesNoDialog(project, message, title, null) == Messages.YES
+      }
+
+      override fun isLoggingOut() {
+        runBlocking {
+          deviceList
+            .map {
+              scope.launch {
+                withContext(NonCancellable) {
+                  withTimeout(Duration.ofSeconds(2)) { it.reservationAction.endReservation() }
+                }
+              }
+            }
+            .joinAll()
+        }
+      }
+    }
+
   init {
+    Disposer.register(project.service<DeviceProvisionerService>(), this)
     // Clean up remaining templates when scope is cancelled.
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
     scope.launch {
@@ -163,6 +217,8 @@ class DirectAccessDeviceProvisionerPlugin(
         matchReservations(newTemplates, reservationsFlow.value)
       }
     }
+
+    service<GoogleLoginService>().addVetoableLogoutListener(vetoableLogOutListener)
   }
 
   @VisibleForTesting
@@ -238,4 +294,8 @@ class DirectAccessDeviceProvisionerPlugin(
           )
           .asStateFlow()
     }
+
+  override fun dispose() {
+    service<GoogleLoginService>().removeVetoableLogoutListener(vetoableLogOutListener)
+  }
 }
