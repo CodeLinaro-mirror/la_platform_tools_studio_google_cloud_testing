@@ -31,13 +31,18 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.services.firebase.directaccess.client.findOrCreateReservation
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DoNotAskOption
+import com.intellij.openapi.ui.MessageDialogBuilder
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.messages.MessageDialog
 import icons.StudioIcons
 import java.time.Duration
 import javax.swing.Icon
@@ -57,6 +62,14 @@ import kotlinx.coroutines.withContext
 
 val SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(1)
 val LONG_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(15)
+
+internal const val UNKNOWN_DEVICE_DO_NOT_ASK = "device.streaming.unknown.do.not.ask"
+internal const val SPARK_SINGLE_DEVICE_DO_NOT_ASK =
+  "device.streaming.spark.single.device.do.not.ask"
+internal const val SPARK_MULTI_DEVICE_DO_NOT_ASK = "device.streaming.spark.multi.device.do.not.ask"
+internal const val BLAZE_SINGLE_DEVICE_DO_NOT_ASK =
+  "device.streaming.blaze.single.device.do.not.ask"
+internal const val BLAZE_MULTI_DEVICE_DO_NOT_ASK = "device.streaming.blaze.multi.device.do.not.ask"
 
 class DirectAccessDeviceTemplate(
   private val project: Project,
@@ -140,6 +153,10 @@ class DirectAccessDeviceTemplate(
           throw DeviceActionDisabledException(this)
         }
         confirmWaitingTime()
+        if (!confirmUsageMinutes()) {
+          isActivationStarted.value = false
+          throw CancellationException("User declined quota usage")
+        }
 
         val reservationName =
           try {
@@ -170,6 +187,83 @@ class DirectAccessDeviceTemplate(
         } catch (e: Exception) {
           isActivationStarted.value = false
           throw DeviceActionException("Failed to connect to device. Please try again.", e)
+        }
+      }
+
+      private suspend fun confirmUsageMinutes(): Boolean {
+        // Don't prompt if monthly billing is not enabled
+        if (!StudioFlags.DIRECT_ACCESS_MONTHLY_QUOTA.get()) {
+          return true
+        }
+        val billingStatus = project.directAccessCloudProjectManager?.isBillingEnabledFlow?.value
+        val isMultiDevice = devices.value.filterIsInstance<DirectAccessDeviceHandle>().isNotEmpty()
+        val persistenceKey = getPersistenceKeyForDoNoAsk(billingStatus, isMultiDevice)
+        val (title, message) = getDialogTitleAndMessage(billingStatus)
+
+        return PropertiesComponent.getInstance(project).getBoolean(persistenceKey, false) ||
+          withContext(AndroidDispatchers.uiThread) {
+            MessageDialogBuilder.yesNo(title, message)
+              .doNotAsk(
+                object : DoNotAskOption.Adapter() {
+                  override fun rememberChoice(isSelected: Boolean, exitCode: Int) {
+                    if (exitCode == MessageDialog.OK_EXIT_CODE) {
+                      PropertiesComponent.getInstance(project).setValue(persistenceKey, isSelected)
+                    }
+                  }
+                }
+              )
+              .ask(project)
+          }
+      }
+
+      private fun getPersistenceKeyForDoNoAsk(billingStatus: Boolean?, isMultiDevice: Boolean) =
+        when (billingStatus) {
+          null -> UNKNOWN_DEVICE_DO_NOT_ASK
+          false ->
+            if (isMultiDevice) SPARK_MULTI_DEVICE_DO_NOT_ASK else SPARK_SINGLE_DEVICE_DO_NOT_ASK
+          true ->
+            if (isMultiDevice) BLAZE_MULTI_DEVICE_DO_NOT_ASK else BLAZE_SINGLE_DEVICE_DO_NOT_ASK
+        }
+
+      private fun getDialogTitleAndMessage(billingStatus: Boolean?): Pair<String, String> {
+        val devices = devices.value.filterIsInstance<DirectAccessDeviceHandle>()
+
+        return if (devices.isEmpty()) {
+          when (billingStatus) {
+            null ->
+              Pair(
+                "Connect to ${properties.title}",
+                "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+              )
+            false ->
+              Pair(
+                "Connect to ${properties.title}",
+                "Devices are reserved for 30 minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
+              )
+            true ->
+              Pair(
+                "Connect to ${properties.title}",
+                "You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+              )
+          }
+        } else {
+          when (billingStatus) {
+            null ->
+              Pair(
+                "Reserving Multiple Streaming Devices",
+                "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+              )
+            false ->
+              Pair(
+                "Reserving Multiple Streaming Devices",
+                "You have another streaming device reserved. The new device will be reserved and count towards your Spark Plan free minutes.",
+              )
+            true ->
+              Pair(
+                "Reserving Multiple Streaming Devices",
+                "You have another device streaming session. You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+              )
+          }
         }
       }
 

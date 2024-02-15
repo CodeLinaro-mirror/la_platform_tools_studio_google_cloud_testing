@@ -62,6 +62,7 @@ import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
+import com.google.gct.directaccess.rule.PropertiesComponentRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.CredentialedUser
 import com.google.gct.login.GoogleLogin
@@ -132,6 +133,7 @@ class DirectAccessDeviceProvisionerTest {
   private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
+  private val propertiesComponentRule = PropertiesComponentRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
@@ -141,6 +143,7 @@ class DirectAccessDeviceProvisionerTest {
       .around(loginStateRule)
       .around(fakeToolWindowRule)
       .around(cleanUpNotificationRule)
+      .around(propertiesComponentRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
