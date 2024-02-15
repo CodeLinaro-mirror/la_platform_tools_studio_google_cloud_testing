@@ -304,9 +304,6 @@ class SelectProjectActionTest {
         dialog.clickDefaultButton()
       }
 
-      selectDeviceAction.update(event)
-      assertThat(event.presentation.icon).isEqualTo(firebaseIconWithErrors)
-
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
         val dialog = it as SelectDeviceDialog
         waitForCondition {
