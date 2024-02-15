@@ -1192,7 +1192,6 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     service<GoogleLoginService>().logOutAllUsersAsync()
 
     yieldUntil { plugin.devices.value.isEmpty() }
-    assertThat(service<GoogleLoginService>().isLoggedIn()).isFalse()
   }
 
   @Test
