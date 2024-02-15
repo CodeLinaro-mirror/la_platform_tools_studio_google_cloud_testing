@@ -55,10 +55,15 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
   @Synchronized
   fun selectCloudProject(cloudProject: String?) {
     val cloudProjectEntry =
-      cloudProject?.let {
-        // Stores the last non-null cloud project in PropertiesComponent.
-        project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject = it
-        getCloudProject(cloudProject)
+      when (cloudProject) {
+        null,
+        "" -> null
+        else -> {
+          // Stores the last non-null cloud project in PropertiesComponent.
+          project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject =
+            cloudProject
+          getCloudProject(cloudProject)
+        }
       }
     _cloudProjectManager.value =
       service<DirectAccessApplicationService>().registerCloudProject(project, cloudProjectEntry)

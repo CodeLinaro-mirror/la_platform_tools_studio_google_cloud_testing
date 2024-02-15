@@ -75,7 +75,7 @@ class DirectAccessProjectSelectorImpl(
   @VisibleForTesting
   internal val createProjectHyperlink =
     HyperlinkLabel("Create a Firebase project...").apply {
-      setHyperlinkTarget("https://console.firebase.google.com")
+      setHyperlinkTarget(userSpecificFirebaseConsoleLink)
     }
 
   private val uiDispatcher: CoroutineDispatcher
@@ -132,7 +132,10 @@ class DirectAccessProjectSelectorImpl(
           isEnabled = false
         }
         else -> {
-          model = CollectionComboBoxModel(projects)
+          // Append an empty project if one is not selected initially.
+          // This prevents calling the APIs of the first project in the list.
+          val finalProjects = if (preferredProject.isEmpty()) listOf("") + projects else projects
+          model = CollectionComboBoxModel(finalProjects)
           updateSelectedItem(preferredProject)
           isEnabled = shouldEnable
         }

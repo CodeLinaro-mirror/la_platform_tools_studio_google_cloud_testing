@@ -19,12 +19,14 @@ import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionDisabledException
 import com.android.sdklib.deviceprovisioner.DeviceActionException
+import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceId
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
+import com.android.sdklib.deviceprovisioner.TemplateState
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
@@ -48,6 +50,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -69,6 +72,11 @@ class DirectAccessDeviceTemplate(
   override val id = DeviceId(PLUGIN_ID, true, "model_id=${deviceInfo.key}")
 
   override val properties = deviceInfo.toDeviceProperties()
+
+  override val stateFlow =
+    isAuthenticatorReady
+      .map { TemplateState(if (it) null else DirectAccessDeviceError()) }
+      .stateIn(scope, SharingStarted.Eagerly, TemplateState(null))
 
   private val isActivationStarted = MutableStateFlow(false)
 
@@ -132,7 +140,14 @@ class DirectAccessDeviceTemplate(
             throw e
           } catch (e: Exception) {
             isActivationStarted.value = false
-            throw DeviceActionException("Failed to reserve a device. Please try again.")
+            if (e.localizedMessage.contains("RESOURCE_EXHAUSTED")) {
+              throw DeviceActionException(
+                "All Spark plan minutes for the current period have been used. " +
+                  "Upgrade to a Blaze plan to immediately continue using this service.",
+                e,
+              )
+            }
+            throw DeviceActionException("Failed to reserve a device. Please try again.", e)
           }
 
         try {
@@ -304,13 +319,19 @@ class DirectAccessDeviceTemplate(
     reservationName: String? = null,
     failureReason: FailureReason? = null,
   ) {
-    DirectAccessUsageTracker.trackReserveDevice(
-      wasSuccessful,
-      timeToReserve,
-      reservationName,
-      properties.deviceInfoProto,
-      failureReason,
-    )
+    DirectAccessUsageTracker.getInstance()
+      .trackReserveDevice(
+        wasSuccessful,
+        timeToReserve,
+        reservationName,
+        properties.deviceInfoProto,
+        failureReason,
+      )
+  }
+
+  private class DirectAccessDeviceError : DeviceError {
+    override val severity = DeviceError.Severity.ERROR
+    override val message = "Unable to reserve device"
   }
 }
 

@@ -33,6 +33,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
+import com.android.testutils.MockitoKt
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -58,9 +59,11 @@ import com.google.gct.directaccess.TestUtils.getNotifications
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.showAllTemplates
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
@@ -78,7 +81,9 @@ import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationDisplayType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.testFramework.ProjectRule
@@ -104,6 +109,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.fail
@@ -148,6 +154,11 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     enableHeadlessDialogs(projectRule.disposable)
     TestDialogManager.setTestDialog(TestDialog.YES)
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+    val usageTracker = mock<DirectAccessUsageTracker>()
+    whenever(usageTracker.scope).thenReturn(scope)
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessUsageTracker::class.java, usageTracker, projectRule.disposable)
+
     isOAuthTokenAvailable = true
     directAccessReservationManager =
       DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
@@ -189,6 +200,9 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     doReturn(deviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
     doReturn(scope).whenever(mockDirectAccessService).scope
+    doAnswer { runBlocking { fakeConnection.endReservation(true) } }
+      .whenever(mockDirectAccessService)
+      .selectCloudProject(MockitoKt.eq(null))
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
@@ -1137,6 +1151,76 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     yieldUntil { notification.isExpired }
     // New device was created from the template
     yieldUntil { template.activeDevice != null }
+  }
+
+  @Test
+  fun testReservationInGracePeriodWhenProjectClosed() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val reservation = handle.reservation
+    directAccessReservationManager.fetchReservationFlow(reservation.name).waitUntilActive()
+
+    // Simulate project closing
+    projectRule.project.service<DirectAccessService>().selectCloudProject(null)
+
+    yieldUntil { handle.connectionState is ConnectionState.Disconnected }
+    yieldUntil { handle.reservation.expireTime.seconds != reservation.expireTime.seconds }
+  }
+
+  @Test
+  fun testDevicesReturnedWhenUserLogsOut() = runBlockingWithTimeout {
+    service<GoogleLoginService>().logIn()
+    var port = 12345
+    plugin.templates.value.forEach {
+      setupConnection { reservationName ->
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++)
+      }
+      val handle = it.activationAction.activate() as DirectAccessDeviceHandle
+      session.hostServices.connect(handle.connection.deviceAddress()!!)
+      yieldUntil { handle.state is Connected }
+    }
+    yieldUntil { plugin.devices.value.size == plugin.templates.value.size }
+
+    // Setup dialog such that user agrees to return devices while signing out
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message)
+        .isEqualTo(
+          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+        )
+      Messages.YES
+    }
+    service<GoogleLoginService>().logOutAllUsersAsync()
+
+    yieldUntil { plugin.devices.value.isEmpty() }
+    assertThat(service<GoogleLoginService>().isLoggedIn()).isFalse()
+  }
+
+  @Test
+  fun testDevicesNotReturnedWhenUserDeclinesLogOut() = runBlockingWithTimeout {
+    var port = 12345
+    service<GoogleLoginService>().logIn()
+    plugin.templates.value.forEach {
+      setupConnection { reservationName ->
+        FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++)
+      }
+      val handle = it.activationAction.activate() as DirectAccessDeviceHandle
+      session.hostServices.connect(handle.connection.deviceAddress()!!)
+      yieldUntil { handle.state is Connected }
+    }
+    yieldUntil { plugin.devices.value.size == plugin.templates.value.size }
+
+    // Setup dialog such that user declines to return devices while signing out
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message)
+        .isEqualTo(
+          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+        )
+      Messages.NO
+    }
+    service<GoogleLoginService>().logOutAllUsersAsync()
+
+    assertThat(plugin.devices.value.size).isEqualTo(plugin.templates.value.size)
+    assertThat(service<GoogleLoginService>().isLoggedIn()).isTrue()
   }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {

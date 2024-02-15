@@ -18,6 +18,7 @@ import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
+import com.android.testutils.waitForCondition
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
@@ -30,14 +31,19 @@ import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils.extendedDeviceInfoListProvider
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.login2.GoogleLoginService
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
+import com.intellij.ui.HyperlinkLabel
 import com.intellij.ui.SearchTextField
+import com.intellij.util.application
 import javax.swing.JCheckBox
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -46,6 +52,8 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.Mockito
+import org.mockito.Mockito.anyString
 import org.mockito.Mockito.doAnswer
 
 @RunsInEdt
@@ -80,6 +88,14 @@ class SelectDeviceDialogTest {
     project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
+      projectRule.disposable,
+    )
+
+    val mockGoogleLoginService = mock<GoogleLoginService>()
+    doAnswer { "test@gmail.com" }.whenever(mockGoogleLoginService).getEmail()
+    application.replaceService(
+      GoogleLoginService::class.java,
+      mockGoogleLoginService,
       projectRule.disposable,
     )
   }
@@ -184,5 +200,26 @@ class SelectDeviceDialogTest {
     assertThat(selectedDevices)
       .containsExactly("Pixel 6", "Pixel 6 Pro", "Pixel Watch", "Pixel Watch", "SomeName")
       .inOrder()
+  }
+
+  @Test
+  fun testFirebaseLinkContainsUserEmail() {
+    Mockito.mockStatic(BrowserUtil::class.java).use { mockBrowserUtil ->
+      val dialog = SelectDeviceDialog(project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        var url = ""
+        mockBrowserUtil
+          .whenever<String> { BrowserUtil.browse(anyString()) }
+          .thenAnswer {
+            url = it.getArgument(0) as String
+            Unit
+          }
+        val allProjectLink = dialog.contentPanel.findAllDescendants<HyperlinkLabel>().first()
+        assertThat(allProjectLink.text).isEqualTo("View All Projects")
+        allProjectLink.doClick()
+        waitForCondition(1.seconds) { url != "" }
+        assertThat(url).isEqualTo("https://console.firebase.google.com?authuser=test@gmail.com")
+      }
+    }
   }
 }

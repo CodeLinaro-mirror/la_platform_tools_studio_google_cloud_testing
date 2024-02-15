@@ -24,6 +24,7 @@ import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
+import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.NamedExternalResource
@@ -90,7 +91,6 @@ class DirectAccessMultiProjectTest {
   private val projectRule2 = ProjectRule()
   private val oldLoginRule = GoogleLoginServiceRule { projectRule1.disposable }
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
-  private val loginUsersRule = LoginUsersRule()
 
   @get:Rule
   val chain =
@@ -98,7 +98,6 @@ class DirectAccessMultiProjectTest {
       .around(projectRule1)
       .around(projectRule2)
       .around(oldLoginRule)
-      .around(loginUsersRule)
       .around(grpcConnectionRule)
 
   private val project1: Project
@@ -140,14 +139,30 @@ class DirectAccessMultiProjectTest {
         projectRule1.disposable,
       )
 
+    val mockPersistentService = mock<DirectAccessPersistentStateComponent>()
+    val fakePersistentState =
+      DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
+    doReturn(fakePersistentState).whenever(mockPersistentService).state
+
+    project1.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule1.disposable,
+    )
+    project2.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule2.disposable,
+    )
+
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
     plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
     provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
     provisioner2 = DeviceProvisioner.create(session, listOf(plugin2), testDeviceIcons)
     oldLoginRule.loginState.value = LoginStatus.LoggedIn("test@google.com")
 
-    project1.service<DirectAccessService>().selectCloudProject("test-project")
-    project2.service<DirectAccessService>().selectCloudProject("test-project")
+    yieldUntil { project1.directAccessCloudProjectManager != null }
+    yieldUntil { project2.directAccessCloudProjectManager != null }
     project1.showAllTemplates()
     project2.showAllTemplates()
 
@@ -182,6 +197,37 @@ class DirectAccessMultiProjectTest {
     }
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
+  }
+
+  @Test
+  fun testReservationNotEndedWhenOneProjectClosed() = runBlockingWithTimeout {
+    val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
+    val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
+    assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
+    // Create a reservation from project1.
+    val reservationManager =
+      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(
+      template1.deviceInfo.codename,
+      template1.deviceInfo.api.toString(),
+    )
+
+    project1.refreshReservations()
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+
+    // Close the first project
+    service<DirectAccessApplicationService>().registerCloudProject(project1, null)
+
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+    assertThat(reservationManager.listReservations()[0].sessionState)
+      .isEqualTo(SessionState.REQUESTED)
+
+    // Close the second project
+    service<DirectAccessApplicationService>().registerCloudProject(project2, null)
+
+    val reservationList = reservationManager.listReservations()
+    assertThat(reservationList.size).isEqualTo(1)
+    assertThat(reservationList[0].sessionState).isEqualTo(SessionState.FINISHED)
   }
 }
 
@@ -244,6 +290,22 @@ class DirectAccessMultiProjectWithLogin2Test {
         projectRule1.disposable,
       )
 
+    val mockPersistentService = mock<DirectAccessPersistentStateComponent>()
+    val fakePersistentState =
+      DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
+    doReturn(fakePersistentState).whenever(mockPersistentService).state
+
+    project1.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule1.disposable,
+    )
+    project2.replaceService(
+      DirectAccessPersistentStateComponent::class.java,
+      mockPersistentService,
+      projectRule2.disposable,
+    )
+
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
     plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
     provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
@@ -283,5 +345,36 @@ class DirectAccessMultiProjectWithLogin2Test {
     }
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
+  }
+
+  @Test
+  fun testReservationNotEndedWhenOneProjectClosed() = runBlockingWithTimeout {
+    val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
+    val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
+    assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
+    // Create a reservation from project1.
+    val reservationManager =
+      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(
+      template1.deviceInfo.codename,
+      template1.deviceInfo.api.toString(),
+    )
+
+    project1.refreshReservations()
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+
+    // Close the first project
+    service<DirectAccessApplicationService>().registerCloudProject(project1, null)
+
+    assertThat(reservationManager.listReservations().size).isEqualTo(1)
+    assertThat(reservationManager.listReservations()[0].sessionState)
+      .isEqualTo(SessionState.REQUESTED)
+
+    // Close the second project
+    service<DirectAccessApplicationService>().registerCloudProject(project2, null)
+
+    val reservationList = reservationManager.listReservations()
+    assertThat(reservationList.size).isEqualTo(1)
+    assertThat(reservationList[0].sessionState).isEqualTo(SessionState.FINISHED)
   }
 }

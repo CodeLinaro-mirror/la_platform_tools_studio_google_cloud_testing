@@ -15,7 +15,8 @@
  */
 package com.google.gct.directaccess.ui.actions
 
-import com.google.gct.directaccess.DirectAccessService
+import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -37,18 +38,17 @@ class SelectProjectAction :
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
-    // An exception will be caught here only when a project is selected and its cloudProjectManager
-    // fails to fetch reservations.
-    val hasErrorAfterProjectSelection =
+    // An exception will be caught only when all selected templates are not disabled.
+    val templates =
       e.project
-        ?.service<DirectAccessService>()
-        ?.cloudProjectManager
+        ?.service<DeviceProvisionerService>()
+        ?.deviceProvisioner
+        ?.templates
         ?.value
-        ?.reservationListFlowWithException
-        ?.value
-        ?.second != null
+        ?.filterIsInstance<DirectAccessDeviceTemplate>() ?: listOf()
     e.presentation.icon =
-      if (hasErrorAfterProjectSelection) firebaseIconWithErrors else FirebaseIcons.ACTION_ICON
+      if (templates.isNotEmpty() && templates.all { it.state.error != null }) firebaseIconWithErrors
+      else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = service<DirectAccessConfiguration>().isEnabled
   }
 

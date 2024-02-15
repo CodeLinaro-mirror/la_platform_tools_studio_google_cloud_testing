@@ -19,7 +19,6 @@ import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.categorytable.CategoryTable
-import com.android.tools.adtui.common.AdtUiUtils
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.io.grpc.Status
@@ -61,6 +60,7 @@ import com.intellij.ui.util.minimumHeight
 import com.intellij.ui.util.preferredHeight
 import com.intellij.ui.util.preferredWidth
 import com.intellij.util.ui.HTMLEditorKitBuilder
+import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
@@ -82,6 +82,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -89,11 +90,14 @@ import org.jetbrains.annotations.VisibleForTesting
 
 private const val CLOUD_TEST_API_ENABLE_LINK =
   "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
-private const val SELECTION_TABLE_MINIMUM_HEIGHT = 240
+private const val SELECTION_TABLE_MINIMUM_HEIGHT = 385
 
 const val ONBOARDING_WORKFLOW_KEY = "direct.access.onboarding"
 
 private val PRESELECTED_DEVICE_KEY_SET = setOf("shiba/34", "felix/33", "b0q/33", "gts8uwifi/33")
+
+val userSpecificFirebaseConsoleLink: String
+  get() = "https://console.firebase.google.com?authuser=${service<GoogleLoginService>().getEmail()}"
 
 class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
@@ -117,7 +121,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
   private val viewAllProjectsHyperlink =
     HyperlinkLabel("View All Projects").apply {
-      setHyperlinkTarget("https://console.firebase.google.com")
+      setHyperlinkTarget(userSpecificFirebaseConsoleLink)
     }
 
   private val isDirectAccessEnabled =
@@ -135,7 +139,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     CategoryTable(SelectDeviceTableColumns.columns, primaryKey = { it.deviceInfo.key })
 
   private val searchTextField =
-    SearchTextField().apply {
+    SearchTextField(false).apply {
       // If the table is empty and the user decides to resize the dialog,
       // searchTextField gets resized. Set max height to preferred height to avoid that.
       maximumHeight = preferredHeight
@@ -256,7 +260,6 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         text =
           "Select the devices you want to access. The devices you select are added to the Device Manager " +
             "and deploy target dropdown menu in the main toolbar."
-        foreground = UIUtil.getLabelDisabledForeground()
       }
     )
 
@@ -299,8 +302,8 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       }
     }
 
-  private fun createTitleLabel(text: String, biggerOn: Float = 3f) =
-    JBLabel(text, JBLabel.LEFT).apply { font = AdtUiUtils.DEFAULT_FONT.biggerOn(biggerOn).asBold() }
+  private fun createTitleLabel(text: String) =
+    JBLabel(text, JBLabel.LEFT).apply { font = JBFont.h2() }
 
   private fun createSelectProjectComponent(): JPanel {
     val panel = JPanel(VerticalLayout(5)).apply { border = JBUI.Borders.empty(5, 10) }
@@ -311,7 +314,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     val selectorPanel = JPanel(selectorLayout)
 
     val usedMinutesLabel = JBLabel()
-    val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelDisabledForeground() }
+    val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
     updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
 
     val updateSelector: (Boolean) -> Unit = { enabled ->
@@ -342,6 +345,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
             }
           component.add(errorIcon)
           scope.launch(uiDispatcher) {
+            selector.isReady.takeWhile { !it }.collect()
             selector.selectedProject.collect {
               onProjectChanged(
                 project,
@@ -420,10 +424,11 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
   ) {
-    if (cloudProject.isEmpty() || cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
+    errorIcon.isVisible = false
+    if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
       withContext(AndroidDispatchers.uiThread) { parent.revalidate() }
       return
-    } else if (cloudProject == NO_PROJECTS_AVAILABLE) {
+    } else if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
       project.service<DirectAccessService>().selectCloudProject(null)
       return
     }
