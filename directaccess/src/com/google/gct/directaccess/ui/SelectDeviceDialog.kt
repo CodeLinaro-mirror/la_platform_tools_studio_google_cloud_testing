@@ -344,7 +344,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
               isVisible = false
             }
           component.add(errorIcon)
-          scope.launch(uiDispatcher) {
+          scope.launch {
             selector.isReady.takeWhile { !it }.collect()
             selector.selectedProject.collect {
               onProjectChanged(
@@ -355,9 +355,11 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                 usedMinutesLabel,
                 remainingMinutesLabel,
               )
-              refreshTableData()
-              panel.revalidate()
-              panel.repaint()
+              withContext(uiDispatcher) {
+                refreshTableData()
+                panel.revalidate()
+                panel.repaint()
+              }
             }
           }
           component
