@@ -17,9 +17,9 @@ package com.google.gct.testrecorder.run;
 
 import com.android.tools.idea.run.AndroidRunConfigurationType;
 import com.intellij.execution.configurations.RunConfiguration;
-import com.intellij.testFramework.PlatformTestCase;
+import com.intellij.testFramework.HeavyPlatformTestCase;
 
-public class TestRecorderRunConfigurationProxyProviderTest extends PlatformTestCase {
+public class TestRecorderRunConfigurationProxyProviderTest extends HeavyPlatformTestCase {
 
   public void testTestRecorderAndroidRunConfigurationProxy() {
     assertTrue("Too few Test Recorder run configuration providers", TestRecorderRunConfigurationProxy.EP_NAME.getExtensions().length > 0);
