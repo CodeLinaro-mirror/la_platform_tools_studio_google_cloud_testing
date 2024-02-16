@@ -243,7 +243,13 @@ class DirectAccessDeviceTemplate(
               )
                 StudioIcons.Avd.START_RESERVATION
               else StudioIcons.Avd.RUN
-            defaultPresentation.copy(icon = icon, enabled = enabled)
+            defaultPresentation.copy(
+              icon = icon,
+              enabled = enabled,
+              detail =
+                if (enabled) null
+                else "Device unavailable: click the Firebase action to address issues",
+            )
           }
           .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
     }
