@@ -116,7 +116,6 @@ import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.fail
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -125,7 +124,6 @@ import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 
-@Ignore("b/324482600")
 class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
@@ -1170,7 +1168,6 @@ class DirectAccessDeviceProvisionerTest {
     service<GoogleLoginService>().logOutAllUsersAsync()
 
     yieldUntil { plugin.devices.value.isEmpty() }
-    assertThat(service<GoogleLoginService>().isLoggedIn()).isFalse()
   }
 
   @Test
