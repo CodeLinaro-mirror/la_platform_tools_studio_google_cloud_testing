@@ -38,6 +38,10 @@ class SelectProjectAction :
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
+    if (e.project == null) {
+      e.presentation.isVisible = false
+      return
+    }
     // An exception will be caught only when all selected templates are not disabled.
     val templates =
       e.project
@@ -53,6 +57,8 @@ class SelectProjectAction :
   }
 
   override fun actionPerformed(e: AnActionEvent) {
-    SelectDeviceDialog(e.project!!).show()
+    val project =
+      e.project ?: throw IllegalArgumentException("Project required to invoke this action")
+    SelectDeviceDialog(project).show()
   }
 }
