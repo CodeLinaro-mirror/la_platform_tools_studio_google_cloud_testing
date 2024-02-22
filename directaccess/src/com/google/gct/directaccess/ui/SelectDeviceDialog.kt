@@ -159,6 +159,9 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
   private var deviceRowDataList: List<SelectDeviceRowData> = emptyList()
 
+  /** Holds the initial state of the project selector in case the user decides to click cancel */
+  private var initialDialogState: InitialDialogState? = null
+
   private fun updateDeviceRowDataList(wasDeviceRowDataListUpdated: Boolean = true) {
     val accessibleDeviceInfoSet =
       project.directAccessCloudProjectManager
@@ -328,11 +331,15 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     val updateSelector: (Boolean) -> Unit = { enabled ->
       selectorPanel.add(
         if (enabled) {
+          val preferredProject =
+            project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
+              ?: ""
+          val selection = project.service<DirectAccessService>().deviceSelectionListFlow.value
+          initialDialogState = InitialDialogState(preferredProject, selection)
           val component = JPanel(HorizontalLayout(5))
           val selector =
             DirectAccessProjectSelectorImpl(
-              project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
-                ?: "",
+              preferredProject,
               project
                 .service<DeviceProvisionerService>()
                 .deviceProvisioner
@@ -620,6 +627,20 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     }
   }
 
+  override fun doCancelAction() {
+    super.doCancelAction()
+    initialDialogState?.let { initialState ->
+      val directAccessService = project.service<DirectAccessService>()
+      directAccessService.selectCloudProject(initialState.cloudProject)
+      directAccessService.deviceSelectionListFlow.update { initialState.deviceSelection }
+    }
+  }
+
   private val DeviceInfo.title: String
     get() = "$manufacturer $name"
 }
+
+private data class InitialDialogState(
+  val cloudProject: String,
+  val deviceSelection: List<DeviceSelection>,
+)

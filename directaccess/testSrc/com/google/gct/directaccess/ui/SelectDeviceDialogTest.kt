@@ -222,4 +222,19 @@ class SelectDeviceDialogTest {
       }
     }
   }
+
+  @Test
+  fun testCancel() = runBlockingWithTimeout {
+    val dialog = SelectDeviceDialog(project)
+    createModalDialogAndInteractWithIt({ dialog.show() }) {
+      assertThat(dialog.deviceTable.componentCount).isEqualTo(6)
+      val checkBoxes = dialog.deviceTable.findAllDescendants<JCheckBox>().toList()
+      checkBoxes.forEach { assertThat(it.isSelected).isTrue() }
+      checkBoxes.forEachIndexed { idx, cb -> if (idx % 2 == 0) cb.doClick() }
+      assertThat(checkBoxes.filter { it.isSelected }.size).isEqualTo(3)
+      dialog.doCancelAction()
+    }
+
+    yieldUntil { deviceSelectionListFlow.value.all { it.isSelected } }
+  }
 }
