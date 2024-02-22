@@ -320,12 +320,15 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[4].properties.resolution).isEqualTo(Resolution(50, 100))
     assertThat(provisioner.templates.value[4].properties.density).isEqualTo(150)
     assertThat(provisioner.templates.value[4].properties.isRemote).isTrue()
+    assertThat(provisioner.templates.value[0].activationAction.presentation.value.detail).isNull()
 
     // Log out
     loginStateRule.state.value = LoginStatus.LoggedOut
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
+    assertThat(provisioner.templates.value[0].activationAction.presentation.value.detail)
+      .isEqualTo("Device unavailable: click the Firebase action to address issues")
 
     // Login without access.
     isOAuthTokenAvailable = false

@@ -49,6 +49,7 @@ import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
+import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.ONBOARDING_WORKFLOW_KEY
@@ -62,6 +63,7 @@ import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.testFramework.ProjectRule
@@ -452,7 +454,24 @@ class SelectProjectActionTest {
         }
       }
     selectDeviceAction.update(event)
-    assertThat(selectDeviceAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+    assertThat(event.presentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+  }
+
+  @Test
+  fun testActionNotVisibleWhenProjectIsNull() = runBlockingWithTimeout {
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent { null }
+    selectDeviceAction.update(event)
+    assertThat(service<DirectAccessConfiguration>().isEnabled).isTrue()
+    assertThat(event.presentation.isVisible).isFalse()
+  }
+
+  @Test(expected = IllegalArgumentException::class)
+  fun testActionPerformedThrowsExceptionWhenProjectIsNull() = runBlockingWithTimeout {
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent { null }
+    selectDeviceAction.update(event)
+    selectDeviceAction.actionPerformed(event)
   }
 
   private fun createCloudProjectManager(
