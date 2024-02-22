@@ -34,7 +34,11 @@ val firebaseIconWithErrors = layeredIcon {
 }
 
 class SelectProjectAction :
-  AnAction("Configure Device Streaming Project", "text", FirebaseIcons.ACTION_ICON) {
+  AnAction(
+    "Configure Device Streaming Project",
+    "Open the Device Streaming dialog to select Firebase project and devices",
+    FirebaseIcons.ACTION_ICON,
+  ) {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {

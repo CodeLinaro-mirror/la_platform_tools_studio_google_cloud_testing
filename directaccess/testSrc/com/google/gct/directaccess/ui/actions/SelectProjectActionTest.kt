@@ -474,6 +474,12 @@ class SelectProjectActionTest {
     selectDeviceAction.actionPerformed(event)
   }
 
+  @Test
+  fun testDescription() {
+    assertThat(SelectProjectAction().templatePresentation.description)
+      .isEqualTo("Open the Device Streaming dialog to select Firebase project and devices")
+  }
+
   private fun createCloudProjectManager(
     scope: CoroutineScope,
     name: String?,
