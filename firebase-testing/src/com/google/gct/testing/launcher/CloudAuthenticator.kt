@@ -18,6 +18,7 @@ package com.google.gct.testing.launcher
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.cloudbilling.Cloudbilling
 import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager
 import com.google.api.services.monitoring.v3.Monitoring
 import com.google.api.services.monitoring.v3.model.PointData
@@ -53,6 +54,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
     get() = field ?: NetHttpTransport().also { field = it }
 
   private var myStorage: Storage? = null
+  private var myCloudbilling: Cloudbilling? = null
   private var myCloudResourceManager: CloudResourceManager? = null
   private var myTest: Testing? = null
   private var myMonitoring: Monitoring? = null
@@ -101,6 +103,16 @@ class CloudAuthenticator(scope: CoroutineScope) {
         .setRootUrl(toolResultsBackendUrl)
         .build()
   }
+
+  val cloudbilling: Cloudbilling
+    get() {
+      return myCloudbilling
+        ?: Cloudbilling.Builder(
+          myHttpTransport,
+          GsonFactory.getDefaultInstance(),
+          firebaseFeature.credential(),
+        ).setApplicationName(APPLICATION_NAME).build().also { myCloudbilling = it }
+    }
 
   val cloudResourceManager: CloudResourceManager
     get() {
@@ -193,6 +205,9 @@ class CloudAuthenticator(scope: CoroutineScope) {
         return null
       }
     }
+
+  fun isBillingEnabled(cloudProject: String):Boolean =
+      cloudbilling.projects().getBillingInfo("projects/$cloudProject").execute().billingEnabled
 
   @Throws(IOException::class)
   private fun queryMonitoring(

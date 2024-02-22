@@ -60,6 +60,7 @@ import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
+import com.intellij.icons.AllIcons
 import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.ide.util.PropertiesComponent
@@ -105,6 +106,7 @@ class SelectProjectActionTest {
   private val viewerTestProject = "viewerTestProject"
   private val unknownPermissionTestProject = "unknownPermissionTestProject"
   private val supportedProjectName = "supportedTestProject"
+  private val blazeProjectName = "blazeTestProject"
 
   private val projectRule = ProjectRule()
   private val popupRule = JBPopupRule()
@@ -129,7 +131,8 @@ class SelectProjectActionTest {
       when (cloudProjectManagerFlow.value?.cloudProject?.name) {
         unsupportedTestProjectWithServiceUse -> parseFrom(setOf(SERVICES_USE))
         unsupportedTestProjectWithoutServiceUse -> parseFrom(FULL_PERMISSIONS_SET - SERVICES_USE)
-        supportedProjectName -> parseFrom(FULL_PERMISSIONS_SET)
+        supportedProjectName,
+        blazeProjectName -> parseFrom(FULL_PERMISSIONS_SET)
         viewerTestProject -> parseFrom(VIEWER_PERMISSIONS_SET)
         unknownPermissionTestProject ->
           parseFrom(FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE)
@@ -327,6 +330,10 @@ class SelectProjectActionTest {
           dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
             label.icon == StudioIcons.Common.ERROR
           }
+        val planLabel =
+          dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
+            label.icon == AllIcons.General.ContextHelp
+          }
 
         // Select a project with viewer permission
         exceptionToThrow = null
@@ -380,10 +387,22 @@ class SelectProjectActionTest {
         assertThat(fakePropertiesComponent[projectRule.project])
           .isEqualTo(unknownPermissionTestProject)
 
-        // Select a project that supports direct access.
+        // Select a blaze project that supports direct access.
+        comboBox.model.selectedItem = blazeProjectName
+        waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
+        waitForCondition { planLabel.text == "Blaze Plan" }
+        waitForCondition {
+          planLabel.getHelpToolTipText().contains("This project is on the Blaze plan.")
+        }
+
+        // Select a spark project that supports direct access.
         comboBox.model.selectedItem = supportedProjectName
         waitForCondition {
           cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
+        }
+        waitForCondition { planLabel.text == "Spark Plan" }
+        waitForCondition {
+          planLabel.getHelpToolTipText().contains("Spark plans provide limited usage at no cost.")
         }
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
         assertThat(label.getHelpToolTipText()).isEqualTo("")
@@ -527,6 +546,16 @@ class SelectProjectActionTest {
       .accessibleDeviceInfoListFlow
 
     doReturn(permissionFlow).whenever(mockCloudProjectManager).permissionFlow
+
+    val isBillingEnabledFlow =
+      RefreshableStateFlow(scope, Long.MAX_VALUE) {
+        when (name) {
+          supportedProjectName -> false
+          blazeProjectName -> true
+          else -> null
+        }
+      }
+    doReturn(isBillingEnabledFlow).whenever(mockCloudProjectManager).isBillingEnabledFlow
     return mockCloudProjectManager
   }
 }
