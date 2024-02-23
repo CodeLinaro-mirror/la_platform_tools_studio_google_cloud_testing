@@ -50,6 +50,7 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.settings.DirectAccessConfiguration
+import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.ONBOARDING_WORKFLOW_KEY
@@ -81,6 +82,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.After
@@ -106,22 +109,7 @@ class SelectProjectActionTest {
   private val projectRule = ProjectRule()
   private val popupRule = JBPopupRule()
   private val loginUsersRule = LoginUsersRule()
-  private val firebaseProjectClientRule =
-    FirebaseProjectClientRule().apply {
-      setupFirebaseClient(
-        throwErrorOnExecute = false,
-        returnMalformedJson = false,
-        projectList =
-          listOf(
-            apiDisabledProject,
-            unknownPermissionTestProject,
-            unsupportedTestProjectWithoutServiceUse,
-            viewerTestProject,
-            unknownPermissionTestProject,
-            supportedProjectName,
-          ),
-      )
-    }
+  private val firebaseProjectClientRule = FirebaseProjectClientRule()
 
   // Simulate the fake properties component using a map
   private val fakePropertiesComponent = mutableMapOf<Project, String>()
@@ -218,6 +206,29 @@ class SelectProjectActionTest {
     assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
       .isInstanceOf(SelectProjectAction::class.java)
 
+    // Check if DirectAccessProjectSelector chooses the preferred project.
+    firebaseProjectClientRule.setupFirebaseClient(
+      throwErrorOnExecute = false,
+      returnMalformedJson = false,
+      projectList = listOf(apiDisabledProject, supportedProjectName),
+    )
+    val testSelector = DirectAccessProjectSelectorImpl(supportedProjectName, true, scope)
+    testSelector.isReady.takeWhile { !it }.collect()
+    assertThat(testSelector.selectedProject.value).isEqualTo(supportedProjectName)
+
+    firebaseProjectClientRule.setupFirebaseClient(
+      throwErrorOnExecute = false,
+      returnMalformedJson = false,
+      projectList =
+        listOf(
+          apiDisabledProject,
+          unknownPermissionTestProject,
+          unsupportedTestProjectWithoutServiceUse,
+          viewerTestProject,
+          unknownPermissionTestProject,
+          supportedProjectName,
+        ),
+    )
     val selectDeviceAction = SelectProjectAction()
 
     // Click the device selection button.
