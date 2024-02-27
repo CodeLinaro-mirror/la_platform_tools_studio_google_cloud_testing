@@ -59,7 +59,7 @@ object TestUtils {
         200,
         300,
         400,
-        30,
+        300,
       ),
       DeviceInfo(
         "id3",
@@ -72,7 +72,7 @@ object TestUtils {
         300,
         400,
         500,
-        300,
+        3000,
       ),
       DeviceInfo(
         "id4",

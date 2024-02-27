@@ -27,6 +27,7 @@ import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
 import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceActionException
+import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
@@ -280,10 +281,30 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
     assertThat(provisioner.templates.value[1].properties.density).isEqualTo(400)
     assertThat(provisioner.templates.value[1].properties.isRemote).isTrue()
+    assertThat(
+        (provisioner.templates.value[1] as DirectAccessDeviceTemplate)
+          .deviceInfo
+          .deviceAvailabilityEstimateSeconds
+      )
+      .isEqualTo(300)
+    yieldUntil {
+      provisioner.templates.value[1].state.error?.severity == DeviceError.Severity.WARNING &&
+        provisioner.templates.value[1].state.error?.message == "less than 15 min"
+    }
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
     assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
     assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
     assertThat(provisioner.templates.value[2].properties.isRemote).isTrue()
+    assertThat(
+        (provisioner.templates.value[2] as DirectAccessDeviceTemplate)
+          .deviceInfo
+          .deviceAvailabilityEstimateSeconds
+      )
+      .isEqualTo(3000)
+    yieldUntil {
+      provisioner.templates.value[2].state.error?.severity == DeviceError.Severity.WARNING &&
+        provisioner.templates.value[2].state.error?.message == "more than 15 min"
+    }
     assertThat(provisioner.templates.value[3].properties.title).isEqualTo("Google Pixel Watch")
     assertThat(provisioner.templates.value[3].properties.resolution).isEqualTo(Resolution(50, 100))
     assertThat(provisioner.templates.value[3].properties.density).isEqualTo(150)

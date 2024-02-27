@@ -55,7 +55,10 @@ class SelectProjectAction :
         ?.value
         ?.filterIsInstance<DirectAccessDeviceTemplate>() ?: listOf()
     e.presentation.icon =
-      if (templates.isNotEmpty() && templates.all { it.state.error != null }) firebaseIconWithErrors
+      if (
+        templates.isNotEmpty() && templates.none { it.activationAction.presentation.value.enabled }
+      )
+        firebaseIconWithErrors
       else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = service<DirectAccessConfiguration>().isEnabled
   }

@@ -438,6 +438,9 @@ class SelectProjectActionTest {
         dialog.clickDefaultButton()
       }
     }
+
+    selectDeviceAction.update(event)
+    assertThat(selectDeviceAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
   }
 
   @RunsInEdt
