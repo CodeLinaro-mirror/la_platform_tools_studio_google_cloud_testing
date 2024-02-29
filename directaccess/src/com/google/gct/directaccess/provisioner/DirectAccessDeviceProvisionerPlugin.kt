@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -58,9 +59,11 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.time.withTimeout
+import kotlinx.coroutines.time.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 
 const val PLUGIN_ID = "FirebaseDirectAccess"
+private val FAST_TASK_TIMEOUT = Duration.ofSeconds(2)
 
 /**
  * Provides direct access to physical devices run by Firebase. Supports configuring direct access
@@ -118,7 +121,7 @@ class DirectAccessDeviceProvisionerPlugin(
             .map {
               scope.launch {
                 withContext(NonCancellable) {
-                  withTimeout(Duration.ofSeconds(2)) { it.reservationAction.endReservation() }
+                  withTimeout(FAST_TASK_TIMEOUT) { it.reservationAction.endReservation() }
                 }
               }
             }
@@ -242,12 +245,23 @@ class DirectAccessDeviceProvisionerPlugin(
         .filter { reservation ->
           !reservation.sessionState.isClosed() && reservation.hasAndroidDevice()
         }
-        .mapNotNull { reservation ->
+        .map { reservation ->
           val key = reservation.androidDevice.let { it.androidModelId to it.androidVersionId }
           templateMap[key]?.firstOrNull()?.let { template ->
             // Create handle without blocking iteration
             launch { template.createDeviceHandleIfAbsent(reservation.name) }
           }
+            ?: launch {
+              // Select the device with active reservation to create its template.
+              project.service<DirectAccessService>().deviceSelectionListFlow.update { selectionList
+                ->
+                selectionList.map { selection ->
+                  if (selection.deviceInfo.let { it.codename to it.api.toString() } == key) {
+                    DeviceSelection(true, selection.deviceInfo)
+                  } else selection
+                }
+              }
+            }
         }
         .joinAll()
     }
@@ -269,10 +283,16 @@ class DirectAccessDeviceProvisionerPlugin(
             val reservation = connection.state.value.reservation
             val androidDevice = reservation.androidDevice
             if (!reservation.sessionState.isClosed() && reservation.hasAndroidDevice()) {
-              _templates.value
-                .firstOrNull {
-                  it.deviceInfo.codename == androidDevice.androidModelId &&
-                    it.deviceInfo.api.toString() == androidDevice.androidVersionId
+              // Wait for the target template becoming available before creating a device handle.
+              withTimeoutOrNull(FAST_TASK_TIMEOUT) {
+                  _templates
+                    .mapNotNull { list ->
+                      list.firstOrNull {
+                        it.deviceInfo.codename == androidDevice.androidModelId &&
+                          it.deviceInfo.api.toString() == androidDevice.androidVersionId
+                      }
+                    }
+                    .first()
                 }
                 ?.createDeviceHandleIfAbsent(reservation.name)
             } else null

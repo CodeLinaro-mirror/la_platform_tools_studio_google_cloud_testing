@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.ui.actions
 
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.google.gct.directaccess.ui.SelectDeviceDialog
@@ -54,10 +55,18 @@ class SelectProjectAction :
         ?.templates
         ?.value
         ?.filterIsInstance<DirectAccessDeviceTemplate>() ?: listOf()
+    val accessibleDevices =
+      e.project
+        ?.service<DirectAccessService>()
+        ?.cloudProjectManager
+        ?.value
+        ?.accessibleDeviceInfoListFlow
+        ?.stateFlow
+        ?.value
+        ?.map { it.key }
+        ?.toSet() ?: setOf()
     e.presentation.icon =
-      if (
-        templates.isNotEmpty() && templates.none { it.activationAction.presentation.value.enabled }
-      )
+      if (templates.isNotEmpty() && templates.none { it.deviceInfo.key in accessibleDevices })
         firebaseIconWithErrors
       else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = service<DirectAccessConfiguration>().isEnabled

@@ -33,6 +33,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.showAllTemplates
+import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
@@ -58,6 +59,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -343,6 +345,35 @@ class DirectAccessMultiProjectWithLogin2Test {
     withTimeout(TimeUnit.SECONDS.toMillis(2)) {
       plugin2.devices.takeWhile { it.isEmpty() }.collect()
     }
+    val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
+    assertThat(device1.connection).isEqualTo(device2.connection)
+  }
+
+  @Test
+  fun createTemplatesWithReservationsFromOtherCloudProjects() = runBlocking {
+    val template1 = provisioner1.templates.value[0] as DirectAccessDeviceTemplate
+
+    project2.service<DirectAccessService>().deviceSelectionListFlow.update {
+      it.map { selection -> DeviceSelection(false, selection.deviceInfo) }
+    }
+    yieldUntil { provisioner2.templates.value.isEmpty() }
+    // Create a reservation from project1.
+    val reservationManager =
+      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(
+      template1.deviceInfo.codename,
+      template1.deviceInfo.api.toString(),
+    )
+    project1.refreshReservations()
+    plugin1.devices.takeWhile { it.isEmpty() }.collect()
+    val device1 = plugin1.devices.value[0] as DirectAccessDeviceHandle
+    // Project2 creates a handle with the same device info immediately.
+    withTimeout(TimeUnit.SECONDS.toMillis(10)) {
+      plugin2.devices.takeWhile { it.isEmpty() }.collect()
+    }
+    val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
+    assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
+
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
   }
