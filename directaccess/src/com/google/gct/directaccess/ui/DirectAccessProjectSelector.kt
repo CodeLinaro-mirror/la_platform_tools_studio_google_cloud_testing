@@ -46,6 +46,7 @@ interface DirectAccessProjectSelector {
 
   val selectedProject: StateFlow<String>
 
+  /** Returns true if the [selectedProject] is ready to emit values. */
   val isReady: StateFlow<Boolean>
 }
 
@@ -149,11 +150,14 @@ class DirectAccessProjectSelectorImpl(
 
     private fun updateSelectedItem(item: String) {
       if (!isPreferredProjectApplied) {
-        isReady.value = true
-        isPreferredProjectApplied = true
         selectedItem = item
       }
       selectedProject.value = selectedItem as String
+      // Set isReady to true after preferred project applied.
+      if (!isPreferredProjectApplied) {
+        isReady.value = true
+        isPreferredProjectApplied = true
+      }
     }
   }
 }

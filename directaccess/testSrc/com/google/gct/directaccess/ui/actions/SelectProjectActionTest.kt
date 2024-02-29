@@ -50,6 +50,7 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.settings.DirectAccessConfiguration
+import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.ONBOARDING_WORKFLOW_KEY
@@ -59,6 +60,7 @@ import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
+import com.intellij.icons.AllIcons
 import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.ide.util.PropertiesComponent
@@ -81,6 +83,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.After
@@ -102,26 +106,12 @@ class SelectProjectActionTest {
   private val viewerTestProject = "viewerTestProject"
   private val unknownPermissionTestProject = "unknownPermissionTestProject"
   private val supportedProjectName = "supportedTestProject"
+  private val blazeProjectName = "blazeTestProject"
 
   private val projectRule = ProjectRule()
   private val popupRule = JBPopupRule()
   private val loginUsersRule = LoginUsersRule()
-  private val firebaseProjectClientRule =
-    FirebaseProjectClientRule().apply {
-      setupFirebaseClient(
-        throwErrorOnExecute = false,
-        returnMalformedJson = false,
-        projectList =
-          listOf(
-            apiDisabledProject,
-            unknownPermissionTestProject,
-            unsupportedTestProjectWithoutServiceUse,
-            viewerTestProject,
-            unknownPermissionTestProject,
-            supportedProjectName,
-          ),
-      )
-    }
+  private val firebaseProjectClientRule = FirebaseProjectClientRule()
 
   // Simulate the fake properties component using a map
   private val fakePropertiesComponent = mutableMapOf<Project, String>()
@@ -141,7 +131,8 @@ class SelectProjectActionTest {
       when (cloudProjectManagerFlow.value?.cloudProject?.name) {
         unsupportedTestProjectWithServiceUse -> parseFrom(setOf(SERVICES_USE))
         unsupportedTestProjectWithoutServiceUse -> parseFrom(FULL_PERMISSIONS_SET - SERVICES_USE)
-        supportedProjectName -> parseFrom(FULL_PERMISSIONS_SET)
+        supportedProjectName,
+        blazeProjectName -> parseFrom(FULL_PERMISSIONS_SET)
         viewerTestProject -> parseFrom(VIEWER_PERMISSIONS_SET)
         unknownPermissionTestProject ->
           parseFrom(FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE)
@@ -218,6 +209,29 @@ class SelectProjectActionTest {
     assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
       .isInstanceOf(SelectProjectAction::class.java)
 
+    // Check if DirectAccessProjectSelector chooses the preferred project.
+    firebaseProjectClientRule.setupFirebaseClient(
+      throwErrorOnExecute = false,
+      returnMalformedJson = false,
+      projectList = listOf(apiDisabledProject, supportedProjectName),
+    )
+    val testSelector = DirectAccessProjectSelectorImpl(supportedProjectName, true, scope)
+    testSelector.isReady.takeWhile { !it }.collect()
+    assertThat(testSelector.selectedProject.value).isEqualTo(supportedProjectName)
+
+    firebaseProjectClientRule.setupFirebaseClient(
+      throwErrorOnExecute = false,
+      returnMalformedJson = false,
+      projectList =
+        listOf(
+          apiDisabledProject,
+          unknownPermissionTestProject,
+          unsupportedTestProjectWithoutServiceUse,
+          viewerTestProject,
+          unknownPermissionTestProject,
+          supportedProjectName,
+        ),
+    )
     val selectDeviceAction = SelectProjectAction()
 
     // Click the device selection button.
@@ -316,6 +330,10 @@ class SelectProjectActionTest {
           dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
             label.icon == StudioIcons.Common.ERROR
           }
+        val planLabel =
+          dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
+            label.icon == AllIcons.General.ContextHelp
+          }
 
         // Select a project with viewer permission
         exceptionToThrow = null
@@ -369,10 +387,22 @@ class SelectProjectActionTest {
         assertThat(fakePropertiesComponent[projectRule.project])
           .isEqualTo(unknownPermissionTestProject)
 
-        // Select a project that supports direct access.
+        // Select a blaze project that supports direct access.
+        comboBox.model.selectedItem = blazeProjectName
+        waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
+        waitForCondition { planLabel.text == "Blaze Plan" }
+        waitForCondition {
+          planLabel.getHelpToolTipText().contains("This project is on the Blaze plan.")
+        }
+
+        // Select a spark project that supports direct access.
         comboBox.model.selectedItem = supportedProjectName
         waitForCondition {
           cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
+        }
+        waitForCondition { planLabel.text == "Spark Plan" }
+        waitForCondition {
+          planLabel.getHelpToolTipText().contains("Spark plans provide limited usage at no cost.")
         }
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
         assertThat(label.getHelpToolTipText()).isEqualTo("")
@@ -408,6 +438,9 @@ class SelectProjectActionTest {
         dialog.clickDefaultButton()
       }
     }
+
+    selectDeviceAction.update(event)
+    assertThat(selectDeviceAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
   }
 
   @RunsInEdt
@@ -474,6 +507,12 @@ class SelectProjectActionTest {
     selectDeviceAction.actionPerformed(event)
   }
 
+  @Test
+  fun testDescription() {
+    assertThat(SelectProjectAction().templatePresentation.description)
+      .isEqualTo("Open the Device Streaming dialog to select Firebase project and devices")
+  }
+
   private fun createCloudProjectManager(
     scope: CoroutineScope,
     name: String?,
@@ -510,6 +549,16 @@ class SelectProjectActionTest {
       .accessibleDeviceInfoListFlow
 
     doReturn(permissionFlow).whenever(mockCloudProjectManager).permissionFlow
+
+    val isBillingEnabledFlow =
+      RefreshableStateFlow(scope, Long.MAX_VALUE) {
+        when (name) {
+          supportedProjectName -> false
+          blazeProjectName -> true
+          else -> null
+        }
+      }
+    doReturn(isBillingEnabledFlow).whenever(mockCloudProjectManager).isBillingEnabledFlow
     return mockCloudProjectManager
   }
 }

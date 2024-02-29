@@ -34,7 +34,11 @@ val firebaseIconWithErrors = layeredIcon {
 }
 
 class SelectProjectAction :
-  AnAction("Configure Device Streaming Project", "text", FirebaseIcons.ACTION_ICON) {
+  AnAction(
+    "Configure Device Streaming Project",
+    "Open the Device Streaming dialog to select Firebase project and devices",
+    FirebaseIcons.ACTION_ICON,
+  ) {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
@@ -51,7 +55,10 @@ class SelectProjectAction :
         ?.value
         ?.filterIsInstance<DirectAccessDeviceTemplate>() ?: listOf()
     e.presentation.icon =
-      if (templates.isNotEmpty() && templates.all { it.state.error != null }) firebaseIconWithErrors
+      if (
+        templates.isNotEmpty() && templates.none { it.activationAction.presentation.value.enabled }
+      )
+        firebaseIconWithErrors
       else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = service<DirectAccessConfiguration>().isEnabled
   }

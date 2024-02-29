@@ -422,6 +422,11 @@ class DirectAccessDeviceHandle(
         // may be different from catalog
         manufacturer = sourceTemplate.properties.manufacturer
         model = sourceTemplate.properties.model
+        // We use the debug.firebase.test.lab.session as wear pairing identifier as it should remain
+        // constant for the time that the user is using the device. We can not just use the serial
+        // number directly since the user might pick the same device in two different sessions,
+        // and it might have been wiped out.
+        wearPairingId = properties["debug.firebase.test.lab.session"] ?: properties["ro.serialno"]
         populateDeviceInfoProto(
           PLUGIN_ID,
           device.serialNumber,

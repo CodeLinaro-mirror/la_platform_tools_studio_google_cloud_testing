@@ -34,6 +34,7 @@ import com.google.gct.login.LoginState
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
+import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.HelpTooltip
 import com.intellij.ide.util.PropertiesComponent
@@ -59,6 +60,7 @@ import com.intellij.ui.util.maximumWidth
 import com.intellij.ui.util.minimumHeight
 import com.intellij.ui.util.preferredHeight
 import com.intellij.ui.util.preferredWidth
+import com.intellij.util.applyIf
 import com.intellij.util.ui.HTMLEditorKitBuilder
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
@@ -313,10 +315,16 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     val selectorLayout = CardLayout()
     val selectorPanel = JPanel(selectorLayout)
 
+    val planLabel =
+      JBLabel().apply {
+        horizontalTextPosition = JBLabel.LEFT
+        icon = AllIcons.General.ContextHelp
+        font = JBFont.medium().asBold()
+      }
     val usedMinutesLabel = JBLabel()
     val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
     updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
-
+    updatePlan(planLabel, null)
     val updateSelector: (Boolean) -> Unit = { enabled ->
       selectorPanel.add(
         if (enabled) {
@@ -352,6 +360,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                 it,
                 panel,
                 errorIcon,
+                planLabel,
                 usedMinutesLabel,
                 remainingMinutesLabel,
               )
@@ -395,6 +404,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     chooseProjectPanel.add(selectorPanel)
     panel.add(chooseProjectPanel)
     panel.add(viewAllProjectsPanel)
+    panel.add(planLabel)
     panel.add(usagePanel)
     return panel
   }
@@ -423,6 +433,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     cloudProject: String,
     parent: JPanel,
     errorIcon: JBLabel,
+    planLabel: JBLabel,
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
   ) {
@@ -463,6 +474,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           errorIcon.revalidate()
           errorIcon.repaint()
           updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
+          updatePlan(planLabel, null)
         } else {
           errorIcon.toolTipText = ""
           errorIcon.isVisible = false
@@ -477,6 +489,10 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                   null
                 }
               },
+            )
+            updatePlan(
+              planLabel,
+              project.directAccessCloudProjectManager?.isBillingEnabledFlow?.value,
             )
             parent.revalidate()
           }
@@ -561,6 +577,33 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         }
       } ?: "--"
     remainingMinutesLabel.text = "$remainingText mins remaining"
+  }
+
+  private fun updatePlan(planLabel: JBLabel, isBillingEnabled: Boolean?) {
+    planLabel.text = isBillingEnabled?.let { if (it) "Blaze Plan" else "Spark Plan" } ?: "Plan: -"
+
+    val description =
+      when (isBillingEnabled) {
+        true -> "This project is on the Blaze plan."
+        false -> "Spark plans provide limited usage at no cost."
+        null -> "Billing information not available."
+      }
+    HelpTooltip()
+      .setDescription(description)
+      .applyIf(isBillingEnabled != null) {
+        val linkText =
+          when (isBillingEnabled!!) {
+            true -> "View Pricing"
+            false -> "Learn More..."
+          }
+        val link =
+          when (isBillingEnabled) {
+            true -> "https://d.android.com/r/studio-ui/device-streaming/pricing"
+            false -> "https://d.android.com/r/studio-ui/device-streaming/firebase-plans"
+          }
+        setLink(linkText) { BrowserUtil.browse(link) }
+      }
+      .installOn(planLabel)
   }
 
   override fun doOKAction() {

@@ -66,7 +66,7 @@ private val stickyNotificationGroup: NotificationGroup
 
 private val RESERVATION_EXPIRING_SECONDS = TimeUnit.MINUTES.toSeconds(5)
 
-const val RESERVATION_EXPIRING_BANNER_TITLE = "Reservation ending in 5 mins"
+const val RESERVATION_EXPIRING_BANNER_TITLE = "Reservation ending in less than 5 mins"
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DirectAccessNotificationManager(
@@ -318,7 +318,7 @@ class DirectAccessNotificationManager(
       notificationGroup
         .createNotification(
           RESERVATION_EXPIRING_BANNER_TITLE,
-          "${deviceHandle.sourceTemplate.properties.title} will disconnect in 5 mins. Extend reservation to continue access to the device.",
+          "${deviceHandle.sourceTemplate.properties.title} will disconnect in less than 5 mins. Extend reservation to continue access to the device.",
           NotificationType.INFORMATION,
         )
         .addAction(

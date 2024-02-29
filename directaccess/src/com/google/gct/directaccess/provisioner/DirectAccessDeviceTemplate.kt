@@ -50,7 +50,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -75,7 +74,16 @@ class DirectAccessDeviceTemplate(
 
   override val stateFlow =
     isAuthenticatorReady
-      .map { TemplateState(if (it) null else DirectAccessDeviceError()) }
+      .combine(deviceInfoFlow) { isReady, deviceInfo ->
+        val waitTimeText =
+          deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
+
+        TemplateState(
+          if (isReady && waitTimeText != null)
+            DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
+          else null
+        )
+      }
       .stateIn(scope, SharingStarted.Eagerly, TemplateState(null))
 
   private val isActivationStarted = MutableStateFlow(false)
@@ -167,17 +175,11 @@ class DirectAccessDeviceTemplate(
 
       private suspend fun confirmWaitingTime() {
         deviceInfo.deviceAvailabilityEstimateSeconds
-          ?.let { seconds ->
-            when {
-              seconds < SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds -> null
-              seconds < LONG_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds -> "less than"
-              else -> "more than"
-            }
-          }
+          ?.let { seconds -> waitTimeText(seconds, "minutes") }
           ?.let { waitingTimeText ->
             val title = "Reserve ${properties.title}"
             val message =
-              "The ${properties.title} will be available in $waitingTimeText 15 minutes.\n" +
+              "The ${properties.title} will be available in $waitingTimeText.\n" +
                 "You will not be billed for this duration."
             val result =
               withContext(AndroidDispatchers.uiThread) {
@@ -335,10 +337,20 @@ class DirectAccessDeviceTemplate(
       )
   }
 
-  private class DirectAccessDeviceError : DeviceError {
-    override val severity = DeviceError.Severity.ERROR
-    override val message = "Unable to reserve device"
-  }
+  private fun waitTimeText(seconds: Long, minuteSuffix: String): String? =
+    "${LONG_AWAITING_RESERVATION_READY_TIME_LIMIT.toMinutes()} $minuteSuffix"
+      .let { suffix ->
+        when {
+          seconds < SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds -> null
+          seconds < LONG_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds -> "less than $suffix"
+          else -> "more than $suffix"
+        }
+      }
+
+  private data class DirectAccessDeviceError(
+    override val severity: DeviceError.Severity = DeviceError.Severity.WARNING,
+    override val message: String,
+  ) : DeviceError
 }
 
 internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DirectAccessDeviceProperties {

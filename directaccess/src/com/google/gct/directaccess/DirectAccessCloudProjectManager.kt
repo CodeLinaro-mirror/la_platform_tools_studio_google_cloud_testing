@@ -107,6 +107,15 @@ class DirectAccessCloudProjectManager(
       checkDirectAccessPermission(cloudProject)
     }
 
+  val isBillingEnabledFlow: RefreshableStateFlow<Boolean?> =
+    RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(30)) {
+      try {
+        service<CloudAuthenticator>().isBillingEnabled(cloudProject.name)
+      } catch (e: Exception) {
+        null
+      }
+    }
+
   override fun close() {
     // Put reservations in grace period when the last studio project
     // using this cloud project manager is closed.
