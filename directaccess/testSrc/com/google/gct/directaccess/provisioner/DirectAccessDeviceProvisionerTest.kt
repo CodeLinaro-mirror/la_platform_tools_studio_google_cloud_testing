@@ -125,6 +125,9 @@ import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 
+private const val SIGN_OUT_TEXT =
+  "Are you sure you want to sign out? This will sign out all logged in users."
+
 class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
@@ -1165,10 +1168,12 @@ class DirectAccessDeviceProvisionerTest {
 
     // Setup dialog such that user agrees to return devices while signing out
     TestDialogManager.setTestDialog { message ->
-      assertThat(message)
-        .isEqualTo(
-          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-        )
+      if (message != SIGN_OUT_TEXT) {
+        assertThat(message)
+          .isEqualTo(
+            "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+          )
+      }
       Messages.YES
     }
     service<GoogleLoginService>().logOutAllUsersAsync()
@@ -1192,11 +1197,15 @@ class DirectAccessDeviceProvisionerTest {
 
     // Setup dialog such that user declines to return devices while signing out
     TestDialogManager.setTestDialog { message ->
-      assertThat(message)
-        .isEqualTo(
-          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-        )
-      Messages.NO
+      if (message == SIGN_OUT_TEXT) {
+        Messages.YES
+      } else {
+        assertThat(message)
+          .isEqualTo(
+            "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+          )
+        Messages.NO
+      }
     }
     service<GoogleLoginService>().logOutAllUsersAsync()
 
