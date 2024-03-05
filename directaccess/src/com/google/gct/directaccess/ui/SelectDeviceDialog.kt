@@ -23,6 +23,7 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.FULL_PERMISSIONS_SET
@@ -101,6 +102,8 @@ private val PRESELECTED_DEVICE_KEY_SET = setOf("shiba/34", "felix/33", "b0q/33",
 val userSpecificFirebaseConsoleLink: String
   get() = "https://console.firebase.google.com?authuser=${service<GoogleLoginService>().getEmail()}"
 
+const val VIEW_PRICING_DETAILS_LINK = "https://d.android.com/r/studio-ui/device-streaming/pricing"
+
 class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
 
@@ -125,6 +128,9 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     HyperlinkLabel("View All Projects").apply {
       setHyperlinkTarget(userSpecificFirebaseConsoleLink)
     }
+
+  private val viewPricingDetailsHyperlink =
+    HyperlinkLabel("View Pricing Details").apply { setHyperlinkTarget(VIEW_PRICING_DETAILS_LINK) }
 
   private val isDirectAccessEnabled =
     (if (service<GoogleLoginService>().useOldVersion) service<LoginState>().loginStatus
@@ -217,7 +223,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   }
 
   init {
-    title = "Select Devices"
+    title = "Configure Device Streaming"
     updateDeviceRowDataList(false)
     init()
   }
@@ -246,14 +252,20 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
   override fun createCenterPanel(): JComponent {
     val topPanel = JPanel(VerticalLayout(5))
-    topPanel.add(createTitleLabel("Device Streaming in Android Studio"))
+    topPanel.add(createTitleLabel("Android Device Streaming"))
     topPanel.add(
       createTextPane(topPanel).apply {
         text =
-          "Device Streaming in Android Studio provides secure direct ADB access to a wide range of Android devices hosted by Firebase," +
-            " which you can use to debug and interact with your app. <br>" +
-            "${if (isDirectAccessEnabled.value) "Select" else "Log in and select"} a Firebase Spark plan project for limited access at no cost," +
-            " or select a Blaze project for pay-as-you-go access that’s billed monthly. " +
+          "Android Device Streaming, powered by Firebase, provides secure direct ADB access to a wide range of Android devices," +
+            " which you can use to debug and interact with your app.  <br>" +
+            if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
+              "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
+                " Select a Firebase Spark plan project for limited access at no cost," +
+                " or select a Blaze project for pay-as-you-go access that’s billed monthly. "
+            } else {
+              "Android Device Streaming is a Preview service and may encounter service disruptions or issues as performance improves." +
+                " Service usage is currently limited to a daily quota at no cost, and billed usage will be introduced at a later date. "
+            } +
             "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>↗"
       }
     )
@@ -264,7 +276,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       createTextPane(topPanel).apply {
         text =
           "Select the devices you want to access. The devices you select are added to the Device Manager " +
-            "and deploy target dropdown menu in the main toolbar."
+            "and deploy target dropdown menu in the main toolbar. There is no cost associated with this action."
       }
     )
 
@@ -326,6 +338,10 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       }
     val usedMinutesLabel = JBLabel()
     val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
+    val informationLabel =
+      JBLabel("Estimated minutes based on usage across all Firebase project members.").apply {
+        foreground = UIUtil.getLabelInfoForeground()
+      }
     updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
     updatePlan(planLabel, null)
     val updateSelector: (Boolean) -> Unit = { enabled ->
@@ -393,6 +409,9 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       JPanel(HorizontalLayout(5)).apply {
         add(usedMinutesLabel)
         add(remainingMinutesLabel)
+        if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
+          add(viewPricingDetailsHyperlink)
+        }
       }
     val viewAllProjectsPanel =
       JPanel(HorizontalLayout(0)).apply {
@@ -413,6 +432,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     panel.add(viewAllProjectsPanel)
     panel.add(planLabel)
     panel.add(usagePanel)
+    panel.add(informationLabel)
     return panel
   }
 
@@ -486,6 +506,8 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           errorIcon.toolTipText = ""
           errorIcon.isVisible = false
           launch {
+            val isBillingEnabled =
+              project.directAccessCloudProjectManager?.isBillingEnabledFlow?.value
             updateRemainingQuota(
               usedMinutesLabel,
               remainingMinutesLabel,
@@ -496,11 +518,9 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                   null
                 }
               },
+              isBillingEnabled,
             )
-            updatePlan(
-              planLabel,
-              project.directAccessCloudProjectManager?.isBillingEnabledFlow?.value,
-            )
+            updatePlan(planLabel, isBillingEnabled)
             parent.revalidate()
           }
         }
@@ -572,29 +592,48 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
     quota: Pair<Long, Long>?,
+    isBillingEnabled: Boolean? = null,
   ) {
     usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
-    val remainingText =
-      quota?.let {
-        val remainingMinutes = it.second - it.first
-        when {
-          remainingMinutes < 0 -> "--"
-          remainingMinutes < 30 -> "less than 30"
-          else -> remainingMinutes.toString()
-        }
-      } ?: "--"
-    remainingMinutesLabel.text = "$remainingText mins remaining"
+
+    if (
+      service<DirectAccessApplicationService>().isMonthlyBillingEnabled && isBillingEnabled == true
+    ) {
+      remainingMinutesLabel.text = "Blaze Plan may incur charges"
+    } else {
+      val remainingText =
+        quota?.let {
+          val remainingMinutes = it.second - it.first
+          when {
+            remainingMinutes < 0 -> "0"
+            remainingMinutes < 30 -> "less than 30"
+            else -> remainingMinutes.toString()
+          }
+        } ?: "--"
+      remainingMinutesLabel.text = "$remainingText mins remaining"
+    }
   }
 
   private fun updatePlan(planLabel: JBLabel, isBillingEnabled: Boolean?) {
     planLabel.text = isBillingEnabled?.let { if (it) "Blaze Plan" else "Spark Plan" } ?: "Plan: -"
 
-    val description =
+    var description =
       when (isBillingEnabled) {
         true -> "This project is on the Blaze plan."
         false -> "Spark plans provide limited usage at no cost."
         null -> "Billing information not available."
       }
+
+    if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
+      when (isBillingEnabled) {
+        true -> description = "Blaze plans allow extended usage and is billed monthly."
+        false ->
+          description +=
+            " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
+        else -> {}
+      }
+    }
+
     HelpTooltip()
       .setDescription(description)
       .applyIf(isBillingEnabled != null) {
@@ -605,7 +644,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           }
         val link =
           when (isBillingEnabled) {
-            true -> "https://d.android.com/r/studio-ui/device-streaming/pricing"
+            true -> VIEW_PRICING_DETAILS_LINK
             false -> "https://d.android.com/r/studio-ui/device-streaming/firebase-plans"
           }
         setLink(linkText) { BrowserUtil.browse(link) }

@@ -371,9 +371,8 @@ class DirectAccessMultiProjectWithLogin2Test {
     withTimeout(TimeUnit.SECONDS.toMillis(10)) {
       plugin2.devices.takeWhile { it.isEmpty() }.collect()
     }
-    val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
+    val template2 = plugin2.templates.value[0] as DirectAccessDeviceTemplate
     assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
-
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
   }

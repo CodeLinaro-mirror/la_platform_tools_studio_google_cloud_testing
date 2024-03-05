@@ -38,6 +38,7 @@ import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudProjectEntry
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
 import com.google.gct.directaccess.DirectAccessService
@@ -159,11 +160,13 @@ class SelectProjectActionTest {
   @Before
   fun setUp() {
     PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
+    service<DirectAccessApplicationService>().isMonthlyBillingEnabled = false
   }
 
   @After
   fun tearDown() {
     PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
+    service<DirectAccessApplicationService>().isMonthlyBillingEnabled = false
   }
 
   @RunsInEdt
@@ -410,6 +413,38 @@ class SelectProjectActionTest {
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
         waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
 
+        service<DirectAccessApplicationService>().isMonthlyBillingEnabled = true
+        // Select a blaze project that supports direct access with monthly quota.
+        comboBox.model.selectedItem = blazeProjectName
+        waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
+        waitForCondition { planLabel.text == "Blaze Plan" }
+        waitForCondition {
+          planLabel
+            .getHelpToolTipText()
+            .contains("Blaze plans allow extended usage and is billed monthly.")
+        }
+        waitForCondition { usedMinutesLabel.text == "60 mins used" }
+        waitForCondition { remainingMinutesLabel.text == "Blaze Plan may incur charges" }
+
+        // Select a spark project that supports direct access with monthly quota.
+        comboBox.model.selectedItem = supportedProjectName
+        waitForCondition {
+          cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
+        }
+        waitForCondition { planLabel.text == "Spark Plan" }
+        waitForCondition {
+          planLabel
+            .getHelpToolTipText()
+            .contains(
+              "Spark plans provide limited usage at no cost. " +
+                "Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
+            )
+        }
+        assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
+        assertThat(label.getHelpToolTipText()).isEqualTo("")
+
+        waitForCondition { usedMinutesLabel.text == "60 mins used" }
+        waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
         mockDeviceSelectionListFlow.value =
           (TestUtils.deviceInfoListProvider() + preselectedDeviceInfo).map {
             DeviceSelection(false, it)
