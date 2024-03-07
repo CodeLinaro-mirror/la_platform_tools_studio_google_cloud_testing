@@ -49,6 +49,7 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlug
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.provisioner.PLUGIN_ID
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
+import com.google.gct.directaccess.rule.PropertiesComponentRule
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
@@ -108,6 +109,7 @@ class DirectAccessUsageTrackerTest {
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
   private val loginUsersRule = LoginUsersRule()
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
+  private val propertiesComponentRule = PropertiesComponentRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
@@ -116,6 +118,7 @@ class DirectAccessUsageTrackerTest {
       .around(grpcConnectionRule)
       .around(loginUsersRule)
       .around(cleanUpNotificationRule)
+      .around(propertiesComponentRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin

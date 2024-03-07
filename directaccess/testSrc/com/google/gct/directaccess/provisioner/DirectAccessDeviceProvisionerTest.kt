@@ -62,6 +62,7 @@ import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
+import com.google.gct.directaccess.rule.PropertiesComponentRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login.CredentialedUser
 import com.google.gct.login.GoogleLogin
@@ -124,6 +125,9 @@ import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 
+private const val SIGN_OUT_TEXT =
+  "Are you sure you want to sign out? This will sign out all logged in users."
+
 class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
@@ -132,6 +136,7 @@ class DirectAccessDeviceProvisionerTest {
   private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
+  private val propertiesComponentRule = PropertiesComponentRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
@@ -141,6 +146,7 @@ class DirectAccessDeviceProvisionerTest {
       .around(loginStateRule)
       .around(fakeToolWindowRule)
       .around(cleanUpNotificationRule)
+      .around(propertiesComponentRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -1162,10 +1168,12 @@ class DirectAccessDeviceProvisionerTest {
 
     // Setup dialog such that user agrees to return devices while signing out
     TestDialogManager.setTestDialog { message ->
-      assertThat(message)
-        .isEqualTo(
-          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-        )
+      if (message != SIGN_OUT_TEXT) {
+        assertThat(message)
+          .isEqualTo(
+            "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+          )
+      }
       Messages.YES
     }
     service<GoogleLoginService>().logOutAllUsersAsync()
@@ -1189,11 +1197,15 @@ class DirectAccessDeviceProvisionerTest {
 
     // Setup dialog such that user declines to return devices while signing out
     TestDialogManager.setTestDialog { message ->
-      assertThat(message)
-        .isEqualTo(
-          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-        )
-      Messages.NO
+      if (message == SIGN_OUT_TEXT) {
+        Messages.YES
+      } else {
+        assertThat(message)
+          .isEqualTo(
+            "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+          )
+        Messages.NO
+      }
     }
     service<GoogleLoginService>().logOutAllUsersAsync()
 

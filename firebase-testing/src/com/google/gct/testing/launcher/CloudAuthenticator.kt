@@ -15,6 +15,7 @@
  */
 package com.google.gct.testing.launcher
 
+import com.android.tools.idea.flags.StudioFlags
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -70,6 +71,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
         myTest = null
         myMonitoring = null
         myToolresults = null
+        myCloudbilling = null
       }
 
       if (service<GoogleLoginService>().useOldVersion) {
@@ -85,7 +87,11 @@ class CloudAuthenticator(scope: CoroutineScope) {
   val storage: Storage
     get() {
       return myStorage
-        ?: Storage.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
+        ?: Storage.Builder(
+            myHttpTransport,
+            GsonFactory.getDefaultInstance(),
+            firebaseFeature.credential(),
+          )
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myStorage = it }
@@ -93,12 +99,20 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   fun recreateTestAndToolResults(testBackendUrl: String?, toolResultsBackendUrl: String?) {
     myTest =
-      Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
+      Testing.Builder(
+          myHttpTransport,
+          GsonFactory.getDefaultInstance(),
+          firebaseFeature.credential(),
+        )
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(testBackendUrl)
         .build()
     myToolresults =
-      ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
+      ToolResults.Builder(
+          myHttpTransport,
+          GsonFactory.getDefaultInstance(),
+          firebaseFeature.credential(),
+        )
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(toolResultsBackendUrl)
         .build()
@@ -108,10 +122,13 @@ class CloudAuthenticator(scope: CoroutineScope) {
     get() {
       return myCloudbilling
         ?: Cloudbilling.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          firebaseFeature.credential(),
-        ).setApplicationName(APPLICATION_NAME).build().also { myCloudbilling = it }
+            myHttpTransport,
+            GsonFactory.getDefaultInstance(),
+            firebaseFeature.credential(),
+          )
+          .setApplicationName(APPLICATION_NAME)
+          .build()
+          .also { myCloudbilling = it }
     }
 
   val cloudResourceManager: CloudResourceManager
@@ -134,7 +151,11 @@ class CloudAuthenticator(scope: CoroutineScope) {
   /** Get a test client pointing to the given backend. */
   private fun getTest(endpoint: String?): Testing {
     return myTest
-      ?: Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
+      ?: Testing.Builder(
+          myHttpTransport,
+          GsonFactory.getDefaultInstance(),
+          firebaseFeature.credential(),
+        )
         .setApplicationName(APPLICATION_NAME)
         .apply {
           if (endpoint != null) {
@@ -147,7 +168,11 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   private fun getMonitoring(endpoint: String?): Monitoring {
     return myMonitoring
-      ?: Monitoring.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
+      ?: Monitoring.Builder(
+          myHttpTransport,
+          GsonFactory.getDefaultInstance(),
+          firebaseFeature.credential(),
+        )
         .setApplicationName(APPLICATION_NAME)
         .apply {
           if (endpoint != null) {
@@ -206,8 +231,8 @@ class CloudAuthenticator(scope: CoroutineScope) {
       }
     }
 
-  fun isBillingEnabled(cloudProject: String):Boolean =
-      cloudbilling.projects().getBillingInfo("projects/$cloudProject").execute().billingEnabled
+  fun isBillingEnabled(cloudProject: String): Boolean =
+    cloudbilling.projects().getBillingInfo("projects/$cloudProject").execute().billingEnabled
 
   @Throws(IOException::class)
   private fun queryMonitoring(
@@ -216,7 +241,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
     queryString: String,
   ): QueryTimeSeriesResponse {
     val monitoring = getMonitoring(endpoint)
-    val request = QueryTimeSeriesRequest().setQuery(queryString).setPageSize(200)
+    val request = QueryTimeSeriesRequest().setQuery(queryString).setPageSize(Int.MAX_VALUE)
     return monitoring.projects().timeSeries().query(project, request).execute()
   }
 
@@ -226,50 +251,89 @@ class CloudAuthenticator(scope: CoroutineScope) {
    * @param endpoint end point of the monitoring backend, effective only for the first calling
    * @param project name of the cloud project
    */
-  fun getQuotaUsageAndLimit(endpoint: String, project: String): Pair<Long, Long>? {
+  fun getQuotaUsageAndLimit(
+    endpoint: String,
+    project: String,
+    isMonthly: Boolean,
+  ): Pair<Long, Long>? {
     val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-    calendar.timeInMillis = CloudTestingUtils.getTimestampAtMidnightInPT(Instant.now())
+    calendar.timeInMillis =
+      if (isMonthly) CloudTestingUtils.getTimestampAtMonthStartMidnightInPT(Instant.now())
+      else CloudTestingUtils.getTimestampAtMidnightInPT(Instant.now())
     // Sets up the beginning date of the query interval.
     val date =
       String.format(
         Locale.US,
-        "d'%d/%d/%d 7:00'",
+        "d'%d/%d/%d %d:00'",
         calendar[Calendar.YEAR],
         calendar[Calendar.MONTH] + 1,
         calendar[Calendar.DAY_OF_MONTH],
+        calendar[Calendar.HOUR],
       )
 
     try {
       val usageResponse =
-        queryMonitoring(
-          endpoint,
-          project,
-          """fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/rate/net_usage'
-| filter metric.quota_metric=="testing.googleapis.com/direct_access/blaze_physical_minutes" || metric.quota_metric=="testing.googleapis.com/direct_access/spark_physical_minutes"
-| within $date""",
-        )
+        if (isMonthly) {
+          queryMonitoring(
+            endpoint,
+            project,
+            """
+              fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/allocation/usage'
+              | filter metric.quota_metric=="testing.googleapis.com/direct_access/blaze_physical_minutes_monthly" || metric.quota_metric=="testing.googleapis.com/direct_access/spark_physical_minutes_monthly"
+              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+              | within $date
+              """,
+          )
+        } else {
+          queryMonitoring(
+            endpoint,
+            project,
+            """
+              fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/rate/net_usage'
+              | filter metric.quota_metric=="testing.googleapis.com/direct_access/blaze_physical_minutes" || metric.quota_metric=="testing.googleapis.com/direct_access/spark_physical_minutes"
+              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+              | within $date
+              """,
+          )
+        }
       // Response does not has enough data to determine usage.
       if (usageResponse.size < 2) {
         return null
       }
       val usageNumber = sumNumbers(usageResponse)
       val limitResponse =
-        queryMonitoring(
-          endpoint,
-          project,
-          """
+        if (isMonthly) {
+          queryMonitoring(
+            endpoint,
+            project,
+            """
+              fetch consumer_quota
+              | metric 'serviceruntime.googleapis.com/quota/limit'
+              | filter metric.limit_name=="BlazePhysicalDeviceDirectAccessMinutesPerMonthPerProject"|| metric.limit_name=="SparkPhysicalDeviceDirectAccessMinutesPerMonthPerProject"
+              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+              | within $date
+              """
+              .trimIndent(),
+          )
+        } else {
+          queryMonitoring(
+            endpoint,
+            project,
+            """
               fetch consumer_quota
               | metric 'serviceruntime.googleapis.com/quota/limit'
               | filter metric.limit_name=="BlazePhysicalDeviceDirectAccessMinutesPerDayPerProject"|| metric.limit_name=="SparkPhysicalDeviceDirectAccessMinutesPerDayPerProject"
+              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
               | within $date
               """
-            .trimIndent(),
-        )
-      val limitNumber = findNumber(limitResponse)
+              .trimIndent(),
+          )
+        }
       // Response does not has enough data to determine usage limit.
-      if (usageResponse.size < 2) {
+      if (limitResponse.size < 2) {
         return null
       }
+      val limitNumber = findNumber(limitResponse)
       return Pair(usageNumber, limitNumber)
     } catch (e: Exception) {
       // TODO: Surface errors in the UI.
@@ -312,7 +376,11 @@ class CloudAuthenticator(scope: CoroutineScope) {
   val toolresults: ToolResults
     get() =
       myToolresults
-        ?: ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
+        ?: ToolResults.Builder(
+            myHttpTransport,
+            GsonFactory.getDefaultInstance(),
+            firebaseFeature.credential(),
+          )
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myToolresults = it }

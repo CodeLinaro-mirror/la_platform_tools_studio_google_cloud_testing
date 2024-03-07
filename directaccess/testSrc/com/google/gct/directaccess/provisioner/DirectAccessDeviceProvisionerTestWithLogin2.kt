@@ -61,8 +61,10 @@ import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
+import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
+import com.google.gct.directaccess.rule.PropertiesComponentRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginUsersRule
@@ -77,6 +79,7 @@ import com.google.services.firebase.directaccess.client.isActive
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DeviceInfo
 import com.intellij.icons.AllIcons
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationDisplayType
@@ -99,6 +102,7 @@ import icons.StudioIcons
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import javax.swing.JLabel
@@ -131,6 +135,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
   private val loginUsersRule = LoginUsersRule()
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
+  private val propertiesComponentRule = PropertiesComponentRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
@@ -140,6 +145,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
       .around(loginUsersRule)
       .around(fakeToolWindowRule)
       .around(cleanUpNotificationRule)
+      .around(propertiesComponentRule)
 
   private val session = FakeAdbSession()
   private lateinit var plugin: DirectAccessDeviceProvisionerPlugin
@@ -1242,6 +1248,97 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     assertThat(plugin.devices.value.size).isEqualTo(plugin.templates.value.size)
     assertThat(service<GoogleLoginService>().isLoggedIn()).isTrue()
   }
+
+  @Test
+  fun testUnknownUsagePromptBeforeReservingDevice() =
+    testUsagePromptBeforeReservingDevice(
+      null,
+      "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+      "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+      UNKNOWN_DEVICE_DO_NOT_ASK,
+      UNKNOWN_DEVICE_DO_NOT_ASK,
+    )
+
+  @Test
+  fun testSparkUsagePromptBeforeReservingDevice() =
+    testUsagePromptBeforeReservingDevice(
+      false,
+      "Devices are reserved for 30 minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
+      "You have another streaming device reserved. The new device will be reserved and count towards your Spark Plan free minutes.",
+      SPARK_SINGLE_DEVICE_DO_NOT_ASK,
+      SPARK_MULTI_DEVICE_DO_NOT_ASK,
+    )
+
+  @Test
+  fun testBlazeUsagePromptBeforeReservingDevice() =
+    testUsagePromptBeforeReservingDevice(
+      true,
+      "You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+      "You have another device streaming session. You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+      BLAZE_SINGLE_DEVICE_DO_NOT_ASK,
+      BLAZE_MULTI_DEVICE_DO_NOT_ASK,
+    )
+
+  private fun testUsagePromptBeforeReservingDevice(
+    billing: Boolean?,
+    singleMessage: String,
+    multiMessage: String,
+    singleKey: String,
+    multiKey: String,
+  ) =
+    try {
+      StudioFlags.DIRECT_ACCESS_MONTHLY_QUOTA.override(true)
+      runBlockingWithTimeout {
+        val countDownLatch = CountDownLatch(2)
+        // Unset values set by PropertiesComponentRule
+        PropertiesComponent.getInstance(projectRule.project).unsetValue(singleKey)
+        PropertiesComponent.getInstance(projectRule.project).unsetValue(multiKey)
+        val cloudProjectManager = projectRule.project.directAccessCloudProjectManager!!
+        val billingEnabledFlow = RefreshableStateFlow(scope, TimeUnit.HOURS.toMillis(1)) { billing }
+        doAnswer { billingEnabledFlow }.whenever(cloudProjectManager).isBillingEnabledFlow
+
+        TestDialogManager.setTestDialog { message ->
+          assertThat(message).isEqualTo(singleMessage)
+          countDownLatch.countDown()
+          Messages.YES
+        }
+        // Reserve a device
+        plugin.templates.value[0].activationAction.activate()
+        yieldUntil { plugin.devices.value.size == 1 }
+
+        TestDialogManager.setTestDialog { message ->
+          assertThat(message).isEqualTo(multiMessage)
+          countDownLatch.countDown()
+          Messages.YES
+        }
+        // Reserve another device for multi-device prompt
+        plugin.templates.value[4].activationAction.activate()
+        yieldUntil { plugin.devices.value.size == 2 }
+
+        // Check the "do not ask again" box
+        PropertiesComponent.getInstance(projectRule.project).setValue(singleKey, true)
+        PropertiesComponent.getInstance(projectRule.project).setValue(multiKey, true)
+
+        // Setup prompt to fail test if invoked
+        TestDialogManager.setTestDialog {
+          fail("Should not prompt")
+          Messages.YES
+        }
+
+        plugin.devices.value.forEach { it.deactivationAction?.deactivate() }
+        yieldUntil { plugin.devices.value.isEmpty() }
+
+        // Reserve devices again
+        plugin.templates.value[0].activationAction.activate()
+        yieldUntil { plugin.devices.value.size == 1 }
+
+        plugin.templates.value[4].activationAction.activate()
+        yieldUntil { plugin.devices.value.size == 2 }
+        assertThat(countDownLatch.count).isEqualTo(0)
+      }
+    } finally {
+      StudioFlags.DIRECT_ACCESS_MONTHLY_QUOTA.clearOverride()
+    }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
