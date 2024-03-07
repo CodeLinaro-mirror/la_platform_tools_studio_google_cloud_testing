@@ -45,5 +45,6 @@ iml_module(
         "//tools/adt/idea/streaming:intellij.android.streaming[module]",
         "//tools/adt/idea/server-flags:intellij.android.server-flags[module]",
         "//tools/adt/idea/.idea/libraries:cloudresourcemanager",
+        "//tools/adt/idea/intellij.android.device[module]",
     ],
 )
