@@ -279,8 +279,8 @@ class CloudAuthenticator(scope: CoroutineScope) {
             project,
             """
               fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/allocation/usage'
-              | filter metric.quota_metric=="testing.googleapis.com/direct_access/blaze_physical_minutes_monthly" || metric.quota_metric=="testing.googleapis.com/direct_access/spark_physical_minutes_monthly"
-              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+              | $queryFilterWithMonthlyQuotaMetric
+              | $queryFilterWithResourceService
               | within $date
               """,
           )
@@ -290,8 +290,8 @@ class CloudAuthenticator(scope: CoroutineScope) {
             project,
             """
               fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/rate/net_usage'
-              | filter metric.quota_metric=="testing.googleapis.com/direct_access/blaze_physical_minutes" || metric.quota_metric=="testing.googleapis.com/direct_access/spark_physical_minutes"
-              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+              | $queryFilterWithDailyQuotaMetric
+              | $queryFilterWithResourceService
               | within $date
               """,
           )
@@ -309,8 +309,8 @@ class CloudAuthenticator(scope: CoroutineScope) {
             """
               fetch consumer_quota
               | metric 'serviceruntime.googleapis.com/quota/limit'
-              | filter metric.limit_name=="BlazePhysicalDeviceDirectAccessMinutesPerMonthPerProject"|| metric.limit_name=="SparkPhysicalDeviceDirectAccessMinutesPerMonthPerProject"
-              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+              | $queryFilterWithMonthlyQuotaMetric
+              | $queryFilterWithResourceService
               | within $date
               """
               .trimIndent(),
@@ -322,8 +322,8 @@ class CloudAuthenticator(scope: CoroutineScope) {
             """
               fetch consumer_quota
               | metric 'serviceruntime.googleapis.com/quota/limit'
-              | filter metric.limit_name=="BlazePhysicalDeviceDirectAccessMinutesPerDayPerProject"|| metric.limit_name=="SparkPhysicalDeviceDirectAccessMinutesPerDayPerProject"
-              | filter resource.service=="${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+              | $queryFilterWithDailyQuotaMetric
+              | $queryFilterWithResourceService
               | within $date
               """
               .trimIndent(),
@@ -340,6 +340,27 @@ class CloudAuthenticator(scope: CoroutineScope) {
       return null
     }
   }
+
+  private val queryFilterWithMonthlyQuotaMetric =
+    "testing.googleapis.com/device_streaming"
+      .let { prefix ->
+        """
+            filter metric.quota_metric=="$prefix/blaze_physical_minutes_monthly"
+                || metric.quota_metric=="$prefix/spark_physical_minutes_monthly"
+            """
+      }
+
+  private val queryFilterWithDailyQuotaMetric =
+    "testing.googleapis.com/direct_access"
+      .let { prefix ->
+        """
+            filter metric.quota_metric=="$prefix/blaze_physical_minutes"
+                || metric.quota_metric=="$prefix/spark_physical_minutes"
+            """
+      }
+
+  private val queryFilterWithResourceService
+    get() = "filter resource.service==\"${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}\""
 
   private fun findNumber(item: QueryTimeSeriesResponse): Long {
     val timeSeriesData = (item["timeSeriesData"] as ArrayList<*>?)!![0] as TimeSeriesData
