@@ -21,6 +21,7 @@ import com.android.tools.idea.testing.disposable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.openapi.wm.ex.ToolWindowManagerListener
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
@@ -91,6 +92,12 @@ class FakeToolWindow(project: Project) : ToolWindowHeadlessManagerImpl.MockToolW
 
   override fun addContentManagerListener(listener: ContentManagerListener) {
     listeners.add(listener)
+  }
+
+  override fun getId() = RUNNING_DEVICES_TOOL_WINDOW_ID
+
+  override fun show() {
+    project.messageBus.syncPublisher(ToolWindowManagerListener.TOPIC).toolWindowShown(this)
   }
 
   private fun notifyListeners(oldContent: Content?, newContent: Content?) {
