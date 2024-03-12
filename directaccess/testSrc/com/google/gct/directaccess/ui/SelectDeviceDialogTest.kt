@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.google.gct.directaccess.ui
 
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
@@ -30,7 +31,6 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils.extendedDeviceInfoListProvider
 import com.google.gct.directaccess.provisioner.DeviceSelection
-import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.components.service

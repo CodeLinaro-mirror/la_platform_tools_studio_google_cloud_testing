@@ -334,8 +334,14 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     val planLabel =
       JBLabel().apply {
         horizontalTextPosition = JBLabel.LEFT
-        icon = AllIcons.General.ContextHelp
         font = JBFont.medium().asBold()
+      }
+    val planHelpIcon = JBLabel(AllIcons.General.ContextHelp)
+    val planPanel =
+      JPanel(HorizontalLayout(5)).apply {
+        border = JBUI.Borders.empty(1, 0)
+        add(planLabel)
+        add(planHelpIcon)
       }
     val usedMinutesLabel = JBLabel()
     val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
@@ -344,7 +350,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         foreground = UIUtil.getLabelInfoForeground()
       }
     updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
-    updatePlan(planLabel, null)
+    updatePlan(planLabel, planHelpIcon, null)
     val updateSelector: (Boolean) -> Unit = { enabled ->
       selectorPanel.add(
         if (enabled) {
@@ -385,6 +391,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                 panel,
                 errorIcon,
                 planLabel,
+                planHelpIcon,
                 usedMinutesLabel,
                 remainingMinutesLabel,
               )
@@ -431,7 +438,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     chooseProjectPanel.add(selectorPanel)
     panel.add(chooseProjectPanel)
     panel.add(viewAllProjectsPanel)
-    panel.add(planLabel)
+    panel.add(planPanel)
     panel.add(usagePanel)
     panel.add(informationLabel)
     return panel
@@ -462,6 +469,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     parent: JPanel,
     errorIcon: JBLabel,
     planLabel: JBLabel,
+    planHelpIcon: JBLabel,
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
   ) {
@@ -502,7 +510,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           errorIcon.revalidate()
           errorIcon.repaint()
           updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
-          updatePlan(planLabel, null)
+          updatePlan(planLabel, planHelpIcon, null)
         } else {
           errorIcon.toolTipText = ""
           errorIcon.isVisible = false
@@ -521,7 +529,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
               },
               isBillingEnabled,
             )
-            updatePlan(planLabel, isBillingEnabled)
+            updatePlan(planLabel, planHelpIcon, isBillingEnabled)
             parent.revalidate()
           }
         }
@@ -615,7 +623,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     }
   }
 
-  private fun updatePlan(planLabel: JBLabel, isBillingEnabled: Boolean?) {
+  private fun updatePlan(planLabel: JBLabel, helpIcon: JBLabel, isBillingEnabled: Boolean?) {
     planLabel.text = isBillingEnabled?.let { if (it) "Blaze Plan" else "Spark Plan" } ?: "Plan: -"
 
     var description =
@@ -650,7 +658,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           }
         setLink(linkText) { BrowserUtil.browse(link) }
       }
-      .installOn(planLabel)
+      .installOn(helpIcon)
   }
 
   override fun doOKAction() {

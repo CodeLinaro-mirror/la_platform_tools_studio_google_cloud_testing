@@ -333,9 +333,13 @@ class SelectProjectActionTest {
           dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
             label.icon == StudioIcons.Common.ERROR
           }
-        val planLabel =
+        val planTooltipLabel =
           dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
             label.icon == AllIcons.General.ContextHelp
+          }
+        val planLabel =
+          dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
+            label.text?.startsWith("Plan:") == true
           }
 
         // Select a project with viewer permission
@@ -367,11 +371,11 @@ class SelectProjectActionTest {
 
         val usedMinutesLabel =
           dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-            usedLabel.text.endsWith("mins used")
+            usedLabel.text?.endsWith("mins used") == true
           }
         val remainingMinutesLabel =
           dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-            usedLabel.text.endsWith("mins remaining")
+            usedLabel.text?.endsWith("mins remaining") == true
           }
 
         assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
@@ -395,7 +399,7 @@ class SelectProjectActionTest {
         waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
         waitForCondition { planLabel.text == "Blaze Plan" }
         waitForCondition {
-          planLabel.getHelpToolTipText().contains("This project is on the Blaze plan.")
+          planTooltipLabel.getHelpToolTipText().contains("This project is on the Blaze plan.")
         }
 
         // Select a spark project that supports direct access.
@@ -405,7 +409,9 @@ class SelectProjectActionTest {
         }
         waitForCondition { planLabel.text == "Spark Plan" }
         waitForCondition {
-          planLabel.getHelpToolTipText().contains("Spark plans provide limited usage at no cost.")
+          planTooltipLabel
+            .getHelpToolTipText()
+            .contains("Spark plans provide limited usage at no cost.")
         }
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
         assertThat(label.getHelpToolTipText()).isEqualTo("")
@@ -419,7 +425,7 @@ class SelectProjectActionTest {
         waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
         waitForCondition { planLabel.text == "Blaze Plan" }
         waitForCondition {
-          planLabel
+          planTooltipLabel
             .getHelpToolTipText()
             .contains("Blaze plans allow extended usage and is billed monthly.")
         }
@@ -433,7 +439,7 @@ class SelectProjectActionTest {
         }
         waitForCondition { planLabel.text == "Spark Plan" }
         waitForCondition {
-          planLabel
+          planTooltipLabel
             .getHelpToolTipText()
             .contains(
               "Spark plans provide limited usage at no cost. " +
