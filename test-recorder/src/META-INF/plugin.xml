@@ -19,6 +19,7 @@
   <version>1.0</version>
   <vendor>Google</vendor>
   <depends>org.jetbrains.android</depends>
+  <depends>com.intellij.java</depends>
 
   <description>Test recorder project.</description>
 

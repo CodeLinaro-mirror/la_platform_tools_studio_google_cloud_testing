@@ -22,6 +22,7 @@ iml_module(
     # do not sort: must match IML order
     deps = [
         "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-java",
         "//prebuilts/tools/common/m2:google_api_services_testing",
         "//prebuilts/tools/common/m2:JSch",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
