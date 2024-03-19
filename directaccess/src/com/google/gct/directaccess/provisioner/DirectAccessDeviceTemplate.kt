@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.AndroidVersion
+import com.android.sdklib.deviceprovisioner.DeleteAction
 import com.android.sdklib.deviceprovisioner.DeviceAction
 import com.android.sdklib.deviceprovisioner.DeviceActionDisabledException
 import com.android.sdklib.deviceprovisioner.DeviceActionException
@@ -31,13 +32,16 @@ import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
+import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.android.tools.idea.flags.StudioFlags
+import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.services.firebase.directaccess.client.findOrCreateReservation
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DoNotAskOption
 import com.intellij.openapi.ui.MessageDialogBuilder
@@ -53,6 +57,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
@@ -351,6 +356,20 @@ class DirectAccessDeviceTemplate(
     }
 
   override val editAction = null
+
+  override val deleteAction: DeleteAction =
+    object : DeleteAction {
+      override suspend fun delete() {
+        project.service<DirectAccessService>().deviceSelectionListFlow.update { devices ->
+          devices.map {
+            if (it.deviceInfo.key == deviceInfo.key) it.copy(isSelected = false) else it
+          }
+        }
+      }
+
+      override val presentation: StateFlow<DeviceAction.Presentation> =
+        MutableStateFlow(StudioDefaultDeviceActionPresentation.fromContext()).asStateFlow()
+    }
 
   /**
    * Creates a [DirectAccessDeviceHandle] with Disconnected state for [reservationName] if one is

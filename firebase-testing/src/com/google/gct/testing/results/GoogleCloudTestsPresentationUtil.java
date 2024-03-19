@@ -22,7 +22,6 @@ import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.sm.SmRunnerBundle;
 import com.intellij.execution.testframework.sm.runner.states.TestStateInfo;
 import com.intellij.execution.testframework.sm.runner.ui.SMPoolOfTestIcons;
-import com.intellij.execution.testframework.ui.TestsProgressAnimator;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.SimpleTextAttributes;
@@ -182,8 +181,7 @@ public class GoogleCloudTestsPresentationUtil {
           return hasErrors ? SMPoolOfTestIcons.PAUSED_E_ICON : AllIcons.RunConfigurations.TestPaused;
         }
         else {
-          final int frameIndex = TestsProgressAnimator.getCurrentFrameIndex();
-          return hasErrors ? SMPoolOfTestIcons.RUNNING_E_ICON : TestsProgressAnimator.FRAMES[frameIndex];
+          return hasErrors ? SMPoolOfTestIcons.RUNNING_E_ICON : SMPoolOfTestIcons.RUNNING_ICON;
         }
       case SKIPPED_INDEX:
         return hasErrors ? SMPoolOfTestIcons.SKIPPED_E_ICON : PoolOfTestIcons.SKIPPED_ICON;

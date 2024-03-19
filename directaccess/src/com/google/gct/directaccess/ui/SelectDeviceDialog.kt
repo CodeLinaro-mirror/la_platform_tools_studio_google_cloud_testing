@@ -266,7 +266,8 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
               "Android Device Streaming is a Preview service and may encounter service disruptions or issues as performance improves." +
                 " Service usage is currently limited to a daily quota at no cost, and billed usage will be introduced at a later date. "
             } +
-            "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>↗"
+            "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>"
+        insertIcon(AllIcons.Ide.External_link_arrow)
       }
     )
     topPanel.add(TitledSeparator("Firebase Project Information"))

@@ -110,6 +110,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -1071,6 +1072,19 @@ class DirectAccessDeviceProvisionerTest {
     assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
     assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[1])
     assertThat((templates[2] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
+  }
+
+  @Test
+  fun deleteTemplate(): Unit = runBlockingWithTimeout {
+    assertThat(plugin.templates.value.size).isEqualTo(5)
+
+    val templates = plugin.templates.first()
+    templates.first().deleteAction?.delete()
+
+    yieldUntil { plugin.templates.value.size == 4 }
+
+    assertThat(plugin.templates.value)
+      .containsExactlyElementsIn(templates.subList(1, templates.size))
   }
 
   @Test
