@@ -493,7 +493,7 @@ class SelectProjectActionTest {
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) { dialog ->
         val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
         assertThat(selector.isEnabled).isFalse()
-        assertThat(selector.toolTipText).isEqualTo("Stop reservations to change projects")
+        assertThat(selector.toolTipText).isEqualTo("Return all devices to change projects")
         dialog.clickDefaultButton()
       }
     }
