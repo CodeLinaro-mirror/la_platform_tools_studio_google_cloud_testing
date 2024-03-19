@@ -90,21 +90,25 @@ class DirectAccessDeviceTemplate(
 
   override val properties = deviceInfo.toDeviceProperties()
 
+  private val isActivationStarted = MutableStateFlow(false)
+
   override val stateFlow =
-    isAuthenticatorReady
-      .combine(deviceInfoFlow) { isReady, deviceInfo ->
+    combine(isActivationStarted, isAuthenticatorReady, deviceInfoFlow) {
+        isStarted,
+        isReady,
+        deviceInfo ->
         val waitTimeText =
           deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
 
         TemplateState(
-          if (isReady && waitTimeText != null)
-            DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
-          else null
+          isActivating = isStarted,
+          error =
+            if (isReady && waitTimeText != null)
+              DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
+            else null,
         )
       }
-      .stateIn(scope, SharingStarted.Eagerly, TemplateState(null))
-
-  private val isActivationStarted = MutableStateFlow(false)
+      .stateIn(scope, SharingStarted.Eagerly, TemplateState())
 
   /** Icon to show for the template and handle */
   val icon: Icon
@@ -329,11 +333,11 @@ class DirectAccessDeviceTemplate(
         DeviceAction.Presentation("Acquire", StudioIcons.Avd.RUN, false)
 
       override val presentation: StateFlow<DeviceAction.Presentation> =
-        isActivationStarted
-          .combine(isAuthenticatorReady) { started, authenticatorReady ->
-            !started && authenticatorReady
-          }
-          .combine(deviceInfoFlow) { enabled, deviceInfo ->
+        combine(isActivationStarted, isAuthenticatorReady, deviceInfoFlow) {
+            started,
+            authenticatorReady,
+            deviceInfo ->
+            val enabled = !started && authenticatorReady
             // TODO(b/314857500): Improve user experience with null
             // deviceAvailabilityEstimateSeconds.
             val icon =
@@ -348,8 +352,11 @@ class DirectAccessDeviceTemplate(
               icon = icon,
               enabled = enabled,
               detail =
-                if (enabled) null
-                else "Device unavailable: click the Firebase action to address issues",
+                when {
+                  enabled -> null
+                  started -> "Activation already in progress"
+                  else -> "Device unavailable: click the Firebase action to address issues"
+                },
             )
           }
           .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
