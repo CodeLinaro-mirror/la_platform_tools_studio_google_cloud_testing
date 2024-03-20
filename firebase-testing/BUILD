@@ -21,10 +21,11 @@ iml_module(
     exports = ["//prebuilts/tools/common/m2:google_api_services_testing"],
     # do not sort: must match IML order
     deps = [
-        "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "@intellij//:intellij-sdk",
+        "@intellij//:com.intellij.java",
         "//prebuilts/tools/common/m2:google_api_services_testing",
         "//prebuilts/tools/common/m2:JSch",
-        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
+        "@intellij//:org.intellij.groovy",
         "//tools/adt/idea/android-common:intellij.android.common[module]",
         "//tools/adt/idea/android:intellij.android.core[module]",
         "//tools/studio/google/cloud/tools/google-login-plugin:google-login-as[module]",

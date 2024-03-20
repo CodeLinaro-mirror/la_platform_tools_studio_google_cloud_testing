@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.android.tools.adtui.categorytable.Attribute
 import com.android.tools.adtui.categorytable.Attribute.Companion.stringAttribute
 import com.android.tools.adtui.categorytable.Column
 import com.android.tools.adtui.categorytable.LabelColumn
@@ -33,10 +34,16 @@ data class SelectDeviceRowData(
 
 internal object SelectDeviceTableColumns {
 
-  object Selected : Column<SelectDeviceRowData, String, JBCheckBox> {
+  object Selected : Column<SelectDeviceRowData, Boolean, JBCheckBox> {
     override val name = ""
     override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
-    override val attribute = stringAttribute<SelectDeviceRowData> { "" }
+    override val attribute =
+      object : Attribute<SelectDeviceRowData, Boolean> {
+        override val sorter = Comparator.naturalOrder<Boolean>()
+        override val isGroupable = false
+
+        override fun value(t: SelectDeviceRowData) = t.isSelected
+      }
 
     override fun createUi(rowValue: SelectDeviceRowData) =
       JBCheckBox().apply {
@@ -44,14 +51,14 @@ internal object SelectDeviceTableColumns {
         addItemListener { rowValue.isSelected = isSelected }
       }
 
-    override fun updateValue(rowValue: SelectDeviceRowData, component: JBCheckBox, value: String) =
+    override fun updateValue(rowValue: SelectDeviceRowData, component: JBCheckBox, value: Boolean) =
       Unit
   }
 
   object DeviceIcon : Column<SelectDeviceRowData, String, JBLabel> {
     override val name = ""
     override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
-    override val attribute = stringAttribute<SelectDeviceRowData> { "" }
+    override val attribute = stringAttribute<SelectDeviceRowData> { it.deviceInfo.type.toString() }
 
     override fun createUi(rowValue: SelectDeviceRowData) =
       JBLabel(

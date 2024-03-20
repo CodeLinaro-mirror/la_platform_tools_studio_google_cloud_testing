@@ -8,6 +8,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="library" name="studio-sdk" level="project" />
+    <orderEntry type="library" name="studio-plugin-com.intellij.java" level="project" />
     <orderEntry type="module-library" exported="">
       <library name="google_api_services_testing">
         <CLASSES>
@@ -30,7 +31,7 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="studio-plugin-Groovy" level="project" />
+    <orderEntry type="library" name="studio-plugin-org.intellij.groovy" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="intellij.android.common" />
     <orderEntry type="module" module-name="intellij.android.core" />

@@ -798,6 +798,36 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
   }
 
   @Test
+  fun testBannerNotificationWhenRDWClosedAndReOpened() = runBlockingWithTimeout {
+    val bannerNotifications = mutableListOf<EditorNotificationPanel>()
+    val handle = setupReservationExpiringTest()
+    val mockContent = setupMockContentForRunningDevicePanel(bannerNotifications)
+    val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
+
+    fakeToolWindow.contentManager.addContent(mockContent)
+
+    directAccessReservationManager.extendReservation(
+      handle.reservation.name,
+      Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
+      DirectAccessReservationManager.ReservationExtendType.TTL,
+    )
+
+    yieldUntil { bannerNotifications.isNotEmpty() }
+    assertThat(bannerNotifications.size).isEqualTo(1)
+    assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+
+    fakeToolWindow.hide()
+    // Actual tool window cleans everything when hidden and recreates when shown
+    // We only clean the notifications in test
+    bannerNotifications.clear()
+    fakeToolWindow.show()
+
+    yieldUntil { bannerNotifications.isNotEmpty() }
+    assertThat(bannerNotifications.size).isEqualTo(1)
+    assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+  }
+
+  @Test
   fun testNotificationOnUnexpectedDeviceDisconnection() = runBlockingWithTimeout {
     val template = plugin.templates.value[0]
     template.activationAction.activate()

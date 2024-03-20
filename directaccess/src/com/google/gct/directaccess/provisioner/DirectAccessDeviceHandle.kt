@@ -52,9 +52,12 @@ import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.openapi.wm.ex.ToolWindowManagerListener
 import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
 import icons.StudioIcons
@@ -412,6 +415,21 @@ class DirectAccessDeviceHandle(
     project.messageBus
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
+    project.messageBus
+      .connect(scope)
+      .subscribe(
+        ToolWindowManagerListener.TOPIC,
+        object : ToolWindowManagerListener {
+          override fun toolWindowShown(toolWindow: ToolWindow) {
+            if (toolWindow.id == RUNNING_DEVICES_TOOL_WINDOW_ID) {
+              val devicePanel =
+                toolWindow.contentManager.selectedContent?.component as? StreamingDevicePanel
+                  ?: return
+              devicePanel.maybeShowBannerNotification()
+            }
+          }
+        },
+      )
     addContentManagerListener()
     val properties = device.deviceProperties().all().asMap()
     val deviceProperties =
@@ -577,14 +595,18 @@ class DirectAccessDeviceHandle(
       ?.addContentManagerListener(
         object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
-              val eventPanel = event.content.component as? StreamingDevicePanel ?: return
-              if (eventPanel.id.serialNumber == connection.deviceAddress()?.address) {
-                notificationManager.onDevicePanelVisibilityChanged()
-              }
+              val devicePanel = event.content.component as? StreamingDevicePanel ?: return
+              devicePanel.maybeShowBannerNotification()
             }
           }
           .also { rdwPanelChangeListener = it }
       )
+  }
+
+  private fun StreamingDevicePanel.maybeShowBannerNotification() {
+    if (id.serialNumber == connection.deviceAddress()?.address) {
+      invokeLater { notificationManager.onDevicePanelVisibilityChanged() }
+    }
   }
 
   /** Removes content manager listener from RDW */
