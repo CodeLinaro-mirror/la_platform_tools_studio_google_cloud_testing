@@ -1359,9 +1359,11 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
         yieldUntil { plugin.devices.value.isEmpty() }
 
         // Reserve devices again
+        yieldUntil { !plugin.templates.value[0].stateFlow.value.isActivating }
         plugin.templates.value[0].activationAction.activate()
         yieldUntil { plugin.devices.value.size == 1 }
 
+        yieldUntil { !plugin.templates.value[4].stateFlow.value.isActivating }
         plugin.templates.value[4].activationAction.activate()
         yieldUntil { plugin.devices.value.size == 2 }
         assertThat(countDownLatch.count).isEqualTo(0)
