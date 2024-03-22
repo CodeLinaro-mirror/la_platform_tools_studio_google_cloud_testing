@@ -282,105 +282,83 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       toggleDebugging();
     });
 
-    myAddAssertionButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent) {
-        new TestRecorderScreenshotTask(myProject, myDevice, myPackageName, new ScreenshotCallback() {
-          @Override
-          public void onSuccess(BufferedImage initialImage, UiAutomatorModel model) {
-            myAssertionMode = true;
-            getRootPane().setDefaultButton(mySaveAssertionAndAddAnotherButton);
-            BasicTreeNode root = model.getXmlRootNode();
-            String applicationId = getApplicationId("");
-            if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
-              Messages.showMessageDialog(myRootPanel, "Out-of-app assertions are not supported and will break the generated Espresso test.",
-                                         "Warning: adding an out-of-app assertion", null);
-            }
-            BufferedImage preparedImage = rotateImage(initialImage, getRotation(root));
-            myScreenshotPanel.updateScreenShot(preparedImage, model);
-            // Populate drop down menu
-            myNodeIndentMap = createElementLevelMap(root);
-            myElementComboBoxModel = new DefaultComboBoxModel(myNodeIndentMap.keySet().toArray());
-            // Add a default element for drop down menu
-            myElementComboBoxModel.insertElementAt(DEFAULT_MESSAGE, 0);
-            // Show assertion panel
-            CardLayout cardLayout = (CardLayout)myAssertionPanel.getLayout();
-            cardLayout.show(myAssertionPanel, "myEditAssertionPanel");
-            // Set up assertion panel
-            setUpEmptyAssertionPanel();
-            // Remember the index of to-be-added assertion.
-            myAssertionIndex = myActionListModel.size();
+    myAddAssertionButton.addActionListener(
+      actionEvent -> new TestRecorderScreenshotTask(myProject, myDevice, myPackageName, (initialImage, model) -> {
+        myAssertionMode = true;
+        getRootPane().setDefaultButton(mySaveAssertionAndAddAnotherButton);
+        BasicTreeNode root = model.getXmlRootNode();
+        String applicationId = getApplicationId("");
+        if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
+          Messages.showMessageDialog(myRootPanel, "Out-of-app assertions are not supported and will break the generated Espresso test.",
+                                     "Warning: adding an out-of-app assertion", null);
+        }
+        BufferedImage preparedImage = rotateImage(initialImage, getRotation(root));
+        myScreenshotPanel.updateScreenShot(preparedImage, model);
+        // Populate drop down menu
+        myNodeIndentMap = createElementLevelMap(root);
+        myElementComboBoxModel = new DefaultComboBoxModel(myNodeIndentMap.keySet().toArray());
+        // Add a default element for drop down menu
+        myElementComboBoxModel.insertElementAt(DEFAULT_MESSAGE, 0);
+        // Show assertion panel
+        CardLayout cardLayout = (CardLayout)myAssertionPanel.getLayout();
+        cardLayout.show(myAssertionPanel, "myEditAssertionPanel");
+        // Set up assertion panel
+        setUpEmptyAssertionPanel();
+        // Remember the index of to-be-added assertion.
+        myAssertionIndex = myActionListModel.size();
 
-            revealScreenshotPanel(preparedImage.getWidth(), preparedImage.getHeight());
-          }
-        }).queue();
-      }
-    });
+        revealScreenshotPanel(preparedImage.getWidth(), preparedImage.getHeight());
+      }).queue());
 
     // TODO: take screenshot in Espresso test code
-    myTakeScreenshotButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent) {
+    myTakeScreenshotButton.addActionListener(actionEvent -> {
 
-      }
     });
 
-    mySaveAssertionButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent) {
-        exitAssertionMode(true);
-        hideScreenshotPanel();
-      }
+    mySaveAssertionButton.addActionListener(actionEvent -> {
+      exitAssertionMode(true);
+      hideScreenshotPanel();
     });
 
-    mySaveAssertionAndAddAnotherButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent) {
-        // Add the new assertion at its remembered index.
-        myActionListModel.add(myAssertionIndex, buildAssertionForCurrentSelection());
-        // Scroll action list so that assertion is visible.
-        myActionList.ensureIndexIsVisible(myAssertionIndex);
-        myAssertionIndex++;
-      }
+    mySaveAssertionAndAddAnotherButton.addActionListener(actionEvent -> {
+      // Add the new assertion at its remembered index.
+      myActionListModel.add(myAssertionIndex, buildAssertionForCurrentSelection());
+      // Scroll action list so that assertion is visible.
+      myActionList.ensureIndexIsVisible(myAssertionIndex);
+      myAssertionIndex++;
     });
 
-    myCancelButton.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent) {
-        exitAssertionMode(false);
-        hideScreenshotPanel();
-      }
+    myCancelButton.addActionListener(actionEvent -> {
+      exitAssertionMode(false);
+      hideScreenshotPanel();
     });
 
-    myAssertionElementComboBox.addItemListener(new ItemListener() {
-      @Override
-      public void itemStateChanged(ItemEvent itemEvent) {
-        // Get selected element
-        Object element = myAssertionElementComboBox.getSelectedItem();
-        if (element instanceof BasicTreeNode) {
-          // selected element is UI element
-          BasicTreeNode node = (BasicTreeNode)element;
-          // Update selected element in screenshot panel
-          myScreenshotPanel.setSelectedNodeAndRepaint(node);
-          // Update edit assertion panel
-          if (isTextView(node)) {
-            CardLayout cardLayout = (CardLayout)myTextFieldWrapper.getLayout();
-            cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
-            myAssertionTextField.setText(getText(node));
-            myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITH_TEXT));
-          } else {
-            CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
-            cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
-            myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITHOUT_TEXT));
-          }
-          // Enable save assertion buttons.
-          mySaveAssertionButton.setEnabled(true);
-          mySaveAssertionAndAddAnotherButton.setEnabled(true);
-          myAssertionTextField.setForeground(JBColor.BLACK);
+    myAssertionElementComboBox.addItemListener(itemEvent -> {
+      // Get selected element
+      Object element = myAssertionElementComboBox.getSelectedItem();
+      if (element instanceof BasicTreeNode) {
+        // selected element is UI element
+        BasicTreeNode node = (BasicTreeNode)element;
+        // Update selected element in screenshot panel
+        myScreenshotPanel.setSelectedNodeAndRepaint(node);
+        // Update edit assertion panel
+        if (isTextView(node)) {
+          CardLayout cardLayout = (CardLayout)myTextFieldWrapper.getLayout();
+          cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
+          myAssertionTextField.setText(getText(node));
+          myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITH_TEXT));
         } else {
-          // selected element is not UI element (default element)
-          myScreenshotPanel.clearSelectionAndRepaint();
+          CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
+          cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
+          myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITHOUT_TEXT));
         }
+        // Enable save assertion buttons.
+        mySaveAssertionButton.setEnabled(true);
+        mySaveAssertionAndAddAnotherButton.setEnabled(true);
+        myAssertionTextField.setForeground(JBColor.BLACK);
+      } else {
+        // selected element is not UI element (default element)
+        myScreenshotPanel.clearSelectionAndRepaint();
       }
     });
 
@@ -406,24 +384,20 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
     });
 
-    myAssertionRuleComboBox.addItemListener(new ItemListener() {
-      @Override
-      public void itemStateChanged(ItemEvent itemEvent) {
-        Object selectedItem = myAssertionRuleComboBox.getSelectedItem();
-        if (selectedItem == null) {
-          return;
-        }
+    myAssertionRuleComboBox.addItemListener(itemEvent -> {
+      Object selectedItem = myAssertionRuleComboBox.getSelectedItem();
+      if (selectedItem == null) {
+        return;
+      }
 
-        String rule = selectedItem.toString();
-        if (TEXT_IS.equals(rule)) {
-          // Display assertion text field when rule is "text ***"
-          CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
-          cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
-        } else {
-          // Otherwise (exists, does not exist), don't display assertion text field
-          CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
-          cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
-        }
+      String rule = selectedItem.toString();
+      CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
+      if (TEXT_IS.equals(rule)) {
+        // Display assertion text field when rule is "text ***"
+        cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
+      } else {
+        // Otherwise (exists, does not exist), don't display assertion text field
+        cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
       }
     });
   }
@@ -690,22 +664,19 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     final Timer t = new Timer(ANIMATION_TIMER_INTERVAL, null);
     final long start = System.currentTimeMillis();
-    t.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        long elapsed = System.currentTimeMillis() - start;
-        if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
-          myScreenshotPanel.setMinimumSize(new Dimension(screenshotPanelTotalWidth, screenshotPanelTotalHeight));
-          t.stop();
-        } else {
-          double percentRevealed = ((double) elapsed / ANIMATION_INTERVAL);
-          myScreenshotPanel.setMinimumSize(new Dimension((int)(screenshotPanelTotalWidth * percentRevealed), screenshotPanelTotalHeight));
-        }
-
-        myScreenshotPanel.clearSelectionAndRepaint();
-        getWindow().pack();
-        myAssertionElementComboBox.requestFocusInWindow();
+    t.addActionListener(e -> {
+      long elapsed = System.currentTimeMillis() - start;
+      if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
+        myScreenshotPanel.setMinimumSize(new Dimension(screenshotPanelTotalWidth, screenshotPanelTotalHeight));
+        t.stop();
+      } else {
+        double percentRevealed = ((double) elapsed / ANIMATION_INTERVAL);
+        myScreenshotPanel.setMinimumSize(new Dimension((int)(screenshotPanelTotalWidth * percentRevealed), screenshotPanelTotalHeight));
       }
+
+      myScreenshotPanel.clearSelectionAndRepaint();
+      getWindow().pack();
+      myAssertionElementComboBox.requestFocusInWindow();
     });
 
     t.start();
@@ -719,27 +690,24 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     final Timer t = new Timer(ANIMATION_TIMER_INTERVAL, null);
     final long start = System.currentTimeMillis();
-    t.addActionListener(new ActionListener() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        long elapsed = System.currentTimeMillis() - start;
-        if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
-          myScreenshotPanel.setVisible(false);
-          myScreenshotPanel.setMinimumSize(new Dimension(0, 0));
-          getWindow().setMinimumSize(
-            new Dimension(windowInitialWidth - screenshotPanelInitialWidth - marginWidth, getWindow().getHeight()));
-          t.stop();
-        } else {
-          double percentHidden = ((double) elapsed / ANIMATION_INTERVAL);
-          myScreenshotPanel.setMinimumSize(
-            new Dimension((int)(screenshotPanelInitialWidth * (1d - percentHidden)), screenshotPanelInitialHeight));
-          getWindow().setMinimumSize(
-            new Dimension(windowInitialWidth - (int)(screenshotPanelInitialWidth * percentHidden) - marginWidth, getWindow().getHeight()));
-        }
-
-        myScreenshotPanel.clearSelectionAndRepaint();
-        getWindow().pack();
+    t.addActionListener(e -> {
+      long elapsed = System.currentTimeMillis() - start;
+      if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
+        myScreenshotPanel.setVisible(false);
+        myScreenshotPanel.setMinimumSize(new Dimension(0, 0));
+        getWindow().setMinimumSize(
+          new Dimension(windowInitialWidth - screenshotPanelInitialWidth - marginWidth, getWindow().getHeight()));
+        t.stop();
+      } else {
+        double percentHidden = ((double) elapsed / ANIMATION_INTERVAL);
+        myScreenshotPanel.setMinimumSize(
+          new Dimension((int)(screenshotPanelInitialWidth * (1d - percentHidden)), screenshotPanelInitialHeight));
+        getWindow().setMinimumSize(
+          new Dimension(windowInitialWidth - (int)(screenshotPanelInitialWidth * percentHidden) - marginWidth, getWindow().getHeight()));
       }
+
+      myScreenshotPanel.clearSelectionAndRepaint();
+      getWindow().pack();
     });
 
     t.start();
@@ -1107,26 +1075,23 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       return;
     }
     // Add event to action list.
-    SwingUtilities.invokeLater(new Runnable() {
-      @Override
-      public void run() {
-        // It it is first element, add it anyway
-        if (myActionListModel.isEmpty()) {
-          myActionListModel.addElement(event);
+    SwingUtilities.invokeLater(() -> {
+      // If it is first element, add it anyway
+      if (myActionListModel.isEmpty()) {
+        myActionListModel.addElement(event);
+      } else {
+        ElementAction lastAction = myActionListModel.lastElement();
+        // If event can merge with the last action, replace last action with the merged one.
+        if (lastAction instanceof TestRecorderEvent && ((TestRecorderEvent)lastAction).canMerge(event)) {
+          ((TestRecorderEvent)lastAction).merge(event);
+          // Repaint is needed since otherwise the change would not be picked up by the renderer.
+          myActionList.repaint();
         } else {
-          ElementAction lastAction = myActionListModel.lastElement();
-          // If can merge with the last action, replace last action with the merged one.
-          if (lastAction instanceof TestRecorderEvent && ((TestRecorderEvent)lastAction).canMerge(event)) {
-            ((TestRecorderEvent)lastAction).merge(event);
-            // Repaint is needed since otherwise the change would not be picked up by the renderer.
-            myActionList.repaint();
-          } else {
-            myActionListModel.addElement(event);
-          }
+          myActionListModel.addElement(event);
         }
-        // Scroll action list so that the last action is visible.
-        myActionList.ensureIndexIsVisible(myActionList.getItemsCount() - 1);
       }
+      // Scroll action list so that the last action is visible.
+      myActionList.ensureIndexIsVisible(myActionList.getItemsCount() - 1);
     });
   }
 }
