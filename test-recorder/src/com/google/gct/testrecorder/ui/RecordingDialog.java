@@ -56,7 +56,6 @@ import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.DependencyScopeType;
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
-import com.android.uiautomator.UiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.UiNode;
 import com.google.common.collect.ImmutableList;
@@ -92,7 +91,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
-import com.intellij.openapi.util.SystemInfoRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
@@ -107,10 +105,6 @@ import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -127,7 +121,6 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -135,8 +128,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class RecordingDialog extends DialogWrapper implements TestRecorderEventListener {
-  private static final long ANIMATION_INTERVAL = 400; // milliseconds.
-  private static final int ANIMATION_TIMER_INTERVAL = 10; // milliseconds.
 
   private static final String ESPRESSO_CORE_CUSTOM_ARTIFACT_NAME = "espresso";
   private static final String ESPRESSO_CORE_CUSTOM_GROUP_NAME = "com.jakewharton.espresso";
@@ -662,55 +653,25 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     // Cap panel width to not be greater than panel height.
     final int screenshotPanelTotalWidth = scaledImageWidth > screenshotPanelTotalHeight ? screenshotPanelTotalHeight : scaledImageWidth;
 
-    final Timer t = new Timer(ANIMATION_TIMER_INTERVAL, null);
-    final long start = System.currentTimeMillis();
-    t.addActionListener(e -> {
-      long elapsed = System.currentTimeMillis() - start;
-      if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
-        myScreenshotPanel.setMinimumSize(new Dimension(screenshotPanelTotalWidth, screenshotPanelTotalHeight));
-        t.stop();
-      } else {
-        double percentRevealed = ((double) elapsed / ANIMATION_INTERVAL);
-        myScreenshotPanel.setMinimumSize(new Dimension((int)(screenshotPanelTotalWidth * percentRevealed), screenshotPanelTotalHeight));
-      }
 
-      myScreenshotPanel.clearSelectionAndRepaint();
-      getWindow().pack();
-      myAssertionElementComboBox.requestFocusInWindow();
-    });
-
-    t.start();
+    myScreenshotPanel.setMinimumSize(new Dimension(screenshotPanelTotalWidth, screenshotPanelTotalHeight));
+    myScreenshotPanel.clearSelectionAndRepaint();
+    getWindow().pack();
+    myAssertionElementComboBox.requestFocusInWindow();
   }
 
   private void hideScreenshotPanel() {
     final int screenshotPanelInitialWidth = myScreenshotPanel.getWidth();
-    final int screenshotPanelInitialHeight = myScreenshotPanel.getHeight();
     final int marginWidth = ((FlowLayout)myScreenshotPanel.getLayout()).getHgap() * 2;
     final int windowInitialWidth = getWindow().getWidth();
 
-    final Timer t = new Timer(ANIMATION_TIMER_INTERVAL, null);
-    final long start = System.currentTimeMillis();
-    t.addActionListener(e -> {
-      long elapsed = System.currentTimeMillis() - start;
-      if (elapsed > ANIMATION_INTERVAL || SystemInfoRt.isMac) {
-        myScreenshotPanel.setVisible(false);
-        myScreenshotPanel.setMinimumSize(new Dimension(0, 0));
-        getWindow().setMinimumSize(
-          new Dimension(windowInitialWidth - screenshotPanelInitialWidth - marginWidth, getWindow().getHeight()));
-        t.stop();
-      } else {
-        double percentHidden = ((double) elapsed / ANIMATION_INTERVAL);
-        myScreenshotPanel.setMinimumSize(
-          new Dimension((int)(screenshotPanelInitialWidth * (1d - percentHidden)), screenshotPanelInitialHeight));
-        getWindow().setMinimumSize(
-          new Dimension(windowInitialWidth - (int)(screenshotPanelInitialWidth * percentHidden) - marginWidth, getWindow().getHeight()));
-      }
+    myScreenshotPanel.setVisible(false);
+    myScreenshotPanel.setMinimumSize(new Dimension(0, 0));
+    getWindow().setMinimumSize(
+      new Dimension(windowInitialWidth - screenshotPanelInitialWidth - marginWidth, getWindow().getHeight()));
 
-      myScreenshotPanel.clearSelectionAndRepaint();
-      getWindow().pack();
-    });
-
-    t.start();
+    myScreenshotPanel.clearSelectionAndRepaint();
+    getWindow().pack();
   }
 
   private void createUIComponents() {
