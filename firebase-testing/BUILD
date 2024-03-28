@@ -46,6 +46,5 @@ iml_module(
         "//tools/adt/idea/analytics[module]",
         "//tools/adt/idea/.idea/libraries:truth[test]",
         "//tools/vendor/google/firebase[module]",
-        "//tools/base/flags:studio.android.sdktools.flags[module]",
     ],
 )

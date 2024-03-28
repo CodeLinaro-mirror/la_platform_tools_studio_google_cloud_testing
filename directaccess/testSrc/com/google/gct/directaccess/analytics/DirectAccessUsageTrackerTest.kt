@@ -72,7 +72,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccess
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType.ERROR
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType.EXPIRE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType.FORCE_CHECK_IN
-import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.SIXTY_MINUTES
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.FIFTEEN_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration.THIRTY_MINUTES
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.FAILED_TO_ALLOCATE_DEVICE
@@ -401,7 +401,7 @@ class DirectAccessUsageTrackerTest {
       template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
     }
 
-    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(14))
 
     val studioEvent = findUsageEvent(EXTEND_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -412,16 +412,16 @@ class DirectAccessUsageTrackerTest {
 
     val extendReservationDetails = directAccessEvent.extendReservationDetails
     assertThat(extendReservationDetails.success).isTrue()
-    assertThat(extendReservationDetails.extendReservationDuration).isEqualTo(THIRTY_MINUTES)
+    assertThat(extendReservationDetails.extendReservationDuration).isEqualTo(FIFTEEN_MINUTES)
 
     tracker.usages.clear()
 
-    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(60))
+    template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
     val sixtyMinuteEvent = findUsageEvent(EXTEND_RESERVATION)
     assertThat(
         sixtyMinuteEvent.directAccessUsageEvent.extendReservationDetails.extendReservationDuration
       )
-      .isEqualTo(SIXTY_MINUTES)
+      .isEqualTo(THIRTY_MINUTES)
   }
 
   @Test

@@ -231,30 +231,4 @@ public class CloudTestingUtils {
     }
   }
 
-  /**
-   * Returns the timestamp in millis of last midnight in Pacific Time, when quotas usage for firebase cloud projects are refreshed.
-   */
-  public static long getTimestampAtMidnightInPT(Instant instant) {
-    return ZonedDateTime.ofInstant(instant, ZoneId.of("America/Los_Angeles"))
-      .withHour(0)
-      .withMinute(0)
-      .withSecond(0)
-      .withNano(0)
-      .toInstant()
-      .toEpochMilli();
-  }
-
-  /**
-   * Returns the timestamp in millis of last midnight in Pacific Time, when quotas usage for firebase cloud projects are refreshed.
-   */
-  public static long getTimestampAtMonthStartMidnightInPT(Instant instant) {
-    return ZonedDateTime.ofInstant(instant, ZoneId.of("America/Los_Angeles"))
-      .withDayOfMonth(1)
-      .withHour(0)
-      .withMinute(0)
-      .withSecond(0)
-      .withNano(0)
-      .toInstant()
-      .toEpochMilli();
-  }
 }

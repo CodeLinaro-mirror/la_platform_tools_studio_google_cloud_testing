@@ -1328,7 +1328,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
         doAnswer { billingEnabledFlow }.whenever(cloudProjectManager).isBillingEnabledFlow
 
         TestDialogManager.setTestDialog { message ->
-          assertThat(message).isEqualTo(singleMessage)
+          assertThat(message).startsWith(singleMessage)
           countDownLatch.countDown()
           Messages.YES
         }
@@ -1337,7 +1337,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
         yieldUntil { plugin.devices.value.size == 1 }
 
         TestDialogManager.setTestDialog { message ->
-          assertThat(message).isEqualTo(multiMessage)
+          assertThat(message).startsWith(multiMessage)
           countDownLatch.countDown()
           Messages.YES
         }
@@ -1359,9 +1359,11 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
         yieldUntil { plugin.devices.value.isEmpty() }
 
         // Reserve devices again
+        yieldUntil { !plugin.templates.value[0].stateFlow.value.isActivating }
         plugin.templates.value[0].activationAction.activate()
         yieldUntil { plugin.devices.value.size == 1 }
 
+        yieldUntil { !plugin.templates.value[4].stateFlow.value.isActivating }
         plugin.templates.value[4].activationAction.activate()
         yieldUntil { plugin.devices.value.size == 2 }
         assertThat(countDownLatch.count).isEqualTo(0)

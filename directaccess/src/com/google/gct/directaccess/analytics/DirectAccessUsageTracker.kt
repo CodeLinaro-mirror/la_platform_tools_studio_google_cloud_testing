@@ -150,10 +150,10 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
             .apply {
               success = wasSuccessful
               extendReservationDuration =
-                if (extendDuration.toMinutes() == 30L) {
-                  ExtendReservationDuration.THIRTY_MINUTES
+                if (extendDuration.toMinutes() <= 15L) {
+                  ExtendReservationDuration.FIFTEEN_MINUTES
                 } else {
-                  ExtendReservationDuration.SIXTY_MINUTES
+                  ExtendReservationDuration.THIRTY_MINUTES
                 }
               failReason?.let { failureReason = it }
             }

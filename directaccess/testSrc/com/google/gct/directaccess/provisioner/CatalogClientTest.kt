@@ -15,46 +15,63 @@
  */
 package com.google.gct.directaccess.provisioner
 
-import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
+import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.testing.AndroidProjectRule
+import com.google.api.client.auth.oauth2.Credential
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.common.truth.Truth.assertThat
+import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalog
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalogWithMissingFields
-import com.google.gct.login2.GoogleLoginService
-import com.google.gct.testing.launcher.CloudAuthenticator
+import com.google.gct.login2.LoginUsersRule
+import com.google.services.firebase.directaccess.client.CloudClient
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
+import org.mockito.Mockito.doCallRealMethod
+import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.spy
 
 class CatalogClientTest {
   @get:Rule val projectRule = AndroidProjectRule.inMemory()
-  private val mockCloudAuthenticator: CloudAuthenticator = mock()
+  @get:Rule val loginRule = LoginUsersRule()
 
   @Before
   fun setUp() {
-    val mockLoginService: GoogleLoginService = mock()
-    whenever(mockLoginService.isLoggedIn(any())).thenReturn(true)
-    projectRule.replaceService(GoogleLoginService::class.java, mockLoginService)
-    projectRule.replaceService(CloudAuthenticator::class.java, mockCloudAuthenticator)
+    loginRule.setActiveUser("test@google.com")
   }
 
-  private fun setupCloudAuthenticator(deviceCatalog: AndroidDeviceCatalog) =
-    whenever(
-        mockCloudAuthenticator.getAndroidDeviceCatalogForEnvironment(
-          Mockito.anyString(),
-          Mockito.anyString(),
+  private fun setupCloudClient(deviceCatalog: AndroidDeviceCatalog) {
+    val client: CloudClient =
+      spy(
+        CloudClient(
+          MutableStateFlow<Credential>(mock()),
+          AndroidCoroutineScope(projectRule.testRootDisposable),
         )
       )
-      .thenReturn(deviceCatalog)
+    CloudClientService.instance().overrideClientForTest = client
+    doCallRealMethod()
+      .whenever(client)
+      .getAvailableDevices(Mockito.anyString(), Mockito.anyString())
+    doReturn(deviceCatalog)
+      .whenever(client)
+      .getAndroidDeviceCatalogForEnvironment(Mockito.anyString(), Mockito.anyString())
+  }
+
+  @After
+  fun tearDown() {
+    CloudClientService.instance().overrideClientForTest = null
+  }
 
   @Test
   fun testCorrectDeviceTypeFromFormFactor() {
-    setupCloudAuthenticator(androidDeviceCatalog)
+    setupCloudClient(androidDeviceCatalog)
 
     val devices = CatalogClient.getAvailableDevices("testEndpoint", "testProject")
 
@@ -69,7 +86,7 @@ class CatalogClientTest {
 
   @Test
   fun testModelWithMissingInfoFilteredOut() {
-    setupCloudAuthenticator(androidDeviceCatalogWithMissingFields)
+    setupCloudClient(androidDeviceCatalogWithMissingFields)
 
     val devices = CatalogClient.getAvailableDevices("testEndpoint", "testProject")
 

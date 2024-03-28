@@ -25,6 +25,7 @@ import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessPermissionStatus
+import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.directAccessCloudProjectManager
@@ -356,6 +357,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         if (enabled) {
           val preferredProject =
             project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
+              ?: project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
               ?: ""
           val selection = project.service<DirectAccessService>().deviceSelectionListFlow.value
           initialDialogState = InitialDialogState(preferredProject, selection)

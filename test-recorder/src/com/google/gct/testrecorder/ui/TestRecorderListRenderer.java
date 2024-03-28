@@ -23,8 +23,6 @@ import com.intellij.ui.JBColor;
 import javax.swing.*;
 import java.awt.*;
 
-import static com.intellij.util.ui.UIUtil.isUnderDarcula;
-
 public class TestRecorderListRenderer extends DefaultListCellRenderer {
   private static final String OUTER_DIV_STYLE = "style='margin: 0; color: %s; padding: 2px 12px'";
   private static final String INNER_DIV_STYLE = "style='margin-top: 4px; display: block; border-left: 2px solid #dddddd; padding-left: 8px; margin-left: 16px'";

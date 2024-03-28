@@ -15,17 +15,10 @@
  */
 package com.google.gct.testing.launcher
 
-import com.android.tools.idea.flags.StudioFlags
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.cloudbilling.Cloudbilling
 import com.google.api.services.cloudresourcemanager.v3.CloudResourceManager
-import com.google.api.services.monitoring.v3.Monitoring
-import com.google.api.services.monitoring.v3.model.PointData
-import com.google.api.services.monitoring.v3.model.QueryTimeSeriesRequest
-import com.google.api.services.monitoring.v3.model.QueryTimeSeriesResponse
-import com.google.api.services.monitoring.v3.model.TimeSeriesData
 import com.google.api.services.storage.Storage
 import com.google.api.services.testing.Testing
 import com.google.api.services.testing.model.AndroidDeviceCatalog
@@ -37,14 +30,10 @@ import com.google.gct.testing.CloudTestingUtils
 import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
-import java.io.IOException
-import java.time.Instant
-import java.util.Calendar
-import java.util.Locale
-import java.util.TimeZone
-import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.io.IOException
+import java.util.concurrent.CompletableFuture
 
 private const val APPLICATION_NAME = "GCTL"
 
@@ -55,10 +44,8 @@ class CloudAuthenticator(scope: CoroutineScope) {
     get() = field ?: NetHttpTransport().also { field = it }
 
   private var myStorage: Storage? = null
-  private var myCloudbilling: Cloudbilling? = null
   private var myCloudResourceManager: CloudResourceManager? = null
   private var myTest: Testing? = null
-  private var myMonitoring: Monitoring? = null
   private var myToolresults: ToolResults? = null
   private var myLastDiscoveryServiceInvocationTimestamp: Long = -1
 
@@ -69,9 +56,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
         myStorage = null
         myCloudResourceManager = null
         myTest = null
-        myMonitoring = null
         myToolresults = null
-        myCloudbilling = null
       }
 
       if (service<GoogleLoginService>().useOldVersion) {
@@ -118,19 +103,6 @@ class CloudAuthenticator(scope: CoroutineScope) {
         .build()
   }
 
-  val cloudbilling: Cloudbilling
-    get() {
-      return myCloudbilling
-        ?: Cloudbilling.Builder(
-            myHttpTransport,
-            GsonFactory.getDefaultInstance(),
-            firebaseFeature.credential(),
-          )
-          .setApplicationName(APPLICATION_NAME)
-          .build()
-          .also { myCloudbilling = it }
-    }
-
   val cloudResourceManager: CloudResourceManager
     get() {
       return myCloudResourceManager
@@ -164,23 +136,6 @@ class CloudAuthenticator(scope: CoroutineScope) {
         }
         .build()
         .also { myTest = it }
-  }
-
-  private fun getMonitoring(endpoint: String?): Monitoring {
-    return myMonitoring
-      ?: Monitoring.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          firebaseFeature.credential(),
-        )
-        .setApplicationName(APPLICATION_NAME)
-        .apply {
-          if (endpoint != null) {
-            setRootUrl(endpoint)
-          }
-        }
-        .build()
-        .also { myMonitoring = it }
   }
 
   /** Get the [AndroidDeviceCatalog] for the given FTL `endpoint`. */
@@ -230,156 +185,6 @@ class CloudAuthenticator(scope: CoroutineScope) {
         return null
       }
     }
-
-  fun isBillingEnabled(cloudProject: String): Boolean =
-    cloudbilling.projects().getBillingInfo("projects/$cloudProject").execute().billingEnabled
-
-  @Throws(IOException::class)
-  private fun queryMonitoring(
-    endpoint: String,
-    project: String,
-    queryString: String,
-  ): QueryTimeSeriesResponse {
-    val monitoring = getMonitoring(endpoint)
-    val request = QueryTimeSeriesRequest().setQuery(queryString).setPageSize(Int.MAX_VALUE)
-    return monitoring.projects().timeSeries().query(project, request).execute()
-  }
-
-  /**
-   * Returns remaining quota in minutes for the endPoint and project, -1 if not available.
-   *
-   * @param endpoint end point of the monitoring backend, effective only for the first calling
-   * @param project name of the cloud project
-   */
-  fun getQuotaUsageAndLimit(
-    endpoint: String,
-    project: String,
-    isMonthly: Boolean,
-  ): Pair<Long, Long>? {
-    val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-    calendar.timeInMillis =
-      if (isMonthly) CloudTestingUtils.getTimestampAtMonthStartMidnightInPT(Instant.now())
-      else CloudTestingUtils.getTimestampAtMidnightInPT(Instant.now())
-    // Sets up the beginning date of the query interval.
-    val date =
-      String.format(
-        Locale.US,
-        "d'%d/%d/%d %d:00'",
-        calendar[Calendar.YEAR],
-        calendar[Calendar.MONTH] + 1,
-        calendar[Calendar.DAY_OF_MONTH],
-        calendar[Calendar.HOUR],
-      )
-
-    try {
-      val usageResponse =
-        if (isMonthly) {
-          queryMonitoring(
-            endpoint,
-            project,
-            """
-              fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/allocation/usage'
-              | $queryFilterWithMonthlyQuotaMetric
-              | $queryFilterWithResourceService
-              | within $date
-              """,
-          )
-        } else {
-          queryMonitoring(
-            endpoint,
-            project,
-            """
-              fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/rate/net_usage'
-              | $queryFilterWithDailyQuotaMetric
-              | $queryFilterWithResourceService
-              | within $date
-              """,
-          )
-        }
-      // Response does not has enough data to determine usage.
-      if (usageResponse.size < 2) {
-        return null
-      }
-      val usageNumber = sumNumbers(usageResponse)
-      val limitResponse =
-        if (isMonthly) {
-          queryMonitoring(
-            endpoint,
-            project,
-            """
-              fetch consumer_quota
-              | metric 'serviceruntime.googleapis.com/quota/limit'
-              | $queryFilterWithMonthlyQuotaMetric
-              | $queryFilterWithResourceService
-              | within $date
-              """
-              .trimIndent(),
-          )
-        } else {
-          queryMonitoring(
-            endpoint,
-            project,
-            """
-              fetch consumer_quota
-              | metric 'serviceruntime.googleapis.com/quota/limit'
-              | $queryFilterWithDailyQuotaMetric
-              | $queryFilterWithResourceService
-              | within $date
-              """
-              .trimIndent(),
-          )
-        }
-      // Response does not has enough data to determine usage limit.
-      if (limitResponse.size < 2) {
-        return null
-      }
-      val limitNumber = findNumber(limitResponse)
-      return Pair(usageNumber, limitNumber)
-    } catch (e: Exception) {
-      // TODO: Surface errors in the UI.
-      return null
-    }
-  }
-
-  private val queryFilterWithMonthlyQuotaMetric =
-    "testing.googleapis.com/device_streaming"
-      .let { prefix ->
-        """
-            filter metric.quota_metric=="$prefix/blaze_physical_minutes_monthly"
-                || metric.quota_metric=="$prefix/spark_physical_minutes_monthly"
-            """
-      }
-
-  private val queryFilterWithDailyQuotaMetric =
-    "testing.googleapis.com/direct_access"
-      .let { prefix ->
-        """
-            filter metric.quota_metric=="$prefix/blaze_physical_minutes"
-                || metric.quota_metric=="$prefix/spark_physical_minutes"
-            """
-      }
-
-  private val queryFilterWithResourceService
-    get() = "filter resource.service==\"${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}\""
-
-  private fun findNumber(item: QueryTimeSeriesResponse): Long {
-    val timeSeriesData = (item["timeSeriesData"] as ArrayList<*>?)!![0] as TimeSeriesData
-    val pointData = timeSeriesData.pointData[0]
-    return pointData.getValues()[0].int64Value
-  }
-
-  private fun sumNumbers(item: QueryTimeSeriesResponse): Long {
-    return (item["timeSeriesData"] as ArrayList<*>)
-      .stream()
-      .mapToLong { timeSeriesData ->
-        (timeSeriesData as TimeSeriesData)
-          .pointData
-          .stream()
-          .mapToLong { a: PointData -> a.getValues()[0].int64Value }
-          .sum()
-      }
-      .sum()
-  }
 
   private fun showDeviceCatalogError(errorMessageSuffix: String, currentTimestamp: Long) {
     // The error should be reported just once per burst of invocations.

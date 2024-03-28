@@ -41,6 +41,7 @@ import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
+import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.RefreshableStateFlow
@@ -490,6 +491,14 @@ class SelectProjectActionTest {
     // Log in as a user without the firebase feature
     loginUsersRule.setActiveUser("test@google.com", features = setOf())
     val selectDeviceAction = SelectProjectAction()
+    projectRule.project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject =
+      supportedProjectName
+
+    firebaseProjectClientRule.setupFirebaseClient(
+      throwErrorOnExecute = false,
+      returnMalformedJson = false,
+      projectList = listOf(apiDisabledProject, supportedProjectName),
+    )
 
     // Click the device selection button.
     val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
@@ -513,8 +522,16 @@ class SelectProjectActionTest {
         action.doClick()
 
         waitForCondition { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
+
+        waitForCondition {
+          val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().firstOrNull()
+          comboBox?.model?.selectedItem == supportedProjectName
+        }
       }
     }
+
+    projectRule.project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject =
+      null
   }
 
   @Test
