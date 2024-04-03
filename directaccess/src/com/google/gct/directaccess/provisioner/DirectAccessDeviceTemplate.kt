@@ -231,18 +231,19 @@ class DirectAccessDeviceTemplate(
       private fun getDialogTitleAndMessage(billingStatus: Boolean?): Pair<String, String> {
         val devices = devices.value.filterIsInstance<DirectAccessDeviceHandle>()
 
+        val defaultReservationMinutes = 15
         return if (devices.isEmpty()) {
           when (billingStatus) {
             null ->
               Pair(
                 "Connect to ${properties.title}",
-                "Devices are reserved for 30 minutes. Unused minutes will be returned. " +
+                "Devices are reserved for $defaultReservationMinutes minutes. Unused minutes will be returned. " +
                   "If your project is a Blaze plan you may incur charges. $BLAZE_PRICE_LEARN_MORE_LINK",
               )
             false ->
               Pair(
                 "Connect to ${properties.title}",
-                "Devices are reserved for 30 minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
+                "Devices are reserved for $defaultReservationMinutes minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
               )
             true ->
               Pair(
@@ -256,7 +257,7 @@ class DirectAccessDeviceTemplate(
             null ->
               Pair(
                 "Reserving Multiple Streaming Devices",
-                "Devices are reserved for 30 minutes. Unused minutes will be returned. " +
+                "Devices are reserved for $defaultReservationMinutes minutes. Unused minutes will be returned. " +
                   "If your project is a Blaze plan you may incur charges. $BLAZE_PRICE_LEARN_MORE_LINK",
               )
             false ->
