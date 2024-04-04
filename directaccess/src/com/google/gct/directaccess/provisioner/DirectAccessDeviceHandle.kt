@@ -432,27 +432,26 @@ class DirectAccessDeviceHandle(
       )
     addContentManagerListener()
     val properties = device.deviceProperties().all().asMap()
-    val deviceProperties =
-      DirectAccessDeviceProperties.build {
-        resolution = Resolution.readFromDevice(device)
-        readCommonProperties(properties)
-        // Override model and manufacturer as the info read from device
-        // may be different from catalog
-        manufacturer = sourceTemplate.properties.manufacturer
-        model = sourceTemplate.properties.model
-        // We use the debug.firebase.test.lab.session as wear pairing identifier as it should remain
-        // constant for the time that the user is using the device. We can not just use the serial
-        // number directly since the user might pick the same device in two different sessions,
-        // and it might have been wiped out.
-        wearPairingId = properties["debug.firebase.test.lab.session"] ?: properties["ro.serialno"]
-        populateDeviceInfoProto(
-          PLUGIN_ID,
-          device.serialNumber,
-          properties,
-          connectionAttempts.toString(),
-        )
-        icon = this@DirectAccessDeviceHandle.icon
-      }
+    val deviceProperties = buildDirectAccessDeviceProperties {
+      resolution = Resolution.readFromDevice(device)
+      readCommonProperties(properties)
+      // Override model and manufacturer as the info read from device
+      // may be different from catalog
+      manufacturer = sourceTemplate.properties.manufacturer
+      model = sourceTemplate.properties.model
+      // We use the debug.firebase.test.lab.session as wear pairing identifier as it should remain
+      // constant for the time that the user is using the device. We can not just use the serial
+      // number directly since the user might pick the same device in two different sessions,
+      // and it might have been wiped out.
+      wearPairingId = properties["debug.firebase.test.lab.session"] ?: properties["ro.serialno"]
+      populateDeviceInfoProto(
+        PLUGIN_ID,
+        device.serialNumber,
+        properties,
+        connectionAttempts.toString(),
+      )
+      icon = this@DirectAccessDeviceHandle.icon
+    }
 
     stateFlow.update {
       DeviceState.Connected(deviceProperties, device, reservation = it.reservation)
@@ -618,20 +617,12 @@ class DirectAccessDeviceHandle(
   }
 }
 
-class DirectAccessDeviceProperties(base: DeviceProperties) : DeviceProperties by base {
-  class Builder : DeviceProperties.Builder()
-
-  companion object {
-    inline fun build(block: Builder.() -> Unit) =
-      Builder()
-        .apply {
-          // DirectAccess devices are always remote
-          isRemote = true
-          block()
-        }
-        .run { DirectAccessDeviceProperties(buildBase()) }
+inline fun buildDirectAccessDeviceProperties(block: DeviceProperties.Builder.() -> Unit) =
+  DeviceProperties.build {
+    // DirectAccess devices are always remote
+    isRemote = true
+    block()
   }
-}
 
 fun ReservationState.isClosed() =
   this == ReservationState.ERROR || this == ReservationState.COMPLETE
