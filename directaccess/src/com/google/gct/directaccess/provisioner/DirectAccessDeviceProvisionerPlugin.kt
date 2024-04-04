@@ -37,6 +37,7 @@ import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
@@ -163,6 +164,7 @@ class DirectAccessDeviceProvisionerPlugin(
                         // list instead.
                         service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(null)
                       } catch (e: Exception) {
+                        thisLogger().error(e)
                         listOf()
                       }
                     }
