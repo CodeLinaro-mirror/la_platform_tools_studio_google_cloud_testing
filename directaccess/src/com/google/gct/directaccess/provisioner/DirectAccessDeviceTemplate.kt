@@ -71,6 +71,9 @@ internal const val BLAZE_SINGLE_DEVICE_DO_NOT_ASK =
   "device.streaming.blaze.single.device.do.not.ask"
 internal const val BLAZE_MULTI_DEVICE_DO_NOT_ASK = "device.streaming.blaze.multi.device.do.not.ask"
 
+private const val BLAZE_PRICE_LINK = "https://d.android.com/r/studio-ui/device-streaming/pricing"
+private const val BLAZE_PRICE_LEARN_MORE_LINK = "<a href=$BLAZE_PRICE_LINK>Learn more↗</a>"
+
 class DirectAccessDeviceTemplate(
   private val project: Project,
   private val deviceInfoFlow: StateFlow<DeviceInfo>,
@@ -228,22 +231,25 @@ class DirectAccessDeviceTemplate(
       private fun getDialogTitleAndMessage(billingStatus: Boolean?): Pair<String, String> {
         val devices = devices.value.filterIsInstance<DirectAccessDeviceHandle>()
 
+        val defaultReservationMinutes = 15
         return if (devices.isEmpty()) {
           when (billingStatus) {
             null ->
               Pair(
                 "Connect to ${properties.title}",
-                "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+                "Devices are reserved for $defaultReservationMinutes minutes. Unused minutes will be returned. " +
+                  "If your project is a Blaze plan you may incur charges. $BLAZE_PRICE_LEARN_MORE_LINK",
               )
             false ->
               Pair(
                 "Connect to ${properties.title}",
-                "Devices are reserved for 30 minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
+                "Devices are reserved for $defaultReservationMinutes minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
               )
             true ->
               Pair(
                 "Connect to ${properties.title}",
-                "You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+                "You are currently using a Firebase project on the Blaze plan. " +
+                  "This session may incur billed usage. $BLAZE_PRICE_LEARN_MORE_LINK",
               )
           }
         } else {
@@ -251,7 +257,8 @@ class DirectAccessDeviceTemplate(
             null ->
               Pair(
                 "Reserving Multiple Streaming Devices",
-                "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+                "Devices are reserved for $defaultReservationMinutes minutes. Unused minutes will be returned. " +
+                  "If your project is a Blaze plan you may incur charges. $BLAZE_PRICE_LEARN_MORE_LINK",
               )
             false ->
               Pair(
@@ -261,7 +268,8 @@ class DirectAccessDeviceTemplate(
             true ->
               Pair(
                 "Reserving Multiple Streaming Devices",
-                "You have another device streaming session. You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+                "You have another device streaming session. You are currently using a Firebase project on the Blaze plan. " +
+                  "This session may incur billed usage. $BLAZE_PRICE_LEARN_MORE_LINK",
               )
           }
         }
@@ -274,7 +282,7 @@ class DirectAccessDeviceTemplate(
             val title = "Reserve ${properties.title}"
             val message =
               "The ${properties.title} will be available in $waitingTimeText.\n" +
-                "You will not be billed for this duration."
+                "You will not be billed for this duration. $BLAZE_PRICE_LEARN_MORE_LINK"
             val result =
               withContext(AndroidDispatchers.uiThread) {
                 Messages.showOkCancelDialog(
