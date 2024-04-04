@@ -58,7 +58,7 @@ class CloudClientService(scope: CoroutineScope) {
   /** Returns devices available for streaming, filtered based on Studio version. */
   fun getAvailableDevices(endpoint: String, cloudProject: String?) =
     client.getAvailableDevices(endpoint, cloudProject).filter { (_, perVersionInfo) ->
-      BuildNumber.fromString(perVersionInfo.directAccessVersionInfo.minimumAndroidStudioVersion)
+      BuildNumber.fromString(perVersionInfo.directAccessVersionInfo?.minimumAndroidStudioVersion)
         .let { catalogBuildNumber ->
           catalogBuildNumber == null || catalogBuildNumber <= ApplicationInfo.getInstance().build
         }

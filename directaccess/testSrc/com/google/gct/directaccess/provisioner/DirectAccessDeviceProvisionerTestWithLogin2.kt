@@ -1283,8 +1283,8 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
   fun testUnknownUsagePromptBeforeReservingDevice() =
     testUsagePromptBeforeReservingDevice(
       null,
-      "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
-      "Devices are reserved for 30 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+      "Devices are reserved for 15 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+      "Devices are reserved for 15 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
       UNKNOWN_DEVICE_DO_NOT_ASK,
       UNKNOWN_DEVICE_DO_NOT_ASK,
     )
@@ -1293,7 +1293,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
   fun testSparkUsagePromptBeforeReservingDevice() =
     testUsagePromptBeforeReservingDevice(
       false,
-      "Devices are reserved for 30 minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
+      "Devices are reserved for 15 minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
       "You have another streaming device reserved. The new device will be reserved and count towards your Spark Plan free minutes.",
       SPARK_SINGLE_DEVICE_DO_NOT_ASK,
       SPARK_MULTI_DEVICE_DO_NOT_ASK,
