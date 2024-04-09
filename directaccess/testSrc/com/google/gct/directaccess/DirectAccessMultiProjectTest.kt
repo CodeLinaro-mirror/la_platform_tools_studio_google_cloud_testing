@@ -132,6 +132,9 @@ class DirectAccessMultiProjectTest {
     doReturn(TestUtils.deviceInfoListProvider())
       .whenever(mockDirectAccessServiceSetup)
       .getAccessibleDeviceInfoList(any())
+    doReturn(TestUtils.deviceInfoListProvider())
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(null)
     doReturn(grpcConnectionRule.channel).whenever(mockDirectAccessServiceSetup).channel
     doReturn("testToken").whenever(mockDirectAccessServiceSetup).fetchAccessToken()
     ApplicationManager.getApplication()
@@ -161,6 +164,22 @@ class DirectAccessMultiProjectTest {
     plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
     provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
     provisioner2 = DeviceProvisioner.create(session, listOf(plugin2), testDeviceIcons)
+
+    project1
+      .service<DirectAccessService>()
+      .deviceSelectionListFlow
+      .takeWhile { it.isEmpty() }
+      .collect()
+    project2
+      .service<DirectAccessService>()
+      .deviceSelectionListFlow
+      .takeWhile { it.isEmpty() }
+      .collect()
+    assertThat(project1.service<DirectAccessService>().deviceSelectionListFlow.value.size)
+      .isEqualTo(TestUtils.deviceInfoListProvider().size)
+    assertThat(project2.service<DirectAccessService>().deviceSelectionListFlow.value.size)
+      .isEqualTo(TestUtils.deviceInfoListProvider().size)
+
     oldLoginRule.loginState.value = LoginStatus.LoggedIn("test@google.com")
 
     yieldUntil { project1.directAccessCloudProjectManager != null }

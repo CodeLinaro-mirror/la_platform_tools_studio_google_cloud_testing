@@ -148,30 +148,6 @@ class DirectAccessDeviceProvisionerPlugin(
               newAccessibleDeviceInfoList ->
               accessibleDeviceInfoMapFlow.value =
                 newAccessibleDeviceInfoList.groupBy { it.key }.mapValues { it.value.first() }
-              project.service<DirectAccessService>().deviceSelectionListFlow.update {
-                oldDeviceSelectionList ->
-                // A device will occur in the new list if it was selected with the previous project
-                // or accessible with the new project.
-                val selectedDeviceSelectionList = oldDeviceSelectionList.filter { it.isSelected }
-                val selectedDeviceKeySet =
-                  selectedDeviceSelectionList.map { it.deviceInfo.key }.toSet()
-
-                val unSelectedDeviceList =
-                  newAccessibleDeviceInfoList
-                    .ifEmpty {
-                      try {
-                        // If no devices are accessible with the new project, use the public device
-                        // list instead.
-                        service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(null)
-                      } catch (e: Exception) {
-                        thisLogger().error(e)
-                        listOf()
-                      }
-                    }
-                    .filter { it.key !in selectedDeviceKeySet }
-                selectedDeviceSelectionList +
-                  unSelectedDeviceList.map { DeviceSelection(false, it) }
-              }
             }
           }
           launch {
@@ -183,6 +159,33 @@ class DirectAccessDeviceProvisionerPlugin(
               }
             }
           }
+        }
+      }
+    }
+
+    scope.launch {
+      accessibleDeviceInfoMapFlow.collect { accessibleDeviceInfoMap ->
+        project.service<DirectAccessService>().deviceSelectionListFlow.update {
+          oldDeviceSelectionList ->
+          // A device will occur in the new list if it was selected with the previous project
+          // or accessible with the new project.
+          val selectedDeviceSelectionList = oldDeviceSelectionList.filter { it.isSelected }
+          val selectedDeviceKeySet = selectedDeviceSelectionList.map { it.deviceInfo.key }.toSet()
+
+          val unSelectedDeviceList =
+            accessibleDeviceInfoMap.values
+              .ifEmpty {
+                try {
+                  // If no devices are accessible with the new project, use the public device
+                  // list instead.
+                  service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(null)
+                } catch (e: Exception) {
+                  thisLogger().error(e)
+                  listOf()
+                }
+              }
+              .filter { it.key !in selectedDeviceKeySet }
+          selectedDeviceSelectionList + unSelectedDeviceList.map { DeviceSelection(false, it) }
         }
       }
     }
