@@ -43,10 +43,12 @@ import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.SERVICES_USE
 import com.google.gct.directaccess.TestUtils
+import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
@@ -67,6 +69,7 @@ import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -173,6 +176,16 @@ class SelectProjectActionTest {
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlockingWithTimeout {
+    val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
+    doReturn(deviceInfoListProvider())
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(null)
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessServiceSetup::class.java,
+        mockDirectAccessServiceSetup,
+        projectRule.disposable,
+      )
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
     val mockDeviceProvisionerService = mock<DeviceProvisionerService>()

@@ -23,6 +23,7 @@ import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceId
+import com.android.sdklib.deviceprovisioner.DeviceProperties
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Resolution
@@ -481,9 +482,9 @@ class DirectAccessDeviceTemplate(
   ) : DeviceError
 }
 
-internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DirectAccessDeviceProperties {
+internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DeviceProperties {
   val info = this
-  return DirectAccessDeviceProperties.build {
+  return buildDirectAccessDeviceProperties {
     manufacturer = info.manufacturer
     model = info.name
     androidVersion = AndroidVersion(info.api)

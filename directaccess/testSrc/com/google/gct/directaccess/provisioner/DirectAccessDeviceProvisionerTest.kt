@@ -51,6 +51,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
@@ -186,6 +187,17 @@ class DirectAccessDeviceProvisionerTest {
     enableHeadlessDialogs(projectRule.disposable)
     TestDialogManager.setTestDialog(TestDialog.YES)
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+    val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
+    doReturn(listOf<DeviceInfo>())
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(null)
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessServiceSetup::class.java,
+        mockDirectAccessServiceSetup,
+        projectRule.disposable,
+      )
+
     val usageTracker = mock<DirectAccessUsageTracker>()
     whenever(usageTracker.scope).thenReturn(scope)
     ApplicationManager.getApplication()

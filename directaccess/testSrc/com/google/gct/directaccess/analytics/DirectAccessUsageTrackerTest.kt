@@ -38,11 +38,14 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
+import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.showAllTemplates
+import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
@@ -78,6 +81,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReaso
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.FAILED_TO_ALLOCATE_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.PROJECT_CLOSING
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
@@ -158,6 +162,16 @@ class DirectAccessUsageTrackerTest {
   }
 
   private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {
+    val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
+    doReturn(listOf<DeviceInfo>())
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(null)
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessServiceSetup::class.java,
+        mockDirectAccessServiceSetup,
+        projectRule.disposable,
+      )
     // Sets up mock project service.
     val mockDirectAccessService = mock<DirectAccessService>()
     val cloudProjectName = "test-project"
