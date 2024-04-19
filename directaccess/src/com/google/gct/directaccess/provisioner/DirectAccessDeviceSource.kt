@@ -15,20 +15,26 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
 import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.adddevicedialog.DeviceSourceProvider
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.adddevicedialog.WizardAction
 import com.android.tools.idea.adddevicedialog.WizardPageScope
+import com.android.tools.idea.devicemanager.DeviceType
 import com.google.common.collect.Range
 import com.google.gct.directaccess.DirectAccessService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import icons.StudioIconsCompose
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.update
+import org.jetbrains.jewel.ui.component.Icon
 
 /** Implements support for Direct Access devices in the Add Device dialog. */
 class DirectAccessDeviceSource(private val project: Project) : DeviceSource {
@@ -70,6 +76,7 @@ internal data class DirectAccessDeviceProfile(
   override val resolution: Resolution,
   override val displayDensity: Int,
   override val abis: List<Abi>,
+  override val formFactor: String,
   override val isAlreadyPresent: Boolean,
   override val availabilityEstimate: Duration,
   val key: String,
@@ -84,6 +91,7 @@ internal data class DirectAccessDeviceProfile(
     resolution = Resolution(deviceInfo.screenX, deviceInfo.screenY),
     displayDensity = deviceInfo.screenDensity,
     abis = emptyList(), // TODO
+    formFactor = deviceInfo.type.toFormFactor(),
     isAlreadyPresent = isAlreadyPresent,
     availabilityEstimate = deviceInfo.deviceAvailabilityEstimateSeconds?.seconds ?: Duration.ZERO,
     key = deviceInfo.key,
@@ -97,6 +105,23 @@ internal data class DirectAccessDeviceProfile(
 
   override val isRemote: Boolean
     get() = true
+
+  @Composable
+  override fun Icon(modifier: Modifier) {
+    val painterProvider =
+      when (formFactor) {
+        FormFactors.TV -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceTv()
+        FormFactors.AUTO -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceCar()
+        FormFactors.WEAR -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceWear()
+        FormFactors.TABLET -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone()
+        else -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone()
+      }
+    Icon(
+      painter = painterProvider.getPainter().value,
+      contentDescription = "Firebase $formFactor",
+      modifier = modifier,
+    )
+  }
 
   override fun toBuilder(): Builder = Builder().apply { copyFrom(this@DirectAccessDeviceProfile) }
 
@@ -116,9 +141,18 @@ internal data class DirectAccessDeviceProfile(
         resolution = resolution,
         displayDensity = displayDensity,
         abis = abis,
+        formFactor = formFactor,
         isAlreadyPresent = isAlreadyPresent,
         availabilityEstimate = availabilityEstimate,
         key = key,
       )
   }
 }
+
+private fun DeviceType.toFormFactor(): String =
+  when (this) {
+    DeviceType.PHONE -> FormFactors.PHONE
+    DeviceType.TV -> FormFactors.TV
+    DeviceType.WEAR_OS -> FormFactors.WEAR
+    DeviceType.AUTOMOTIVE -> FormFactors.AUTO
+  }
