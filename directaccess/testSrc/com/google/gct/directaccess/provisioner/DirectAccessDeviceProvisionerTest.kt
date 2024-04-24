@@ -167,8 +167,9 @@ class DirectAccessDeviceProvisionerTest {
 
       override fun setActiveUser(userEmail: String) = Unit
 
-      override suspend fun logIn(message: String?) {
+      override suspend fun logIn(message: String?): Boolean {
         isLoggedIn = true
+        return isLoggedIn
       }
 
       override fun logIn(message: String?, loginCompletedCallback: IGoogleLoginCompletedCallback?) {
