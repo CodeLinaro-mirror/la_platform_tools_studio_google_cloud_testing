@@ -53,6 +53,7 @@ import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
 import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
@@ -337,6 +338,7 @@ class SelectProjectActionTest {
         dialog.clickDefaultButton()
       }
 
+      val extraDeviceInfoList = deviceInfoListProvider() + preselectedDeviceInfo
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
         val dialog = it as SelectDeviceDialog
         waitForCondition {
@@ -465,10 +467,7 @@ class SelectProjectActionTest {
 
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
         waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
-        mockDeviceSelectionListFlow.value =
-          (TestUtils.deviceInfoListProvider() + preselectedDeviceInfo).map {
-            DeviceSelection(false, it)
-          }
+        mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
         waitForCondition {
           PropertiesComponent.getInstance().getBoolean(ONBOARDING_WORKFLOW_KEY, false)
         }
@@ -478,6 +477,11 @@ class SelectProjectActionTest {
       yieldUntil { mockDeviceSelectionListFlow.value.any { it.isSelected } }
       val selectedDeviceInfo = mockDeviceSelectionListFlow.value.first { it.isSelected }.deviceInfo
       assertThat(selectedDeviceInfo).isEqualTo(preselectedDeviceInfo)
+
+      // Verify DeviceSource after updating selection.
+      val deviceSource = DirectAccessDeviceSource.Provider().createDeviceSource(projectRule.project)
+      assertThat(deviceSource!!.profiles.map { it.name })
+        .isEqualTo(extraDeviceInfoList.map { it.name })
     }
 
     // Start a device and the selector will be disabled.
