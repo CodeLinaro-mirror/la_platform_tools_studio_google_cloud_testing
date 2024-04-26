@@ -113,6 +113,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -470,6 +471,35 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     assertThat(job.isCancelled).isFalse()
     assertThat(template.activationAction.presentation.value.enabled).isFalse()
     yieldUntil { template.activeDevice != null }
+  }
+
+  @Test
+  fun deleteTemplate(): Unit = runBlockingWithTimeout {
+    assertThat(plugin.templates.value.size).isEqualTo(5)
+
+    val templates = plugin.templates.first()
+    val template = templates.first() as DirectAccessDeviceTemplate
+    // Create a finished reservation that will be fetched but not processed.
+    val reservation =
+      directAccessReservationManager.createReservation(
+        template.deviceInfo.codename,
+        template.deviceInfo.api.toString(),
+      )
+    directAccessReservationManager.cancelReservation(reservation.name)
+    templates.first().deleteAction?.delete()
+    yieldUntil {
+      projectRule.project.directAccessCloudProjectManager!!
+        .reservationListFlowWithException
+        .value
+        .first
+        ?.firstOrNull()
+        ?.name == reservation.name
+    }
+
+    yieldUntil { plugin.templates.value.size == 4 }
+
+    assertThat(plugin.templates.value)
+      .containsExactlyElementsIn(templates.subList(1, templates.size))
   }
 
   @Test

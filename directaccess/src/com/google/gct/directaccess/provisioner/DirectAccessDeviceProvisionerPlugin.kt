@@ -222,7 +222,15 @@ class DirectAccessDeviceProvisionerPlugin(
                   }
               }
           }
-        matchReservations(newTemplates, reservationsFlow.value)
+        // Refresh the reservation flow to match the new selection list.
+        // TODO (b/338286373) remove reservationListFlowWithException from CloudProjectManager.
+        matchReservations(
+          newTemplates,
+          project.directAccessCloudProjectManager
+            ?.reservationListFlowWithException
+            ?.refresh()
+            ?.first ?: listOf(),
+        )
       }
     }
 
