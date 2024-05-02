@@ -16,9 +16,9 @@
 package com.google.gct.directaccess.ui.actions
 
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
-import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
@@ -69,7 +69,7 @@ class SelectProjectAction :
       if (templates.isNotEmpty() && templates.none { it.deviceInfo.key in accessibleDevices })
         firebaseIconWithErrors
       else FirebaseIcons.ACTION_ICON
-    e.presentation.isVisible = service<DirectAccessConfiguration>().isEnabled
+    e.presentation.isVisible = StudioFlags.DIRECT_ACCESS.get()
   }
 
   override fun actionPerformed(e: AnActionEvent) {
