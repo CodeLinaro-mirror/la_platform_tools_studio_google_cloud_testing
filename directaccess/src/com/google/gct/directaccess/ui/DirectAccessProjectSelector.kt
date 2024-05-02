@@ -113,7 +113,7 @@ class DirectAccessProjectSelectorImpl(
       isEnabled = false
       setDisabledTextColor(NamedColorUtil.getInactiveTextColor())
       if (!shouldEnable) {
-        toolTipText = "Stop reservations to change projects"
+        toolTipText = "Return all devices to change projects"
       }
       preferredSize = null
       addItemListener { scope.launch(uiDispatcher) { updateSelectedItem(it.item as String) } }
