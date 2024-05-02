@@ -39,9 +39,6 @@
     <notificationGroup id="Direct Access" displayType="BALLOON"/>
     <notificationGroup id="Direct Access Sticky" displayType="STICKY_BALLOON" />
   </extensions>
-  <extensions defaultExtensionNs="com.android.tools.idea.flags">
-    <experimentalSettingsContributor implementation="com.google.gct.directaccess.settings.DirectAccessConfigurableContributor"/>
-  </extensions>
 
   <actions>
     <action id="SelectProjectAction" class="com.google.gct.directaccess.ui.actions.SelectProjectAction">
