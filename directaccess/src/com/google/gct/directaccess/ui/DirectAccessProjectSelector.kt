@@ -30,6 +30,7 @@ import javax.swing.JPanel
 import javax.swing.JTextField
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -93,7 +94,9 @@ class DirectAccessProjectSelectorImpl(
   private fun CoroutineScope.refreshProjects() = launch {
     val projects =
       try {
-        FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
+        withContext(Dispatchers.IO) {
+          FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
+        }
       } catch (e: Exception) {
         null
       }
