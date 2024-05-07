@@ -232,7 +232,8 @@ class SelectProjectActionTest {
       returnMalformedJson = false,
       projectList = listOf(apiDisabledProject, supportedProjectName),
     )
-    val testSelector = DirectAccessProjectSelectorImpl(supportedProjectName, true, scope)
+    val testSelector =
+      DirectAccessProjectSelectorImpl(projectRule.project, supportedProjectName, true, scope)
     testSelector.isReady.takeWhile { !it }.collect()
     assertThat(testSelector.selectedProject.value).isEqualTo(supportedProjectName)
 
