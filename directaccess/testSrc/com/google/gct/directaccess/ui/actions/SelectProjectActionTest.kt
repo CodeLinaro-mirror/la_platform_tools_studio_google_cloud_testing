@@ -54,7 +54,6 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
-import com.google.gct.directaccess.settings.DirectAccessConfiguration
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
@@ -233,7 +232,8 @@ class SelectProjectActionTest {
       returnMalformedJson = false,
       projectList = listOf(apiDisabledProject, supportedProjectName),
     )
-    val testSelector = DirectAccessProjectSelectorImpl(supportedProjectName, true, scope)
+    val testSelector =
+      DirectAccessProjectSelectorImpl(projectRule.project, supportedProjectName, true, scope)
     testSelector.isReady.takeWhile { !it }.collect()
     assertThat(testSelector.selectedProject.value).isEqualTo(supportedProjectName)
 
@@ -570,7 +570,6 @@ class SelectProjectActionTest {
     val selectDeviceAction = SelectProjectAction()
     val event = TestActionEvent.createTestEvent { null }
     selectDeviceAction.update(event)
-    assertThat(service<DirectAccessConfiguration>().isEnabled).isTrue()
     assertThat(event.presentation.isVisible).isFalse()
   }
 

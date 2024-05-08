@@ -364,6 +364,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           val component = JPanel(HorizontalLayout(5))
           val selector =
             DirectAccessProjectSelectorImpl(
+              project,
               preferredProject,
               project
                 .service<DeviceProvisionerService>()

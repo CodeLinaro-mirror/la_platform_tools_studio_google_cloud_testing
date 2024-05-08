@@ -59,7 +59,7 @@ class DirectAccessProjectSelectorTest {
     // Pass a cancelled scope so that projects don't refresh allowing
     // the test to assert preferred project is displayed
     scope.cancel()
-    selector = DirectAccessProjectSelectorImpl(projectList.last(), true, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, projectList.last(), true, scope)
 
     assertThat(selector.comboBox.model.size).isEqualTo(1)
     assertThat(selector.comboBox.model.selectedItem).isEqualTo("Loading...")
@@ -69,7 +69,7 @@ class DirectAccessProjectSelectorTest {
 
   @Test
   fun testProjectsLoadedInSelector() = runBlockingWithTimeout {
-    selector = DirectAccessProjectSelectorImpl(projectList.last(), true, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, projectList.last(), true, scope)
 
     yieldUntil { selector.comboBox.model.size != 1 }
 
@@ -80,7 +80,8 @@ class DirectAccessProjectSelectorTest {
 
   @Test
   fun testSelectedItemDefaultWhenPreferredProjectNotInList() = runBlockingWithTimeout {
-    selector = DirectAccessProjectSelectorImpl("nonExistentProject", true, scope)
+    selector =
+      DirectAccessProjectSelectorImpl(projectRule.project, "nonExistentProject", true, scope)
 
     yieldUntil { selector.comboBox.model.size != 1 }
 
@@ -92,7 +93,7 @@ class DirectAccessProjectSelectorTest {
   @Test
   fun testErrorWhileFetchingFirebaseProjectDisablesSelector() = runBlockingWithTimeout {
     projectList = firebaseProjectClientRule.setupFirebaseClient(true).toMutableList()
-    selector = DirectAccessProjectSelectorImpl("preferredProject", true, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, "preferredProject", true, scope)
 
     yieldUntil { scope.coroutineContext.job.children.toList().isEmpty() }
 
@@ -106,7 +107,7 @@ class DirectAccessProjectSelectorTest {
   @Test
   fun testEmptyProjectListShowsLink() = runBlockingWithTimeout {
     projectList = firebaseProjectClientRule.setupFirebaseClient(numProjects = 0).toMutableList()
-    selector = DirectAccessProjectSelectorImpl("preferredProject", true, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, "preferredProject", true, scope)
 
     yieldUntil { /*scope.coroutineContext.job.children.toList().isEmpty()*/
       selector.createProjectHyperlink.isVisible
@@ -118,7 +119,8 @@ class DirectAccessProjectSelectorTest {
 
   @Test
   fun testSelectorDisabledIfShouldEnableIsFalse() = runBlockingWithTimeout {
-    selector = DirectAccessProjectSelectorImpl(projectList.last(), false, scope)
+    selector =
+      DirectAccessProjectSelectorImpl(projectRule.project, projectList.last(), false, scope)
 
     yieldUntil { selector.comboBox.model.size != 1 }
 
@@ -147,7 +149,7 @@ class DirectAccessProjectSelectorTest {
       ),
       projectRule.disposable,
     )
-    selector = DirectAccessProjectSelectorImpl("preferredProject", true, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, "preferredProject", true, scope)
 
     yieldUntil { selector.comboBox.isEnabled }
     assertThat(countDownLatch.count).isEqualTo(0)
@@ -156,7 +158,7 @@ class DirectAccessProjectSelectorTest {
   @Test
   fun testFirstProjectEmptyWhenPreferredProjectNotSet() = runBlockingWithTimeout {
     projectList = firebaseProjectClientRule.setupFirebaseClient().toMutableList()
-    selector = DirectAccessProjectSelectorImpl("", true, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, "", true, scope)
 
     yieldUntil { selector.comboBox.model.size != 1 }
 

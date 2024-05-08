@@ -17,11 +17,17 @@ package com.google.gct.directaccess.ui
 
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.login2.LoginFeature
+import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClient
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.CollectionComboBoxModel
 import com.intellij.ui.HyperlinkLabel
+import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.NamedColorUtil
 import java.awt.CardLayout
 import java.awt.Color
@@ -30,8 +36,11 @@ import javax.swing.JPanel
 import javax.swing.JTextField
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.VisibleForTesting
@@ -57,13 +66,15 @@ interface DirectAccessProjectSelector {
  * @param shouldEnable true if project selection is enabled
  */
 class DirectAccessProjectSelectorImpl(
-  private val preferredProject: String,
+  private val project: Project,
+  private var preferredProject: String,
   private val shouldEnable: Boolean,
   scope: CoroutineScope,
 ) : DirectAccessProjectSelector, JPanel(CardLayout()) {
 
   private val noProjectsCard = "no projects"
   private val projectSelectorCard = "project selector"
+  private val newProjectCreatedCard = "project created"
 
   override val component: JComponent
     get() = this
@@ -79,29 +90,65 @@ class DirectAccessProjectSelectorImpl(
       setHyperlinkTarget(userSpecificFirebaseConsoleLink)
     }
 
+  private val projectCreatingLabel = JBLabel()
+
   private val uiDispatcher: CoroutineDispatcher
     get() = AndroidDispatchers.uiThread(ModalityState.any())
 
   init {
     add(comboBox, projectSelectorCard)
     add(createProjectHyperlink, noProjectsCard)
+    add(projectCreatingLabel, newProjectCreatedCard)
     scope.refreshProjects()
   }
 
   private fun showCard(card: String) = (layout as CardLayout).show(this, card)
 
   private fun CoroutineScope.refreshProjects() = launch {
-    val projects =
-      try {
-        FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
-      } catch (e: Exception) {
-        null
-      }
+    val projects = getProjects()
+
+    var projectName = ""
+    val card =
+      if (projects?.isEmpty() == true) {
+        LoginFeature.feature<FirebaseLoginFeature>()
+          .handler
+          ?.latestCreatedFirebaseProject
+          ?.value
+          ?.let {
+            projectName = it
+            projectCreatingLabel.text = "Creating project $projectName"
+            newProjectCreatedCard
+          } ?: noProjectsCard
+      } else projectSelectorCard
+
     withContext(uiDispatcher) {
-      showCard(if (projects?.isEmpty() == true) noProjectsCard else projectSelectorCard)
+      showCard(card)
       comboBox.updateProjects(projects)
     }
+    if (card == newProjectCreatedCard) {
+      launch {
+        project
+          .service<DirectAccessService>()
+          .cloudProjectManager
+          .takeWhile { it?.cloudProject?.name != projectName }
+          .collect()
+        preferredProject = projectName
+        withContext(uiDispatcher) {
+          showCard(projectSelectorCard)
+          comboBox.updateProjects(getProjects())
+        }
+      }
+    }
   }
+
+  private suspend fun getProjects() =
+    try {
+      withContext(Dispatchers.IO) {
+        FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
+      }
+    } catch (e: Exception) {
+      null
+    }
 
   inner class MyComboBox(scope: CoroutineScope) : ComboBox<String>() {
     private var isPreferredProjectApplied = false
