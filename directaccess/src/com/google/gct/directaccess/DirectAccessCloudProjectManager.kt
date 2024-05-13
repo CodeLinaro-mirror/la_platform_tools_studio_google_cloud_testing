@@ -115,7 +115,7 @@ class DirectAccessCloudProjectManager(
     }
 
   val permissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
-    RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(2)) {
+    RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(5)) {
       checkDirectAccessPermission(cloudProject)
     }
 
