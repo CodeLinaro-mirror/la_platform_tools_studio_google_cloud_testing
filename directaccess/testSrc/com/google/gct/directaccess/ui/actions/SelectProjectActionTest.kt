@@ -433,7 +433,7 @@ class SelectProjectActionTest {
         assertThat(label.getHelpToolTipText()).isEqualTo("")
 
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
-        waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
+        waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
 
         service<DirectAccessApplicationService>().isMonthlyBillingEnabled = true
         // Select a blaze project that supports direct access with monthly quota.
@@ -466,7 +466,7 @@ class SelectProjectActionTest {
         assertThat(label.getHelpToolTipText()).isEqualTo("")
 
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
-        waitForCondition { remainingMinutesLabel.text == "less than 30 mins remaining" }
+        waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
         mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
         waitForCondition {
           PropertiesComponent.getInstance().getBoolean(ONBOARDING_WORKFLOW_KEY, false)

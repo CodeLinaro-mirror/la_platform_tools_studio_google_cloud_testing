@@ -752,7 +752,7 @@ class DirectAccessDeviceProvisionerTest {
       extendAction.actionPerformed(mock(), it)
       yieldUntil {
         handle.reservation.expireTime.seconds ==
-          handle.reservation.createTime.seconds + TimeUnit.MINUTES.toSeconds(35) + 10
+          handle.reservation.createTime.seconds + TimeUnit.MINUTES.toSeconds(20) + 10
       }
     }
 
@@ -1259,7 +1259,7 @@ class DirectAccessDeviceProvisionerTest {
       RESERVATION_EXPIRING_BANNER_TITLE,
       "${handle.deviceName} will disconnect in 5 mins. Extend reservation to continue access to the device.",
       handle.icon,
-      listOf("Extend 30 mins"),
+      listOf("Extend 15 mins"),
       waitForNotificationExpiry,
       actionAssertBlock,
     )
