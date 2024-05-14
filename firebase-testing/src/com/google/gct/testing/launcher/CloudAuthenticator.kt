@@ -281,6 +281,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
               fetch consumer_quota | metric 'serviceruntime.googleapis.com/quota/allocation/usage'
               | $queryFilterWithMonthlyQuotaMetric
               | $queryFilterWithResourceService
+              | top 1, scale(end(), 'ms')
               | within $date
               """,
           )
@@ -316,6 +317,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
               | metric 'serviceruntime.googleapis.com/quota/limit'
               | $queryFilterWithMonthlyQuotaMetric
               | $queryFilterWithResourceService
+              | top 1, scale(end(), 'ms')
               | within $date
               """
               .trimIndent(),
