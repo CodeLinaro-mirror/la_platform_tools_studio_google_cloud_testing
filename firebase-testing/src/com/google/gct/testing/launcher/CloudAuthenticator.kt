@@ -300,7 +300,12 @@ class CloudAuthenticator(scope: CoroutineScope) {
       if (usageResponse.size < 2) {
         return null
       }
-      val usageNumber = sumNumbers(usageResponse)
+      val usageNumber =
+        if (isMonthly) {
+          findNumber(usageResponse)
+        } else {
+          sumNumbers(usageResponse)
+        }
       val limitResponse =
         if (isMonthly) {
           queryMonitoring(
@@ -345,8 +350,8 @@ class CloudAuthenticator(scope: CoroutineScope) {
     "testing.googleapis.com/device_streaming"
       .let { prefix ->
         """
-            filter metric.quota_metric=="$prefix/blaze_physical_minutes_monthly"
-                || metric.quota_metric=="$prefix/spark_physical_minutes_monthly"
+            filter metric.quota_metric=="$prefix/monthly_blaze_physical_minutes"
+                || metric.quota_metric=="$prefix/monthly_spark_physical_minutes"
             """
       }
 
