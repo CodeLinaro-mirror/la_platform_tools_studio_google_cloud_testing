@@ -618,7 +618,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
           val remainingMinutes = it.second - it.first
           when {
             remainingMinutes < 0 -> "0"
-            remainingMinutes < 30 -> "less than 30"
+            remainingMinutes < 15 -> "less than 15"
             else -> remainingMinutes.toString()
           }
         } ?: "--"

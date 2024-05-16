@@ -307,7 +307,7 @@ class DirectAccessNotificationManager(
       EditorNotificationPanel().apply {
         text = RESERVATION_EXPIRING_BANNER_TITLE
         icon(deviceHandle.icon)
-        createActionLabel("Extend 30 mins") { extendReservation() }
+        createActionLabel("Extend 15 mins") { extendReservation() }
         setCloseAction {
           devicePanel?.removeNotification(this)
           expire()
@@ -322,7 +322,7 @@ class DirectAccessNotificationManager(
           NotificationType.INFORMATION,
         )
         .addAction(
-          NotificationAction.createExpiring("Extend 30 mins") { _, _ -> extendReservation() }
+          NotificationAction.createExpiring("Extend 15 mins") { _, _ -> extendReservation() }
         )
         .setIcon(deviceHandle.icon)
         .whenExpired { expire() }
@@ -330,7 +330,7 @@ class DirectAccessNotificationManager(
     /** Extends the reservation and expires notification */
     private fun extendReservation() =
       deviceHandle.launchCatchingDeviceActionException(project = project) {
-        reservationAction.reserve(Duration.ofMinutes(30))
+        reservationAction.reserve(Duration.ofMinutes(15))
         expire()
       }
 
