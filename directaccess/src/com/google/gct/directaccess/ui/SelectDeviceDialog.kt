@@ -594,7 +594,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         quota?.let {
           val remainingMinutes = it.second - it.first
           when {
-            remainingMinutes < 0 -> "0"
+            remainingMinutes <= 0 -> "0"
             remainingMinutes < 15 -> "less than 15"
             else -> remainingMinutes.toString()
           }

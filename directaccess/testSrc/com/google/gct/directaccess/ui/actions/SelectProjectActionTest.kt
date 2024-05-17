@@ -47,7 +47,6 @@ import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.SERVICES_USE
-import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DeviceInfo
@@ -111,6 +110,7 @@ class SelectProjectActionTest {
   private val viewerTestProject = "viewerTestProject"
   private val unknownPermissionTestProject = "unknownPermissionTestProject"
   private val supportedProjectName = "supportedTestProject"
+  private val noQuotaProjectName = "noQuotaTestProject"
   private val blazeProjectName = "blazeTestProject"
 
   private val projectRule = ProjectRule()
@@ -137,6 +137,7 @@ class SelectProjectActionTest {
         unsupportedTestProjectWithServiceUse -> parseFrom(setOf(SERVICES_USE))
         unsupportedTestProjectWithoutServiceUse -> parseFrom(FULL_PERMISSIONS_SET - SERVICES_USE)
         supportedProjectName,
+        noQuotaProjectName,
         blazeProjectName -> parseFrom(FULL_PERMISSIONS_SET)
         viewerTestProject -> parseFrom(VIEWER_PERMISSIONS_SET)
         unknownPermissionTestProject ->
@@ -209,7 +210,8 @@ class SelectProjectActionTest {
           createCloudProjectManager(
             scope,
             cloudProjectName,
-            cloudProjectName == supportedProjectName,
+            cloudProjectName == supportedProjectName || cloudProjectName == noQuotaProjectName,
+            cloudProjectName == noQuotaProjectName,
           )
         runBlocking { permissionFlow.refresh() }
         Unit
@@ -248,6 +250,7 @@ class SelectProjectActionTest {
           viewerTestProject,
           unknownPermissionTestProject,
           supportedProjectName,
+          noQuotaProjectName,
         ),
     )
     val selectDeviceAction = SelectProjectAction()
@@ -340,12 +343,13 @@ class SelectProjectActionTest {
 
       val extraDeviceInfoList = deviceInfoListProvider() + preselectedDeviceInfo
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
-        val dialog = it as SelectDeviceDialog
+        dialogWrapper ->
+        val dialog = dialogWrapper as SelectDeviceDialog
         waitForCondition {
           dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
         }
         val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
-        val label =
+        val errorLabel =
           dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
             label.icon == StudioIcons.Common.ERROR
           }
@@ -363,7 +367,7 @@ class SelectProjectActionTest {
         comboBox.model.selectedItem = viewerTestProject
         waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == viewerTestProject }
         waitForCondition {
-          label
+          errorLabel
             .getHelpToolTipText()
             .contains(
               "You do not have full access to Device Streaming in project $viewerTestProject. You are missing the following permissions:" +
@@ -377,7 +381,7 @@ class SelectProjectActionTest {
           cloudProjectManagerFlow.value?.cloudProject?.name == unknownPermissionTestProject
         }
         waitForCondition {
-          label
+          errorLabel
             .getHelpToolTipText()
             .contains(
               "You do not have full access to Device Streaming in project $unknownPermissionTestProject. You are missing the following permissions:" +
@@ -430,10 +434,16 @@ class SelectProjectActionTest {
             .contains("Spark plans provide limited usage at no cost.")
         }
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
-        assertThat(label.getHelpToolTipText()).isEqualTo("")
+        assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
         waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
+
+        // Select a spark project that's out of quota
+        comboBox.model.selectedItem = noQuotaProjectName
+        waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == noQuotaProjectName }
+        waitForCondition { usedMinutesLabel.text == "70 mins used" }
+        waitForCondition { remainingMinutesLabel.text == "0 mins remaining" }
 
         service<DirectAccessApplicationService>().isMonthlyBillingEnabled = true
         // Select a blaze project that supports direct access with monthly quota.
@@ -463,7 +473,7 @@ class SelectProjectActionTest {
             )
         }
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
-        assertThat(label.getHelpToolTipText()).isEqualTo("")
+        assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
         waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
@@ -591,6 +601,7 @@ class SelectProjectActionTest {
     scope: CoroutineScope,
     name: String?,
     isAuthorized: Boolean,
+    outOfQuota: Boolean,
   ): DirectAccessCloudProjectManager? {
     if (name == null) {
       return null
@@ -612,11 +623,11 @@ class SelectProjectActionTest {
         else Pair(null, exceptionToThrow)
       }
     doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
-    doReturn(Pair(60L, 70L)).whenever(mockCloudProjectManager).usageQuota
+    doReturn(Pair(if (outOfQuota) 70L else 60L, 70L)).whenever(mockCloudProjectManager).usageQuota
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (isAuthorized) TestUtils.deviceInfoListProvider() + preselectedDeviceInfo else listOf()
+        if (isAuthorized) deviceInfoListProvider() + preselectedDeviceInfo else listOf()
       }
     doReturn(accessibleDeviceInfoListFlow)
       .whenever(mockCloudProjectManager)
@@ -627,7 +638,8 @@ class SelectProjectActionTest {
     val isBillingEnabledFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
         when (name) {
-          supportedProjectName -> false
+          supportedProjectName,
+          noQuotaProjectName -> false
           blazeProjectName -> true
           else -> null
         }
