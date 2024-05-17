@@ -38,7 +38,6 @@ import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudProjectEntry
-import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
@@ -165,13 +164,11 @@ class SelectProjectActionTest {
   @Before
   fun setUp() {
     PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
-    service<DirectAccessApplicationService>().isMonthlyBillingEnabled = false
   }
 
   @After
   fun tearDown() {
     PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
-    service<DirectAccessApplicationService>().isMonthlyBillingEnabled = false
   }
 
   @RunsInEdt
@@ -419,7 +416,9 @@ class SelectProjectActionTest {
         waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
         waitForCondition { planLabel.text == "Blaze Plan" }
         waitForCondition {
-          planTooltipLabel.getHelpToolTipText().contains("This project is on the Blaze plan.")
+          planTooltipLabel
+            .getHelpToolTipText()
+            .contains("Blaze plans allow extended usage and is billed monthly.")
         }
 
         // Select a spark project that supports direct access.
@@ -445,7 +444,6 @@ class SelectProjectActionTest {
         waitForCondition { usedMinutesLabel.text == "70 mins used" }
         waitForCondition { remainingMinutesLabel.text == "0 mins remaining" }
 
-        service<DirectAccessApplicationService>().isMonthlyBillingEnabled = true
         // Select a blaze project that supports direct access with monthly quota.
         comboBox.model.selectedItem = blazeProjectName
         waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }

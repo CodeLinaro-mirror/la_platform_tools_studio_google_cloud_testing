@@ -23,7 +23,6 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
-import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
@@ -258,14 +257,9 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
             text(
                 "Android Device Streaming, powered by Firebase, provides secure direct ADB access to a wide range of Android devices," +
                   " which you can use to debug and interact with your app.  <br>" +
-                  if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-                    "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
-                      " Select a Firebase Spark plan project for limited access at no cost," +
-                      " or select a Blaze project for pay-as-you-go access that’s billed monthly. "
-                  } else {
-                    "Android Device Streaming is a Preview service and may encounter service disruptions or issues as performance improves." +
-                      " Service usage is currently limited to a daily quota at no cost, and billed usage will be introduced at a later date. "
-                  } +
+                  "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
+                  " Select a Firebase Spark plan project for limited access at no cost," +
+                  " or select a Blaze project for pay-as-you-go access that’s billed monthly. " +
                   "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>"
               )
               .apply { align(Align.FILL) }
@@ -397,9 +391,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       JPanel(HorizontalLayout(5)).apply {
         add(usedMinutesLabel)
         add(remainingMinutesLabel)
-        if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-          add(viewPricingDetailsHyperlink)
-        }
+        add(viewPricingDetailsHyperlink)
       }
     val viewAllProjectsPanel =
       JPanel(HorizontalLayout(0)).apply {
@@ -585,9 +577,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   ) {
     usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
 
-    if (
-      service<DirectAccessApplicationService>().isMonthlyBillingEnabled && isBillingEnabled == true
-    ) {
+    if (isBillingEnabled == true) {
       remainingMinutesLabel.text = "Blaze Plan may incur charges"
     } else {
       val remainingText =
@@ -613,14 +603,12 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         null -> "Billing information not available."
       }
 
-    if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-      when (isBillingEnabled) {
-        true -> description = "Blaze plans allow extended usage and is billed monthly."
-        false ->
-          description +=
-            " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
-        else -> {}
-      }
+    when (isBillingEnabled) {
+      true -> description = "Blaze plans allow extended usage and is billed monthly."
+      false ->
+        description +=
+          " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
+      else -> {}
     }
 
     HelpTooltip()

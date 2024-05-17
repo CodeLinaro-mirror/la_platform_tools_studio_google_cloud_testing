@@ -16,7 +16,6 @@
 package com.google.gct.directaccess
 
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
@@ -27,8 +26,6 @@ import kotlinx.coroutines.CoroutineScope
  */
 @Service
 class DirectAccessApplicationService(private val scope: CoroutineScope) {
-
-  var isMonthlyBillingEnabled: Boolean = StudioFlags.DIRECT_ACCESS_MONTHLY_QUOTA.get()
 
   /** A mapping from a user project to its selected cloud project. */
   private val cloudProjectMap = mutableMapOf<Project, CloudProjectEntry>()

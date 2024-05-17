@@ -34,7 +34,6 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
-import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
@@ -204,10 +203,6 @@ class DirectAccessDeviceTemplate(
       }
 
       private suspend fun confirmUsageMinutes(): Boolean {
-        // Don't prompt if monthly billing is not enabled
-        if (!StudioFlags.DIRECT_ACCESS_MONTHLY_QUOTA.get()) {
-          return true
-        }
         val billingStatus = project.directAccessCloudProjectManager?.isBillingEnabledFlow?.value
         val isMultiDevice = devices.value.filterIsInstance<DirectAccessDeviceHandle>().isNotEmpty()
         val persistenceKey = getPersistenceKeyForDoNoAsk(billingStatus, isMultiDevice)

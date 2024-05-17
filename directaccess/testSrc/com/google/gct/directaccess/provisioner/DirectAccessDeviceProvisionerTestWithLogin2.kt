@@ -1357,62 +1357,56 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     multiMessage: String,
     singleKey: String,
     multiKey: String,
-  ) =
-    try {
-      StudioFlags.DIRECT_ACCESS_MONTHLY_QUOTA.override(true)
-      runBlockingWithTimeout {
-        val countDownLatch = CountDownLatch(2)
-        // Unset values set by PropertiesComponentRule
-        PropertiesComponent.getInstance(projectRule.project).unsetValue(singleKey)
-        PropertiesComponent.getInstance(projectRule.project).unsetValue(multiKey)
-        val cloudProjectManager = projectRule.project.directAccessCloudProjectManager!!
-        val billingEnabledFlow = RefreshableStateFlow(scope, TimeUnit.HOURS.toMillis(1)) { billing }
-        doAnswer { billingEnabledFlow }.whenever(cloudProjectManager).isBillingEnabledFlow
+  ) = runBlockingWithTimeout {
+    val countDownLatch = CountDownLatch(2)
+    // Unset values set by PropertiesComponentRule
+    PropertiesComponent.getInstance(projectRule.project).unsetValue(singleKey)
+    PropertiesComponent.getInstance(projectRule.project).unsetValue(multiKey)
+    val cloudProjectManager = projectRule.project.directAccessCloudProjectManager!!
+    val billingEnabledFlow = RefreshableStateFlow(scope, TimeUnit.HOURS.toMillis(1)) { billing }
+    doAnswer { billingEnabledFlow }.whenever(cloudProjectManager).isBillingEnabledFlow
 
-        TestDialogManager.setTestDialog { message ->
-          assertThat(message).startsWith(singleMessage)
-          countDownLatch.countDown()
-          Messages.YES
-        }
-        // Reserve a device
-        plugin.templates.value[0].activationAction.activate()
-        yieldUntil { plugin.devices.value.size == 1 }
-
-        TestDialogManager.setTestDialog { message ->
-          assertThat(message).startsWith(multiMessage)
-          countDownLatch.countDown()
-          Messages.YES
-        }
-        // Reserve another device for multi-device prompt
-        plugin.templates.value[4].activationAction.activate()
-        yieldUntil { plugin.devices.value.size == 2 }
-
-        // Check the "do not ask again" box
-        PropertiesComponent.getInstance(projectRule.project).setValue(singleKey, true)
-        PropertiesComponent.getInstance(projectRule.project).setValue(multiKey, true)
-
-        // Setup prompt to fail test if invoked
-        TestDialogManager.setTestDialog {
-          fail("Should not prompt")
-          Messages.YES
-        }
-
-        plugin.devices.value.forEach { it.deactivationAction?.deactivate() }
-        yieldUntil { plugin.devices.value.isEmpty() }
-
-        // Reserve devices again
-        yieldUntil { !plugin.templates.value[0].stateFlow.value.isActivating }
-        plugin.templates.value[0].activationAction.activate()
-        yieldUntil { plugin.devices.value.size == 1 }
-
-        yieldUntil { !plugin.templates.value[4].stateFlow.value.isActivating }
-        plugin.templates.value[4].activationAction.activate()
-        yieldUntil { plugin.devices.value.size == 2 }
-        assertThat(countDownLatch.count).isEqualTo(0)
-      }
-    } finally {
-      StudioFlags.DIRECT_ACCESS_MONTHLY_QUOTA.clearOverride()
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message).startsWith(singleMessage)
+      countDownLatch.countDown()
+      Messages.YES
     }
+    // Reserve a device
+    plugin.templates.value[0].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 1 }
+
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message).startsWith(multiMessage)
+      countDownLatch.countDown()
+      Messages.YES
+    }
+    // Reserve another device for multi-device prompt
+    plugin.templates.value[4].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 2 }
+
+    // Check the "do not ask again" box
+    PropertiesComponent.getInstance(projectRule.project).setValue(singleKey, true)
+    PropertiesComponent.getInstance(projectRule.project).setValue(multiKey, true)
+
+    // Setup prompt to fail test if invoked
+    TestDialogManager.setTestDialog {
+      fail("Should not prompt")
+      Messages.YES
+    }
+
+    plugin.devices.value.forEach { it.deactivationAction?.deactivate() }
+    yieldUntil { plugin.devices.value.isEmpty() }
+
+    // Reserve devices again
+    yieldUntil { !plugin.templates.value[0].stateFlow.value.isActivating }
+    plugin.templates.value[0].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 1 }
+
+    yieldUntil { !plugin.templates.value[4].stateFlow.value.isActivating }
+    plugin.templates.value[4].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 2 }
+    assertThat(countDownLatch.count).isEqualTo(0)
+  }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle

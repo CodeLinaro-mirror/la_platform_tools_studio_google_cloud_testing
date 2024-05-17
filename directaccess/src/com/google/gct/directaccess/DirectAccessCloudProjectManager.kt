@@ -62,24 +62,9 @@ class DirectAccessCloudProjectManager(
       val endpoint = "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}"
       val serviceFilter = StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
       val project = "projects/${cloudProject.name}"
-      // Try to get and enable monthly quota.
-      val monthlyQuota =
-        service<CloudClientService>()
-          .client
-          .getQuotaUsageAndLimit(endpoint, serviceFilter, project, true)
-      if (monthlyQuota != null) {
-        service<DirectAccessApplicationService>().isMonthlyBillingEnabled = true
-        return monthlyQuota
-      } else {
-        // Get daily quota instead when monthly quota is disabled.
-        // TODO (b/328524309) Remove daily quota once monthly quota are enabled.
-        if (!service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-          return service<CloudClientService>()
-            .client
-            .getQuotaUsageAndLimit(endpoint, serviceFilter, project, false)
-        }
-        return null
-      }
+      return service<CloudClientService>()
+        .client
+        .getQuotaUsageAndLimit(endpoint, serviceFilter, project)
     }
 
   val reservationManager: DirectAccessReservationManager =
