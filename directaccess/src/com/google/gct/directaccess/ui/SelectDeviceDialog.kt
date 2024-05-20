@@ -57,7 +57,6 @@ import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.dsl.builder.Align
 import com.intellij.ui.dsl.builder.EmptySpacingConfiguration
-import com.intellij.ui.dsl.builder.classIconProvider
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.util.maximumHeight
 import com.intellij.ui.util.minimumHeight
@@ -253,7 +252,6 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       panel {
         customizeSpacingConfiguration(EmptySpacingConfiguration()) {
           row {
-            classIconProvider(AllIcons.Ide::class.java)
             text(
                 "Android Device Streaming, powered by Firebase, provides secure direct ADB access to a wide range of Android devices," +
                   " which you can use to debug and interact with your app.  <br>" +
