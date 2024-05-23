@@ -23,7 +23,6 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
-import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
@@ -47,7 +46,6 @@ import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
-import com.intellij.ui.BrowserHyperlinkListener
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.HyperlinkLabel
 import com.intellij.ui.SearchTextField
@@ -57,27 +55,23 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
+import com.intellij.ui.dsl.builder.Align
+import com.intellij.ui.dsl.builder.EmptySpacingConfiguration
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.util.maximumHeight
-import com.intellij.ui.util.maximumWidth
 import com.intellij.ui.util.minimumHeight
 import com.intellij.ui.util.preferredHeight
 import com.intellij.ui.util.preferredWidth
 import com.intellij.util.applyIf
-import com.intellij.util.ui.HTMLEditorKitBuilder
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
 import java.awt.BorderLayout
 import java.awt.CardLayout
-import java.awt.Dimension
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import javax.swing.BoxLayout
 import javax.swing.JComponent
-import javax.swing.JEditorPane
 import javax.swing.JPanel
-import javax.swing.JTextPane
 import javax.swing.event.DocumentEvent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -255,30 +249,35 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     val topPanel = JPanel(VerticalLayout(5))
     topPanel.add(createTitleLabel("Android Device Streaming"))
     topPanel.add(
-      createTextPane(topPanel).apply {
-        text =
-          "Android Device Streaming, powered by Firebase, provides secure direct ADB access to a wide range of Android devices," +
-            " which you can use to debug and interact with your app.  <br>" +
-            if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-              "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
-                " Select a Firebase Spark plan project for limited access at no cost," +
-                " or select a Blaze project for pay-as-you-go access that’s billed monthly. "
-            } else {
-              "Android Device Streaming is a Preview service and may encounter service disruptions or issues as performance improves." +
-                " Service usage is currently limited to a daily quota at no cost, and billed usage will be introduced at a later date. "
-            } +
-            "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>"
-        insertIcon(AllIcons.Ide.External_link_arrow)
+      panel {
+        customizeSpacingConfiguration(EmptySpacingConfiguration()) {
+          row {
+            text(
+                "Android Device Streaming, powered by Firebase, provides secure direct ADB access to a wide range of Android devices," +
+                  " which you can use to debug and interact with your app.  <br>" +
+                  "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
+                  " Select a Firebase Spark plan project for limited access at no cost," +
+                  " or select a Blaze project for pay-as-you-go access that’s billed monthly. " +
+                  "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>"
+              )
+              .apply { align(Align.FILL) }
+          }
+        }
       }
     )
     topPanel.add(TitledSeparator("Firebase Project Information"))
     topPanel.add(createSelectProjectComponent())
     topPanel.add(TitledSeparator("Select Devices"))
     topPanel.add(
-      createTextPane(topPanel).apply {
-        text =
-          "Select the devices you want to access. The devices you select are added to the Device Manager " +
-            "and deploy target dropdown menu in the main toolbar. There is no cost associated with this action."
+      panel {
+        customizeSpacingConfiguration(EmptySpacingConfiguration()) {
+          row {
+            text(
+              "Select the devices you want to access. The devices you select are added to the Device Manager " +
+                "and deploy target dropdown menu in the main toolbar. There is no cost associated with this action."
+            )
+          }
+        }
       }
     )
 
@@ -290,36 +289,6 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     TreeWalker(panel).descendantStream().forEach { it.background = null }
     return panel
   }
-
-  private fun createTextPane(container: JPanel): JTextPane =
-    object : JTextPane() {
-      init {
-        isEditable = false
-        editorKit = HTMLEditorKitBuilder.simple()
-        contentType = "text/html"
-        maximumWidth = deviceTable.preferredWidth
-        size
-        font = UIUtil.getLabelFont()
-        addHyperlinkListener(BrowserHyperlinkListener.INSTANCE)
-        addComponentListener(
-          object : ComponentAdapter() {
-            override fun componentResized(e: ComponentEvent) {
-              super.componentResized(e)
-              scope.launch { withContext(uiDispatcher) { container.revalidate() } }
-            }
-          }
-        )
-      }
-
-      override fun updateUI() {
-        super.updateUI()
-        putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
-      }
-
-      override fun getPreferredSize(): Dimension {
-        return ui.getPreferredSize(container)
-      }
-    }
 
   private fun createTitleLabel(text: String) =
     JBLabel(text, JBLabel.LEFT).apply { font = JBFont.h2() }
@@ -420,9 +389,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       JPanel(HorizontalLayout(5)).apply {
         add(usedMinutesLabel)
         add(remainingMinutesLabel)
-        if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-          add(viewPricingDetailsHyperlink)
-        }
+        add(viewPricingDetailsHyperlink)
       }
     val viewAllProjectsPanel =
       JPanel(HorizontalLayout(0)).apply {
@@ -608,16 +575,14 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   ) {
     usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
 
-    if (
-      service<DirectAccessApplicationService>().isMonthlyBillingEnabled && isBillingEnabled == true
-    ) {
+    if (isBillingEnabled == true) {
       remainingMinutesLabel.text = "Blaze Plan may incur charges"
     } else {
       val remainingText =
         quota?.let {
           val remainingMinutes = it.second - it.first
           when {
-            remainingMinutes < 0 -> "0"
+            remainingMinutes <= 0 -> "0"
             remainingMinutes < 15 -> "less than 15"
             else -> remainingMinutes.toString()
           }
@@ -636,14 +601,12 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         null -> "Billing information not available."
       }
 
-    if (service<DirectAccessApplicationService>().isMonthlyBillingEnabled) {
-      when (isBillingEnabled) {
-        true -> description = "Blaze plans allow extended usage and is billed monthly."
-        false ->
-          description +=
-            " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
-        else -> {}
-      }
+    when (isBillingEnabled) {
+      true -> description = "Blaze plans allow extended usage and is billed monthly."
+      false ->
+        description +=
+          " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
+      else -> {}
     }
 
     HelpTooltip()
