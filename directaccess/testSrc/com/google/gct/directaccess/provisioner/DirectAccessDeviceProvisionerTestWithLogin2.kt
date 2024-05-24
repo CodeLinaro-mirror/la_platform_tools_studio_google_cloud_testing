@@ -43,6 +43,7 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
@@ -91,6 +92,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
+import com.intellij.openapi.ui.messages.MessageDialog
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
@@ -103,6 +105,9 @@ import icons.StudioIcons
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import java.time.Duration
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
@@ -113,7 +118,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -1322,6 +1329,125 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
   }
 
   @Test
+  fun testReserveNewDeviceFromNotification() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = fakeConnection.deviceAddress()!!.address
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to template.deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to template.deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to template.deviceInfo.name,
+      ),
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+
+    directAccessReservationManager.cancelReservation(handle.reservation.name)
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(1)
+    val notification = notifications[0]
+    val formattedReservationExpireTime =
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        .withZone(ZoneId.systemDefault())
+        .format(handle.state.reservation?.endTime)
+    notification.assertDeviceNotification(
+      "Direct Access Sticky",
+      "${handle.sourceTemplate.properties.title} session ended",
+      "Your device session ended at $formattedReservationExpireTime. The device was returned and erased.",
+      handle.icon,
+      listOf("Reserve new device"),
+      false,
+    ) {
+      yieldUntil { template.activeDevice == null }
+      val newReservationAction = it.actions[0] as NotificationAction
+      newReservationAction.actionPerformed(mock(), it)
+      yieldUntil { template.activeDevice != null }
+    }
+  }
+
+  @Test
+  fun testReserveNewDeviceWhenOutOfQuotaFromNotification() = runBlockingWithTimeout {
+    service.config = FakeDirectAccessGrpcService.Config(maxReservations = 1)
+    val deviceInfo =
+      DeviceInfo(
+        "max-one-reservation",
+        "brand",
+        "name",
+        "manufacturer",
+        "max-one-reservation",
+        33,
+        DeviceType.PHONE,
+        50,
+        100,
+        100,
+        30,
+      )
+    val template =
+      DirectAccessDeviceTemplate(
+        projectRule.project,
+        MutableStateFlow(deviceInfo).asStateFlow(),
+        plugin.devices as MutableStateFlow,
+        scope,
+        flow { true },
+      )
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = fakeConnection.deviceAddress()!!.address
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to template.deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to template.deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to template.deviceInfo.name,
+      ),
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+
+    directAccessReservationManager.cancelReservation(handle.reservation.name)
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(1)
+    val notification = notifications[0]
+    val formattedReservationExpireTime =
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        .withZone(ZoneId.systemDefault())
+        .format(handle.state.reservation?.endTime)
+    notification.assertDeviceNotification(
+      "Direct Access Sticky",
+      "${handle.sourceTemplate.properties.title} session ended",
+      "Your device session ended at $formattedReservationExpireTime. The device was returned and erased.",
+      handle.icon,
+      listOf("Reserve new device"),
+      false,
+    ) {
+      yieldUntil { template.activeDevice == null }
+      val dialogCountDown = CountDownLatch(1)
+      TestDialogManager.setTestDialog { message ->
+        assertThat(message)
+          .isEqualTo(
+            "All Spark plan minutes for the current period have been used. Upgrade to a Blaze plan to immediately continue using this service."
+          )
+        dialogCountDown.countDown()
+        MessageDialog.OK_EXIT_CODE
+      }
+      val newReservationAction = it.actions[0] as NotificationAction
+      newReservationAction.actionPerformed(mock(), it)
+      yieldUntil { dialogCountDown.count == 0L }
+    }
+  }
+
+  @Test
   fun testUnknownUsagePromptBeforeReservingDevice() =
     testUsagePromptBeforeReservingDevice(
       null,
@@ -1424,6 +1550,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     actionAssertBlock: suspend (Notification) -> Unit,
   ) =
     assertDeviceNotification(
+      "Direct Access",
       RESERVATION_EXPIRING_BANNER_TITLE,
       "${handle.deviceName} will disconnect in 5 mins. Extend reservation to continue access to the device.",
       handle.icon,
@@ -1437,6 +1564,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     actionAssertBlock: suspend (Notification) -> Unit,
   ) =
     assertDeviceNotification(
+      "Direct Access",
       "${handle.deviceName} on Firebase stopped",
       "You can reconnect to the same ${handle.deviceName} for up to 5 minutes before the device is wiped",
       handle.icon,
@@ -1446,6 +1574,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     )
 
   private suspend fun Notification.assertDeviceNotification(
+    notificationGroupId: String = "Direct Access",
     title: String,
     content: String,
     deviceIcon: Icon,
@@ -1453,7 +1582,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
     waitForNotificationExpiry: Boolean,
     actionAssertBlock: suspend (Notification) -> Unit,
   ) {
-    assertThat(groupId).isEqualTo("Direct Access")
+    assertThat(groupId).isEqualTo(notificationGroupId)
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
     assertThat(title).isEqualTo(title)
     assertThat(content).isEqualTo(content)
