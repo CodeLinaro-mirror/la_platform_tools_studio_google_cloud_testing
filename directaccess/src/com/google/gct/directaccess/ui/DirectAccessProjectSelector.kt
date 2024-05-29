@@ -17,9 +17,8 @@ package com.google.gct.directaccess.ui
 
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
-import com.google.gct.login2.LoginFeature
-import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClient
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
@@ -105,28 +104,13 @@ class DirectAccessProjectSelectorImpl(
   private fun showCard(card: String) = (layout as CardLayout).show(this, card)
 
   private fun CoroutineScope.refreshProjects() = launch {
-    val projects = getProjects()
-
-    var projectName = ""
-    val card =
-      if (projects?.isEmpty() == true) {
-        LoginFeature.feature<FirebaseLoginFeature>()
-          .handler
-          ?.latestCreatedFirebaseProject
-          ?.value
-          ?.let {
-            projectName = it
-            projectCreatingLabel.text = "Creating project $projectName"
-            newProjectCreatedCard
-          } ?: noProjectsCard
-      } else projectSelectorCard
-
-    withContext(uiDispatcher) {
-      showCard(card)
-      comboBox.updateProjects(projects)
-    }
-    if (card == newProjectCreatedCard) {
+    val task = service<DirectAccessOnboardingService>().taskFlow.value
+    if (task?.isPending == true) {
+      val projectName = task.cloudProject.name
+      projectCreatingLabel.text = "Creating project $projectName"
+      withContext(uiDispatcher) { showCard(newProjectCreatedCard) }
       launch {
+        // Show [projectSelectorCard] after the created project is selected.
         project
           .service<DirectAccessService>()
           .cloudProjectManager
@@ -137,6 +121,18 @@ class DirectAccessProjectSelectorImpl(
           showCard(projectSelectorCard)
           comboBox.updateProjects(getProjects())
         }
+      }
+    } else {
+      val projects = getProjects()
+      val card = if (projects?.isEmpty() == true) noProjectsCard else projectSelectorCard
+
+      if (projects?.size == 1) {
+        preferredProject = projects.first()
+      }
+
+      withContext(uiDispatcher) {
+        showCard(card)
+        comboBox.updateProjects(projects)
       }
     }
   }
