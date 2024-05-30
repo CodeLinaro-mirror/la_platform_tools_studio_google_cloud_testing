@@ -31,7 +31,7 @@ import org.jetbrains.annotations.VisibleForTesting
 
 @VisibleForTesting
 val firebaseIconWithErrors = layeredIcon {
-  arrayOf(FirebaseIcons.ACTION_ICON, StudioIcons.Emulator.Snapshots.INVALID_SNAPSHOT_DECORATOR)
+  arrayOf(FirebaseIcons.ACTION_ICON, StudioIcons.Common.ERROR_DECORATOR)
 }
 
 class SelectProjectAction :

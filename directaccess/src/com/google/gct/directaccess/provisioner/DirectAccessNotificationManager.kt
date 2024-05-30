@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
+import com.android.tools.idea.deviceprovisioner.runCatchingDeviceActionException
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.intellij.notification.Notification
@@ -178,7 +179,9 @@ class DirectAccessNotificationManager(
         NotificationAction.createSimpleExpiring("Reserve new device") {
           // deviceHandle's scope will be cancelled and cannot be used here.
           CoroutineScope(EmptyCoroutineContext).launch {
-            deviceHandle.sourceTemplate.activationAction.activate()
+            runCatchingDeviceActionException(project, deviceHandle.state.properties.title) {
+              deviceHandle.sourceTemplate.activationAction.activate()
+            }
           }
         }
       )
