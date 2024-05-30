@@ -34,6 +34,7 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
+import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
@@ -95,20 +96,37 @@ class DirectAccessDeviceTemplate(
 
   private val isActivationStarted = MutableStateFlow(false)
 
+  /** Emits true if a cloud project is created but not ready. */
+  private val isCloudProjectBeingCreatedFlow = MutableStateFlow(false)
+
   override val stateFlow =
-    combine(isActivationStarted, isAuthenticatorReady, deviceInfoFlow) {
-        isStarted,
-        isReady,
-        deviceInfo ->
+    combine(
+        isActivationStarted,
+        isAuthenticatorReady,
+        deviceInfoFlow,
+        service<DirectAccessOnboardingService>().taskFlow,
+      ) { isStarted, isReady, deviceInfo, task ->
         val waitTimeText =
           deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
+
+        if (isReady) {
+          isCloudProjectBeingCreatedFlow.value = false
+        } else {
+          if (task?.isPending == true) {
+            isCloudProjectBeingCreatedFlow.value = true
+          }
+        }
 
         TemplateState(
           isActivating = isStarted,
           error =
-            if (isReady && waitTimeText != null)
-              DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
-            else null,
+            when {
+              isReady && waitTimeText != null ->
+                DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
+              isCloudProjectBeingCreatedFlow.value ->
+                DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
+              else -> null
+            },
         )
       }
       .stateIn(scope, SharingStarted.Eagerly, TemplateState())
@@ -337,10 +355,12 @@ class DirectAccessDeviceTemplate(
         DeviceAction.Presentation("Acquire", StudioIcons.Avd.RUN, false)
 
       override val presentation: StateFlow<DeviceAction.Presentation> =
-        combine(isActivationStarted, isAuthenticatorReady, deviceInfoFlow) {
-            started,
-            authenticatorReady,
-            deviceInfo ->
+        combine(
+            isActivationStarted,
+            isAuthenticatorReady,
+            deviceInfoFlow,
+            isCloudProjectBeingCreatedFlow,
+          ) { started, authenticatorReady, deviceInfo, isCloudProjectBeingCreated ->
             val enabled = !started && authenticatorReady
             // TODO(b/314857500): Improve user experience with null
             // deviceAvailabilityEstimateSeconds.
@@ -359,6 +379,8 @@ class DirectAccessDeviceTemplate(
                 when {
                   enabled -> null
                   started -> "Activation already in progress"
+                  isCloudProjectBeingCreated ->
+                    "Android Device Streaming is setting up and will be ready in a few minutes."
                   else -> "Device unavailable: click the Firebase action to address issues"
                 },
             )
