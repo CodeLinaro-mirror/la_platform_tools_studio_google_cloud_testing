@@ -342,8 +342,9 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                 .value
                 .filterIsInstance<DirectAccessDeviceHandle>()
                 .none {
-                  // Disable the selector if there are connected devices.
-                  it.state is DeviceState.Connected
+                  // Disable the selector if there are connecting or connected devices.
+                  it.state is DeviceState.Connected ||
+                    (it.state is DeviceState.Disconnected && it.state.isTransitioning)
                 },
               scope,
             )

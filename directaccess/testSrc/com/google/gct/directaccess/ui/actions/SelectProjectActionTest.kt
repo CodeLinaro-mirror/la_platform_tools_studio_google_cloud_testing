@@ -492,7 +492,14 @@ class SelectProjectActionTest {
         .isEqualTo(extraDeviceInfoList.map { it.name })
     }
 
-    // Start a device and the selector will be disabled.
+    // Start a device and the selector will be disabled with connecting state.
+    val mockConnectingDeviceHandle = mock<DirectAccessDeviceHandle>()
+    val mockState = mock<DeviceState.Disconnected>()
+    doReturn(true).whenever(mockState).isTransitioning
+    doReturn(mockState).whenever(mockConnectingDeviceHandle).state
+    devices.value = listOf(mockConnectingDeviceHandle)
+
+    // Start a device and the selector will be disabled with connected state.
     val mockDeviceHandle = mock<DirectAccessDeviceHandle>()
     doReturn(mock<DeviceState.Connected>()).whenever(mockDeviceHandle).state
     devices.value = listOf(mockDeviceHandle)
