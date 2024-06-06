@@ -58,6 +58,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.openapi.wm.ex.ToolWindowManagerListener
+import com.intellij.platform.util.progress.reportProgress
 import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
 import icons.StudioIcons
@@ -66,6 +67,7 @@ import java.time.Instant
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
@@ -228,54 +230,72 @@ class DirectAccessDeviceHandle(
     object : ActivationAction {
       /** Starts connection to the remote device. */
       override suspend fun activate() {
-        withContext(scope.coroutineContext) {
-          // Increment connectionAttempts outside update so that it is not incremented twice
-          // in case update is run twice
-          connectionAttempts++
-          stateFlow.update {
-            val reservation =
-              it.reservation
-                // This state should not be possible since the reservation is mapped on every update
-                ?: throw IllegalStateException("Reservation required to activate Device Streaming.")
-                  .also {
-                    // TODO(b/277240160): Add correct failure reason
-                    trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
-                  }
-            // Properties obtained from device after the first connection are lost here.
-            // The properties will be read again when device is claimed by the plugin.
-            // This is fine since the connection event does not require those properties
-            // to be from the device. Also, the initial event does not have those properties
-            val properties = sourceTemplate.deviceInfo.toDeviceProperties(connectionAttempts)
-            DeviceState.Disconnected(properties)
-              .copy(isTransitioning = true)
-              .withReservation(reservation)
-          }
-          scope.trackConnectTime()
-          try {
-            connection.connect()
-          } catch (e: Exception) {
-            stateFlow.update {
-              val reservation =
-                it.reservation
-                  // This state should not be possible since the reservation is mapped on every
-                  // update
-                  ?: throw IllegalStateException("Reservation required to connect to device.")
-              DeviceState.Disconnected(it.properties).withReservation(reservation)
-            }
-            val activationCancelled = connectionStateReason == StateReason.USER_INITIATED
-            val failureReason =
-              if (activationCancelled) {
-                // User clicked stop before the session could activate and device could connect.
-                FailureReason.DISCONNECT_BEFORE_CONNECTED
-              } else {
-                FailureReason.UNKNOWN_FAILURE
+        reportProgress { progressReporter ->
+          var exception: Throwable? = null
+          val job =
+            scope.launch(CoroutineExceptionHandler { _, throwable -> exception = throwable }) {
+              // Increment connectionAttempts outside update so that it is not incremented twice
+              // in case update is run twice
+              connectionAttempts++
+              stateFlow.update {
+                val reservation =
+                  it.reservation
+                    // This state should not be possible since the reservation is mapped on every
+                    // update
+                    ?: throw IllegalStateException(
+                        "Reservation required to activate Device Streaming."
+                      )
+                      .also {
+                        // TODO(b/277240160): Add correct failure reason
+                        trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+                      }
+                // Properties obtained from device after the first connection are lost here.
+                // The properties will be read again when device is claimed by the plugin.
+                // This is fine since the connection event does not require those properties
+                // to be from the device. Also, the initial event does not have those properties
+                val properties = sourceTemplate.deviceInfo.toDeviceProperties(connectionAttempts)
+                DeviceState.Disconnected(properties)
+                  .copy(isTransitioning = true)
+                  .withReservation(reservation)
               }
-            trackConnectMetrics(false, failureReason = failureReason)
-            if (activationCancelled) {
-              throw CancellationException("Device activation was cancelled")
-            } else {
-              throw DeviceActionException("Failed to connect to device. Please try again.", e)
+              scope.trackConnectTime()
+              try {
+                connection.connect { status: String, block: suspend CoroutineScope.() -> Unit ->
+                  progressReporter.indeterminateStep(status, block)
+                }
+              } catch (e: Exception) {
+                stateFlow.update {
+                  val reservation =
+                    it.reservation
+                      // This state should not be possible since the reservation is mapped on every
+                      // update
+                      ?: throw IllegalStateException("Reservation required to connect to device.")
+                  DeviceState.Disconnected(it.properties).withReservation(reservation)
+                }
+                val activationCancelled = connectionStateReason == StateReason.USER_INITIATED
+                val failureReason =
+                  if (activationCancelled) {
+                    // User clicked stop before the session could activate and device could connect.
+                    FailureReason.DISCONNECT_BEFORE_CONNECTED
+                  } else {
+                    FailureReason.UNKNOWN_FAILURE
+                  }
+                trackConnectMetrics(false, failureReason = failureReason)
+                if (activationCancelled || e is CancellationException) {
+                  // propagate the CancellationException up
+                  exception = e
+                  throw CancellationException("Device activation was cancelled")
+                } else {
+                  throw DeviceActionException("Failed to connect to device. Please try again.", e)
+                }
+              }
             }
+          try {
+            job.join()
+            exception?.let { throw it }
+          } catch (e: CancellationException) {
+            job.cancel(e)
+            throw e
           }
         }
       }
