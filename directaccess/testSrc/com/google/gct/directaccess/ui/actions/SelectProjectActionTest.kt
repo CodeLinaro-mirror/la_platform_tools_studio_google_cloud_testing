@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui.actions
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
+import com.android.sdklib.deviceprovisioner.DeviceError.Severity
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
@@ -30,6 +31,7 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
@@ -38,7 +40,9 @@ import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudProjectEntry
+import com.google.gct.directaccess.DEFAULT_DEVICE_LIST_KEY
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
+import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
@@ -51,11 +55,11 @@ import com.google.gct.directaccess.VIEWER_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
-import com.google.gct.directaccess.ui.ONBOARDING_WORKFLOW_KEY
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.LoginUsersRule
@@ -85,9 +89,11 @@ import javax.swing.JPanel
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.After
@@ -111,6 +117,7 @@ class SelectProjectActionTest {
   private val supportedProjectName = "supportedTestProject"
   private val noQuotaProjectName = "noQuotaTestProject"
   private val blazeProjectName = "blazeTestProject"
+  private val createdProject = "createdProject"
 
   private val projectRule = ProjectRule()
   private val popupRule = JBPopupRule()
@@ -122,6 +129,7 @@ class SelectProjectActionTest {
   @get:Rule
   val ruleChain =
     RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
+      .around(FlagRule(StudioFlags.DIRECT_ACCESS_CREATE_PROJECT, true))
       .around(projectRule)
       .around(HeadlessDialogRule())
       .around(popupRule)
@@ -137,7 +145,8 @@ class SelectProjectActionTest {
         unsupportedTestProjectWithoutServiceUse -> parseFrom(FULL_PERMISSIONS_SET - SERVICES_USE)
         supportedProjectName,
         noQuotaProjectName,
-        blazeProjectName -> parseFrom(FULL_PERMISSIONS_SET)
+        blazeProjectName,
+        createdProject -> parseFrom(FULL_PERMISSIONS_SET)
         viewerTestProject -> parseFrom(VIEWER_PERMISSIONS_SET)
         unknownPermissionTestProject ->
           parseFrom(FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE)
@@ -163,12 +172,13 @@ class SelectProjectActionTest {
 
   @Before
   fun setUp() {
-    PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
+    PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, false)
   }
 
   @After
   fun tearDown() {
-    PropertiesComponent.getInstance().setValue(ONBOARDING_WORKFLOW_KEY, false)
+    scope.cancel()
+    PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, false)
   }
 
   @RunsInEdt
@@ -476,15 +486,8 @@ class SelectProjectActionTest {
         waitForCondition { usedMinutesLabel.text == "60 mins used" }
         waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
         mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
-        waitForCondition {
-          PropertiesComponent.getInstance().getBoolean(ONBOARDING_WORKFLOW_KEY, false)
-        }
         dialog.clickDefaultButton()
       }
-
-      yieldUntil { mockDeviceSelectionListFlow.value.any { it.isSelected } }
-      val selectedDeviceInfo = mockDeviceSelectionListFlow.value.first { it.isSelected }.deviceInfo
-      assertThat(selectedDeviceInfo).isEqualTo(preselectedDeviceInfo)
 
       // Verify DeviceSource after updating selection.
       val deviceSource = DirectAccessDeviceSource.Provider().createDeviceSource(projectRule.project)
@@ -492,7 +495,14 @@ class SelectProjectActionTest {
         .isEqualTo(extraDeviceInfoList.map { it.name })
     }
 
-    // Start a device and the selector will be disabled.
+    // Start a device and the selector will be disabled with connecting state.
+    val mockConnectingDeviceHandle = mock<DirectAccessDeviceHandle>()
+    val mockState = mock<DeviceState.Disconnected>()
+    doReturn(true).whenever(mockState).isTransitioning
+    doReturn(mockState).whenever(mockConnectingDeviceHandle).state
+    devices.value = listOf(mockConnectingDeviceHandle)
+
+    // Start a device and the selector will be disabled with connected state.
     val mockDeviceHandle = mock<DirectAccessDeviceHandle>()
     doReturn(mock<DeviceState.Connected>()).whenever(mockDeviceHandle).state
     devices.value = listOf(mockDeviceHandle)
@@ -508,6 +518,151 @@ class SelectProjectActionTest {
 
     selectDeviceAction.update(event)
     assertThat(selectDeviceAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+  }
+
+  @RunsInEdt
+  @Test
+  fun testProjectCreation() = runBlockingWithTimeout {
+    // Make sure the [DirectAccessOnboardingService] is initialized after login service replacement.
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessOnboardingService::class.java,
+        DirectAccessOnboardingService(scope),
+        projectRule.disposable,
+      )
+
+    val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
+    doReturn(deviceInfoListProvider() + preselectedDeviceInfo)
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(null)
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessServiceSetup::class.java,
+        mockDirectAccessServiceSetup,
+        projectRule.disposable,
+      )
+    val devices = MutableStateFlow(listOf<DeviceHandle>())
+    val mockProvisioner = mock<DeviceProvisioner>()
+    val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
+    doReturn(devices).whenever(mockProvisioner).devices
+    doReturn(mockProvisioner).whenever(mockDeviceProvisionerService).deviceProvisioner
+    projectRule.project.replaceService(
+      DeviceProvisionerService::class.java,
+      mockDeviceProvisionerService,
+      projectRule.disposable,
+    )
+
+    val mockDirectAccessService = mock<DirectAccessService>()
+    doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
+    doReturn(scope).whenever(mockDirectAccessService).scope
+    val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
+    doReturn(mockDeviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
+    doAnswer {
+        val cloudProjectName = it.arguments[0] as? String
+        cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
+        cloudProjectManagerFlow.value =
+          createCloudProjectManager(
+            scope,
+            cloudProjectName,
+            isAuthorized = true,
+            outOfQuota = false,
+          )
+        runBlocking { permissionFlow.refresh() }
+        Unit
+      }
+      .whenever(mockDirectAccessService)
+      .selectCloudProject(any())
+
+    projectRule.project.replaceService(
+      DirectAccessService::class.java,
+      mockDirectAccessService,
+      projectRule.disposable,
+    )
+
+    assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
+      .isInstanceOf(SelectProjectAction::class.java)
+
+    firebaseProjectClientRule.setupFirebaseClient(
+      throwErrorOnExecute = false,
+      returnMalformedJson = false,
+      projectList = listOf(),
+    )
+    val selectDeviceAction = SelectProjectAction()
+
+    // Click the device selection button.
+    val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
+    val event =
+      TestActionEvent.createTestEvent(
+        selectDeviceAction,
+        {
+          when (it) {
+            CommonDataKeys.PROJECT.name -> projectRule.project
+            else -> null
+          }
+        },
+        mouseEvent,
+      )
+
+    val handler = LoginFeature.feature<FirebaseLoginFeature>().handler!!
+    (handler.latestCreatedFirebaseProject as MutableStateFlow<String>).update { createdProject }
+    loginUsersRule.setActiveUser("test@google.com")
+
+    val plugin =
+      DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
+    yieldUntil { mockDeviceSelectionListFlow.value.count { it.isSelected } > 0 }
+    assertThat(mockDeviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.key })
+      .isEqualTo(listOf("shiba/34"))
+
+    // Verify the created template before cloud project gets ready.
+    yieldUntil { plugin.templates.value.size == 1 }
+    val template = plugin.templates.value.first()
+    yieldUntil { template.state.error?.severity == Severity.INFO }
+    assertThat(template.state.error?.message).isEqualTo("Ready in a few minutes")
+    yieldUntil {
+      template.activationAction.presentation.value.detail ==
+        "Android Device Streaming is setting up and will be ready in a few minutes."
+    }
+
+    yieldUntil { PropertiesComponent.getInstance().getBoolean(DEFAULT_DEVICE_LIST_KEY) }
+    withContext(AndroidDispatchers.uiThread) {
+      createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
+        // Start select action before login.
+        val dialog = it as SelectDeviceDialog
+        var projectCreatedLabel: JBLabel? = null
+
+        waitForCondition {
+          projectCreatedLabel =
+            dialog.rootPane.findAllDescendants<JBLabel>().firstOrNull { label ->
+              label.text?.startsWith("Creating project") == true
+            }
+          projectCreatedLabel != null
+        }
+        assertThat(projectCreatedLabel!!.text).isEqualTo("Creating project $createdProject")
+
+        // Set up the created project.
+        firebaseProjectClientRule.setupFirebaseClient(
+          throwErrorOnExecute = false,
+          returnMalformedJson = false,
+          projectList = listOf(createdProject),
+        )
+        (service<DirectAccessOnboardingService>().taskFlow
+            as MutableStateFlow<DirectAccessOnboardingService.Task?>)
+          .update { task -> task?.copy(isPending = false) }
+
+        // The created project should be selected.
+        waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == createdProject }
+        waitForCondition {
+          dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
+        }
+        val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
+        waitForCondition { comboBox.model.selectedItem == createdProject }
+        dialog.clickDefaultButton()
+      }
+    }
+
+    // Verify the created template after cloud project gets ready.
+    yieldUntil { template.state.error?.severity == null }
+    yieldUntil { template.activationAction.presentation.value.detail == null }
   }
 
   @RunsInEdt
