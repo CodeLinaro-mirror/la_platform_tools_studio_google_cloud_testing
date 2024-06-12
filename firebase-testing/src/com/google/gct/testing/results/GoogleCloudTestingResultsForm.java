@@ -20,7 +20,6 @@ import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RunProfile;
 import com.intellij.execution.testframework.AbstractTestProxy;
 import com.intellij.execution.testframework.Filter;
-import com.intellij.execution.testframework.LvcsHelper;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.TestFrameworkRunningModel;
 import com.intellij.execution.testframework.TestTreeView;
@@ -28,6 +27,7 @@ import com.intellij.execution.testframework.TestsUIUtil;
 import com.intellij.execution.testframework.ToolbarPanel;
 import com.intellij.execution.testframework.sm.runner.ui.TestsPresentationUtil;
 import com.intellij.execution.testframework.ui.TestResultsPanel;
+import com.intellij.history.LocalHistory;
 import com.intellij.ide.util.treeView.IndexComparator;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.application.ModalityState;
@@ -194,11 +194,40 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
 
     myTreeBuilder.updateFromRoot();
 
-    LvcsHelper.addLabel(this);
+    addLabel(this);
 
     selectAndNotify(myTestsRootNode, () -> myTestsRunning = false);
 
     fireOnTestingFinished();
+  }
+
+  private static final Color RED = new JBColor(new Color(250, 220, 220), new Color(104, 67, 67));
+  private static final Color GREEN = new JBColor(new Color(220, 250, 220), new Color(44, 66, 60));
+
+  private static void addLabel(final TestFrameworkRunningModel model) {
+    String name;
+    int color;
+
+    AbstractTestProxy root = model.getRoot();
+
+    if (root.isInterrupted()) return;
+
+    TestConsoleProperties consoleProperties = model.getProperties();
+    String configName = consoleProperties.getConfiguration().getName();
+
+    if (root.isPassed() || root.isIgnored()) {
+      color = GREEN.getRGB();
+      name = "Tests Passed " + configName;
+    }
+    else {
+      color = RED.getRGB();
+      name = "Tests Failed " + configName;
+    }
+
+    Project project = consoleProperties.getProject();
+    if (project.isDisposed()) return;
+
+    LocalHistory.getInstance().putSystemLabel(project, name, color);
   }
 
   @Override
