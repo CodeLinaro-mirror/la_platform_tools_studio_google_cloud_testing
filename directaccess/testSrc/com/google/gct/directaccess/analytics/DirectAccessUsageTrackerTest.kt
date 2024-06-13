@@ -42,7 +42,6 @@ import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
-import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.provisioner.DeviceInfo
@@ -329,7 +328,9 @@ class DirectAccessUsageTrackerTest {
           reservationName,
           scope.createChildScope(true),
         ) {
-        override suspend fun connect() = throw Exception()
+        override suspend fun connect(
+          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
+        ) = throw Exception()
       }
     }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
@@ -369,13 +370,15 @@ class DirectAccessUsageTrackerTest {
         ) {
         private var connectCount = 0
 
-        override suspend fun connect() {
+        override suspend fun connect(
+          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
+        ) {
           if (++connectCount > 2) {
             // The real connect() will update its state on failure
             state.update { it.copy(ConnectionState.Disconnected(StateReason.CONNECTION_FAILED)) }
             throw Exception()
           }
-          super.connect()
+          super.connect(progressReporter)
         }
       }
     }
@@ -907,12 +910,14 @@ class DirectAccessUsageTrackerTest {
   ) =
     object :
       FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
-      override suspend fun connect() {
+      override suspend fun connect(
+        progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
+      ) {
         state.update {
           it.copy(connection = ConnectionState.Connecting(StateReason.USER_INITIATED))
         }
         session.hostServices.connect(deviceAddress()!!)
-        super.connect()
+        super.connect(progressReporter)
       }
 
       override suspend fun closeConnection(stateReason: StateReason) {

@@ -120,7 +120,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -539,7 +539,9 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
           reservationName,
           scope.createChildScope(true),
         ) {
-        override suspend fun connect() {
+        override suspend fun connect(
+          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
+        ) {
           throw RuntimeException("Failed connection.")
         }
       }
@@ -555,15 +557,15 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
       assertThat(e).isInstanceOf(DeviceActionException::class.java)
     }
 
-    // Even though activation failed, we still have a reservation and a DeviceHandle.
-    yieldUntil { provisioner.devices.value.isNotEmpty() }
-    val device = provisioner.devices.value[0]
-    // Device disconnected with an exception thrown from DirectAccessConnection.
-    val state = device.stateFlow
-    assertThat(state.value.isTransitioning).isFalse()
-    assertThat(state.value).isInstanceOf(Disconnected::class.java)
-    assertThat(state.value.reservation).isNotNull()
-    yieldUntil { device.activationAction?.presentation?.value?.enabled == true }
+    // After an error, there shouldn't be a handle, and the reservation (if present) should be
+    // FINISHED.
+    yieldUntil { provisioner.devices.value.isEmpty() }
+    assertThat(
+        directAccessReservationManager.listReservations().all {
+          it.sessionState == Reservation.SessionState.FINISHED
+        }
+      )
+      .isTrue()
   }
 
   @Test
@@ -579,7 +581,9 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
         ) {
         private val connectionScope = scope.createChildScope(isSupervisor = true)
 
-        override suspend fun connect() {
+        override suspend fun connect(
+          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
+        ) {
           withContext(connectionScope.coroutineContext) { latch.await() }
         }
 
@@ -1395,7 +1399,7 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
         MutableStateFlow(deviceInfo).asStateFlow(),
         plugin.devices as MutableStateFlow,
         scope,
-        flow { true },
+        flowOf(true),
       )
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     // Bring the device online by claiming a matched connected device.
