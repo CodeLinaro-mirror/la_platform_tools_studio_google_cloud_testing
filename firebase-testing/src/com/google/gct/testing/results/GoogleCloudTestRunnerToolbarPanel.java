@@ -19,19 +19,20 @@ package com.google.gct.testing.results;
 import com.google.gct.testing.ShowScreenshotsAction;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.TestFrameworkRunningModel;
-import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerToolbarPanel;
+import com.intellij.execution.testframework.ToolbarPanel;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.actionSystem.impl.ActionToolbarImpl;
 
 import javax.swing.*;
 import java.awt.*;
 
-public class GoogleCloudTestRunnerToolbarPanel extends SMTRunnerToolbarPanel {
+public class GoogleCloudTestRunnerToolbarPanel extends ToolbarPanel {
 
   public GoogleCloudTestRunnerToolbarPanel(TestConsoleProperties properties,
                                            TestFrameworkRunningModel model,
                                            JComponent contentPane) {
-    super(properties, model, contentPane);
+    super(properties, contentPane);
+    setModel(model);
 
     int lastComponentIndex = getComponentCount() - 1;
     ActionToolbarImpl actionToolbar = (ActionToolbarImpl)getComponent(lastComponentIndex);
