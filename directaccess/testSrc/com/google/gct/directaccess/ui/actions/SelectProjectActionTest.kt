@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui.actions
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
+import com.android.sdklib.deviceprovisioner.DeviceError.Severity
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
@@ -606,10 +607,21 @@ class SelectProjectActionTest {
     (handler.latestCreatedFirebaseProject as MutableStateFlow<String>).update { createdProject }
     loginUsersRule.setActiveUser("test@google.com")
 
-    DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
+    val plugin =
+      DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
     yieldUntil { mockDeviceSelectionListFlow.value.count { it.isSelected } > 0 }
     assertThat(mockDeviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.key })
       .isEqualTo(listOf("shiba/34"))
+
+    // Verify the created template before cloud project gets ready.
+    yieldUntil { plugin.templates.value.size == 1 }
+    val template = plugin.templates.value.first()
+    yieldUntil { template.state.error?.severity == Severity.INFO }
+    assertThat(template.state.error?.message).isEqualTo("Ready in a few minutes")
+    yieldUntil {
+      template.activationAction.presentation.value.detail ==
+        "Android Device Streaming is setting up and will be ready in a few minutes."
+    }
 
     yieldUntil { PropertiesComponent.getInstance().getBoolean(DEFAULT_DEVICE_LIST_KEY) }
     withContext(AndroidDispatchers.uiThread) {
@@ -647,6 +659,10 @@ class SelectProjectActionTest {
         dialog.clickDefaultButton()
       }
     }
+
+    // Verify the created template after cloud project gets ready.
+    yieldUntil { template.state.error?.severity == null }
+    yieldUntil { template.activationAction.presentation.value.detail == null }
   }
 
   @RunsInEdt
