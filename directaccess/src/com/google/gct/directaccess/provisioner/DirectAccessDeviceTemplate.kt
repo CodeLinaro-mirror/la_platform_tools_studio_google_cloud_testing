@@ -38,21 +38,33 @@ import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
+import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.findOrCreateReservation
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
+import com.intellij.openapi.progress.ProcessCanceledException
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.blockingContext
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DoNotAskOption
 import com.intellij.openapi.ui.MessageDialogBuilder
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.messages.MessageDialog
+import com.intellij.platform.ide.progress.withBackgroundProgress
+import com.intellij.platform.util.progress.reportProgress
+import com.intellij.platform.util.progress.withProgressText
+import com.intellij.util.concurrency.annotations.RequiresBlockingContext
 import icons.StudioIcons
 import java.time.Duration
+import java.util.concurrent.Callable
+import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -188,35 +200,50 @@ class DirectAccessDeviceTemplate(
           throw CancellationException("User declined quota usage")
         }
 
-        val reservationName =
-          try {
-            findOrCreateReservation()
-          } catch (e: CancellationException) {
-            throw e
-          } catch (e: Exception) {
-            isActivationStarted.value = false
-            if (e.localizedMessage.contains("RESOURCE_EXHAUSTED")) {
-              throw DeviceActionException(
-                "All Spark plan minutes for the current period have been used. " +
-                  "Upgrade to a Blaze plan to immediately continue using this service.",
-                e,
-              )
+        return withBackgroundProgress(project, "Reserving a ${deviceInfo.name}...", true) {
+          reportProgress { progressReporter ->
+            val reservationName =
+              progressReporter.indeterminateStep {
+                try {
+                  findOrCreateReservation()
+                } catch (e: CancellationException) {
+                  isActivationStarted.value = false
+                  throw e
+                } catch (e: Exception) {
+                  isActivationStarted.value = false
+                  if (e.localizedMessage.contains("RESOURCE_EXHAUSTED")) {
+                    throw DeviceActionException(
+                      "All Spark plan minutes for the current period have been used. " +
+                        "Upgrade to a Blaze plan to immediately continue using this service.",
+                      e,
+                    )
+                  }
+                  throw DeviceActionException("Failed to reserve a device. Please try again.", e)
+                }
+              }
+            progressReporter.indeterminateStep {
+              var deviceHandle: DirectAccessDeviceHandle? = null
+              try {
+                deviceHandle = createDeviceHandle(reservationName)
+                deviceHandle.activationAction.activate()
+                return@indeterminateStep deviceHandle
+              } catch (e: Exception) {
+                withContext(NonCancellable) {
+                  // Shut down the connection attempt cleanly if possible.
+                  deviceHandle?.connection?.endReservation(false)
+                  // In case the connection wasn't created yet, cancel the reservation directly.
+                  project.directAccessCloudProjectManager
+                    ?.reservationManager
+                    ?.cancelReservation(reservationName, false)
+                  isActivationStarted.value = false
+                }
+                if (e is CancellationException || e is DeviceActionException) {
+                  throw e
+                }
+                throw DeviceActionException("Failed to connect to device. Please try again.", e)
+              }
             }
-            throw DeviceActionException("Failed to reserve a device. Please try again.", e)
           }
-
-        try {
-          return createDeviceHandle(reservationName).also { it.activationAction?.activate() }
-        } catch (e: CancellationException) {
-          isActivationStarted.value = false
-          throw e
-        } catch (e: DeviceActionException) {
-          isActivationStarted.value = false
-          // Re-throw exception to propagate the message present in the exception
-          throw e
-        } catch (e: Exception) {
-          isActivationStarted.value = false
-          throw DeviceActionException("Failed to connect to device. Please try again.", e)
         }
       }
 
@@ -323,17 +350,22 @@ class DirectAccessDeviceTemplate(
           }
       }
 
-      private fun findOrCreateReservation(): String {
+      private suspend fun findOrCreateReservation(): String {
         val reservationManager =
           project.directAccessCloudProjectManager?.reservationManager
             ?: throw RuntimeException("Unable to access ReservationManager.")
 
         val (reservationName, startTime) =
           try {
-            reservationManager.findOrCreateReservation(
-              deviceInfo.codename,
-              deviceInfo.api.toString(),
-            )
+            withProgressText("Creating reservation...") {
+              blockingContext {
+                findOrCreateReservation(
+                  reservationManager,
+                  deviceInfo.codename,
+                  deviceInfo.api.toString(),
+                )
+              }
+            }
           } catch (e: Exception) {
             // TODO(b/277240160): Add correct failure reason
             trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE)
@@ -349,6 +381,38 @@ class DirectAccessDeviceTemplate(
           project.directAccessCloudProjectManager?.reservationListFlowWithException?.refresh()
         }
         return reservationName
+      }
+
+      @RequiresBlockingContext
+      private fun findOrCreateReservation(
+        reservationManager: DirectAccessReservationManager,
+        codename: String,
+        api: String,
+      ): Pair<String, Long> {
+        val result =
+          ApplicationManager.getApplication()
+            .executeOnPooledThread(
+              Callable { reservationManager.findOrCreateReservation(codename, api) }
+            )
+        try {
+          while (!result.isDone) {
+            ProgressManager.checkCanceled()
+            Thread.sleep(200)
+          }
+        } catch (e: ProcessCanceledException) {
+          // We have to wait for the session to be created, so we can cancel it, but only wait for
+          // so long.
+          val (session, _) =
+            try {
+              result.get(15, TimeUnit.SECONDS)
+            } catch (inner: Exception) {
+              // can't cancel, rethrow the outer exception.
+              throw e
+            }
+          reservationManager.cancelReservation(session, false)
+          throw e
+        }
+        return result.get()
       }
 
       private val defaultPresentation =
@@ -432,7 +496,7 @@ class DirectAccessDeviceTemplate(
    * Reservation corresponding to [reservationName] can be a new reservation requested by the user
    * that is inactive, or it can be an active reservation created elsewhere.
    */
-  private fun createDeviceHandle(reservationName: String): DeviceHandle {
+  private fun createDeviceHandle(reservationName: String): DirectAccessDeviceHandle {
     val deviceScope = scope.createChildScope(isSupervisor = true)
     // Notify provisioner plugin of the new device.
     return DirectAccessDeviceHandle(
