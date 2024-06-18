@@ -29,15 +29,13 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.android.tools.idea.flags.StudioFlags
 import com.google.common.annotations.VisibleForTesting
+import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.GoogleLoginService
-import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.VetoableLogoutListener
-import com.google.services.firebase.FirebaseLoginFeature
-import com.google.services.firebase.FirebaseProjectClient
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
@@ -48,13 +46,14 @@ import com.intellij.openapi.util.Disposer
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
@@ -144,39 +143,28 @@ class DirectAccessDeviceProvisionerPlugin(
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
 
     if (StudioFlags.DIRECT_ACCESS_CREATE_PROJECT.get()) {
-      val loginFeature = LoginFeature.feature<FirebaseLoginFeature>()
       scope.launch {
-        service<GoogleLoginService>().activeUserFlow.collectLatest { user ->
-          if (user?.isLoggedIn(loginFeature) == true) {
-            val createdProject =
-              loginFeature.handler?.latestCreatedFirebaseProject?.value ?: return@collectLatest
-            // Retry 10 times to update devices from newly created firebase project.
-            for (count in (1..10)) {
-              val list =
-                FirebaseProjectClient.listFirebaseProjects(
-                  GoogleLoginService.instance.getCredential(loginFeature)
-                )
-              if (list.any { it.projectId == createdProject }) {
-                project.service<DirectAccessService>().selectCloudProject(createdProject)
-
-                // Wait until device catalog updated.
-                project.service<DirectAccessService>().deviceSelectionListFlow.takeWhile {
-                  it.isEmpty()
+        service<DirectAccessOnboardingService>().taskFlow.filterNotNull().collect { task ->
+          if (task.isPending) {
+            if (task.applyDefaultDevices) {
+              // Wait until device catalog updated.
+              project
+                .service<DirectAccessService>()
+                .deviceSelectionListFlow
+                .takeWhile { it.isEmpty() }
+                .collect()
+              project.service<DirectAccessService>().deviceSelectionListFlow.update {
+                deviceSelections ->
+                // Select a default list of devices if none of them are selected.
+                if (deviceSelections.any { it.isSelected }) return@update deviceSelections
+                deviceSelections.map {
+                  if (it.deviceInfo.key in PRESELECTED_DEVICE_KEY_SET) it.copy(isSelected = true)
+                  else it
                 }
-                project.service<DirectAccessService>().deviceSelectionListFlow.update {
-                  deviceSelections ->
-                  // Select a default list of devices if none of them are selected.
-                  if (deviceSelections.any { it.isSelected }) return@update deviceSelections
-                  deviceSelections.map {
-                    if (it.deviceInfo.key in PRESELECTED_DEVICE_KEY_SET) it.copy(isSelected = true)
-                    else it
-                  }
-                }
-                break
-              } else {
-                delay(10000)
               }
             }
+          } else {
+            project.service<DirectAccessService>().selectCloudProject(task.cloudProject.name)
           }
         }
       }
