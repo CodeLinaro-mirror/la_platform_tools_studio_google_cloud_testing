@@ -31,6 +31,7 @@ import com.google.gct.login2.LoginLogoutCompletedCallback;
 import com.google.gct.login2.PreferredUser;
 import com.google.gct.testing.launcher.CloudAuthenticator;
 import com.google.services.firebase.FirebaseLoginFeature;
+import com.google.wireless.android.sdk.stats.GoogleLoginPluginEvent;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -100,6 +101,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     JButton connectToCloudButton = new JButton(GoogleLoginService.getInstance().isLoggedIn() ? "Authorize Firebase" : "Sign in with Google");
     connectToCloudButton.addActionListener(e -> GoogleLoginService.getInstance().logInAsync(
       ImmutableSet.of(LoginFeature.Companion.getEP_NAME().findExtension(FirebaseLoginFeature.class)),
+      GoogleLoginPluginEvent.LoginType.FEATURE_LOGIN,
       PreferredUser.ActiveUser.INSTANCE, () -> updateVisibility(), topPanel));
     connectToCloudPanel.add(connectToCloudButton, prepareElementGridConstraints(1, 0));
     connectToCloudPanel.add(createSignupForCloudPane(topPanel.getBackground(), 6, 0), prepareEditorPaneGridConstraints(2));
