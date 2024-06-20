@@ -21,7 +21,6 @@ import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
 import com.android.tools.idea.adddevicedialog.DeviceSource
-import com.android.tools.idea.adddevicedialog.DeviceSourceProvider
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.adddevicedialog.WizardAction
 import com.android.tools.idea.adddevicedialog.WizardPageScope
@@ -38,10 +37,6 @@ import org.jetbrains.jewel.ui.component.Icon
 
 /** Implements support for Direct Access devices in the Add Device dialog. */
 class DirectAccessDeviceSource(private val project: Project) : DeviceSource {
-  class Provider : DeviceSourceProvider {
-    override fun createDeviceSource(project: Project?): DeviceSource? =
-      project?.let { DirectAccessDeviceSource(it) }
-  }
 
   override val profiles: List<DeviceProfile>
     get() {
