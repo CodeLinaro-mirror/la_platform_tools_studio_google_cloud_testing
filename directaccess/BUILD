@@ -5,7 +5,7 @@ iml_module(
     name = "directaccess",
     srcs = ["src"],
     iml_files = ["directaccess.iml"],
-    tags = ["no_test_windows"],  # b/213385827
+    tags = ["noci:studio-win"],  # b/213385827
     test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],

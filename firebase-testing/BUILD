@@ -15,7 +15,7 @@ iml_module(
     test_srcs = ["testSrc"],
     test_tags = [
         "block-network",
-        "no_test_windows",
+        "noci:studio-win",
     ],
     visibility = ["//visibility:public"],
     exports = ["//prebuilts/tools/common/m2:google_api_services_testing"],
