@@ -14,7 +14,7 @@
   <depends>com.google.services.firebase</depends>
   <depends>com.intellij.java</depends>
 
-  <xi:include href="/META-INF/gmd-code-completion.xml" xpointer="xpointer(/idea-plugin/*)"/>
+  <xi:include href="/META-INF/gmd-code-completion.xml"/>
 
   <extensions defaultExtensionNs="com.intellij">
     <projectConfigurable provider="com.google.gct.testing.config.GoogleCloudTestingDeveloperConfigurableProvider"
