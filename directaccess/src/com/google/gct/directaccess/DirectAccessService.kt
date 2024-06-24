@@ -15,8 +15,6 @@
  */
 package com.google.gct.directaccess
 
-import com.google.gct.login.LoginState
-import com.google.gct.login.LoginStatus
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
@@ -72,25 +70,13 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
   init {
     scope.launch {
       val loginService = service<GoogleLoginService>()
-      if (loginService.useOldVersion) {
-        service<LoginState>().loginStatus.collect {
-          if (it is LoginStatus.LoggedIn) {
-            selectCloudProject(
-              project.service<DirectAccessPersistentStateComponent>().compatibleSelectedCloudProject
-            )
-          } else {
-            selectCloudProject(null)
-          }
-        }
-      } else {
-        loginService.activeUserFlow.collect {
-          if (it?.isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) == true) {
-            selectCloudProject(
-              project.service<DirectAccessPersistentStateComponent>().compatibleSelectedCloudProject
-            )
-          } else {
-            selectCloudProject(null)
-          }
+      loginService.activeUserFlow.collect {
+        if (it?.isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) == true) {
+          selectCloudProject(
+            project.service<DirectAccessPersistentStateComponent>().compatibleSelectedCloudProject
+          )
+        } else {
+          selectCloudProject(null)
         }
       }
     }

@@ -15,7 +15,6 @@
  */
 package com.google.gct.directaccess
 
-import com.google.gct.login.LoginState
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
@@ -33,11 +32,7 @@ import kotlinx.coroutines.launch
 @Service
 class CloudClientService(scope: CoroutineScope) {
   private val credentialFlow =
-    if (GoogleLoginService.instance.useOldVersion) {
-        service<LoginState>().loginStatus
-      } else {
-        GoogleLoginService.instance.activeUserFlow
-      }
+    GoogleLoginService.instance.activeUserFlow
       .map { getCredential() }
       .stateIn(scope, SharingStarted.Lazily, getCredential())
 
