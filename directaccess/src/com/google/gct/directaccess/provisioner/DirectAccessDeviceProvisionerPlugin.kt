@@ -22,7 +22,11 @@ import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
+import com.android.sdklib.deviceprovisioner.Extension
+import com.android.sdklib.deviceprovisioner.ExtensionRegistry
+import com.android.sdklib.deviceprovisioner.providedBy
 import com.android.tools.adbbridge.Reservation
+import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
@@ -82,6 +86,12 @@ class DirectAccessDeviceProvisionerPlugin(
 ) : DeviceProvisionerPlugin, Disposable {
   // TODO: find a proper priority
   override val priority: Int = 120
+
+  private val extensionRegistry =
+    ExtensionRegistry(this, DeviceSource::class providedBy { DirectAccessDeviceSource(project) })
+
+  override fun <T : Extension> extension(extensionClass: Class<T>): T? =
+    extensionRegistry.extension(extensionClass)
 
   private val _devices = MutableStateFlow(emptyList<DeviceHandle>())
   override val devices: StateFlow<List<DeviceHandle>> = _devices

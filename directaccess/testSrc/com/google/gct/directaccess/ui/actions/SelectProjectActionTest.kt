@@ -490,8 +490,8 @@ class SelectProjectActionTest {
       }
 
       // Verify DeviceSource after updating selection.
-      val deviceSource = DirectAccessDeviceSource.Provider().createDeviceSource(projectRule.project)
-      assertThat(deviceSource!!.profiles.map { it.name })
+      val deviceSource = DirectAccessDeviceSource(projectRule.project)
+      assertThat(deviceSource.profiles.map { it.name })
         .isEqualTo(extraDeviceInfoList.map { it.name })
     }
 

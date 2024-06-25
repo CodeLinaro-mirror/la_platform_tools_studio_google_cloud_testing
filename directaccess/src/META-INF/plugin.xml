@@ -31,9 +31,6 @@
   <extensions defaultExtensionNs="com.android.tools.idea">
     <deviceProvisioner implementation="com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerFactory"/>
   </extensions>
-  <extensions defaultExtensionNs="com.android.tools.idea.adddevicedialog">
-    <deviceSourceProvider implementation="com.google.gct.directaccess.provisioner.DirectAccessDeviceSource$Provider"/>
-  </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
     <notificationGroup id="Direct Access" displayType="BALLOON"/>
