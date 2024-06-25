@@ -42,7 +42,7 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
   /** A flow of devices with selected states. */
   val deviceSelectionListFlow =
     MutableStateFlow(
-      project.service<DirectAccessPersistentStateComponent>().state.deviceSelectionList.map {
+      project.service<DirectAccessPersistentStateComponent>().compatibleDeviceSelectionList.map {
         it.createDeviceSelection()
       }
     )
@@ -76,7 +76,7 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
         service<LoginState>().loginStatus.collect {
           if (it is LoginStatus.LoggedIn) {
             selectCloudProject(
-              project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
+              project.service<DirectAccessPersistentStateComponent>().compatibleSelectedCloudProject
             )
           } else {
             selectCloudProject(null)
@@ -86,7 +86,7 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
         loginService.activeUserFlow.collect {
           if (it?.isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) == true) {
             selectCloudProject(
-              project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
+              project.service<DirectAccessPersistentStateComponent>().compatibleSelectedCloudProject
             )
           } else {
             selectCloudProject(null)

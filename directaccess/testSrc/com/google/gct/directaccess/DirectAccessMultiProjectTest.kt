@@ -148,6 +148,9 @@ class DirectAccessMultiProjectTest {
     val fakePersistentState =
       DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
     doReturn(fakePersistentState).whenever(mockPersistentService).state
+    doReturn(fakePersistentState.selectedCloudProject)
+      .whenever(mockPersistentService)
+      .compatibleSelectedCloudProject
 
     project1.replaceService(
       DirectAccessPersistentStateComponent::class.java,
@@ -315,6 +318,9 @@ class DirectAccessMultiProjectWithLogin2Test {
     val fakePersistentState =
       DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
     doReturn(fakePersistentState).whenever(mockPersistentService).state
+    doReturn(fakePersistentState.selectedCloudProject)
+      .whenever(mockPersistentService)
+      .compatibleSelectedCloudProject
 
     project1.replaceService(
       DirectAccessPersistentStateComponent::class.java,
