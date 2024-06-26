@@ -23,6 +23,7 @@ import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
 import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.adddevicedialog.FormFactors
+import com.android.tools.idea.adddevicedialog.LoadingState
 import com.android.tools.idea.adddevicedialog.WizardAction
 import com.android.tools.idea.adddevicedialog.WizardPageScope
 import com.android.tools.idea.devicemanager.DeviceType
@@ -33,17 +34,22 @@ import icons.StudioIconsCompose
 import java.util.NavigableSet
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import org.jetbrains.jewel.ui.component.Icon
 
 /** Implements support for Direct Access devices in the Add Device dialog. */
 class DirectAccessDeviceSource(private val project: Project) : DeviceSource {
 
-  override val profiles: List<DeviceProfile>
+  override val profiles: Flow<LoadingState<List<DeviceProfile>>>
     get() {
-      return project.service<DirectAccessService>().deviceSelectionListFlow.value.map {
-        deviceSelection ->
-        DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
+      return project.service<DirectAccessService>().deviceSelectionListFlow.map { list ->
+        LoadingState.Ready(
+          list.map { deviceSelection ->
+            DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
+          }
+        )
       }
     }
 
