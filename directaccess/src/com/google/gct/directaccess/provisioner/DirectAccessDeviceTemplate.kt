@@ -392,7 +392,7 @@ class DirectAccessDeviceTemplate(
         val result =
           ApplicationManager.getApplication()
             .executeOnPooledThread(
-              Callable { reservationManager.findOrCreateReservation(codename, api) }
+              Callable { runCatching { reservationManager.findOrCreateReservation(codename, api) } }
             )
         try {
           while (!result.isDone) {
@@ -404,15 +404,17 @@ class DirectAccessDeviceTemplate(
           // so long.
           val (session, _) =
             try {
-              result.get(15, TimeUnit.SECONDS)
-            } catch (inner: Exception) {
-              // can't cancel, rethrow the outer exception.
-              throw e
-            }
+                result.get(15, TimeUnit.SECONDS)
+              } catch (inner: Exception) {
+                // can't cancel, rethrow the outer exception.
+                throw e
+              }
+              .getOrThrow()
+
           reservationManager.cancelReservation(session, false)
           throw e
         }
-        return result.get()
+        return result.get().getOrThrow()
       }
 
       private val defaultPresentation =
