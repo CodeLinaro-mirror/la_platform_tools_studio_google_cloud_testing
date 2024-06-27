@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.android.sdklib.AndroidVersion
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
@@ -25,11 +26,11 @@ import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.adddevicedialog.WizardAction
 import com.android.tools.idea.adddevicedialog.WizardPageScope
 import com.android.tools.idea.devicemanager.DeviceType
-import com.google.common.collect.Range
 import com.google.gct.directaccess.DirectAccessService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import icons.StudioIconsCompose
+import java.util.NavigableSet
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.update
@@ -65,7 +66,7 @@ class DirectAccessDeviceSource(private val project: Project) : DeviceSource {
 }
 
 internal data class DirectAccessDeviceProfile(
-  override val apiRange: Range<Int>,
+  override val apiLevels: NavigableSet<AndroidVersion>,
   override val manufacturer: String,
   override val name: String,
   override val resolution: Resolution,
@@ -80,7 +81,7 @@ internal data class DirectAccessDeviceProfile(
     deviceInfo: DeviceInfo,
     isAlreadyPresent: Boolean,
   ) : this(
-    apiRange = Range.singleton(deviceInfo.api),
+    apiLevels = sortedSetOf(AndroidVersion(deviceInfo.api)),
     manufacturer = deviceInfo.manufacturer,
     name = deviceInfo.name,
     resolution = Resolution(deviceInfo.screenX, deviceInfo.screenY),
@@ -130,7 +131,7 @@ internal data class DirectAccessDeviceProfile(
 
     override fun build(): DeviceProfile =
       DirectAccessDeviceProfile(
-        apiRange = apiRange,
+        apiLevels = apiLevels,
         manufacturer = manufacturer,
         name = name,
         resolution = resolution,
