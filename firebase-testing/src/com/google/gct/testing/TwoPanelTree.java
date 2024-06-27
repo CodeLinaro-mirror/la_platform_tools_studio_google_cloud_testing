@@ -27,7 +27,6 @@ import com.intellij.openapi.ui.Splitter;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.ui.CheckboxTree;
 import com.intellij.ui.CheckboxTreeBase.CheckPolicy;
-import com.intellij.ui.CheckboxTreeBase.NodeState;
 import com.intellij.ui.CheckedTreeNode;
 import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.JBColor;
@@ -58,6 +57,9 @@ import static com.intellij.ui.SimpleTextAttributes.REGULAR_ATTRIBUTES;
 import static com.intellij.ui.SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES;
 import static javax.swing.tree.TreeSelectionModel.SINGLE_TREE_SELECTION;
 
+enum NodeState {
+  FULL, CLEAR, PARTIAL
+}
 
 @SuppressWarnings("ALL")
 public class TwoPanelTree extends MouseAdapter implements ListSelectionListener, KeyListener {
