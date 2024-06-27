@@ -304,8 +304,9 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
         if (enabled) {
           val preferredProject =
             project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
-              ?: project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject
-              ?: ""
+              ?: project
+                .service<DirectAccessPersistentStateComponent>()
+                .compatibleSelectedCloudProject
           val selection = project.service<DirectAccessService>().deviceSelectionListFlow.value
           initialDialogState = InitialDialogState(preferredProject, selection)
           val component = JPanel(HorizontalLayout(5))
