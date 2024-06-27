@@ -622,10 +622,12 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
 
   override fun doCancelAction() {
     super.doCancelAction()
-    initialDialogState?.let { initialState ->
-      val directAccessService = project.service<DirectAccessService>()
-      directAccessService.selectCloudProject(initialState.cloudProject)
-      directAccessService.deviceSelectionListFlow.update { initialState.deviceSelection }
+    project.service<DirectAccessService>().scope.launch {
+      initialDialogState?.let { initialState ->
+        val directAccessService = project.service<DirectAccessService>()
+        directAccessService.selectCloudProject(initialState.cloudProject)
+        directAccessService.deviceSelectionListFlow.update { initialState.deviceSelection }
+      }
     }
   }
 
