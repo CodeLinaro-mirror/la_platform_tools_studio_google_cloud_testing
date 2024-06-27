@@ -19,16 +19,17 @@ import com.android.tools.idea.devicemanager.DeviceType
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.intellij.openapi.components.BaseState
+import com.intellij.openapi.components.RoamingType
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.SimplePersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
-import com.intellij.openapi.components.StoragePathMacros
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 
 @State(
-  name = "direct_access_persist.xml",
-  storages = [(Storage(StoragePathMacros.NON_ROAMABLE_FILE))],
+  name = "DeviceStreaming",
+  storages = [Storage("caches/deviceStreaming.xml", roamingType = RoamingType.DISABLED)],
 )
 @Service(Service.Level.PROJECT)
 class DirectAccessPersistentStateComponent(val project: Project) :
@@ -37,6 +38,30 @@ class DirectAccessPersistentStateComponent(val project: Project) :
     var selectedCloudProject by string("")
     var deviceSelectionList by list<PersistentDeviceSelectionData>()
   }
+
+  val compatibleSelectedCloudProject: String
+    get() =
+      state.selectedCloudProject.takeIf { it?.isNotEmpty() == true }
+        ?: project.service<DeprecatedDirectAccessPersistentStateComponent>().state.let {
+          stateFromDeprecatedFile ->
+          val result = stateFromDeprecatedFile.selectedCloudProject
+          if (result?.isNotEmpty() == true) {
+            stateFromDeprecatedFile.selectedCloudProject = ""
+            result
+          } else ""
+        }
+
+  val compatibleDeviceSelectionList: MutableList<PersistentDeviceSelectionData>
+    get() =
+      state.deviceSelectionList.takeIf { it.isNotEmpty() }
+        ?: project.service<DeprecatedDirectAccessPersistentStateComponent>().state.let {
+          stateFromDeprecatedFile ->
+          val resultFromDeprecatedFile = stateFromDeprecatedFile.deviceSelectionList.toMutableList()
+          if (resultFromDeprecatedFile.isNotEmpty()) {
+            stateFromDeprecatedFile.deviceSelectionList = mutableListOf()
+            resultFromDeprecatedFile
+          } else mutableListOf()
+        }
 }
 
 data class PersistentDeviceSelectionData(

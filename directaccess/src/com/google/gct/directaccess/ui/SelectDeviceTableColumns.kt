@@ -24,7 +24,6 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.icon
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
-import com.jetbrains.jsonSchema.impl.nestedCompletions.letIf
 
 data class SelectDeviceRowData(
   val isEnabled: Boolean,
@@ -60,12 +59,11 @@ internal object SelectDeviceTableColumns {
     override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
     override val attribute = stringAttribute<SelectDeviceRowData> { it.deviceInfo.type.toString() }
 
-    override fun createUi(rowValue: SelectDeviceRowData) =
-      JBLabel(
-        rowValue.deviceInfo.icon.letIf(!rowValue.isEnabled) {
-          ColoredIconGenerator.generateDeEmphasizedIcon(it)
-        }
-      )
+    override fun createUi(rowValue: SelectDeviceRowData): JBLabel {
+      val baseIcon = rowValue.deviceInfo.icon
+      val icon = if (!rowValue.isEnabled) ColoredIconGenerator.generateDeEmphasizedIcon(baseIcon) else baseIcon
+      return JBLabel(icon)
+    }
 
     override fun updateValue(rowValue: SelectDeviceRowData, component: JBLabel, value: String) =
       Unit
