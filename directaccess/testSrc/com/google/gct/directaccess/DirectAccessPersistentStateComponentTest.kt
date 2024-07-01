@@ -58,7 +58,6 @@ class DirectAccessPersistentStateComponentTest {
   @get:Rule
   val ruleChain =
     RuleChain(
-      FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true),
       projectRule,
       loginUsersRule,
       EdtRule(),

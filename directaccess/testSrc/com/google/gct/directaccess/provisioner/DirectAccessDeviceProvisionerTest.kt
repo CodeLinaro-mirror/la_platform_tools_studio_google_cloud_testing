@@ -25,16 +25,16 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
-import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceActionException
+import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
+import com.android.testutils.MockitoKt
 import com.android.testutils.MockitoKt.any
-import com.android.testutils.MockitoKt.eq
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adbbridge.Reservation
@@ -42,7 +42,7 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
-import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.android.tools.idea.testing.disposable
@@ -61,16 +61,13 @@ import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
+import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.rule.PropertiesComponentRule
 import com.google.gct.directaccess.ui.SelectDeviceDialog
-import com.google.gct.login.CredentialedUser
-import com.google.gct.login.GoogleLogin
-import com.google.gct.login.IGoogleLoginCompletedCallback
-import com.google.gct.login.LoginStateRule
-import com.google.gct.login.LoginStatus
 import com.google.gct.login2.GoogleLoginService
+import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -82,6 +79,7 @@ import com.google.services.firebase.directaccess.client.isActive
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DeviceInfo
 import com.intellij.icons.AllIcons
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationDisplayType
@@ -92,10 +90,12 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
+import com.intellij.openapi.ui.messages.MessageDialog
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
 import com.studiogrpc.testutils.GrpcConnectionRule
@@ -103,15 +103,22 @@ import icons.StudioIcons
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import java.time.Duration
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import javax.swing.JLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -127,25 +134,21 @@ import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 
-private const val SIGN_OUT_TEXT =
-  "Are you sure you want to sign out? This will sign out all logged in users."
-
 class DirectAccessDeviceProvisionerTest {
 
   private val service = FakeDirectAccessGrpcService()
   private val projectRule = ProjectRule()
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
-  private val loginStateRule = LoginStateRule(LoginStatus.LoggedIn("test@gmail.com"))
+  private val loginUsersRule = LoginUsersRule()
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
   private val propertiesComponentRule = PropertiesComponentRule(projectRule)
 
   @get:Rule
   val ruleChain: RuleChain =
-    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, false))
-      .around(projectRule)
+    RuleChain.outerRule(projectRule)
       .around(grpcConnectionRule)
-      .around(loginStateRule)
+      .around(loginUsersRule)
       .around(fakeToolWindowRule)
       .around(cleanUpNotificationRule)
       .around(propertiesComponentRule)
@@ -157,37 +160,18 @@ class DirectAccessDeviceProvisionerTest {
   private lateinit var fakeConnection: FakeDirectAccessConnection
   private lateinit var scope: CoroutineScope
   private var isOAuthTokenAvailable: Boolean = false
-  private val googleLogin =
-    object : GoogleLogin {
-      override var isLoggedIn = true
-        private set
-
-      override val allUsers: Map<String, CredentialedUser> = mutableMapOf()
-      override var activeUser: CredentialedUser? = null
-
-      override fun setActiveUser(userEmail: String) = Unit
-
-      override suspend fun logIn(message: String?): Boolean {
-        isLoggedIn = true
-        return isLoggedIn
-      }
-
-      override fun logIn(message: String?, loginCompletedCallback: IGoogleLoginCompletedCallback?) {
-        runBlocking { logIn(message) }
-        loginCompletedCallback?.onLoginCompleted()
-      }
-
-      override fun logOut(showPrompt: Boolean, isForced: Boolean): Boolean {
-        isLoggedIn = false
-        return isLoggedIn
-      }
-    }
 
   @Before
   fun setUp() = runBlockingWithTimeout {
+    loginUsersRule.setActiveUser("test@google.com")
     enableHeadlessDialogs(projectRule.disposable)
     TestDialogManager.setTestDialog(TestDialog.YES)
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
+    val usageTracker = mock<DirectAccessUsageTracker>()
+    whenever(usageTracker.scope).thenReturn(scope)
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessUsageTracker::class.java, usageTracker, projectRule.disposable)
+
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     doReturn(listOf<DeviceInfo>())
       .whenever(mockDirectAccessServiceSetup)
@@ -198,13 +182,6 @@ class DirectAccessDeviceProvisionerTest {
         mockDirectAccessServiceSetup,
         projectRule.disposable,
       )
-
-    val usageTracker = mock<DirectAccessUsageTracker>()
-    whenever(usageTracker.scope).thenReturn(scope)
-    ApplicationManager.getApplication()
-      .replaceService(DirectAccessUsageTracker::class.java, usageTracker, projectRule.disposable)
-    ApplicationManager.getApplication()
-      .replaceService(GoogleLogin::class.java, googleLogin, projectRule.disposable)
 
     isOAuthTokenAvailable = true
     directAccessReservationManager =
@@ -233,7 +210,7 @@ class DirectAccessDeviceProvisionerTest {
   fun tearDown() = runBlockingWithTimeout {
     TestDialogManager.setTestDialog(null)
     scope.cancel()
-    session.closeAndJoin()
+    session.close()
   }
 
   private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {
@@ -249,7 +226,7 @@ class DirectAccessDeviceProvisionerTest {
     doReturn(scope).whenever(mockDirectAccessService).scope
     doAnswer { runBlocking { fakeConnection.endReservation(true) } }
       .whenever(mockDirectAccessService)
-      .selectCloudProject(eq(null))
+      .selectCloudProject(MockitoKt.eq(null))
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
@@ -258,16 +235,15 @@ class DirectAccessDeviceProvisionerTest {
 
     // Sets up deviceSelectionListFlow.
     scope.launch {
-      loginStateRule.state.collect {
-        cloudProjectManagerFlow.value =
-          if (it is LoginStatus.LoggedIn) mockCloudProjectManager else null
+      loginUsersRule.loginService.activeUserFlow.collect {
+        cloudProjectManagerFlow.value = if (it != null) mockCloudProjectManager else null
       }
     }
 
     // Sets up APIs im cloudProjectManager
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (loginStateRule.state.value is LoginStatus.LoggedIn && isOAuthTokenAvailable)
+        if (loginUsersRule.loginService.isLoggedIn() && isOAuthTokenAvailable)
           Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
@@ -328,10 +304,30 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
     assertThat(provisioner.templates.value[1].properties.density).isEqualTo(400)
     assertThat(provisioner.templates.value[1].properties.isRemote).isTrue()
+    assertThat(
+        (provisioner.templates.value[1] as DirectAccessDeviceTemplate)
+          .deviceInfo
+          .deviceAvailabilityEstimateSeconds
+      )
+      .isEqualTo(300)
+    yieldUntil {
+      provisioner.templates.value[1].state.error?.severity == DeviceError.Severity.WARNING &&
+        provisioner.templates.value[1].state.error?.message == "less than 15 min"
+    }
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
     assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
     assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
     assertThat(provisioner.templates.value[2].properties.isRemote).isTrue()
+    assertThat(
+        (provisioner.templates.value[2] as DirectAccessDeviceTemplate)
+          .deviceInfo
+          .deviceAvailabilityEstimateSeconds
+      )
+      .isEqualTo(3000)
+    yieldUntil {
+      provisioner.templates.value[2].state.error?.severity == DeviceError.Severity.WARNING &&
+        provisioner.templates.value[2].state.error?.message == "more than 15 min"
+    }
     assertThat(provisioner.templates.value[3].properties.title).isEqualTo("Google Pixel Watch")
     assertThat(provisioner.templates.value[3].properties.resolution).isEqualTo(Resolution(50, 100))
     assertThat(provisioner.templates.value[3].properties.density).isEqualTo(150)
@@ -340,26 +336,23 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[4].properties.resolution).isEqualTo(Resolution(50, 100))
     assertThat(provisioner.templates.value[4].properties.density).isEqualTo(150)
     assertThat(provisioner.templates.value[4].properties.isRemote).isTrue()
-    assertThat(provisioner.templates.value[0].activationAction.presentation.value.detail).isNull()
 
     // Log out
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
-    assertThat(provisioner.templates.value[0].activationAction.presentation.value.detail)
-      .isEqualTo("Device unavailable: click the Firebase action to address issues")
 
     // Login without access.
     isOAuthTokenAvailable = false
-    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
+    loginUsersRule.setActiveUser("test@google.com")
     projectRule.project.refreshReservations()
     yieldUntil {
       provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
     }
     // Login with access.
     isOAuthTokenAvailable = true
-    loginStateRule.state.value = LoginStatus.LoggedIn("test2@gmail.com")
+    loginUsersRule.setActiveUser("test2@google.com")
     projectRule.project.refreshReservations()
     yieldUntil {
       provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
@@ -482,6 +475,35 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(job.isCancelled).isFalse()
     assertThat(template.activationAction.presentation.value.enabled).isFalse()
     yieldUntil { template.activeDevice != null }
+  }
+
+  @Test
+  fun deleteTemplate(): Unit = runBlockingWithTimeout {
+    assertThat(plugin.templates.value.size).isEqualTo(5)
+
+    val templates = plugin.templates.first()
+    val template = templates.first() as DirectAccessDeviceTemplate
+    // Create a finished reservation that will be fetched but not processed.
+    val reservation =
+      directAccessReservationManager.createReservation(
+        template.deviceInfo.codename,
+        template.deviceInfo.api.toString(),
+      )
+    directAccessReservationManager.cancelReservation(reservation.name)
+    templates.first().deleteAction?.delete()
+    yieldUntil {
+      projectRule.project.directAccessCloudProjectManager!!
+        .reservationListFlowWithException
+        .value
+        .first
+        ?.firstOrNull()
+        ?.name == reservation.name
+    }
+
+    yieldUntil { plugin.templates.value.size == 4 }
+
+    assertThat(plugin.templates.value)
+      .containsExactlyElementsIn(templates.subList(1, templates.size))
   }
 
   @Test
@@ -641,14 +663,14 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
     // Device removed after logout.
-    loginStateRule.state.value = LoginStatus.LoggedOut
+    loginUsersRule.logOut("test@google.com")
     yieldUntil {
       provisioner.templates.value.all { (it as DirectAccessDeviceTemplate).activeDevice == null }
     }
     yieldUntil { provisioner.devices.value.isEmpty() }
 
     // Login again to re-discover the device.
-    loginStateRule.state.value = LoginStatus.LoggedIn("test@gmail.com")
+    loginUsersRule.setActiveUser("test@google.com")
     yieldUntil {
       projectRule.project.service<DirectAccessService>().cloudProjectManager.value != null
     }
@@ -823,6 +845,36 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(bannerNotifications.isEmpty()).isTrue()
     yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
     getNotifications(projectRule.project)[0].assertReservationExpiringNotification(handle, false) {}
+  }
+
+  @Test
+  fun testBannerNotificationWhenRDWClosedAndReOpened() = runBlockingWithTimeout {
+    val bannerNotifications = mutableListOf<EditorNotificationPanel>()
+    val handle = setupReservationExpiringTest()
+    val mockContent = setupMockContentForRunningDevicePanel(bannerNotifications)
+    val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
+
+    fakeToolWindow.contentManager.addContent(mockContent)
+
+    directAccessReservationManager.extendReservation(
+      handle.reservation.name,
+      Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
+      DirectAccessReservationManager.ReservationExtendType.TTL,
+    )
+
+    yieldUntil { bannerNotifications.isNotEmpty() }
+    assertThat(bannerNotifications.size).isEqualTo(1)
+    assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+
+    fakeToolWindow.hide()
+    // Actual tool window cleans everything when hidden and recreates when shown
+    // We only clean the notifications in test
+    bannerNotifications.clear()
+    fakeToolWindow.show()
+
+    yieldUntil { bannerNotifications.isNotEmpty() }
+    assertThat(bannerNotifications.size).isEqualTo(1)
+    assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
   }
 
   @Test
@@ -1050,7 +1102,7 @@ class DirectAccessDeviceProvisionerTest {
       }) {
         val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val icons = dialog.deviceTable.values.map { it.deviceInfo.icon }
+        val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
         assertThat(icons)
           .containsExactly(
             FIREBASE_DEVICE_PHONE,
@@ -1091,17 +1143,56 @@ class DirectAccessDeviceProvisionerTest {
     assertThat((templates[2] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
   }
 
+  @RunsInEdt
   @Test
-  fun deleteTemplate(): Unit = runBlockingWithTimeout {
+  fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
     assertThat(plugin.templates.value.size).isEqualTo(5)
 
-    val templates = plugin.templates.first()
-    templates.first().deleteAction?.delete()
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
+        val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
+        // Case-insensitive search
+        searchTextField.text = "GoOgLe       WaTcH"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel Watch")
 
-    yieldUntil { plugin.templates.value.size == 4 }
+        // Search for devices with 6 in their name
+        searchTextField.text = "6"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6")
+        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel 6 Pro")
 
-    assertThat(plugin.templates.value)
-      .containsExactlyElementsIn(templates.subList(1, templates.size))
+        // Search for api 33
+        searchTextField.text = "33"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
+        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6 Pro")
+        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel Watch")
+
+        // Search matching no device
+        searchTextField.text = "no match search"
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
+      }
+    }
+  }
+
+  @RunsInEdt
+  @Test
+  fun testSelectDeviceDialogWhenNoAvailableDevicesToSelect() = runBlockingWithTimeout {
+    (plugin.templates as MutableStateFlow).value = emptyList()
+    assertThat(plugin.templates.value.isEmpty()).isTrue()
+
+    (projectRule.project.service<DirectAccessService>().cloudProjectManager as MutableStateFlow)
+      .value = null
+    projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value = emptyList()
+
+    withContext(AndroidDispatchers.uiThread) {
+      val dialog = SelectDeviceDialog(projectRule.project)
+      createModalDialogAndInteractWithIt({ dialog.show() }) {
+        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
+      }
+    }
   }
 
   @Test
@@ -1199,12 +1290,10 @@ class DirectAccessDeviceProvisionerTest {
 
     // Setup dialog such that user agrees to return devices while signing out
     TestDialogManager.setTestDialog { message ->
-      if (message != SIGN_OUT_TEXT) {
-        assertThat(message)
-          .isEqualTo(
-            "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-          )
-      }
+      assertThat(message)
+        .isEqualTo(
+          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+        )
       Messages.YES
     }
     service<GoogleLoginService>().logOutAllUsersAsync()
@@ -1228,20 +1317,222 @@ class DirectAccessDeviceProvisionerTest {
 
     // Setup dialog such that user declines to return devices while signing out
     TestDialogManager.setTestDialog { message ->
-      if (message == SIGN_OUT_TEXT) {
-        Messages.YES
-      } else {
-        assertThat(message)
-          .isEqualTo(
-            "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-          )
-        Messages.NO
-      }
+      assertThat(message)
+        .isEqualTo(
+          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
+        )
+      Messages.NO
     }
     service<GoogleLoginService>().logOutAllUsersAsync()
 
     assertThat(plugin.devices.value.size).isEqualTo(plugin.templates.value.size)
     assertThat(service<GoogleLoginService>().isLoggedIn()).isTrue()
+  }
+
+  @Test
+  fun testReserveNewDeviceFromNotification() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = fakeConnection.deviceAddress()!!.address
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to template.deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to template.deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to template.deviceInfo.name,
+      ),
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+
+    directAccessReservationManager.cancelReservation(handle.reservation.name)
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(1)
+    val notification = notifications[0]
+    val formattedReservationExpireTime =
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        .withZone(ZoneId.systemDefault())
+        .format(handle.state.reservation?.endTime)
+    notification.assertDeviceNotification(
+      "Direct Access Sticky",
+      "${handle.sourceTemplate.properties.title} session ended",
+      "Your device session ended at $formattedReservationExpireTime. The device was returned and erased.",
+      handle.icon,
+      listOf("Reserve new device"),
+      false,
+    ) {
+      yieldUntil { template.activeDevice == null }
+      val newReservationAction = it.actions[0] as NotificationAction
+      newReservationAction.actionPerformed(mock(), it)
+      yieldUntil { template.activeDevice != null }
+    }
+  }
+
+  @Test
+  fun testReserveNewDeviceWhenOutOfQuotaFromNotification() = runBlockingWithTimeout {
+    service.config = FakeDirectAccessGrpcService.Config(maxReservations = 1)
+    val deviceInfo =
+      DeviceInfo(
+        "max-one-reservation",
+        "brand",
+        "name",
+        "manufacturer",
+        "max-one-reservation",
+        33,
+        DeviceType.PHONE,
+        50,
+        100,
+        100,
+        30,
+      )
+    val template =
+      DirectAccessDeviceTemplate(
+        projectRule.project,
+        MutableStateFlow(deviceInfo).asStateFlow(),
+        plugin.devices as MutableStateFlow,
+        scope,
+        flowOf(true),
+      )
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = fakeConnection.deviceAddress()!!.address
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to template.deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to template.deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to template.deviceInfo.name,
+      ),
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+
+    directAccessReservationManager.cancelReservation(handle.reservation.name)
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    val notifications = getNotifications(projectRule.project)
+    assertThat(notifications.size).isEqualTo(1)
+    val notification = notifications[0]
+    val formattedReservationExpireTime =
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        .withZone(ZoneId.systemDefault())
+        .format(handle.state.reservation?.endTime)
+    notification.assertDeviceNotification(
+      "Direct Access Sticky",
+      "${handle.sourceTemplate.properties.title} session ended",
+      "Your device session ended at $formattedReservationExpireTime. The device was returned and erased.",
+      handle.icon,
+      listOf("Reserve new device"),
+      false,
+    ) {
+      yieldUntil { template.activeDevice == null }
+      val dialogCountDown = CountDownLatch(1)
+      TestDialogManager.setTestDialog { message ->
+        assertThat(message)
+          .isEqualTo(
+            "All Spark plan minutes for the current period have been used. Upgrade to a Blaze plan to immediately continue using this service."
+          )
+        dialogCountDown.countDown()
+        MessageDialog.OK_EXIT_CODE
+      }
+      val newReservationAction = it.actions[0] as NotificationAction
+      newReservationAction.actionPerformed(mock(), it)
+      yieldUntil { dialogCountDown.count == 0L }
+    }
+  }
+
+  @Test
+  fun testUnknownUsagePromptBeforeReservingDevice() =
+    testUsagePromptBeforeReservingDevice(
+      null,
+      "Devices are reserved for 15 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+      "Devices are reserved for 15 minutes. Unused minutes will be returned. If your project is a Blaze plan you may incur charges.",
+      UNKNOWN_DEVICE_DO_NOT_ASK,
+      UNKNOWN_DEVICE_DO_NOT_ASK,
+    )
+
+  @Test
+  fun testSparkUsagePromptBeforeReservingDevice() =
+    testUsagePromptBeforeReservingDevice(
+      false,
+      "Devices are reserved for 15 minutes and count toward your Spark Plan free minutes. When you end your session unused time is refunded.",
+      "You have another streaming device reserved. The new device will be reserved and count towards your Spark Plan free minutes.",
+      SPARK_SINGLE_DEVICE_DO_NOT_ASK,
+      SPARK_MULTI_DEVICE_DO_NOT_ASK,
+    )
+
+  @Test
+  fun testBlazeUsagePromptBeforeReservingDevice() =
+    testUsagePromptBeforeReservingDevice(
+      true,
+      "You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+      "You have another device streaming session. You are currently using a Firebase project on the Blaze plan. This session may incur billed usage.",
+      BLAZE_SINGLE_DEVICE_DO_NOT_ASK,
+      BLAZE_MULTI_DEVICE_DO_NOT_ASK,
+    )
+
+  private fun testUsagePromptBeforeReservingDevice(
+    billing: Boolean?,
+    singleMessage: String,
+    multiMessage: String,
+    singleKey: String,
+    multiKey: String,
+  ) = runBlockingWithTimeout {
+    val countDownLatch = CountDownLatch(2)
+    // Unset values set by PropertiesComponentRule
+    PropertiesComponent.getInstance(projectRule.project).unsetValue(singleKey)
+    PropertiesComponent.getInstance(projectRule.project).unsetValue(multiKey)
+    val cloudProjectManager = projectRule.project.directAccessCloudProjectManager!!
+    val billingEnabledFlow = RefreshableStateFlow(scope, TimeUnit.HOURS.toMillis(1)) { billing }
+    doAnswer { billingEnabledFlow }.whenever(cloudProjectManager).isBillingEnabledFlow
+
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message).startsWith(singleMessage)
+      countDownLatch.countDown()
+      Messages.YES
+    }
+    // Reserve a device
+    plugin.templates.value[0].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 1 }
+
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message).startsWith(multiMessage)
+      countDownLatch.countDown()
+      Messages.YES
+    }
+    // Reserve another device for multi-device prompt
+    plugin.templates.value[4].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 2 }
+
+    // Check the "do not ask again" box
+    PropertiesComponent.getInstance(projectRule.project).setValue(singleKey, true)
+    PropertiesComponent.getInstance(projectRule.project).setValue(multiKey, true)
+
+    // Setup prompt to fail test if invoked
+    TestDialogManager.setTestDialog {
+      fail("Should not prompt")
+      Messages.YES
+    }
+
+    plugin.devices.value.forEach { it.deactivationAction?.deactivate() }
+    yieldUntil { plugin.devices.value.isEmpty() }
+
+    // Reserve devices again
+    yieldUntil { !plugin.templates.value[0].stateFlow.value.isActivating }
+    plugin.templates.value[0].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 1 }
+
+    yieldUntil { !plugin.templates.value[4].stateFlow.value.isActivating }
+    plugin.templates.value[4].activationAction.activate()
+    yieldUntil { plugin.devices.value.size == 2 }
+    assertThat(countDownLatch.count).isEqualTo(0)
   }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {
@@ -1260,6 +1551,7 @@ class DirectAccessDeviceProvisionerTest {
     actionAssertBlock: suspend (Notification) -> Unit,
   ) =
     assertDeviceNotification(
+      "Direct Access",
       RESERVATION_EXPIRING_BANNER_TITLE,
       "${handle.deviceName} will disconnect in 5 mins. Extend reservation to continue access to the device.",
       handle.icon,
@@ -1273,6 +1565,7 @@ class DirectAccessDeviceProvisionerTest {
     actionAssertBlock: suspend (Notification) -> Unit,
   ) =
     assertDeviceNotification(
+      "Direct Access",
       "${handle.deviceName} on Firebase stopped",
       "You can reconnect to the same ${handle.deviceName} for up to 5 minutes before the device is wiped",
       handle.icon,
@@ -1282,6 +1575,7 @@ class DirectAccessDeviceProvisionerTest {
     )
 
   private suspend fun Notification.assertDeviceNotification(
+    notificationGroupId: String = "Direct Access",
     title: String,
     content: String,
     deviceIcon: Icon,
@@ -1289,7 +1583,7 @@ class DirectAccessDeviceProvisionerTest {
     waitForNotificationExpiry: Boolean,
     actionAssertBlock: suspend (Notification) -> Unit,
   ) {
-    assertThat(groupId).isEqualTo("Direct Access")
+    assertThat(groupId).isEqualTo(notificationGroupId)
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
     assertThat(title).isEqualTo(title)
     assertThat(content).isEqualTo(content)

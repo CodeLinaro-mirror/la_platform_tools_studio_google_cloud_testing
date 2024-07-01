@@ -31,7 +31,6 @@ import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
-import com.google.gct.login.LoginState
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
@@ -123,8 +122,8 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
     HyperlinkLabel("View Pricing Details").apply { setHyperlinkTarget(VIEW_PRICING_DETAILS_LINK) }
 
   private val isDirectAccessEnabled =
-    (if (service<GoogleLoginService>().useOldVersion) service<LoginState>().loginStatus
-      else service<GoogleLoginService>().activeUserFlow)
+    service<GoogleLoginService>()
+      .activeUserFlow
       .map { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
       .stateIn(
         scope,

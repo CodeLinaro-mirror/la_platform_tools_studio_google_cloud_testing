@@ -128,8 +128,7 @@ class SelectProjectActionTest {
   private val fakePropertiesComponent = mutableMapOf<Project, String>()
   @get:Rule
   val ruleChain =
-    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
-      .around(FlagRule(StudioFlags.DIRECT_ACCESS_CREATE_PROJECT, true))
+    RuleChain.outerRule(FlagRule(StudioFlags.DIRECT_ACCESS_CREATE_PROJECT, true))
       .around(projectRule)
       .around(HeadlessDialogRule())
       .around(popupRule)
