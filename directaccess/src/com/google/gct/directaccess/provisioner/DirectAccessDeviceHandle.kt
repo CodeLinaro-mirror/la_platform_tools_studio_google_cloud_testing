@@ -33,6 +33,8 @@ import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.adbbridge.Reservation.SessionState
+import com.android.tools.idea.io.grpc.Status
+import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
@@ -393,6 +395,16 @@ class DirectAccessDeviceHandle(
         } catch (e: CancellationException) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw e
+        } catch (e: StatusRuntimeException) {
+          trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
+          if (e.status.code == Status.Code.RESOURCE_EXHAUSTED) {
+            throw DeviceActionException(
+              "All Spark plan minutes for the current period have been used. " +
+                "Upgrade to a Blaze plan to immediately continue using this service.",
+              e,
+            )
+          }
+          throw DeviceActionException("Failed to extend reservation. Please try again.", e)
         } catch (e: Exception) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw DeviceActionException("Failed to extend reservation. Please try again.", e)
