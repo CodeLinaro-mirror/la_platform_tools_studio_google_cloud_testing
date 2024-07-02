@@ -43,6 +43,7 @@ import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.devicemanager.DeviceType
+import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
 import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.android.tools.idea.testing.DebugLoggerRule
@@ -702,6 +703,33 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(newEndTime?.epochSecond).isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
     assertThat(handle.state.reservation?.endTime?.epochSecond)
       .isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+  }
+
+  @Test
+  fun extendReservationWhenOutOfQuotaFromNotification() = runBlockingWithTimeout {
+    service.config = FakeDirectAccessGrpcService.Config(shouldExtendReservation = false)
+    val template = plugin.templates.value[0]
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    assertThat(provisioner.devices.value.size).isEqualTo(1)
+
+    val handle = (provisioner.devices.value[0])
+    yieldUntil { handle.state.reservation != null }
+    val dialogCountDown = CountDownLatch(1)
+    TestDialogManager.setTestDialog { message ->
+      assertThat(message)
+        .isEqualTo(
+          "All Spark plan minutes for the current period have been used. Upgrade to a Blaze plan to immediately continue using this service."
+        )
+      dialogCountDown.countDown()
+      MessageDialog.OK_EXIT_CODE
+    }
+    handle.launchCatchingDeviceActionException {
+      handle.reservationAction?.reserve(Duration.ofMinutes(1))
+    }
+    dialogCountDown.await()
   }
 
   @Test
@@ -1450,7 +1478,7 @@ class DirectAccessDeviceProvisionerTest {
       }
       val newReservationAction = it.actions[0] as NotificationAction
       newReservationAction.actionPerformed(mock(), it)
-      yieldUntil { dialogCountDown.count == 0L }
+      dialogCountDown.await()
     }
   }
 
