@@ -47,6 +47,7 @@ import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.android.tools.idea.testing.DebugLoggerRule
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -82,6 +83,7 @@ import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DeviceInfo
 import com.intellij.icons.AllIcons
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.idea.LoggerFactory
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationDisplayType
@@ -145,10 +147,13 @@ class DirectAccessDeviceProvisionerTestWithLogin2 {
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
   private val propertiesComponentRule = PropertiesComponentRule(projectRule)
-
+  // The default test logger throws after an error is logged, whereas the default JB
+  // logger doesn't. This caused b/349020104 not to be found by tests.
+  private val debugLoggerRule = DebugLoggerRule(LoggerFactory::class.java)
   @get:Rule
   val ruleChain: RuleChain =
     RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
+      .around(debugLoggerRule)
       .around(projectRule)
       .around(grpcConnectionRule)
       .around(loginUsersRule)
