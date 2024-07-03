@@ -943,7 +943,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
                                                                  compactNotation,
                                                                  excludes,
                                                                  gradleBuildModel,
-                                                                 new ExactDependencyMatcher(ANDROID_TEST_IMPLEMENTATION, compactNotation));
+                                                                 new ExactDependencyMatcher(ANDROID_TEST_IMPLEMENTATION, compactNotation),
+                                                                 null);
       }
     }.queue();
   }
