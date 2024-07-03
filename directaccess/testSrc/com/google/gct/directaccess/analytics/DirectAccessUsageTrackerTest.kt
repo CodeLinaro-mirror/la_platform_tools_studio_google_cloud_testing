@@ -20,7 +20,6 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
-import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
@@ -31,7 +30,6 @@ import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.adbbridge.Reservation
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -116,8 +114,7 @@ class DirectAccessUsageTrackerTest {
 
   @get:Rule
   val ruleChain: RuleChain =
-    RuleChain.outerRule(FlagRule(StudioFlags.ENABLE_SETTINGS_ACCOUNT_UI, true))
-      .around(projectRule)
+    RuleChain.outerRule(projectRule)
       .around(grpcConnectionRule)
       .around(loginUsersRule)
       .around(cleanUpNotificationRule)

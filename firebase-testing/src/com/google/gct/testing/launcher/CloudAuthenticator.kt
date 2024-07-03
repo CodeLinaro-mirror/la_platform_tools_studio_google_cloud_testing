@@ -59,11 +59,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
         myToolresults = null
       }
 
-      if (service<GoogleLoginService>().useOldVersion) {
-        service<LoginState>().loginStatus.collect { reset() }
-      } else {
-        service<GoogleLoginService>().activeUserFlow.collect { reset() }
-      }
+      service<GoogleLoginService>().activeUserFlow.collect { reset() }
     }
   }
 
