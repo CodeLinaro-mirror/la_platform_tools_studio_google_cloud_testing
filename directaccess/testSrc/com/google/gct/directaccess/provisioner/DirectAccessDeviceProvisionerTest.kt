@@ -822,6 +822,55 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun testSessionLostNotification() = runBlockingWithTimeout {
+    val deviceInfo = deviceInfoListProvider()[0]
+    val template = plugin.templates.value[0]
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    // Bring the device online by claiming a matched connected device.
+    val serialNumber = fakeConnection.deviceAddress()!!.address
+    session.deviceServices.configureDeviceProperties(
+      DeviceSelector.fromSerialNumber(serialNumber),
+      mapOf(
+        "ro.serialno" to "physicaldevice",
+        DevicePropertyNames.RO_BUILD_VERSION_SDK to deviceInfo.api.toString(),
+        DevicePropertyNames.RO_PRODUCT_MANUFACTURER to deviceInfo.manufacturer,
+        DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
+      ),
+    )
+    session.hostServices.devices =
+      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+
+    val stateFlow =
+      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+        as MutableStateFlow
+    stateFlow.waitUntilActive()
+
+    service.config = FakeDirectAccessGrpcService.Config(authenticatedToGetReservation = false)
+    stateFlow.update {
+      it.toBuilder().setSessionState(Reservation.SessionState.SESSION_STATE_UNSPECIFIED).build()
+    }
+
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    val firstNotificationsList = getNotifications(projectRule.project)
+    assertThat(firstNotificationsList.size).isEqualTo(1)
+
+    firstNotificationsList[0].assertDeviceNotification(
+      "Direct Access Sticky",
+      "${handle.deviceName} session lost",
+      "Android Studio can not access session status right now. " +
+        "Please check your network connection and login again.",
+      handle.icon,
+      listOf(),
+      true,
+    ) {
+      it.expire()
+    }
+    yieldUntil { (template as DirectAccessDeviceTemplate).activeDevice == null }
+  }
+
+  @Test
   fun testBannerNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
@@ -1587,7 +1636,7 @@ class DirectAccessDeviceProvisionerTest {
     assertDeviceNotification(
       "Direct Access",
       RESERVATION_EXPIRING_BANNER_TITLE,
-      "${handle.deviceName} will disconnect in 5 mins. Extend reservation to continue access to the device.",
+      "${handle.deviceName} will disconnect in less than 5 mins. Extend reservation to continue access to the device.",
       handle.icon,
       listOf("Extend 15 mins"),
       waitForNotificationExpiry,
@@ -1619,8 +1668,8 @@ class DirectAccessDeviceProvisionerTest {
   ) {
     assertThat(groupId).isEqualTo(notificationGroupId)
     assertThat(type).isEqualTo(NotificationType.INFORMATION)
-    assertThat(title).isEqualTo(title)
-    assertThat(content).isEqualTo(content)
+    assertThat(this.title).isEqualTo(title)
+    assertThat(this.content).isEqualTo(content)
     assertThat(icon).isEqualTo(deviceIcon)
     assertThat(actions.size).isEqualTo(actionTitles.size)
     assertThat(isExpired).isFalse()
