@@ -458,16 +458,12 @@ public class TestClassNameInputDialog extends DialogWrapper {
       @Override
       public String compute() {
         try {
-          DumbService service = DumbService.getInstance(myProject);
-          service.setAlternativeResolveEnabled(true);
-          try {
+          DumbService.getInstance(myProject).runWithAlternativeResolveEnabled(() -> {
             myTestClass = createClassFromTemplate();
             if (isKotlinTestClass()) {
               myTestClass.getContainingFile().setName(appendKotlinExtension(myClassName));
             }
-          } finally {
-            service.setAlternativeResolveEnabled(false);
-          }
+          });
 
           // To avoid a potential concurrent modification warning.
           PsiManager.getInstance(myProject).reloadFromDisk(myTestClass.getContainingFile());
