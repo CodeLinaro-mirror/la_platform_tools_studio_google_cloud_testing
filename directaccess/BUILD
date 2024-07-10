@@ -47,5 +47,6 @@ iml_module(
         "//tools/adt/idea/intellij.android.device[module]",
         "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose[module]",
         "//tools/adt/idea/artwork-compose:intellij.android.artwork-compose[module]",
+        "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
     ],
 )
