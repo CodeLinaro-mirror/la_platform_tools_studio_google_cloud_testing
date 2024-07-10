@@ -25,13 +25,11 @@ iml_module(
         "//tools/adt/idea/deploy:intellij.android.deploy[module]",
         "//tools/adt/idea/artwork:intellij.android.artwork[module]",
         "//tools/adt/idea/lint:intellij.lint[module]",
-        "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
         "//tools/base/lint:studio.android.sdktools.lint-api[module]",
         "//tools/adt/idea/execution/common:intellij.android.execution.common[module]",
         "//tools/adt/idea/render-resources:intellij.android.render-resources[module]",
         "//tools/base/deploy/deployer:studio.android.sdktools.deployer[module]",
         "//tools/adt/idea/analytics[module]",
-        "//tools/adt/idea/project-system-gradle:intellij.android.projectSystem.gradle[module]",
     ],
 )
 

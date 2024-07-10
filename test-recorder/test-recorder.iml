@@ -38,12 +38,10 @@
     <orderEntry type="module" module-name="intellij.android.deploy" />
     <orderEntry type="module" module-name="intellij.android.artwork" />
     <orderEntry type="module" module-name="intellij.lint" />
-    <orderEntry type="module" module-name="intellij.android.gradle.dsl" />
     <orderEntry type="module" module-name="android.sdktools.lint-api" />
     <orderEntry type="module" module-name="intellij.android.execution.common" />
     <orderEntry type="module" module-name="intellij.android.render-resources" />
     <orderEntry type="module" module-name="android.sdktools.deployer" />
     <orderEntry type="module" module-name="analytics" />
-    <orderEntry type="module" module-name="intellij.android.projectSystem.gradle" />
   </component>
 </module>

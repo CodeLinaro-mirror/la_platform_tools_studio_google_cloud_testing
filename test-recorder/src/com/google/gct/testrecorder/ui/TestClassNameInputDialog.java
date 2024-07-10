@@ -21,15 +21,16 @@ import static java.util.stream.Collectors.toList;
 import com.android.SdkConstants;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
-import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
-import com.android.tools.idea.gradle.dsl.api.PluginModel;
+import com.android.tools.idea.projectsystem.AndroidProjectSystem;
 import com.android.tools.idea.projectsystem.CommonTestType;
 import com.android.tools.idea.projectsystem.IdeaSourceProvider;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.projectsystem.SourceProviders;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
+import com.google.gct.testrecorder.util.EspressoSetupToken;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
@@ -123,13 +124,14 @@ public class TestClassNameInputDialog extends DialogWrapper {
   }
 
   private boolean hasKotlinPlugin() {
-    GradleBuildModel gradleBuildModel = GradleBuildModel.get(myTestClassModule);
-    if (gradleBuildModel == null) {
-      return false;
+    AndroidProjectSystem projectSystem = ProjectSystemUtil.getProjectSystem(myProject);
+    EspressoSetupToken token = EspressoSetupToken.EP_NAME.getExtensionList().stream()
+      .filter((it) -> it.isApplicable(projectSystem))
+      .findFirst().orElse(null);
+    if (token != null) {
+      return token.supportsKotlin(projectSystem, myTestClassModule);
     }
-    List<String> pluginNames = PluginModel.extractNames(gradleBuildModel.plugins());
-    return pluginNames.contains("kotlin-android")
-           || pluginNames.contains("org.jetbrains.kotlin.android");
+    return false;
   }
 
   private void prepareEnvironment() {

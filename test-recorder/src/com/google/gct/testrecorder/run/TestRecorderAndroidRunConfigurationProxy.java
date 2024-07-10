@@ -15,17 +15,14 @@
  */
 package com.google.gct.testrecorder.run;
 
-import com.android.annotations.Nullable;
-import com.android.ddmlib.IDevice;
-import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
-import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
+import com.android.tools.idea.projectsystem.AndroidProjectSystem;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.activity.launch.DefaultActivityLaunch;
 import com.android.tools.idea.run.activity.launch.LaunchOptionState;
 import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch;
+import com.google.gct.testrecorder.util.EspressoSetupToken;
 import com.intellij.openapi.module.Module;
-import java.util.List;
-import org.jetbrains.annotations.NotNull;
 
 public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRunConfigurationProxy {
 
@@ -37,11 +34,14 @@ public class TestRecorderAndroidRunConfigurationProxy implements TestRecorderRun
 
   @Override
   public boolean isNativeProject() {
-    Module module = getModule();
-    // TODO(b/294274926): Do not use DSL models to detect Gradle native projects.
-    return GradleBuildModel.get(module) != null
-           && GradleBuildModel.get(module).android().externalNativeBuild().cmake().version().getValueType()
-              != GradlePropertyModel.ValueType.NONE;
+    AndroidProjectSystem projectSystem = ProjectSystemUtil.getProjectSystem(myBaseConfiguration.getProject());
+    EspressoSetupToken token = EspressoSetupToken.EP_NAME.getExtensionList().stream()
+      .filter((it) -> it.isApplicable(projectSystem))
+      .findFirst().orElse(null);
+    if (token != null) {
+      return token.isNativeProject(projectSystem, getModule());
+    }
+    return false;
   }
 
   @Override
