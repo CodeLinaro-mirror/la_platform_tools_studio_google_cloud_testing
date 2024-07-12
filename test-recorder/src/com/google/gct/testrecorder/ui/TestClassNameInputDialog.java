@@ -59,6 +59,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Properties;
+import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -152,7 +153,9 @@ public class TestClassNameInputDialog extends DialogWrapper {
     }
 
     myClassNameArea.setText(myClassName);
-    myClassNameArea.setBorder(new JTextField().getBorder());
+    myClassNameArea.setBorder(BorderFactory.createCompoundBorder(
+      new JTextField().getBorder(),
+      BorderFactory.createEmptyBorder(5, 5, 5, 5)));
   }
 
   private VirtualFile detectOrCreateTestSourceDirectoryAndDefaultOutputLanguage() {
@@ -458,16 +461,12 @@ public class TestClassNameInputDialog extends DialogWrapper {
       @Override
       public String compute() {
         try {
-          DumbService service = DumbService.getInstance(myProject);
-          service.setAlternativeResolveEnabled(true);
-          try {
+          DumbService.getInstance(myProject).runWithAlternativeResolveEnabled(() -> {
             myTestClass = createClassFromTemplate();
             if (isKotlinTestClass()) {
               myTestClass.getContainingFile().setName(appendKotlinExtension(myClassName));
             }
-          } finally {
-            service.setAlternativeResolveEnabled(false);
-          }
+          });
 
           // To avoid a potential concurrent modification warning.
           PsiManager.getInstance(myProject).reloadFromDisk(myTestClass.getContainingFile());

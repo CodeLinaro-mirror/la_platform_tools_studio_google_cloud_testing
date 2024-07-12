@@ -17,6 +17,7 @@ package com.google.gct.directaccess
 
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.io.grpc.ManagedChannel
+import com.android.tools.idea.io.grpc.netty.GrpcSslContexts
 import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
 import com.android.tools.idea.io.netty.channel.ChannelOption
 import com.google.gct.directaccess.provisioner.CatalogClient
@@ -26,6 +27,8 @@ import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.util.net.ssl.CertificateManager
+import com.intellij.util.net.ssl.ConfirmingTrustManager
 
 /**
  * A setup service with methods that are used by other services in direct access module and can be
@@ -35,6 +38,16 @@ import com.intellij.openapi.components.service
 class DirectAccessServiceSetup {
   val channel: ManagedChannel =
     NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
+      .sslContext(
+        GrpcSslContexts.forClient()
+          .trustManager(
+            ConfirmingTrustManager.createForStorage(
+              CertificateManager.DEFAULT_PATH,
+              CertificateManager.DEFAULT_PASSWORD,
+            )
+          )
+          .build()
+      )
       .withOption(ChannelOption.TCP_NODELAY, true)
       .build()
 
