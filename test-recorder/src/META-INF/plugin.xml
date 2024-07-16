@@ -13,7 +13,7 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<idea-plugin>
+<idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
   <id>com.google.gct.test.recorder</id>
   <name>Test Recorder</name>
   <version>1.0</version>
@@ -55,6 +55,9 @@
   <extensionPoints>
     <extensionPoint qualifiedName="com.google.gct.testrecorder.run.testRecorderRunConfigurationProxyProvider"
                     interface="com.google.gct.testrecorder.run.TestRecorderRunConfigurationProxyProvider" />
+    <extensionPoint qualifiedName="com.google.gct.testrecorder.util.espressoSetupToken"
+                    interface="com.google.gct.testrecorder.util.EspressoSetupToken"/>
   </extensionPoints>
 
+  <xi:include href="/META-INF/test-recorder-gradle.xml"/>
 </idea-plugin>
