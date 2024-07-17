@@ -130,7 +130,7 @@ class DirectAccessDeviceHandle(
   /** Tracks [Reservation] activated */
   private var hasReservationActivated = false
   /** Tracks reservation expired shown */
-  private var hasShownReservationExpiredNotification = false
+  private var hasShownReservationEndedNotification = false
   /** [ContentManagerListener] that listens to panel changes in RDW */
   private var rdwPanelChangeListener: ContentManagerListener? = null
 
@@ -149,7 +149,7 @@ class DirectAccessDeviceHandle(
           return@invokeOnCompletion
         }
         if (hasReservationActivated && state.connectedDevice != null) {
-          showReservationExpiredNotification()
+          showReservationEndedNotification()
         }
 
         when (sessionState) {
@@ -221,11 +221,15 @@ class DirectAccessDeviceHandle(
       }
     }
 
-  private fun showReservationExpiredNotification() =
+  private fun showReservationEndedNotification() =
     synchronized(this) {
-      if (hasShownReservationExpiredNotification) return@synchronized
-      notificationManager.showReservationExpiredNotification()
-      hasShownReservationExpiredNotification = true
+      if (hasShownReservationEndedNotification) return@synchronized
+      if (reservationFlow.value.sessionState == SessionState.SESSION_STATE_UNSPECIFIED) {
+        notificationManager.showReservationLostNotification()
+      } else {
+        notificationManager.showReservationExpiredNotification()
+      }
+      hasShownReservationEndedNotification = true
     }
 
   override val activationAction =
@@ -520,7 +524,7 @@ class DirectAccessDeviceHandle(
             )
           }
           if (reservationFlow.value.sessionState.isClosed()) {
-            showReservationExpiredNotification()
+            showReservationEndedNotification()
           }
         }
       }
