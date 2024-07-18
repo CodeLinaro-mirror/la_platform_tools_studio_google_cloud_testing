@@ -67,5 +67,6 @@
     <orderEntry type="module" module-name="intellij.android.device" />
     <orderEntry type="module" module-name="intellij.android.adt.ui.compose" />
     <orderEntry type="module" module-name="intellij.android.artwork-compose" />
+    <orderEntry type="module" module-name="intellij.android.plugin" scope="TEST" />
   </component>
 </module>

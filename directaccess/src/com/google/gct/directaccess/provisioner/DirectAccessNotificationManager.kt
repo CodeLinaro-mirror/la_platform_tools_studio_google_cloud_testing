@@ -187,6 +187,19 @@ class DirectAccessNotificationManager(
       )
       .notify(project)
 
+  fun showReservationLostNotification() =
+    stickyNotificationGroup
+      .createNotification(
+        "$deviceName session lost",
+        // TODO (b/353573777): Remove "login again" content once Android Studio could logout
+        // automatically.
+        "Android Studio can not access session status right now. " +
+          "Please check your network connection and login again.",
+        NotificationType.INFORMATION,
+      )
+      .setIcon(deviceHandle.icon)
+      .notify(project)
+
   private fun getDeviceDisconnectedNotificationPhrase(reservationExpireTime: Long): String? {
     val timeRemaining =
       Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)

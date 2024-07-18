@@ -23,7 +23,6 @@ import com.google.api.services.storage.Storage
 import com.google.api.services.testing.Testing
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.toolresults.ToolResults
-import com.google.gct.login.LoginState
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.gct.testing.CloudTestingUtils
