@@ -53,16 +53,14 @@ import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
@@ -256,19 +254,22 @@ class DirectAccessDeviceProvisionerPlugin(
                   ?: cachedTemplatesMap.computeIfAbsent(deviceInfo.key) {
                     val templateScope = scope.createChildScope(isSupervisor = true)
                     val deviceInfoFlow =
-                      accessibleDeviceInfoMapFlow
-                        .mapNotNull { deviceMap -> deviceMap[deviceInfo.key] }
-                        .stateIn(templateScope, SharingStarted.Eagerly, deviceInfo)
+                      MutableStateFlow(deviceInfo).also { flow ->
+                        templateScope.launch {
+                          accessibleDeviceInfoMapFlow.collect { deviceMap ->
+                            flow.update { oldDeviceInfo ->
+                              deviceMap[deviceInfo.key] ?: oldDeviceInfo.copy(isInCatalog = false)
+                            }
+                          }
+                        }
+                      }
+
                     DirectAccessDeviceTemplate(
                       project,
                       deviceInfoFlow,
                       _devices,
                       templateScope,
-                      reservationsFlow.combine(accessibleDeviceInfoMapFlow) {
-                        reservations,
-                        deviceInfoMap ->
-                        reservations != null && deviceInfoMap[deviceInfo.key] != null
-                      },
+                      reservationsFlow.map { reservations -> reservations != null },
                     )
                   }
               }

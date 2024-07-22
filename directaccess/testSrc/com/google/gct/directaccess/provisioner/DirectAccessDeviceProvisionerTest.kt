@@ -366,6 +366,31 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun testRemovedTemplates() = runBlockingWithTimeout {
+    yieldUntil { provisioner.templates.value.isNotEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
+    }
+    val accessibleDevicesFlow =
+      projectRule.project
+        .service<DirectAccessService>()
+        .cloudProjectManager
+        .value
+        ?.accessibleDeviceInfoListFlow
+        ?.stateFlow
+    (accessibleDevicesFlow as MutableStateFlow).value = listOf()
+    yieldUntil {
+      provisioner.templates.value.all {
+        !it.activationAction.presentation.value.enabled &&
+          it.activationAction.presentation.value.detail ==
+            "${it.properties.title} removed from the Firebase Test Lab catalog." &&
+          it.state.error?.severity == DeviceError.Severity.WARNING
+        it.state.error?.message == "No longer available"
+      }
+    }
+  }
+
+  @Test
   fun activateAndDeactivateDevice() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     val template = plugin.templates.value[0]
