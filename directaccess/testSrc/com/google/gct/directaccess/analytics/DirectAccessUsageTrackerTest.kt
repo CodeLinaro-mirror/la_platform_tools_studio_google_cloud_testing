@@ -77,6 +77,7 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReserv
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.FAILED_TO_ALLOCATE_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.PROJECT_CLOSING
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.RESOURCE_EXHAUSTED
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
 import com.intellij.ide.ui.LafManager
 import com.intellij.openapi.application.ApplicationManager
@@ -300,6 +301,32 @@ class DirectAccessUsageTrackerTest {
   }
 
   @Test
+  fun trackReservationFailMetricWhenResourceExhausted() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+    service.config = FakeDirectAccessGrpcService.Config(maxReservations = 0)
+
+    // Activate device
+    try {
+      template.activationAction.activate()
+      fail("Expected an exception to be thrown")
+    } catch (ignore: DeviceActionException) {
+      // This is an expected exception.
+    }
+
+    val studioEvent = findUsageEvent(RESERVE_DEVICE)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(RESERVE_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isFalse()
+    assertThat(directAccessEvent.failureReason).isEqualTo(RESOURCE_EXHAUSTED)
+
+    val reserveDeviceDetails = directAccessEvent.reserveDeviceDetails
+    assertThat(reserveDeviceDetails.success).isFalse()
+    assertThat(reserveDeviceDetails.hasReserveTimeMs()).isFalse()
+  }
+
+  @Test
   fun trackConnectionSuccessfulMetricWhenSuccessConnectingDevice() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -481,6 +508,37 @@ class DirectAccessUsageTrackerTest {
     assertThat(directAccessEvent.type).isEqualTo(EXTEND_RESERVATION)
     assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
     assertThat(directAccessEvent.failureReason).isEqualTo(UNKNOWN_FAILURE)
+
+    val extendReservationDetails = directAccessEvent.extendReservationDetails
+    assertThat(extendReservationDetails.success).isFalse()
+    assertThat(extendReservationDetails.extendReservationDuration).isEqualTo(THIRTY_MINUTES)
+  }
+
+  @Test
+  fun trackExtendFailMetricResourceExhausted() = runBlockingWithTimeout {
+    service.config = FakeDirectAccessGrpcService.Config(shouldExtendReservation = false)
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+
+    // Activate device
+    template.activationAction.activate()
+    yieldUntil {
+      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
+    }
+
+    try {
+      template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
+      fail("Expected an exception to be thrown")
+    } catch (e: Exception) {
+      // This is an expected exception.
+    }
+
+    val studioEvent = findUsageEvent(EXTEND_RESERVATION)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(EXTEND_RESERVATION)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason).isEqualTo(RESOURCE_EXHAUSTED)
 
     val extendReservationDetails = directAccessEvent.extendReservationDetails
     assertThat(extendReservationDetails.success).isFalse()

@@ -400,14 +400,15 @@ class DirectAccessDeviceHandle(
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw e
         } catch (e: StatusRuntimeException) {
-          trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           if (e.status.code == Status.Code.RESOURCE_EXHAUSTED) {
+            trackExtendReservation(false, duration, FailureReason.RESOURCE_EXHAUSTED)
             throw DeviceActionException(
               "All Spark plan minutes for the current period have been used. " +
                 "Upgrade to a Blaze plan to immediately continue using this service.",
               e,
             )
           }
+          trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw DeviceActionException("Failed to extend reservation. Please try again.", e)
         } catch (e: Exception) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
