@@ -16,12 +16,12 @@
 package com.google.gct.directaccess
 
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
-import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.devicemanager.DeviceType
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.DirectAccessVersionInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
+import com.google.devtools.testing.v1.Reservation
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle

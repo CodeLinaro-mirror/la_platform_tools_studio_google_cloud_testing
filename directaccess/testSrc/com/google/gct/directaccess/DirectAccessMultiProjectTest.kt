@@ -23,11 +23,11 @@ import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
-import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
+import com.google.devtools.testing.v1.Reservation.SessionState
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.provisioner.DeviceSelection

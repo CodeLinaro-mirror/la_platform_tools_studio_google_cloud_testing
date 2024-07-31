@@ -25,7 +25,6 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.waitForCondition
-import com.android.tools.adbbridge.Reservation
 import com.android.tools.adtui.swing.HeadlessDialogRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
@@ -39,6 +38,7 @@ import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
+import com.google.devtools.testing.v1.Reservation
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DEFAULT_DEVICE_LIST_KEY
 import com.google.gct.directaccess.DirectAccessCloudProjectManager

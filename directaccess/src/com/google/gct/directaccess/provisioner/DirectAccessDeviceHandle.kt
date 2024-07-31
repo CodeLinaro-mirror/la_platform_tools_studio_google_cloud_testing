@@ -31,13 +31,13 @@ import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.awaitDisconnection
-import com.android.tools.adbbridge.Reservation
-import com.android.tools.adbbridge.Reservation.SessionState
 import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.google.devtools.testing.v1.Reservation
+import com.google.devtools.testing.v1.Reservation.SessionState
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessFeatureSurveys
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
