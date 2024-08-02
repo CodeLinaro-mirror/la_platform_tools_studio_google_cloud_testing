@@ -25,7 +25,6 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Extension
 import com.android.sdklib.deviceprovisioner.ExtensionRegistry
 import com.android.sdklib.deviceprovisioner.providedBy
-import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
@@ -33,6 +32,7 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.android.tools.idea.flags.StudioFlags
 import com.google.common.annotations.VisibleForTesting
+import com.google.devtools.testing.v1.Reservation
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
