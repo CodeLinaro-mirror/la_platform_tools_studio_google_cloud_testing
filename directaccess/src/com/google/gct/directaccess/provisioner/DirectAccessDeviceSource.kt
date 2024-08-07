@@ -104,19 +104,18 @@ internal data class DirectAccessDeviceProfile(
 
   @Composable
   override fun Icon(modifier: Modifier) {
-    val iconKey =
+    val painterProvider =
       when (formFactor) {
-        FormFactors.TV -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceTv
-        FormFactors.AUTO -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceCar
-        FormFactors.WEAR -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceWear
-        FormFactors.TABLET -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone
-        else -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone
+        FormFactors.TV -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceTv()
+        FormFactors.AUTO -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceCar()
+        FormFactors.WEAR -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceWear()
+        FormFactors.TABLET -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone()
+        else -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone()
       }
     Icon(
-      iconKey,
+      painter = painterProvider.getPainter().value,
       contentDescription = "Firebase $formFactor",
       modifier = modifier,
-      iconClass = StudioIconsCompose::class.java,
     )
   }
 
