@@ -37,21 +37,16 @@ public class GoogleCloudTestRunnerToolbarPanel extends ToolbarPanel {
     int lastComponentIndex = getComponentCount() - 1;
     ActionToolbarImpl actionToolbar = (ActionToolbarImpl)getComponent(lastComponentIndex);
     final DefaultActionGroup cloudActionGroup = new DefaultActionGroup((String)null, false);
-    int separatorCounter = 0;
-    boolean cloudActionsAdded = false;
+    for (AnAction action : super.getActionsToMerge()) {
+      cloudActionGroup.add(action);
+    }
+
     for (AnAction action : actionToolbar.getActions()) {
       cloudActionGroup.add(action);
-      if (!cloudActionsAdded) {
-        if (action instanceof Separator) {
-          separatorCounter++;
-        }
-        // Add firebase actions as a 4th group of actions.
-        if (separatorCounter == 3) {
-          addCloudActions(cloudActionGroup);
-          cloudActionsAdded = true;
-        }
-      }
     }
+
+    // Add firebase actions as a 4th group of actions.
+    addCloudActions(cloudActionGroup);
 
     // Remove the original action bar and add a firebase action bar instead.
     remove(lastComponentIndex);
