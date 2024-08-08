@@ -29,11 +29,13 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.sdklib.deviceprovisioner.TemplateState
-import com.android.tools.adbbridge.Reservation
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
+import com.android.tools.idea.io.grpc.Status.Code.RESOURCE_EXHAUSTED
+import com.android.tools.idea.io.grpc.StatusRuntimeException
+import com.google.devtools.testing.v1.Reservation
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
@@ -211,13 +213,15 @@ class DirectAccessDeviceTemplate(
                   throw e
                 } catch (e: Exception) {
                   isActivationStarted.value = false
-                  if (e.localizedMessage.contains("RESOURCE_EXHAUSTED")) {
+                  if (e is StatusRuntimeException && e.status.code == RESOURCE_EXHAUSTED) {
+                    trackReserveDevice(false, failureReason = FailureReason.RESOURCE_EXHAUSTED)
                     throw DeviceActionException(
                       "All Spark plan minutes for the current period have been used. " +
                         "Upgrade to a Blaze plan to immediately continue using this service.",
                       e,
                     )
                   }
+                  trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE)
                   throw DeviceActionException("Failed to reserve a device. Please try again.", e)
                 }
               }
@@ -356,20 +360,15 @@ class DirectAccessDeviceTemplate(
             ?: throw RuntimeException("Unable to access ReservationManager.")
 
         val (reservationName, startTime) =
-          try {
-            withProgressText("Creating reservation...") {
-              blockingContext {
-                findOrCreateReservation(
-                  reservationManager,
-                  deviceInfo.codename,
-                  deviceInfo.api.toString(),
-                )
-              }
+          withProgressText("Creating reservation...") {
+            @Suppress("UnstableApiUsage")
+            blockingContext {
+              findOrCreateReservation(
+                reservationManager,
+                deviceInfo.codename,
+                deviceInfo.api.toString(),
+              )
             }
-          } catch (e: Exception) {
-            // TODO(b/277240160): Add correct failure reason
-            trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE)
-            throw e
           }
         if (startTime != 0L) {
           scope.logReserveMetricWhenReservationActive(
