@@ -38,7 +38,7 @@ import com.android.tools.idea.io.grpc.Status
 import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
-import com.google.devtools.testing.v1.Reservation
+import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DEFAULT_DEVICE_LIST_KEY
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
