@@ -21,7 +21,7 @@ import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.DirectAccessVersionInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
-import com.google.devtools.testing.v1.Reservation
+import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle

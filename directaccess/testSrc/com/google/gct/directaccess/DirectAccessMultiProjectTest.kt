@@ -27,7 +27,7 @@ import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.devtools.testing.v1.Reservation.SessionState
+import com.google.devtools.testing.v1.DeviceSession.SessionState
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.provisioner.DeviceSelection

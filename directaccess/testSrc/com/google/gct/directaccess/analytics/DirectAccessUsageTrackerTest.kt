@@ -32,7 +32,7 @@ import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.devtools.testing.v1.Reservation
+import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
