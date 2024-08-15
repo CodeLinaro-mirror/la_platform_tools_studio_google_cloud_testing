@@ -34,6 +34,7 @@ import com.google.services.firebase.FirebaseLoginFeature;
 import com.google.wireless.android.sdk.stats.GoogleLoginPluginEvent;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
+import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
@@ -272,6 +273,11 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
       Presentation presentation = event.getPresentation();
       presentation.setIcon(AllIcons.Actions.Refresh);
       presentation.setText("Refresh cloud projects");
+    }
+
+    @Override
+    public @NotNull ActionUpdateThread getActionUpdateThread() {
+      return ActionUpdateThread.EDT;
     }
   }
 }
