@@ -31,8 +31,6 @@ import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.awaitDisconnection
-import com.android.tools.idea.io.grpc.Status
-import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
@@ -64,6 +62,8 @@ import com.intellij.platform.util.progress.reportProgress
 import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
 import icons.StudioIcons
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.CancellationException

@@ -37,12 +37,12 @@ import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.GrpcConnectionRule
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
-import com.studiogrpc.testutils.GrpcConnectionRule
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
