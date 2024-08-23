@@ -79,13 +79,11 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReaso
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.PROJECT_CLOSING
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.RESOURCE_EXHAUSTED
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason.UNKNOWN_FAILURE
-import com.intellij.ide.ui.LafManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.project.ProjectManagerListener
-import com.intellij.openapi.updateSettings.impl.UpdateSettings
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.intellij.util.application
@@ -146,12 +144,6 @@ class DirectAccessUsageTrackerTest {
         scope.createChildScope(true),
       )
     }
-    // Create tracker related services to avoid unexpected exceptions from calling
-    // them in tests.
-    // TODO (b/352824153) fix exceptions thrown from creating services.
-    UpdateSettings.getInstance()
-    LafManager.getInstance()
-    DirectAccessUsageTracker.getInstance()
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)

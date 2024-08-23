@@ -152,19 +152,23 @@ class DirectAccessDeviceHandle(
           showReservationEndedNotification()
         }
 
-        when (sessionState) {
-          SessionState.EXPIRED -> trackEndReservation(true, EndReservationType.EXPIRE)
-          SessionState.FINISHED -> trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
-          SessionState.ERROR ->
-            trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
-          SessionState.UNAVAILABLE ->
-            trackEndReservation(
-              false,
-              EndReservationType.ERROR,
-              FailureReason.FAILED_TO_ALLOCATE_DEVICE,
-            )
-          else ->
-            trackEndReservation(false, EndReservationType.UNKNOWN, FailureReason.UNKNOWN_FAILURE)
+        // Start a new job to call trackEndReservation, and it would not block the thread by
+        // starting services.
+        CoroutineScope(NonCancellable).launch {
+          when (sessionState) {
+            SessionState.EXPIRED -> trackEndReservation(true, EndReservationType.EXPIRE)
+            SessionState.FINISHED -> trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
+            SessionState.ERROR ->
+              trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
+            SessionState.UNAVAILABLE ->
+              trackEndReservation(
+                false,
+                EndReservationType.ERROR,
+                FailureReason.FAILED_TO_ALLOCATE_DEVICE,
+              )
+            else ->
+              trackEndReservation(false, EndReservationType.UNKNOWN, FailureReason.UNKNOWN_FAILURE)
+          }
         }
       }
   }
