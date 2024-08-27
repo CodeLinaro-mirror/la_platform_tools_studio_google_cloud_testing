@@ -20,6 +20,7 @@ import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.directaccess.ui.SelectProjectDialog
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -75,6 +76,10 @@ class SelectProjectAction :
   override fun actionPerformed(e: AnActionEvent) {
     val project =
       e.project ?: throw IllegalArgumentException("Project required to invoke this action")
-    SelectDeviceDialog(project).show()
+    if (StudioFlags.DEVICE_CATALOG_ENABLED.get()) {
+      SelectProjectDialog(project).show()
+    } else {
+      SelectDeviceDialog(project).show()
+    }
   }
 }
