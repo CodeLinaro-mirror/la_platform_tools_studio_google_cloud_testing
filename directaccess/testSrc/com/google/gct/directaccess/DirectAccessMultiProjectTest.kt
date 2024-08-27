@@ -19,7 +19,6 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
-import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -139,8 +138,8 @@ class DirectAccessMultiProjectTest {
 
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
     plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
-    provisioner1 = DeviceProvisioner.create(session, listOf(plugin1), testDeviceIcons)
-    provisioner2 = DeviceProvisioner.create(session, listOf(plugin2), testDeviceIcons)
+    provisioner1 = DeviceProvisioner.create(session.scope, session, listOf(plugin1))
+    provisioner2 = DeviceProvisioner.create(session.scope, session, listOf(plugin2))
 
     project1.showAllTemplates()
     project2.showAllTemplates()
