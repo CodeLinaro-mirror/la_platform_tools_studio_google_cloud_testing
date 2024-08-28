@@ -32,7 +32,6 @@ import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
-import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
 import com.android.testutils.MockitoKt
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
@@ -204,7 +203,7 @@ class DirectAccessDeviceProvisionerTest {
       )
     }
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
-    provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
+    provisioner = DeviceProvisioner.create(session.scope, session, listOf(plugin))
     projectRule.project.showAllTemplates { selectionList ->
       // Templates are not added to the provisioner automatically after switching to a cloud project
       // with access to more devices.

@@ -22,7 +22,6 @@ import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
-import com.android.sdklib.deviceprovisioner.testing.testDeviceIcons
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
@@ -147,7 +146,7 @@ class DirectAccessUsageTrackerTest {
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
-    provisioner = DeviceProvisioner.create(session, listOf(plugin), testDeviceIcons)
+    provisioner = DeviceProvisioner.create(session.scope, session, listOf(plugin))
     projectRule.project.showAllTemplates()
     yieldUntil { provisioner.templates.value.isNotEmpty() }
   }
