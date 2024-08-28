@@ -92,6 +92,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
@@ -490,7 +491,7 @@ class SelectProjectActionTest {
 
       // Verify DeviceSource after updating selection.
       val deviceSource = DirectAccessDeviceSource(projectRule.project)
-      assertThat(deviceSource.profiles.map { it.name })
+      assertThat(deviceSource.profiles.first().valueOrNull()!!.map { it.name })
         .isEqualTo(extraDeviceInfoList.map { it.name })
     }
 
