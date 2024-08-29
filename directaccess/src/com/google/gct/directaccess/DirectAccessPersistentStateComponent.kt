@@ -15,7 +15,7 @@
  */
 package com.google.gct.directaccess
 
-import com.android.tools.idea.devicemanager.DeviceType
+import com.android.sdklib.deviceprovisioner.DeviceType as ProvisionerDeviceType
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.intellij.openapi.components.BaseState
@@ -64,6 +64,30 @@ class DirectAccessPersistentStateComponent(val project: Project) :
         }
 }
 
+enum class DeviceType {
+  PHONE,
+  TV,
+  WEAR_OS,
+  AUTOMOTIVE;
+
+  fun toProvisionerDeviceType() =
+    when (this) {
+      PHONE -> ProvisionerDeviceType.HANDHELD
+      TV -> ProvisionerDeviceType.TV
+      WEAR_OS -> ProvisionerDeviceType.WEAR
+      AUTOMOTIVE -> ProvisionerDeviceType.AUTOMOTIVE
+    }
+}
+
+fun ProvisionerDeviceType.toSerializationDeviceType(): DeviceType =
+  when (this) {
+    ProvisionerDeviceType.HANDHELD -> DeviceType.PHONE
+    ProvisionerDeviceType.WEAR -> DeviceType.WEAR_OS
+    ProvisionerDeviceType.TV -> DeviceType.TV
+    ProvisionerDeviceType.AUTOMOTIVE -> DeviceType.AUTOMOTIVE
+    ProvisionerDeviceType.DESKTOP -> DeviceType.PHONE
+  }
+
 data class PersistentDeviceSelectionData(
   var isSelected: Boolean = false,
   var id: String = "",
@@ -87,7 +111,7 @@ data class PersistentDeviceSelectionData(
         manufacturer,
         codename,
         api,
-        type,
+        type.toProvisionerDeviceType(),
         screenX,
         screenY,
         screenDensity,
@@ -108,7 +132,7 @@ fun DeviceInfo.createPersistentDeviceSelectionData(isSelected: Boolean) =
     manufacturer,
     codename,
     api,
-    type,
+    type.toSerializationDeviceType(),
     screenX,
     screenY,
     screenDensity,
