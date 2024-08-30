@@ -22,6 +22,7 @@ import com.android.sdklib.deviceprovisioner.DeviceError.Severity
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.waitForCondition
@@ -31,7 +32,6 @@ import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
@@ -163,7 +163,7 @@ class SelectProjectActionTest {
       manufacturer = "Google",
       codename = "shiba",
       api = 34,
-      type = DeviceType.PHONE,
+      type = DeviceType.HANDHELD,
       screenX = 1080,
       screenY = 2400,
       screenDensity = 420,

@@ -31,7 +31,6 @@ import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.sdklib.deviceprovisioner.TemplateState
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.DirectAccessOnboardingService
@@ -570,13 +569,7 @@ internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DeviceProp
     manufacturer = info.manufacturer
     model = info.name
     androidVersion = AndroidVersion(info.api)
-    deviceType =
-      when (info.type) {
-        DeviceType.PHONE -> com.android.sdklib.deviceprovisioner.DeviceType.HANDHELD
-        DeviceType.TV -> com.android.sdklib.deviceprovisioner.DeviceType.TV
-        DeviceType.WEAR_OS -> com.android.sdklib.deviceprovisioner.DeviceType.WEAR
-        DeviceType.AUTOMOTIVE -> com.android.sdklib.deviceprovisioner.DeviceType.AUTOMOTIVE
-      }
+    deviceType = info.type
     resolution = Resolution(info.screenX, info.screenY)
     density = info.screenDensity
     icon = info.icon

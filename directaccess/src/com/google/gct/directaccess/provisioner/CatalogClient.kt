@@ -15,7 +15,7 @@
  */
 package com.google.gct.directaccess.provisioner
 
-import com.android.tools.idea.devicemanager.DeviceType
+import com.android.sdklib.deviceprovisioner.DeviceType
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.directaccess.CloudClientService
@@ -40,9 +40,9 @@ object CatalogClient {
         // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
         //                   tablets
         "PHONE",
-        "TABLET" -> DeviceType.PHONE
-        "WEARABLE" -> DeviceType.WEAR_OS
-        else -> DeviceType.PHONE
+        "TABLET" -> DeviceType.HANDHELD
+        "WEARABLE" -> DeviceType.WEAR
+        else -> DeviceType.HANDHELD
       }
     val deviceAvailabilityEstimateSeconds =
       perVersionInfo.interactiveDeviceAvailabilityEstimate?.substringBefore("s")?.toLong()
