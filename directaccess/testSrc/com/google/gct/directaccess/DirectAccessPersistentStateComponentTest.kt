@@ -31,6 +31,7 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.GrpcConnectionRule
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.testFramework.EdtRule
@@ -38,7 +39,6 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RuleChain
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
-import com.studiogrpc.testutils.GrpcConnectionRule
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule

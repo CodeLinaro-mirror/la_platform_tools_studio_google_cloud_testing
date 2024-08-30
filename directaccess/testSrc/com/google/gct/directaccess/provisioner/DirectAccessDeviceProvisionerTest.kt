@@ -75,6 +75,7 @@ import com.google.services.firebase.directaccess.client.DirectAccessConnectionMa
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.GrpcConnectionRule
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isActive
 import com.google.services.firebase.directaccess.client.waitUntilActive
@@ -100,7 +101,6 @@ import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
-import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
