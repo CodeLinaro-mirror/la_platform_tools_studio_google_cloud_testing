@@ -159,4 +159,5 @@ private fun DeviceType.toFormFactor(): String =
     DeviceType.WEAR -> FormFactors.WEAR
     DeviceType.AUTOMOTIVE -> FormFactors.AUTO
     DeviceType.DESKTOP -> FormFactors.TABLET
+    DeviceType.XR -> FormFactors.PHONE
   }
