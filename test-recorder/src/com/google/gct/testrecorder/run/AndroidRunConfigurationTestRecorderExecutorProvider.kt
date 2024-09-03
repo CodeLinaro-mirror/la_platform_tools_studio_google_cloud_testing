@@ -21,7 +21,7 @@ import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfigurationExecutor
 import com.android.tools.idea.run.DeviceFutures
 import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch
-import com.android.tools.idea.run.configuration.execution.getApplicationIdAndDevices
+import com.android.tools.idea.run.configuration.execution.getDevices
 import com.android.tools.idea.util.androidFacet
 import com.google.gct.testrecorder.ui.TestRecorderAction
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -41,12 +41,12 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
     return configuration.run {
       val applicationIdProvider = applicationIdProvider ?: throw RuntimeException("Cannot get ApplicationIdProvider")
       val apkProvider = apkProvider ?: throw RuntimeException("Cannot get ApkProvider")
+      val applicationContext = FacetBasedApplicationProjectContext(
+        applicationIdProvider.packageName,
+        configuration.configurationModule.module?.androidFacet ?: throw RuntimeException("Cannot get AndroidFacet")
+      )
       val baseExecutor = AndroidRunConfigurationExecutor(
-        applicationIdProvider,
-        FacetBasedApplicationProjectContext(
-          applicationIdProvider.packageName,
-          configuration.configurationModule.module?.androidFacet ?: throw RuntimeException("Cannot get AndroidFacet")
-        ),
+        applicationContext,
         env,
         deviceFutures,
         apkProvider
@@ -54,7 +54,9 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
       val activityName = (configuration.getLaunchOptionState(configuration.MODE) as? SpecificActivityLaunch.State)?.ACTIVITY_CLASS ?: ""
 
       return TestRecorderExecutor(env, baseExecutor, activityName, baseExecutor.facet, isRecordingTest) { indicator ->
-        runBlockingCancellable { getApplicationIdAndDevices(env, deviceFutures, applicationIdProvider, indicator) }
+        runBlockingCancellable {
+          applicationContext.applicationId to getDevices(env, deviceFutures, indicator)
+        }
       }
     }
   }
