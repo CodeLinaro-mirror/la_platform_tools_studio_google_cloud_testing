@@ -362,7 +362,7 @@ class DirectAccessDeviceProvisionerPlugin(
   override val createDeviceTemplateAction =
     object : CreateDeviceTemplateAction {
       override suspend fun create() {
-        if (StudioFlags.DEVICE_CATALOG_ENABLED.get()) {
+        if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
           withContext(AndroidDispatchers.uiThread) {
             createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
               .showAndGet()
