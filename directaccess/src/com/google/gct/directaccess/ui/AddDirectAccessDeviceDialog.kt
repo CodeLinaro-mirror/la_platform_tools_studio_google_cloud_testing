@@ -27,6 +27,7 @@ import com.android.tools.idea.adddevicedialog.Manufacturer
 import com.android.tools.idea.adddevicedialog.SetFilter
 import com.android.tools.idea.adddevicedialog.SetFilterState
 import com.android.tools.idea.adddevicedialog.SingleSelectionDropdown
+import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
@@ -56,9 +57,17 @@ private val directAccessColumns =
 
 internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
   val manufacturerFilter = SetFilterState(Manufacturer)
+  override val textFilter = RemoteDeviceTextFilter()
 
   override fun apply(row: DirectAccessDeviceProfile): Boolean =
     super.apply(row) && manufacturerFilter.apply(row)
+}
+
+internal class RemoteDeviceTextFilter : TextFilterState<DirectAccessDeviceProfile>() {
+  override val description = "Search for a device by name, model, or OEM"
+
+  override fun apply(row: DirectAccessDeviceProfile): Boolean =
+    super.apply(row) || row.manufacturer.contains(searchText.trim(), ignoreCase = true)
 }
 
 @Composable
