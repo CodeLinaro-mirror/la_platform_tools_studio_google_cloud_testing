@@ -38,6 +38,7 @@ import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.SelectDeviceDialog
+import com.google.gct.directaccess.ui.createAddDirectAccessDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
@@ -99,6 +100,7 @@ class DirectAccessDeviceProvisionerPlugin(
   override val templates: StateFlow<List<DeviceTemplate>> = _templates
 
   private val reservationsFlow = MutableStateFlow<List<Reservation>?>(null)
+
   // A flow of map for devices that are accessible with the current login state and cloud project.
   // The mapping is from a string of device id to its full device information.
   private val accessibleDeviceInfoMapFlow = MutableStateFlow(mapOf<String, DeviceInfo>())
@@ -362,7 +364,14 @@ class DirectAccessDeviceProvisionerPlugin(
   override val createDeviceTemplateAction =
     object : CreateDeviceTemplateAction {
       override suspend fun create() {
-        withContext(AndroidDispatchers.uiThread) { SelectDeviceDialog(project).show() }
+        if (StudioFlags.DEVICE_CATALOG_ENABLED.get()) {
+          withContext(AndroidDispatchers.uiThread) {
+            createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
+              .showAndGet()
+          }
+        } else {
+          withContext(AndroidDispatchers.uiThread) { SelectDeviceDialog(project).show() }
+        }
       }
 
       override val presentation: StateFlow<DeviceAction.Presentation> =

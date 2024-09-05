@@ -21,8 +21,6 @@ import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.categorytable.CategoryTable
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
-import com.android.tools.idea.io.grpc.Status
-import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
@@ -65,6 +63,8 @@ import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import javax.swing.BoxLayout

@@ -16,10 +16,6 @@
 package com.google.gct.directaccess
 
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.io.grpc.ManagedChannel
-import com.android.tools.idea.io.grpc.netty.GrpcSslContexts
-import com.android.tools.idea.io.grpc.netty.NettyChannelBuilder
-import com.android.tools.idea.io.netty.channel.ChannelOption
 import com.google.gct.directaccess.provisioner.CatalogClient
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.login2.GoogleLoginService
@@ -29,6 +25,10 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.util.net.ssl.CertificateManager
 import com.intellij.util.net.ssl.ConfirmingTrustManager
+import io.grpc.ManagedChannel
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
+import io.grpc.netty.shaded.io.netty.channel.ChannelOption
 
 /**
  * A setup service with methods that are used by other services in direct access module and can be

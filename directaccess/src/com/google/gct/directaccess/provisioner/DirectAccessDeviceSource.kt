@@ -18,6 +18,7 @@ package com.google.gct.directaccess.provisioner
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.android.sdklib.AndroidVersion
+import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
@@ -26,7 +27,6 @@ import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.adddevicedialog.LoadingState
 import com.android.tools.idea.adddevicedialog.WizardAction
 import com.android.tools.idea.adddevicedialog.WizardPageScope
-import com.android.tools.idea.devicemanager.DeviceType
 import com.google.gct.directaccess.DirectAccessService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -154,8 +154,9 @@ internal data class DirectAccessDeviceProfile(
 
 private fun DeviceType.toFormFactor(): String =
   when (this) {
-    DeviceType.PHONE -> FormFactors.PHONE
+    DeviceType.HANDHELD -> FormFactors.PHONE
     DeviceType.TV -> FormFactors.TV
-    DeviceType.WEAR_OS -> FormFactors.WEAR
+    DeviceType.WEAR -> FormFactors.WEAR
     DeviceType.AUTOMOTIVE -> FormFactors.AUTO
+    DeviceType.DESKTOP -> FormFactors.TABLET
   }

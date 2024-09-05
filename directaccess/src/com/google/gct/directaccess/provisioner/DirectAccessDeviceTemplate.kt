@@ -31,10 +31,7 @@ import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.sdklib.deviceprovisioner.TemplateState
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
-import com.android.tools.idea.io.grpc.Status.Code.RESOURCE_EXHAUSTED
-import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
@@ -60,6 +57,8 @@ import com.intellij.platform.util.progress.reportProgress
 import com.intellij.platform.util.progress.withProgressText
 import com.intellij.util.concurrency.annotations.RequiresBlockingContext
 import icons.StudioIcons
+import io.grpc.Status.Code.RESOURCE_EXHAUSTED
+import io.grpc.StatusRuntimeException
 import java.time.Duration
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
@@ -570,13 +569,7 @@ internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DeviceProp
     manufacturer = info.manufacturer
     model = info.name
     androidVersion = AndroidVersion(info.api)
-    deviceType =
-      when (info.type) {
-        DeviceType.PHONE -> com.android.sdklib.deviceprovisioner.DeviceType.HANDHELD
-        DeviceType.TV -> com.android.sdklib.deviceprovisioner.DeviceType.TV
-        DeviceType.WEAR_OS -> com.android.sdklib.deviceprovisioner.DeviceType.WEAR
-        DeviceType.AUTOMOTIVE -> com.android.sdklib.deviceprovisioner.DeviceType.AUTOMOTIVE
-      }
+    deviceType = info.type
     resolution = Resolution(info.screenX, info.screenY)
     density = info.screenDensity
     icon = info.icon

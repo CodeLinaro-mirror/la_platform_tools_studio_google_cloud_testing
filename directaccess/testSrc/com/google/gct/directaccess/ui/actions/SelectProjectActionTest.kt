@@ -22,6 +22,7 @@ import com.android.sdklib.deviceprovisioner.DeviceError.Severity
 import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
+import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.waitForCondition
@@ -31,11 +32,8 @@ import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.io.grpc.Status
-import com.android.tools.idea.io.grpc.StatusRuntimeException
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.devtools.testing.v1.DeviceSession as Reservation
@@ -83,6 +81,8 @@ import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
 import icons.FirebaseIcons
 import icons.StudioIcons
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import java.awt.event.MouseEvent
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -163,7 +163,7 @@ class SelectProjectActionTest {
       manufacturer = "Google",
       codename = "shiba",
       api = 34,
-      type = DeviceType.PHONE,
+      type = DeviceType.HANDHELD,
       screenX = 1080,
       screenY = 2400,
       screenDensity = 420,
@@ -173,6 +173,16 @@ class SelectProjectActionTest {
   @Before
   fun setUp() {
     PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, false)
+    val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
+    doReturn(deviceInfoListProvider())
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(null)
+    ApplicationManager.getApplication()
+      .replaceService(
+        DirectAccessServiceSetup::class.java,
+        mockDirectAccessServiceSetup,
+        projectRule.disposable,
+      )
   }
 
   @After
@@ -184,16 +194,6 @@ class SelectProjectActionTest {
   @RunsInEdt
   @Test
   fun testSelectProjectAction() = runBlockingWithTimeout {
-    val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(deviceInfoListProvider())
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(null)
-    ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessServiceSetup::class.java,
-        mockDirectAccessServiceSetup,
-        projectRule.disposable,
-      )
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
     val mockDeviceProvisionerService = mock<DeviceProvisionerService>()

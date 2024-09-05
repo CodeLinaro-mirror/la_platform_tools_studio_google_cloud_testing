@@ -19,11 +19,11 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
+import com.android.sdklib.deviceprovisioner.DeviceType as ProvisionerDeviceType
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.adblib.AdbLibApplicationService
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
@@ -31,6 +31,7 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.GrpcConnectionRule
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.testFramework.EdtRule
@@ -38,7 +39,6 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RuleChain
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
-import com.studiogrpc.testutils.GrpcConnectionRule
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -74,7 +74,7 @@ class DirectAccessPersistentStateComponentTest {
       "Google",
       "codename1",
       31,
-      DeviceType.PHONE,
+      ProvisionerDeviceType.HANDHELD,
       100,
       200,
       300,

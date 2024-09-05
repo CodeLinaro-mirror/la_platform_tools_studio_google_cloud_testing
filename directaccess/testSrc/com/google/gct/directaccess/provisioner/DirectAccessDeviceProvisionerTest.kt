@@ -30,6 +30,7 @@ import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState.Connected
 import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
+import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.testutils.MockitoKt
@@ -40,7 +41,6 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
 import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
@@ -75,6 +75,7 @@ import com.google.services.firebase.directaccess.client.DirectAccessConnectionMa
 import com.google.services.firebase.directaccess.client.DirectAccessReservationManager
 import com.google.services.firebase.directaccess.client.FakeDirectAccessConnection
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
+import com.google.services.firebase.directaccess.client.GrpcConnectionRule
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isActive
 import com.google.services.firebase.directaccess.client.waitUntilActive
@@ -100,7 +101,6 @@ import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
-import com.studiogrpc.testutils.GrpcConnectionRule
 import icons.StudioIcons
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
 import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
@@ -1466,7 +1466,7 @@ class DirectAccessDeviceProvisionerTest {
         "manufacturer",
         "max-one-reservation",
         33,
-        DeviceType.PHONE,
+        DeviceType.HANDHELD,
         50,
         100,
         100,

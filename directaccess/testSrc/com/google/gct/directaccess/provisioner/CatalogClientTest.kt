@@ -15,10 +15,10 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
-import com.android.tools.idea.devicemanager.DeviceType
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.services.testing.model.AndroidDeviceCatalog
@@ -77,10 +77,10 @@ class CatalogClientTest {
 
     assertThat(devices.size).isEqualTo(2)
     assertThat(devices[0].name).isEqualTo("Phone")
-    assertThat(devices[0].type).isEqualTo(DeviceType.PHONE)
+    assertThat(devices[0].type).isEqualTo(DeviceType.HANDHELD)
     assertThat(devices[0].api).isGreaterThan(25)
     assertThat(devices[1].name).isEqualTo("Watch")
-    assertThat(devices[1].type).isEqualTo(DeviceType.WEAR_OS)
+    assertThat(devices[1].type).isEqualTo(DeviceType.WEAR)
     assertThat(devices[1].api).isGreaterThan(25)
   }
 
@@ -92,8 +92,8 @@ class CatalogClientTest {
 
     assertThat(devices.size).isEqualTo(2)
     assertThat(devices[0].name).isEqualTo("Phone")
-    assertThat(devices[0].type).isEqualTo(DeviceType.PHONE)
+    assertThat(devices[0].type).isEqualTo(DeviceType.HANDHELD)
     assertThat(devices[1].name).isEqualTo("Watch")
-    assertThat(devices[1].type).isEqualTo(DeviceType.WEAR_OS)
+    assertThat(devices[1].type).isEqualTo(DeviceType.WEAR)
   }
 }
