@@ -302,9 +302,7 @@ class DirectAccessDeviceProvisionerPlugin(
         }
 
       reservations
-        .filter { reservation ->
-          !reservation.sessionState.isClosed() && reservation.hasAndroidDevice()
-        }
+        .filter { reservation -> !reservation.state.isClosed() && reservation.hasAndroidDevice() }
         .map { reservation ->
           val key = reservation.androidDevice.let { it.androidModelId to it.androidVersionId }
           templateMap[key]?.firstOrNull()?.let { template ->
@@ -342,7 +340,7 @@ class DirectAccessDeviceProvisionerPlugin(
             // DirectAccessConnectionManager.
             val reservation = connection.state.value.reservation
             val androidDevice = reservation.androidDevice
-            if (!reservation.sessionState.isClosed() && reservation.hasAndroidDevice()) {
+            if (!reservation.state.isClosed() && reservation.hasAndroidDevice()) {
               // Wait for the target template becoming available before creating a device handle.
               withTimeoutOrNull(FAST_TASK_TIMEOUT) {
                   _templates

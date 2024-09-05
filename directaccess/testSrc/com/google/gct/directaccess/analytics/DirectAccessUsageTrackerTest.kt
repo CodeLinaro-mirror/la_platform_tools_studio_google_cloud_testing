@@ -589,9 +589,9 @@ class DirectAccessUsageTrackerTest {
 
       // Simulate reservation end
       (reservationFlow as MutableStateFlow).update {
-        it.toBuilder().apply { sessionState = Reservation.SessionState.EXPIRED }.build()
+        it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build()
       }
-      yieldUntil { reservationFlow.value.sessionState.isClosed() }
+      yieldUntil { reservationFlow.value.state.isClosed() }
 
       // Wait for the end reservation event.
       // This also ensures that the sticky notification for reservation end is shown
@@ -777,9 +777,9 @@ class DirectAccessUsageTrackerTest {
 
     // Update the reservation to EXPIRED state
     (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { sessionState = Reservation.SessionState.EXPIRED }.build()
+      it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build()
     }
-    yieldUntil { reservationFlow.value.sessionState.isClosed() }
+    yieldUntil { reservationFlow.value.state.isClosed() }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -811,9 +811,9 @@ class DirectAccessUsageTrackerTest {
 
     // Simulates force check-in in other project.
     (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { sessionState = Reservation.SessionState.FINISHED }.build()
+      it.toBuilder().apply { state = Reservation.SessionState.FINISHED }.build()
     }
-    yieldUntil { reservationFlow.value.sessionState.isClosed() }
+    yieldUntil { reservationFlow.value.state.isClosed() }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -843,9 +843,9 @@ class DirectAccessUsageTrackerTest {
       directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
     reservationFlow.waitUntilActive()
     (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { sessionState = Reservation.SessionState.ERROR }.build()
+      it.toBuilder().apply { state = Reservation.SessionState.ERROR }.build()
     }
-    yieldUntil { reservationFlow.value.sessionState == Reservation.SessionState.ERROR }
+    yieldUntil { reservationFlow.value.state == Reservation.SessionState.ERROR }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -876,9 +876,9 @@ class DirectAccessUsageTrackerTest {
       directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
     reservationFlow.waitUntilActive()
     (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { sessionState = Reservation.SessionState.UNAVAILABLE }.build()
+      it.toBuilder().apply { state = Reservation.SessionState.UNAVAILABLE }.build()
     }
-    yieldUntil { reservationFlow.value.sessionState == Reservation.SessionState.UNAVAILABLE }
+    yieldUntil { reservationFlow.value.state == Reservation.SessionState.UNAVAILABLE }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)

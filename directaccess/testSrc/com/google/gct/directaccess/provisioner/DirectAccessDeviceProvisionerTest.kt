@@ -565,7 +565,7 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { provisioner.devices.value.isEmpty() }
     assertThat(
         directAccessReservationManager.listReservations().all {
-          it.sessionState == Reservation.SessionState.FINISHED
+          it.state == Reservation.SessionState.FINISHED
         }
       )
       .isTrue()
@@ -767,7 +767,7 @@ class DirectAccessDeviceProvisionerTest {
     secondNotificationsList[0].assertDeviceDisconnectedNotification(handle) {
       val forceCheckInAction = it.actions[1] as NotificationAction
       forceCheckInAction.actionPerformed(mock(), it)
-      yieldUntil { handle.reservation.sessionState != Reservation.SessionState.ACTIVE }
+      yieldUntil { handle.reservation.state != Reservation.SessionState.ACTIVE }
       assertThat(handle.connectionState).isInstanceOf(ConnectionState.Disconnected::class.java)
       yieldUntil { plugin.devices.value.isEmpty() }
     }
@@ -848,7 +848,7 @@ class DirectAccessDeviceProvisionerTest {
 
     service.config = FakeDirectAccessGrpcService.Config(authenticatedToGetReservation = false)
     stateFlow.update {
-      it.toBuilder().setSessionState(Reservation.SessionState.SESSION_STATE_UNSPECIFIED).build()
+      it.toBuilder().setState(Reservation.SessionState.SESSION_STATE_UNSPECIFIED).build()
     }
 
     yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
@@ -1073,10 +1073,10 @@ class DirectAccessDeviceProvisionerTest {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    assertThat(handle.reservation.sessionState).isEqualTo(Reservation.SessionState.REQUESTED)
+    assertThat(handle.reservation.state).isEqualTo(Reservation.SessionState.REQUESTED)
 
     handle.deactivationAction.deactivate()
-    yieldUntil { handle.reservation.sessionState == Reservation.SessionState.FINISHED }
+    yieldUntil { handle.reservation.state == Reservation.SessionState.FINISHED }
     yieldUntil { plugin.devices.value.isEmpty() }
 
     assertThat(getNotifications(projectRule.project).size).isEqualTo(0)
@@ -1091,9 +1091,9 @@ class DirectAccessDeviceProvisionerTest {
     flow.waitUntilActive()
 
     (flow as MutableStateFlow).update {
-      it.toBuilder().apply { sessionState = Reservation.SessionState.EXPIRED }.build()
+      it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build()
     }
-    yieldUntil { flow.value.sessionState == Reservation.SessionState.EXPIRED }
+    yieldUntil { flow.value.state == Reservation.SessionState.EXPIRED }
 
     yieldUntil { handle.stateFlow.value.reservation?.state == ReservationState.COMPLETE }
   }
