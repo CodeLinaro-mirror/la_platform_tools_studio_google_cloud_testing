@@ -225,14 +225,13 @@ class DirectAccessMultiProjectTest {
     service<DirectAccessApplicationService>().registerCloudProject(project1, null)
 
     assertThat(reservationManager.listReservations().size).isEqualTo(1)
-    assertThat(reservationManager.listReservations()[0].sessionState)
-      .isEqualTo(SessionState.REQUESTED)
+    assertThat(reservationManager.listReservations()[0].state).isEqualTo(SessionState.REQUESTED)
 
     // Close the second project
     service<DirectAccessApplicationService>().registerCloudProject(project2, null)
 
     val reservationList = reservationManager.listReservations()
     assertThat(reservationList.size).isEqualTo(1)
-    assertThat(reservationList[0].sessionState).isEqualTo(SessionState.FINISHED)
+    assertThat(reservationList[0].state).isEqualTo(SessionState.FINISHED)
   }
 }

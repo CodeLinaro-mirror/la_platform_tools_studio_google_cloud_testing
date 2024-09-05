@@ -142,9 +142,9 @@ class DirectAccessDeviceHandle(
     }
 
     scope
-      .launch { reservationFlow.takeWhile { !it.sessionState.isClosed() }.collect() }
+      .launch { reservationFlow.takeWhile { !it.state.isClosed() }.collect() }
       .invokeOnCompletion { throwable ->
-        val sessionState = reservationFlow.value.sessionState
+        val sessionState = reservationFlow.value.state
         if (!shouldTrackEndReservation(throwable, sessionState)) {
           return@invokeOnCompletion
         }
@@ -177,8 +177,8 @@ class DirectAccessDeviceHandle(
    * End reservation should be tracked when the session is closed and the throwable is null or
    * [CancellationException] It should not be tracked if the session is not closed.
    */
-  private fun shouldTrackEndReservation(throwable: Throwable?, sessionState: SessionState) =
-    if (sessionState.isClosed()) {
+  private fun shouldTrackEndReservation(throwable: Throwable?, state: SessionState) =
+    if (state.isClosed()) {
       throwable?.let { it is CancellationException } ?: true
     } else {
       false
@@ -189,7 +189,7 @@ class DirectAccessDeviceHandle(
     reservation: Reservation
   ): com.android.sdklib.deviceprovisioner.Reservation {
     val reservationState =
-      when (reservation.sessionState) {
+      when (reservation.state) {
         SessionState.REQUESTED,
         SessionState.PENDING -> ReservationState.PENDING
         SessionState.ACTIVE -> ReservationState.ACTIVE
@@ -228,7 +228,7 @@ class DirectAccessDeviceHandle(
   private fun showReservationEndedNotification() =
     synchronized(this) {
       if (hasShownReservationEndedNotification) return@synchronized
-      if (reservationFlow.value.sessionState == SessionState.SESSION_STATE_UNSPECIFIED) {
+      if (reservationFlow.value.state == SessionState.SESSION_STATE_UNSPECIFIED) {
         notificationManager.showReservationLostNotification()
       } else {
         notificationManager.showReservationExpiredNotification()
@@ -344,8 +344,8 @@ class DirectAccessDeviceHandle(
       override suspend fun deactivate() =
         withContext(scope.coroutineContext + NonCancellable) {
           val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
-          // Check here if notification is needed. endReservation might change the sessionState
-          val shouldShowNotification = reservationFlow.value.sessionState == SessionState.ACTIVE
+          // Check here if notification is needed. endReservation might change the state
+          val shouldShowNotification = reservationFlow.value.state == SessionState.ACTIVE
           hasUserDisconnectedDevice = true
           try {
             connection.closeConnection(StateReason.USER_INITIATED)
@@ -528,7 +528,7 @@ class DirectAccessDeviceHandle(
               state.reservation?.endTime?.epochSecond
             )
           }
-          if (reservationFlow.value.sessionState.isClosed()) {
+          if (reservationFlow.value.state.isClosed()) {
             showReservationEndedNotification()
           }
         }
@@ -556,7 +556,7 @@ class DirectAccessDeviceHandle(
 
   private fun getScopeCancelledReason() =
     when {
-      reservationFlow.value.sessionState.isClosed() -> FailureReason.SESSION_ENDED
+      reservationFlow.value.state.isClosed() -> FailureReason.SESSION_ENDED
       !service<GoogleLoginService>().isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) ->
         FailureReason.USER_LOGGED_OUT
       project.service<DirectAccessService>().isProjectClosing -> FailureReason.PROJECT_CLOSING
