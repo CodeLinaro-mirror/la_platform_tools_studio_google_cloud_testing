@@ -29,6 +29,8 @@ import io.grpc.ManagedChannel
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.netty.channel.ChannelOption
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslProvider
 
 /**
  * A setup service with methods that are used by other services in direct access module and can be
@@ -39,7 +41,7 @@ class DirectAccessServiceSetup {
   val channel: ManagedChannel =
     NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
       .sslContext(
-        GrpcSslContexts.forClient()
+        GrpcSslContexts.configure(SslContextBuilder.forClient(), SslProvider.JDK)
           .trustManager(
             ConfirmingTrustManager.createForStorage(
               CertificateManager.DEFAULT_PATH,
