@@ -40,9 +40,10 @@ import kotlinx.coroutines.flow.update
 import org.jetbrains.jewel.ui.component.Icon
 
 /** Implements support for Direct Access devices in the Add Device dialog. */
-class DirectAccessDeviceSource(private val project: Project) : DeviceSource {
+internal class DirectAccessDeviceSource(private val project: Project) :
+  DeviceSource<DirectAccessDeviceProfile> {
 
-  override val profiles: Flow<LoadingState<List<DeviceProfile>>>
+  override val profiles: Flow<LoadingState<List<DirectAccessDeviceProfile>>>
     get() {
       return project.service<DirectAccessService>().deviceSelectionListFlow.map { list ->
         LoadingState.Ready(
@@ -53,20 +54,16 @@ class DirectAccessDeviceSource(private val project: Project) : DeviceSource {
       }
     }
 
-  override fun WizardPageScope.selectionUpdated(device: DeviceProfile) {
+  override fun WizardPageScope.selectionUpdated(device: DirectAccessDeviceProfile) {
     nextAction = WizardAction.Disabled
     finishAction =
       if (device.isAlreadyPresent) WizardAction.Disabled
       else
         WizardAction {
-          if (device is DirectAccessDeviceProfile) {
-            project.service<DirectAccessService>().deviceSelectionListFlow.update { devices ->
-              devices.map {
-                if (it.deviceInfo.key == device.key) it.copy(isSelected = true) else it
-              }
-            }
-            close()
+          project.service<DirectAccessService>().deviceSelectionListFlow.update { devices ->
+            devices.map { if (it.deviceInfo.key == device.key) it.copy(isSelected = true) else it }
           }
+          close()
         }
   }
 }
@@ -98,9 +95,6 @@ internal data class DirectAccessDeviceProfile(
     availabilityEstimate = deviceInfo.deviceAvailabilityEstimateSeconds?.seconds ?: Duration.ZERO,
     key = deviceInfo.key,
   )
-
-  override val source
-    get() = DirectAccessDeviceSource::class.java
 
   override val isVirtual: Boolean
     get() = false
