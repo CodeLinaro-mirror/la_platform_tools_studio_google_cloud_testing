@@ -24,6 +24,7 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.icon
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.scale.JBUIScale
 
 data class SelectDeviceRowData(
   val isEnabled: Boolean,
@@ -35,7 +36,7 @@ internal object SelectDeviceTableColumns {
 
   object Selected : Column<SelectDeviceRowData, Boolean, JBCheckBox> {
     override val name = ""
-    override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
+    override val widthConstraint = Column.SizeConstraint(min = JBUIScale.scale(20), preferred = JBUIScale.scale(20))
     override val attribute =
       object : Attribute<SelectDeviceRowData, Boolean> {
         override val sorter = Comparator.naturalOrder<Boolean>()
@@ -56,7 +57,7 @@ internal object SelectDeviceTableColumns {
 
   object DeviceIcon : Column<SelectDeviceRowData, String, JBLabel> {
     override val name = ""
-    override val widthConstraint = Column.SizeConstraint(min = 24, preferred = 24)
+    override val widthConstraint = Column.SizeConstraint(min = JBUIScale.scale(20), preferred = JBUIScale.scale(20))
     override val attribute = stringAttribute<SelectDeviceRowData> { it.deviceInfo.type.toString() }
 
     override fun createUi(rowValue: SelectDeviceRowData): JBLabel {
