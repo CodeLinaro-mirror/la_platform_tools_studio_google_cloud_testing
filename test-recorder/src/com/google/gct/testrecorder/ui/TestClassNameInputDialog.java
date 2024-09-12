@@ -15,6 +15,7 @@
  */
 package com.google.gct.testrecorder.ui;
 
+import static com.google.gct.testrecorder.util.GenerateTestHelperKt.KOTLIN_LANGUAGE_NAME;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
@@ -34,14 +35,8 @@ import com.google.gct.testrecorder.util.EspressoSetupToken;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
-import com.intellij.ide.fileTemplates.FileTemplate;
-import com.intellij.ide.fileTemplates.FileTemplateManager;
-import com.intellij.ide.fileTemplates.FileTemplateUtil;
-import com.intellij.ide.fileTemplates.JavaTemplateUtil;
-import com.intellij.ide.fileTemplates.actions.CreateFromTemplateActionBase;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.GeneratedSourcesFilter;
 import com.intellij.openapi.roots.ModuleRootManager;
@@ -50,16 +45,12 @@ import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDirectory;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
-import com.intellij.util.IncorrectOperationException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
-import java.util.Properties;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -77,7 +68,6 @@ import org.jetbrains.jps.model.java.JavaSourceRootType;
 
 public class TestClassNameInputDialog extends DialogWrapper {
   private static final String JAVA_LANGUAGE_NAME = "Java";
-  private static final String KOTLIN_LANGUAGE_NAME = "Kotlin";
 
   private final Project myProject;
   private final String myLaunchedActivityName;
@@ -115,12 +105,19 @@ public class TestClassNameInputDialog extends DialogWrapper {
       myClassLanguageComboBox.removeItemAt(1);
     }
 
-    SwingUtilities.invokeLater(new Runnable(){
-      @Override
-      public void run() {
-        updateOKButton();
-      }
-    });
+    SwingUtilities.invokeLater(this::updateOKButton);
+  }
+
+  public String getTestClassName() {
+    return myClassName;
+  }
+
+  public PsiDirectory getTestClassParent() {
+    return myTestClassParent;
+  }
+
+  public String getSelectedLanguage() {
+    return mySelectedLanguage;
   }
 
   private boolean hasKotlinPlugin() {
@@ -175,10 +172,10 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
     if (existingAndroidTestSourceRoots.isEmpty()) {
       UsageTracker.log(UsageTrackerUtils.withProjectId(
-                       AndroidStudioEvent.newBuilder()
+        AndroidStudioEvent.newBuilder()
           .setCategory(EventCategory.TEST_RECORDER)
           .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER),
-       myProject));
+        myProject));
 
       VirtualFile closestContentRoot = getClosestContentRoot(launchedActivitySourceRoot);
       List<String> androidTestSourceRoots = getAndroidTestSourceRoots();
@@ -194,14 +191,16 @@ public class TestClassNameInputDialog extends DialogWrapper {
           return getOrCreateSubdirectory(contentRootParent, new String[]{"androidTest", "java"}, true);
         }
         return getOrCreateSubdirectory(closestContentRoot, new String[]{"src", "androidTest", "java"}, true);
-      } else {
+      }
+      else {
         String closestAndroidTestSourcePath =
           androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
         // Ensure that test path has the same file path prefix as the source root path (b/262355661).
         closestAndroidTestSourcePath =
           getFilePathPrefix(launchedActivitySourceRoot.getCanonicalPath(), closestAndroidTestSourcePath) + closestAndroidTestSourcePath;
         VirtualFile parentDirectory = closestContentRoot;
-        if (closestContentRoot.getCanonicalPath() == null || !closestAndroidTestSourcePath.startsWith(closestContentRoot.getCanonicalPath())) {
+        if (closestContentRoot.getCanonicalPath() == null ||
+            !closestAndroidTestSourcePath.startsWith(closestContentRoot.getCanonicalPath())) {
           parentDirectory = findContainingDirectory(launchedActivitySourceRoot, closestAndroidTestSourcePath);
           if (parentDirectory == null) {
             throw new RuntimeException("Failed to find a parent directory for android test source path: " + closestAndroidTestSourcePath
@@ -211,7 +210,8 @@ public class TestClassNameInputDialog extends DialogWrapper {
         return getOrCreateSubdirectory(
           parentDirectory, closestAndroidTestSourcePath.substring(parentDirectory.getCanonicalPath().length() + 1).split("/"), true);
       }
-    } else {
+    }
+    else {
       return existingAndroidTestSourceRoots.get(
         findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, getCanonicalPaths(existingAndroidTestSourceRoots)));
     }
@@ -268,7 +268,8 @@ public class TestClassNameInputDialog extends DialogWrapper {
   private static String getURLPath(String url) {
     try {
       return new URL(url).getPath();
-    } catch (MalformedURLException e) {
+    }
+    catch (MalformedURLException e) {
       return url;
     }
   }
@@ -294,10 +295,12 @@ public class TestClassNameInputDialog extends DialogWrapper {
           if (child == null) {
             try {
               currentDirectory = currentDirectory.createChildDirectory(this, subdirectory);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
               throw new RuntimeException("Failed to create subdirectory " + subdirectory, e);
             }
-          } else {
+          }
+          else {
             currentDirectory = child;
           }
         }
@@ -339,7 +342,8 @@ public class TestClassNameInputDialog extends DialogWrapper {
     for (int i = 0; i < Math.min(pathChars1.length, pathChars2.length); i++) {
       if (pathChars1[i] == pathChars2[i]) {
         overlapSize++;
-      } else {
+      }
+      else {
         break;
       }
     }
@@ -429,7 +433,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return myRootPanel;
   }
 
-  private void updateOKButton(){
+  private void updateOKButton() {
     setOKActionEnabled(PsiNameHelper.getInstance(myProject).isIdentifier(myClassName));
   }
 
@@ -459,55 +463,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
       return;
     }
 
-    String errorMessage = ApplicationManager.getApplication().runWriteAction(new Computable<String>() {
-      @Override
-      public String compute() {
-        try {
-          DumbService.getInstance(myProject).runWithAlternativeResolveEnabled(() -> {
-            myTestClass = createClassFromTemplate();
-            if (isKotlinTestClass()) {
-              myTestClass.getContainingFile().setName(appendKotlinExtension(myClassName));
-            }
-          });
-
-          // To avoid a potential concurrent modification warning.
-          PsiManager.getInstance(myProject).reloadFromDisk(myTestClass.getContainingFile());
-        } catch (Exception e) {
-          return e.getMessage();
-        }
-        return null;
-      }
-    });
-
-    if (errorMessage != null || myTestClass == null) {
-      // Do not use the raw errorMessage as it could be quite lengthy.
-      myErrorMessageLabel.setText("File creation failed.");
-    } else {
-      super.doOKAction();
-    }
-  }
-
-  private PsiClass createClassFromTemplate() throws Exception {
-    Project project = myTestClassParent.getProject();
-    FileTemplate template =
-      FileTemplateManager.getInstance(project).getInternalTemplate(JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME);
-    template.setReformatCode(false);
-
-    Properties defaultProperties = FileTemplateManager.getInstance(project).getDefaultProperties();
-    Properties properties = new Properties(defaultProperties);
-    properties.setProperty(FileTemplate.ATTRIBUTE_NAME, myClassName);
-
-    PsiElement element =
-      FileTemplateUtil.createFromTemplate(template, myClassName + SdkConstants.DOT_JAVA, properties, myTestClassParent);
-    final PsiJavaFile file = (PsiJavaFile)element.getContainingFile();
-    PsiClass[] classes = file.getClasses();
-    if (classes.length < 1) {
-      throw new IncorrectOperationException("Failed to create a test class from a template");
-    }
-    if (template.isLiveTemplateEnabled() && file.getViewProvider().getDocument() != null) {
-      CreateFromTemplateActionBase.startLiveTemplate(file);
-    }
-    return classes[0];
+    super.doOKAction();
   }
 
   private boolean doesClassExist() {
@@ -546,5 +502,4 @@ public class TestClassNameInputDialog extends DialogWrapper {
   public JComponent getPreferredFocusedComponent() {
     return myClassNameArea;
   }
-
 }

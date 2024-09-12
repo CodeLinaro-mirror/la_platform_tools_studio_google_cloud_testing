@@ -22,6 +22,7 @@ import static com.google.gct.testrecorder.event.TestRecorderAssertion.TEXT_IS;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.SUPPORTED_EVENTS;
 import static com.google.gct.testrecorder.ui.TestRecorderAction.TEST_RECORDER_ICON;
 import static com.google.gct.testrecorder.util.ClassHelper.getInternalName;
+import static com.google.gct.testrecorder.util.GenerateTestHelperKt.getApplicationId;
 import static com.google.gct.testrecorder.util.ImageHelper.rotateImage;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.createElementLevelMap;
 import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.getAppPackageName;
@@ -37,11 +38,8 @@ import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
-import com.android.tools.idea.projectsystem.AndroidProjectSystem;
-import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.UiNode;
-import com.google.gct.testrecorder.codegen.TestCodeGenerator;
 import com.google.gct.testrecorder.event.ElementAction;
 import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
@@ -50,7 +48,6 @@ import com.google.gct.testrecorder.event.TestRecorderEventListener;
 import com.google.gct.testrecorder.roboscript.ContextualRoboscript;
 import com.google.gct.testrecorder.roboscript.RoboscriptConfiguration;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
-import com.google.gct.testrecorder.util.EspressoSetupToken;
 import com.google.gct.testrecorder.util.StringHelper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -59,8 +56,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
-import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory;
-import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind;
 import com.intellij.debugger.impl.DebuggerSession;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.BrowserUtil;
@@ -73,7 +68,7 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
-import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiDirectory;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
@@ -101,7 +96,6 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import org.apache.commons.io.FileUtils;
-import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -117,6 +111,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private final String myPackageName;
   private final String myLaunchedActivityName;
   private final boolean myIsRecordingTest;
+  private String myTestClassName;
+  private PsiDirectory myTestClassParent;
+  private Module myTestClassModule;
+  private String mySelectedLanguage;
 
   private DebuggerSession myDebuggerSession;
   private boolean myAssertionMode;
@@ -124,7 +122,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private LinkedHashMap<BasicTreeNode, Integer> myNodeIndentMap;
   private DefaultComboBoxModel myElementComboBoxModel;
   private final DefaultListModel<ElementAction> myActionListModel;
-  /** Shows whether recording is in progress. */
+  /**
+   * Shows whether recording is in progress.
+   */
   private boolean myIsRecording = true;
   private boolean myWasEverPaused = false;
   private JPanel myRootPanel;
@@ -148,7 +148,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private JButton myRecordPauseButton;
 
   public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName, boolean isRecordingTest) {
-    super(facet.getModule().getProject(), true, IdeModalityType.MODELESS);
+    super(facet.getModule().getProject(), true, IdeModalityType.IDE);
     myProject = facet.getModule().getProject();
     myFacet = facet;
     myDevice = device;
@@ -176,7 +176,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       myAssertionPanel.setVisible(false);
       // Recording a Robo script does not support snippets.
       myRecordPauseButton.setVisible(false);
-    } else {
+    }
+    else {
       myRecordPauseButton.setVisible(TestRecorderSettings.getInstance().ENABLE_TEST_FRAGMENT_RECORDING);
     }
 
@@ -194,7 +195,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         myAssertionMode = true;
         getRootPane().setDefaultButton(mySaveAssertionAndAddAnotherButton);
         BasicTreeNode root = model.getXmlRootNode();
-        String applicationId = getApplicationId("");
+        String applicationId = getApplicationId(myFacet, "");
         if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
           Messages.showMessageDialog(myRootPanel, "Out-of-app assertions are not supported and will break the generated Espresso test.",
                                      "Warning: adding an out-of-app assertion", null);
@@ -254,8 +255,9 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
           myAssertionTextField.setText(getText(node));
           myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITH_TEXT));
-        } else {
-          CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
+        }
+        else {
+          CardLayout cardLayout = (CardLayout)myTextFieldWrapper.getLayout();
           cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
           myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITHOUT_TEXT));
         }
@@ -263,7 +265,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         mySaveAssertionButton.setEnabled(true);
         mySaveAssertionAndAddAnotherButton.setEnabled(true);
         myAssertionTextField.setForeground(JBColor.BLACK);
-      } else {
+      }
+      else {
         // selected element is not UI element (default element)
         myScreenshotPanel.clearSelectionAndRepaint();
       }
@@ -273,7 +276,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       @Override
       public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
         if (value instanceof BasicTreeNode) {
-          BasicTreeNode node = (BasicTreeNode) value;
+          BasicTreeNode node = (BasicTreeNode)value;
           // Add indent.
           int indent = myNodeIndentMap.get(node);
           String prefix = StringUtil.repeat("  ", indent);
@@ -284,7 +287,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           String resourceId = getResourceId(node);
           String nodeString = resourceId.isEmpty() ? getClassName(node) : resourceId;
           return super.getListCellRendererComponent(list, prefix + nodeString, index, isSelected, cellHasFocus);
-        } else {
+        }
+        else {
           // non UI element
           return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
         }
@@ -298,11 +302,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
 
       String rule = selectedItem.toString();
-      CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
+      CardLayout cardLayout = (CardLayout)myTextFieldWrapper.getLayout();
       if (TEXT_IS.equals(rule)) {
         // Display assertion text field when rule is "text ***"
         cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
-      } else {
+      }
+      else {
         // Otherwise (exists, does not exist), don't display assertion text field
         cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
       }
@@ -316,11 +321,40 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     updateRecordPauseButton();
   }
 
+  public String getTestClassName() {
+    return myTestClassName;
+  }
+
+  public PsiDirectory getTestClassParent() {
+    return myTestClassParent;
+  }
+
+  public JPanel getRootPanel() {
+    return myRootPanel;
+  }
+
+  public List<ElementAction> getAllModelActions() {
+    return Collections.list(myActionListModel.elements());
+  }
+
+  public String getLaunchedActivityName() {
+    return myLaunchedActivityName;
+  }
+
+  public Boolean getWasEverPaused() {
+    return myWasEverPaused;
+  }
+
+  public String getSelectedLanguage() {
+    return mySelectedLanguage;
+  }
+
   private void updateRecordPauseButton() {
     if (myIsRecording) {
       myRecordPauseButton.setText("Pause");
       myRecordPauseButton.setIcon(AllIcons.Actions.Pause);
-    } else {
+    }
+    else {
       myRecordPauseButton.setText("Resume");
       myRecordPauseButton.setIcon(TEST_RECORDER_ICON);
     }
@@ -397,50 +431,25 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       // Show the test class name input dialog before (potentially) setting up Espresso dependencies,
       // which might confuse Gradle about the location of android tests.
       TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet.getModule(), myLaunchedActivityName);
-      chooser.show();
-      PsiClass testClass = chooser.getTestClass();
-      if (testClass == null) {
-        // Test class generation was cancelled or resulted in an error.
+      if (!chooser.showAndGet()) {
         return;
       }
-      Module testClassModule = chooser.getTestClassModule();
-
-      //Similarly, compute resource package name and application id before the potential Gradle confusion.
-      String resourcePackageName = "unknown";
-      AndroidFacet testClassFacet = AndroidFacet.getInstance(testClassModule);
-      if (testClassFacet !=  null) {
-        Manifest manifest = Manifest.getMainManifest(testClassFacet);
-        if (manifest != null) {
-          resourcePackageName = manifest.getPackage().getStringValue();
-        }
-      }
-      String applicationId = getApplicationId(resourcePackageName);
-
-      if (resourcePackageName == null) {
-        // Fallback to application ID as the app's package name.
-        resourcePackageName = applicationId;
-      }
-
-      AndroidProjectSystem projectSystem = ProjectSystemUtil.getProjectSystem(myProject);
-      EspressoSetupToken token = EspressoSetupToken.EP_NAME.getExtensionList().stream()
-        .filter((it) -> it.isApplicable(projectSystem))
-        .findFirst().orElse(null);
-      boolean myUsesAndroidxDependency = false;
-      if (token != null) {
-        myUsesAndroidxDependency = token.ensureSetup(projectSystem, testClassModule, myFacet, myRootPanel, getAllModelActions());
-      }
+      myTestClassName = chooser.getTestClassName();
+      myTestClassParent = chooser.getTestClassParent();
+      mySelectedLanguage = chooser.getSelectedLanguage();
       super.doOKAction();
-      new TestCodeGenerator(resourcePackageName, applicationId, testClassModule, testClass, getAllModelActions(), myLaunchedActivityName,
-                            myWasEverPaused, chooser.isKotlinTestClass(), myUsesAndroidxDependency).generate();
-    } else {
+    }
+    else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");
       FileSaverDialogImpl fileSaverDialog = new FileSaverDialogImpl(descriptor, myProject);
-      VirtualFileWrapper fileWrapper = fileSaverDialog.save((VirtualFile)null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
+      VirtualFileWrapper fileWrapper =
+        fileSaverDialog.save((VirtualFile)null, StringHelper.getClassName(myLaunchedActivityName) + "_robo_script");
 
       if (fileWrapper != null) {
         try {
           FileUtils.write(fileWrapper.getFile(), getJsonForActions(myProject, getAllModelActions()));
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
           String message = StringUtil.isEmpty(ex.getMessage()) ? "Unknown error" : ex.getMessage();
           Messages.showMessageDialog(myRootPanel, message, "Could not save Robo script to a file", null);
         }
@@ -449,31 +458,19 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       if (fileSaverDialog.isOK()) {
         UsageTracker.log(UsageTrackerUtils.withProjectId(
           AndroidStudioEvent.newBuilder()
-           .setCategory(EventCategory.TEST_RECORDER)
-           .setKind(EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT),
+            .setCategory(AndroidStudioEvent.EventCategory.TEST_RECORDER)
+            .setKind(AndroidStudioEvent.EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT),
           myProject));
         super.doOKAction();
       }
     }
   }
 
-  private String getApplicationId(String defaultId) {
-    try {
-      return ProjectSystemUtil.getModuleSystem(myFacet).getApplicationIdProvider().getPackageName();
-    } catch (Exception e) {
-      return defaultId;
-    }
-  }
-
-  private List<ElementAction> getAllModelActions() {
-    return Collections.list(myActionListModel.elements());
-  }
-
   private void exitAssertionMode(boolean shouldAddAssertion) {
     myAssertionMode = false;
     getRootPane().setDefaultButton(getButton(getOKAction()));
     // Display button panel.
-    CardLayout cardLayout = (CardLayout) myAssertionPanel.getLayout();
+    CardLayout cardLayout = (CardLayout)myAssertionPanel.getLayout();
     cardLayout.show(myAssertionPanel, "myButtonsPanel");
 
     if (shouldAddAssertion) {
@@ -481,7 +478,8 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       myActionListModel.add(myAssertionIndex, buildAssertionForCurrentSelection());
       // Scroll action list so that assertion is visible.
       myActionList.ensureIndexIsVisible(myAssertionIndex);
-    } else {
+    }
+    else {
       // Scroll action list so that the last action is visible.
       myActionList.ensureIndexIsVisible(myActionListModel.size() - 1);
     }
@@ -498,7 +496,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     final int screenshotPanelTotalHeight = myRootPanel.getHeight();
     int scaledImageWidth = imageHeight <= screenshotPanelTotalHeight
                            ? imageWidth
-                           : (int) ((double) (imageWidth * screenshotPanelTotalHeight) / imageHeight);
+                           : (int)((double)(imageWidth * screenshotPanelTotalHeight) / imageHeight);
 
     // Cap panel width to not be greater than panel height.
     final int screenshotPanelTotalWidth = scaledImageWidth > screenshotPanelTotalHeight ? screenshotPanelTotalHeight : scaledImageWidth;
@@ -588,7 +586,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     myAssertionRuleComboBox.setModel(new DefaultComboBoxModel());
 
     // Hide assertion text field.
-    CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
+    CardLayout cardLayout = (CardLayout)myTextFieldWrapper.getLayout();
     cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
 
     // Disable save assertion buttons.
@@ -604,12 +602,13 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     mySaveAssertionButton.setEnabled(true);
     mySaveAssertionAndAddAnotherButton.setEnabled(true);
 
-    CardLayout cardLayout = (CardLayout) myTextFieldWrapper.getLayout();
+    CardLayout cardLayout = (CardLayout)myTextFieldWrapper.getLayout();
     if (isTextView(node)) {
       cardLayout.show(myTextFieldWrapper, "myAssertionTextField");
       myAssertionTextField.setText(getText(node));
       myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITH_TEXT));
-    } else {
+    }
+    else {
       cardLayout.show(myTextFieldWrapper, "myPlaceHolder");
       myAssertionRuleComboBox.setModel(new DefaultComboBoxModel(ASSERTION_RULES_WITHOUT_TEXT));
     }
@@ -631,14 +630,16 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       // If it is first element, add it anyway
       if (myActionListModel.isEmpty()) {
         myActionListModel.addElement(event);
-      } else {
+      }
+      else {
         ElementAction lastAction = myActionListModel.lastElement();
         // If event can merge with the last action, replace last action with the merged one.
         if (lastAction instanceof TestRecorderEvent && ((TestRecorderEvent)lastAction).canMerge(event)) {
           ((TestRecorderEvent)lastAction).merge(event);
           // Repaint is needed since otherwise the change would not be picked up by the renderer.
           myActionList.repaint();
-        } else {
+        }
+        else {
           myActionListModel.addElement(event);
         }
       }
