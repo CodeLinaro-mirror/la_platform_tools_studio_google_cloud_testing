@@ -21,10 +21,11 @@
 
   <description>Enables Device Streaming Tab for Device Manager.</description>
 
-  <depends>org.jetbrains.android</depends>
-  <depends>com.intellij.java</depends>
-  <depends>com.google.services.firebase</depends>
   <dependencies>
+    <plugin id="org.jetbrains.android"/>
+    <plugin id="com.intellij.java"/>
+    <plugin id="com.google.services.firebase"/>
+    <module name="intellij.libraries.grpc"/>
     <module name="intellij.libraries.grpc.netty.shaded"/>
   </dependencies>
 
