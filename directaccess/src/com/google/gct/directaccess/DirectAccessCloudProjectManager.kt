@@ -132,7 +132,7 @@ class DirectAccessCloudProjectManager(
       withTimeout(Duration.ofSeconds(2)) {
         reservationListFlowWithException.value.first
           ?.mapNotNull {
-            if (!it.sessionState.isClosed() && !it.isActive()) {
+            if (!it.state.isClosed() && !it.isActive()) {
               scope.launch { reservationManager.cancelReservation(it.name) }
             } else {
               null

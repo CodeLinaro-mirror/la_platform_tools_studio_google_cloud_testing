@@ -44,6 +44,7 @@ import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -227,6 +228,9 @@ class DirectAccessDeviceProvisionerPlugin(
                   // list instead.
                   service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(null)
                 } catch (e: Exception) {
+                  if (e is ControlFlowException) {
+                    throw e
+                  }
                   thisLogger().error(e)
                   listOf()
                 }
@@ -302,9 +306,7 @@ class DirectAccessDeviceProvisionerPlugin(
         }
 
       reservations
-        .filter { reservation ->
-          !reservation.sessionState.isClosed() && reservation.hasAndroidDevice()
-        }
+        .filter { reservation -> !reservation.state.isClosed() && reservation.hasAndroidDevice() }
         .map { reservation ->
           val key = reservation.androidDevice.let { it.androidModelId to it.androidVersionId }
           templateMap[key]?.firstOrNull()?.let { template ->
@@ -342,7 +344,7 @@ class DirectAccessDeviceProvisionerPlugin(
             // DirectAccessConnectionManager.
             val reservation = connection.state.value.reservation
             val androidDevice = reservation.androidDevice
-            if (!reservation.sessionState.isClosed() && reservation.hasAndroidDevice()) {
+            if (!reservation.state.isClosed() && reservation.hasAndroidDevice()) {
               // Wait for the target template becoming available before creating a device handle.
               withTimeoutOrNull(FAST_TASK_TIMEOUT) {
                   _templates
@@ -364,7 +366,7 @@ class DirectAccessDeviceProvisionerPlugin(
   override val createDeviceTemplateAction =
     object : CreateDeviceTemplateAction {
       override suspend fun create() {
-        if (StudioFlags.DEVICE_CATALOG_ENABLED.get()) {
+        if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
           withContext(AndroidDispatchers.uiThread) {
             createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
               .showAndGet()

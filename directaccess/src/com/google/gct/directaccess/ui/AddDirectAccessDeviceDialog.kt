@@ -21,18 +21,23 @@ import com.android.tools.idea.adddevicedialog.DefaultDeviceGridPage
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
 import com.android.tools.idea.adddevicedialog.DeviceLoadingPage
 import com.android.tools.idea.adddevicedialog.DeviceProfile
-import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.adddevicedialog.DeviceTableColumns
 import com.android.tools.idea.adddevicedialog.FormFactor
 import com.android.tools.idea.adddevicedialog.Manufacturer
 import com.android.tools.idea.adddevicedialog.SetFilter
 import com.android.tools.idea.adddevicedialog.SetFilterState
 import com.android.tools.idea.adddevicedialog.SingleSelectionDropdown
+import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
 import com.intellij.openapi.project.Project
 import kotlinx.collections.immutable.persistentListOf
 
-fun createAddDirectAccessDeviceDialog(source: DeviceSource, project: Project?): ComposeWizard {
+internal fun createAddDirectAccessDeviceDialog(
+  source: DirectAccessDeviceSource,
+  project: Project?,
+): ComposeWizard {
   return ComposeWizard(project, "Add Remote Device") {
     val filterState = getOrCreateState { RemoteDeviceFilterState() }
     DeviceLoadingPage(source) { profiles ->
@@ -50,11 +55,19 @@ fun createAddDirectAccessDeviceDialog(source: DeviceSource, project: Project?): 
 private val directAccessColumns =
   with(DeviceTableColumns) { persistentListOf(icon, oem, name, width, height, density) }
 
-class RemoteDeviceFilterState : DeviceFilterState() {
+internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
   val manufacturerFilter = SetFilterState(Manufacturer)
+  override val textFilter = RemoteDeviceTextFilter()
 
-  override fun apply(row: DeviceProfile): Boolean =
+  override fun apply(row: DirectAccessDeviceProfile): Boolean =
     super.apply(row) && manufacturerFilter.apply(row)
+}
+
+internal class RemoteDeviceTextFilter : TextFilterState<DirectAccessDeviceProfile>() {
+  override val description = "Search for a device by name, model, or OEM"
+
+  override fun apply(row: DirectAccessDeviceProfile): Boolean =
+    super.apply(row) || row.manufacturer.contains(searchText.trim(), ignoreCase = true)
 }
 
 @Composable
