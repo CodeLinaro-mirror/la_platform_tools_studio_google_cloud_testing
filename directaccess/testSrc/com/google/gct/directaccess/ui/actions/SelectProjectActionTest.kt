@@ -106,7 +106,7 @@ import org.mockito.Mockito.any
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 
-const val SELECT_PROJECT_ID = "SelectProjectAction"
+private const val SELECT_PROJECT_ID = "SelectProjectAction"
 private val TIMEOUT = 100.seconds
 
 class SelectProjectActionTest {
@@ -129,7 +129,7 @@ class SelectProjectActionTest {
   private val fakePropertiesComponent = mutableMapOf<Project, String>()
   @get:Rule
   val ruleChain =
-    RuleChain.outerRule(FlagRule(StudioFlags.DIRECT_ACCESS_CREATE_PROJECT, true))
+    RuleChain.outerRule(FlagRule(StudioFlags.DEVICE_CATALOG_ENABLED, false))
       .around(projectRule)
       .around(HeadlessDialogRule())
       .around(popupRule)

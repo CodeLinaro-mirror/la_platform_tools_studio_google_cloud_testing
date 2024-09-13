@@ -1,0 +1,164 @@
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.google.gct.directaccess.ui
+
+import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
+import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.tools.idea.concurrency.AndroidExecutors
+import com.android.tools.idea.testing.disposable
+import com.google.common.truth.Truth.assertThat
+import com.google.services.firebase.FirebaseProjectClientRule
+import com.intellij.openapi.application.ModalityState
+import com.intellij.testFramework.ProjectRule
+import com.intellij.testFramework.replaceService
+import com.intellij.util.application
+import com.intellij.util.concurrency.AppExecutorUtil
+import com.intellij.util.ui.NamedColorUtil
+import java.awt.Color
+import java.util.concurrent.CountDownLatch
+import javax.swing.JTextField
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Runnable
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.job
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.mockito.Mockito.mock
+import org.mockito.kotlin.whenever
+
+class DirectAccessProjectSelectorTest2 {
+
+  @get:Rule val projectRule = ProjectRule()
+  @get:Rule val firebaseProjectClientRule = FirebaseProjectClientRule()
+  private val scope = CoroutineScope(EmptyCoroutineContext)
+  private lateinit var selector: DirectAccessProjectSelectorImpl2
+  private lateinit var projectList: MutableList<String>
+
+  @Before
+  fun setup() {
+    projectList = firebaseProjectClientRule.setupFirebaseClient().toMutableList()
+  }
+
+  @Test
+  fun testLoadingShownWhenLoadingFirebaseProjects() {
+    // Pass a cancelled scope so that projects don't refresh allowing
+    // the test to assert preferred project is displayed
+    scope.cancel()
+    selector =
+      DirectAccessProjectSelectorImpl2(projectRule.project, projectList.last(), true, scope)
+
+    assertThat(selector.comboBox.model.size).isEqualTo(1)
+    assertThat(selector.comboBox.model.selectedItem).isEqualTo("Loading...")
+    assertThat(selector.comboBox.isEnabled).isFalse()
+    selector.assertDisabledTextColor(NamedColorUtil.getInactiveTextColor())
+  }
+
+  @Test
+  fun testProjectsLoadedInSelector() = runBlockingWithTimeout {
+    selector =
+      DirectAccessProjectSelectorImpl2(projectRule.project, projectList.last(), true, scope)
+
+    yieldUntil { selector.comboBox.model.size != 1 }
+
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.comboBox.model.selectedItem == projectList.last() }
+    assertThat(selector.components[0]).isEqualTo(selector.comboBox)
+  }
+
+  @Test
+  fun testSelectedItemDefaultWhenPreferredProjectNotInList() = runBlockingWithTimeout {
+    selector =
+      DirectAccessProjectSelectorImpl2(projectRule.project, "nonExistentProject", true, scope)
+
+    yieldUntil { selector.comboBox.model.size != 1 }
+
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.comboBox.model.selectedItem == projectList[0] }
+    assertThat(selector.components[0]).isEqualTo(selector.comboBox)
+  }
+
+  @Test
+  fun testErrorWhileFetchingFirebaseProjectDisablesSelector() = runBlockingWithTimeout {
+    projectList = firebaseProjectClientRule.setupFirebaseClient(true).toMutableList()
+    selector =
+      DirectAccessProjectSelectorImpl2(projectRule.project, "preferredProject", true, scope)
+
+    yieldUntil { scope.coroutineContext.job.children.toList().isEmpty() }
+
+    assertThat(selector.comboBox.isVisible).isTrue()
+    assertThat(selector.comboBox.model.size).isEqualTo(1)
+    assertThat(selector.comboBox.model.selectedItem).isEqualTo("Error fetching firebase projects")
+    assertThat(selector.comboBox.isEnabled).isFalse()
+    selector.assertDisabledTextColor(NamedColorUtil.getErrorForeground())
+  }
+
+  @Test
+  fun testSelectorDisabledIfShouldEnableIsFalse() = runBlockingWithTimeout {
+    selector =
+      DirectAccessProjectSelectorImpl2(projectRule.project, projectList.last(), false, scope)
+
+    yieldUntil { selector.comboBox.model.size != 1 }
+
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.comboBox.model.selectedItem == projectList.last() }
+    selector.assertDisabledTextColor(NamedColorUtil.getInactiveTextColor())
+  }
+
+  @Test
+  fun testModelSetInUiThread() = runBlockingWithTimeout {
+    val countDownLatch = CountDownLatch(1)
+    val mockAndroidExecutors = mock<AndroidExecutors>()
+    val fakeUiExecutor: (ModalityState, Runnable) -> Unit = { _, runnable ->
+      if (runnable.toString().contains("DirectAccessProjectSelectorImpl2\$refreshProjects")) {
+        countDownLatch.countDown()
+      }
+      runnable.run()
+    }
+    whenever(mockAndroidExecutors.uiThreadExecutor).thenReturn(fakeUiExecutor)
+    application.replaceService(
+      AndroidExecutors::class.java,
+      AndroidExecutors(
+        fakeUiExecutor,
+        AppExecutorUtil.getAppExecutorService(),
+        AndroidExecutors.getInstance().diskIoThreadExecutor,
+      ),
+      projectRule.disposable,
+    )
+    selector =
+      DirectAccessProjectSelectorImpl2(projectRule.project, "preferredProject", true, scope)
+
+    yieldUntil { selector.comboBox.isEnabled }
+    assertThat(countDownLatch.count).isEqualTo(0)
+  }
+
+  @Test
+  fun testFirstProjectEmptyWhenPreferredProjectNotSet() = runBlockingWithTimeout {
+    projectList = firebaseProjectClientRule.setupFirebaseClient().toMutableList()
+    selector = DirectAccessProjectSelectorImpl2(projectRule.project, "", true, scope)
+
+    yieldUntil { selector.comboBox.model.size != 1 }
+
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size + 1)
+    yieldUntil { selector.comboBox.model.selectedItem == "" }
+  }
+}
+
+private fun DirectAccessProjectSelectorImpl2.assertDisabledTextColor(color: Color) {
+  val textField = comboBox.editor.editorComponent as JTextField
+  assertThat(textField.disabledTextColor).isEqualTo(color)
+}
