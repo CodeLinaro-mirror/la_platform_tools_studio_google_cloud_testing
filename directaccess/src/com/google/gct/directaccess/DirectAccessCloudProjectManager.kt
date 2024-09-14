@@ -25,6 +25,8 @@ import com.google.services.firebase.directaccess.client.DirectAccessReservationM
 import com.google.services.firebase.directaccess.client.isActive
 import com.google.services.firebase.directaccess.client.isClosed
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.thisLogger
+import io.grpc.StatusRuntimeException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -123,7 +125,15 @@ class DirectAccessCloudProjectManager(
     runBlocking {
       withTimeout(Duration.ofSeconds(2)) {
         connectionManager.connections.values
-          .map { scope.launch { it.endReservation(true) } }
+          .map {
+            scope.launch {
+              try {
+                it.endReservation(true)
+              } catch (e: StatusRuntimeException) {
+                thisLogger().warn(e)
+              }
+            }
+          }
           .joinAll()
       }
     }
@@ -133,7 +143,13 @@ class DirectAccessCloudProjectManager(
         reservationListFlowWithException.value.first
           ?.mapNotNull {
             if (!it.state.isClosed() && !it.isActive()) {
-              scope.launch { reservationManager.cancelReservation(it.name) }
+              scope.launch {
+                try {
+                  reservationManager.cancelReservation(it.name)
+                } catch (e: StatusRuntimeException) {
+                  thisLogger().warn(e)
+                }
+              }
             } else {
               null
             }
