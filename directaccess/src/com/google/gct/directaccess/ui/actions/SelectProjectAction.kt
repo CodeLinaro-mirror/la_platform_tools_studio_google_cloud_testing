@@ -76,7 +76,7 @@ class SelectProjectAction :
   override fun actionPerformed(e: AnActionEvent) {
     val project =
       e.project ?: throw IllegalArgumentException("Project required to invoke this action")
-    if (StudioFlags.DEVICE_CATALOG_ENABLED.get()) {
+    if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
       SelectProjectDialog(project).show()
     } else {
       SelectDeviceDialog(project).show()
