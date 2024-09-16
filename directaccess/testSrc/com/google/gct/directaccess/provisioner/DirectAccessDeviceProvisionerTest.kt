@@ -117,11 +117,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -215,7 +217,7 @@ class DirectAccessDeviceProvisionerTest {
   @After
   fun tearDown() = runBlockingWithTimeout {
     TestDialogManager.setTestDialog(null)
-    scope.cancel()
+    scope.coroutineContext.job.cancelAndJoin()
     session.close()
   }
 
