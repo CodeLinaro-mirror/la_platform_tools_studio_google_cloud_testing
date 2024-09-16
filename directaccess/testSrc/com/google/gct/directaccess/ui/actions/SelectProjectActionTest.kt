@@ -129,7 +129,7 @@ class SelectProjectActionTest {
   private val fakePropertiesComponent = mutableMapOf<Project, String>()
   @get:Rule
   val ruleChain =
-    RuleChain.outerRule(FlagRule(StudioFlags.DEVICE_CATALOG_ENABLED, false))
+    RuleChain.outerRule(FlagRule(StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED, false))
       .around(projectRule)
       .around(HeadlessDialogRule())
       .around(popupRule)
