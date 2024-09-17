@@ -63,6 +63,7 @@ import java.time.Duration
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -72,11 +73,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 val SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(1)
 val LONG_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(15)
@@ -111,6 +115,19 @@ class DirectAccessDeviceTemplate(
   /** Emits true if a cloud project is created but not ready. */
   private val isCloudProjectBeingCreatedFlow = MutableStateFlow(false)
 
+  /** Emits true if the template is available with or without an active device. */
+  private val isAvailableFlow: StateFlow<Boolean> =
+    isReservable
+      .combine(deviceInfoFlow) { reservable, deviceInfo ->
+        if (reservable && deviceInfo.isInCatalog) {
+          true
+        } else {
+          activeDevice = null
+          false
+        }
+      }
+      .stateIn(scope, SharingStarted.Eagerly, false)
+
   /** Update state of the template from multiple sources. */
   override val stateFlow =
     combine(
@@ -128,11 +145,6 @@ class DirectAccessDeviceTemplate(
           if (task?.isPending == true) {
             isCloudProjectBeingCreatedFlow.value = true
           }
-        }
-
-        // Remove existing device when the template is disabled.
-        if (!reservationAvailable || !deviceInfo.isInCatalog) {
-          activeDevice = null
         }
 
         TemplateState(
@@ -489,8 +501,12 @@ class DirectAccessDeviceTemplate(
    *
    * TODO (b/246171065): activating multiple devices.
    */
-  fun createDeviceHandleIfAbsent(reservationName: String): DeviceHandle? {
+  suspend fun createDeviceHandleIfAbsent(reservationName: String): DeviceHandle? {
     if (isActivationStarted.compareAndSet(expect = false, update = true)) {
+      withTimeoutOrNull(2.seconds) { isAvailableFlow.takeWhile { !it }.collect() }
+        ?: throw DeviceActionException(
+          "${deviceInfo.name} not available for reserving with reservation $reservationName."
+        )
       try {
         return createDeviceHandle(reservationName)
       } catch (e: Exception) {
