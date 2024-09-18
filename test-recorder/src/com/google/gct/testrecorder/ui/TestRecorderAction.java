@@ -204,7 +204,7 @@ public class TestRecorderAction extends AnAction {
       throw new RuntimeException("Could not create execution environment builder");
     }
 
-    ExecutionEnvironment environment = builder.build();
+    ExecutionEnvironment environment = builder.activeTarget().build();
 
     environment.putCopyableUserData(KEY, new TestRecorderInfo(isRecordingTest));
 
