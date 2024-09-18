@@ -28,6 +28,7 @@ import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_CLICK;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_LONG_CLICK;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.VIEW_SWIPE;
 import static com.google.gct.testrecorder.event.TestRecorderEvent.WINDOW_CONTENT_CHANGED;
+import static com.google.gct.testrecorder.util.GenerateTestHelperKt.NOTIFICATION_TITLE;
 
 import com.android.SdkConstants;
 import com.android.ddmlib.AndroidDebugBridge;
@@ -39,6 +40,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
 import com.google.gct.testrecorder.ui.RecordingDialog;
+import com.google.gct.testrecorder.util.GenerateTestHelperKt;
 import com.intellij.debugger.DebuggerManagerEx;
 import com.intellij.debugger.DefaultDebugEnvironment;
 import com.intellij.debugger.engine.DebugProcess;
@@ -55,8 +57,14 @@ import com.intellij.execution.configurations.RemoteConnection;
 import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ProgramRunner;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.NotificationsManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.MessageDialogBuilder;
@@ -69,6 +77,7 @@ import com.intellij.xdebugger.XDebugSession;
 import com.intellij.xdebugger.XDebuggerManager;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import javax.swing.SwingUtilities;
 import org.jetbrains.android.dom.manifest.Activity;
 import org.jetbrains.android.dom.manifest.ActivityAlias;
@@ -129,80 +138,129 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
                                                          "(Landroid/view/inputmethod/InputMethodManager$PendingEvent;Z)V", false));
 
     myBreakpointDescriptors.add(new BreakpointDescriptor(PRESS_EDITOR_ACTION, "android.widget.TextView", "onEditorAction", "(I)V", false));
-    myBreakpointDescriptors.add(new BreakpointDescriptor(VIEW_SWIPE, "android.support.v4.view.ViewPager", "smoothScrollTo", "(III)V", false));
+    myBreakpointDescriptors.add(
+      new BreakpointDescriptor(VIEW_SWIPE, "android.support.v4.view.ViewPager", "smoothScrollTo", "(III)V", false));
     myBreakpointDescriptors.add(new BreakpointDescriptor(DELAYED_MESSAGE_POST, "android.os.Handler", "postDelayed",
                                                          "(Ljava/lang/Runnable;J)Z", false));
-    myBreakpointDescriptors.add(new BreakpointDescriptor(WINDOW_CONTENT_CHANGED, "android.view.ViewRootImpl$SendWindowContentChangedAccessibilityEvent",
-                                                         "run", "()V", false));
+    myBreakpointDescriptors.add(
+      new BreakpointDescriptor(WINDOW_CONTENT_CHANGED, "android.view.ViewRootImpl$SendWindowContentChangedAccessibilityEvent",
+                               "run", "()V", false));
     myBreakpointDescriptors.add(new BreakpointDescriptor(LAZY_CLASSES_LOADER, "android.os.Handler", "dispatchMessage",
                                                          "(Landroid/os/Message;)V", false));
     myBreakpointDescriptors.add(new BreakpointDescriptor(PERMISSIONS_REQUEST, "android.app.Activity", "requestPermissions",
                                                          "([Ljava/lang/String;I)V", false));
   }
 
-      @Override
-      public void processAttached(DebugProcess process) {
+  @Override
+  public void processAttached(DebugProcess process) {
 
-        // Mute any user-defined breakpoints to avoid Test Recorder hanging the app when such a breakpoint gets hit.
-        // This event arrives before initBreakpoints is called in DebugProcessEvents,
-        // but after XDebugSession is supposed to be initialized, so looks like a perfect time to mute breakpoints.
-        // Muting breakpoints requires read access.
-        ApplicationManager.getApplication().runReadAction(new Runnable() {
+    // Mute any user-defined breakpoints to avoid Test Recorder hanging the app when such a breakpoint gets hit.
+    // This event arrives before initBreakpoints is called in DebugProcessEvents,
+    // but after XDebugSession is supposed to be initialized, so looks like a perfect time to mute breakpoints.
+    // Muting breakpoints requires read access.
+    ApplicationManager.getApplication().runReadAction(new Runnable() {
+      @Override
+      public void run() {
+        for (XDebugSession debugSession : XDebuggerManager.getInstance(myProject).getDebugSessions()) {
+          debugSession.setBreakpointMuted(true);
+        }
+      }
+    });
+
+    scheduleBreakpointCommands(myDevice);
+
+    if (myRecordingDialog == null) {
+      // The initial debug process, open Test Recorder dialog.
+      // Detect the launched activity name outside the dispatch thread to avoid pausing it until dumb mode is over.
+      String launchedActivityName = detectLaunchedActivityName();
+
+      CountDownLatch latch = new CountDownLatch(1);
+      // TODO: Open the dialog after all breakpoints are set up (i.e., the scheduled actions are actually executed).
+      // Also, consider waiting for the app to be ready first (e.g., such that we can take a screenshot).
+      ApplicationManager.getApplication().invokeLater(() -> {
+        //Show Test Recorder dialog after adding and enabling breakpoints.
+        myRecordingDialog = new RecordingDialog(myFacet, myDevice, myPackageName, launchedActivityName, myIsRecordingTest);
+        myRecordingDialog.setDebuggerSession(myDebuggerSession);
+        for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
+          breakpointCommand.setEventListener(myRecordingDialog);
+        }
+        myRecordingDialog.showAndGet();
+        latch.countDown();
+      });
+
+      if (myDebuggerSession.isAttached() && myDevice.isOnline()) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(myProject, "Creating test file", true) {
           @Override
-          public void run() {
-            for (XDebugSession debugSession : XDebuggerManager.getInstance(myProject).getDebugSessions()) {
-              debugSession.setBreakpointMuted(true);
+          public void run(@NotNull ProgressIndicator indicator) {
+            NotificationsManager notificationsManager = NotificationsManager.getNotificationsManager();
+            try {
+              // Wait for end of recording session
+              latch.await();
+              if (myRecordingDialog.isOK()) {
+                GenerateTestHelperKt.generateTest(
+                  myProject,
+                  myRecordingDialog.getTestClassName(),
+                  myRecordingDialog.getTestClassParent(),
+                  myRecordingDialog.getSelectedLanguage(),
+                  myFacet,
+                  myRecordingDialog.getRootPanel(),
+                  myRecordingDialog.getAllModelActions(),
+                  myRecordingDialog.getLaunchedActivityName(),
+                  myRecordingDialog.getWasEverPaused());
+              }
             }
+            catch (InterruptedException e) {
+              notificationsManager.showNotification(
+                new Notification(
+                  this.getClass().toString(),
+                  NOTIFICATION_TITLE,
+                  "Create test file action interrupted",
+                  NotificationType.ERROR
+                ), myProject
+              );
+            }
+            catch (Exception e) {
+              notificationsManager.showNotification(
+                new Notification(
+                  this.getClass().toString(),
+                  NOTIFICATION_TITLE,
+                  "Error creating test file",
+                  NotificationType.ERROR
+                ), myProject
+              );
+            }
+          }
+
+          @Override
+          public void onCancel() {
+            stopDebugger();
+            super.onCancel();
+          }
+
+          @Override
+          public void onFinished() {
+            stopDebugger();
+            super.onFinished();
           }
         });
-
-        scheduleBreakpointCommands(myDevice);
-        if (myRecordingDialog == null) { // The initial debug process, open Test Recorder dialog.
-          // Detect the launched activity name outside the dispatch thread to avoid pausing it until dumb mode is over.
-          String launchedActivityName = detectLaunchedActivityName();
-
-          // TODO: Open the dialog after all breakpoints are set up (i.e., the scheduled actions are actually executed).
-          // Also, consider waiting for the app to be ready first (e.g., such that we can take a screenshot).
-          ApplicationManager.getApplication().invokeLater(new Runnable() {
-            @Override
-            public void run() {
-              //Show Test Recorder dialog after adding and enabling breakpoints.
-              myRecordingDialog = new RecordingDialog(myFacet, myDevice, myPackageName, launchedActivityName, myIsRecordingTest);
-              myRecordingDialog.setDebuggerSession(myDebuggerSession);
-              for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
-                breakpointCommand.setEventListener(myRecordingDialog);
-              }
-              myRecordingDialog.show();
-              // The dialog is no longer modal, so wait till it is closed before stopping the recorder.
-              // TODO: Find a way to achieve this without busy-waiting.
-              new Thread(() -> {
-                while (myRecordingDialog.isShowing()) {
-                  try {
-                    Thread.sleep(1000);
-                  } catch (InterruptedException e) {
-                    // ignore
-                  }
-                }
-                stopTestRecorder();
-              }).start();
-            }
-          });
-        } else {
-          // The restarted debug process, reuse the already shown Test Recorder dialog.
-          myRecordingDialog.setDebuggerSession(myDebuggerSession);
-          for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
-            breakpointCommand.setEventListener(myRecordingDialog);
-          }
-        }
       }
-
-      @Override
-      public void processDetached(DebugProcess process, boolean closedByUser) {
-        if (myRecordingDialog != null && myRecordingDialog.isShowing()) {
-          // Since the recoding dialog is still up, the process has detached accidentally, so try to restart debugging.
-          promptToRestartDebugging();
-        }
+    }
+    else {
+      // The restarted debug process, reuse the already shown Test Recorder dialog.
+      myRecordingDialog.setDebuggerSession(myDebuggerSession);
+      for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
+        breakpointCommand.setEventListener(myRecordingDialog);
       }
+    }
+  }
+
+  @Override
+  public void processDetached(DebugProcess process, boolean closedByUser) {
+    if (myRecordingDialog != null && myRecordingDialog.isShowing()) {
+      // Since the recoding dialog is still up, the process has detached accidentally, so try to restart debugging.
+      promptToRestartDebugging();
+    }
+  }
 
 
   /**
@@ -222,7 +280,8 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
         String activityName = "unknownPackage.unknownActivity";
         try {
           activityName = new DefaultActivityLocator(myFacet).getQualifiedActivityName(myDevice);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
           return activityName;
         }
 
@@ -304,7 +363,8 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
           if (shouldResume) {
             try {
               restartDebugging();
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
               message = "Could not reattach the debugger: " + e.getMessage();
             }
           }
@@ -374,16 +434,18 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
     }
   }
 
-  private void stopTestRecorder() {
+  private Void stopTestRecorder() {
     stopDebugger();
     if (myDevice != null && TestRecorderSettings.getInstance().CLEAN_AFTER_FINISH) {
       try {
         // Clear app data such that there is no stale state => the generated test can run (pass) immediately.
         clearAppStorage(myProject, myDevice, myPackageName, RunStats.from(myEnvironment));
-      } catch (Exception e) {
+      }
+      catch (Exception e) {
         LOGGER.warn("Exception stopping the app", e);
       }
     }
+    return null;
   }
 
   private void stopDebugger() {
@@ -400,7 +462,8 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
           });
         }
       }
-    } else {
+    }
+    else {
       // Keep the process running, but disable breakpoints such that it is not slowed down.
       for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
         breakpointCommand.disable();

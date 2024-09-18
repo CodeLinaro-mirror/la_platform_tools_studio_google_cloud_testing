@@ -20,6 +20,7 @@
   <vendor>Google</vendor>
   <depends>org.jetbrains.android</depends>
   <depends>com.intellij.java</depends>
+  <depends>org.jetbrains.kotlin</depends>
 
   <description>Test recorder project.</description>
 

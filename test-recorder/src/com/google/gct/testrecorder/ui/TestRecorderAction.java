@@ -107,6 +107,11 @@ public class TestRecorderAction extends AnAction {
       return;
     }
 
+    if (DumbService.isDumb(project)) {
+      presentation.setEnabled(false);
+      return;
+    }
+
     presentation.setEnabled(true);
   }
 
