@@ -30,6 +30,7 @@ iml_module(
         "//tools/adt/idea/render-resources:intellij.android.render-resources[module]",
         "//tools/base/deploy/deployer:studio.android.sdktools.deployer[module]",
         "//tools/adt/idea/analytics[module]",
+        "@intellij//:org.jetbrains.kotlin",
     ],
 )
 

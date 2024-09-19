@@ -107,6 +107,11 @@ public class TestRecorderAction extends AnAction {
       return;
     }
 
+    if (DumbService.isDumb(project)) {
+      presentation.setEnabled(false);
+      return;
+    }
+
     presentation.setEnabled(true);
   }
 
@@ -199,7 +204,7 @@ public class TestRecorderAction extends AnAction {
       throw new RuntimeException("Could not create execution environment builder");
     }
 
-    ExecutionEnvironment environment = builder.build();
+    ExecutionEnvironment environment = builder.activeTarget().build();
 
     environment.putCopyableUserData(KEY, new TestRecorderInfo(isRecordingTest));
 

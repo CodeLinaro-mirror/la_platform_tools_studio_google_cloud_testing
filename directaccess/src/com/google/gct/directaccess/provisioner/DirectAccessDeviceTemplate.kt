@@ -63,6 +63,7 @@ import java.time.Duration
 import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -72,12 +73,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 val SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(1)
 val LONG_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(15)
@@ -98,7 +101,7 @@ class DirectAccessDeviceTemplate(
   private val deviceInfoFlow: StateFlow<DeviceInfo>,
   private val devices: MutableStateFlow<List<DeviceHandle>>,
   private val scope: CoroutineScope,
-  private val isAuthenticatorReady: Flow<Boolean>,
+  private val isReservable: Flow<Boolean>,
 ) : DeviceTemplate {
   val deviceInfo: DeviceInfo
     get() = deviceInfoFlow.value
@@ -112,17 +115,31 @@ class DirectAccessDeviceTemplate(
   /** Emits true if a cloud project is created but not ready. */
   private val isCloudProjectBeingCreatedFlow = MutableStateFlow(false)
 
+  /** Emits true if the template is available with or without an active device. */
+  private val isAvailableFlow: StateFlow<Boolean> =
+    isReservable
+      .combine(deviceInfoFlow) { reservable, deviceInfo ->
+        if (reservable && deviceInfo.isInCatalog) {
+          true
+        } else {
+          activeDevice = null
+          false
+        }
+      }
+      .stateIn(scope, SharingStarted.Eagerly, false)
+
+  /** Update state of the template from multiple sources. */
   override val stateFlow =
     combine(
         isActivationStarted,
-        isAuthenticatorReady,
+        isReservable,
         deviceInfoFlow,
         service<DirectAccessOnboardingService>().taskFlow,
-      ) { isStarted, isReady, deviceInfo, task ->
+      ) { isStarted, reservationAvailable, deviceInfo, task ->
         val waitTimeText =
           deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
 
-        if (isReady) {
+        if (reservationAvailable) {
           isCloudProjectBeingCreatedFlow.value = false
         } else {
           if (task?.isPending == true) {
@@ -134,8 +151,10 @@ class DirectAccessDeviceTemplate(
           isActivating = isStarted,
           error =
             when {
-              isReady && waitTimeText != null ->
+              reservationAvailable && deviceInfo.isInCatalog && waitTimeText != null ->
                 DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
+              reservationAvailable && !deviceInfo.isInCatalog ->
+                DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
               isCloudProjectBeingCreatedFlow.value ->
                 DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
               else -> null
@@ -421,11 +440,11 @@ class DirectAccessDeviceTemplate(
       override val presentation: StateFlow<DeviceAction.Presentation> =
         combine(
             isActivationStarted,
-            isAuthenticatorReady,
+            isReservable,
             deviceInfoFlow,
             isCloudProjectBeingCreatedFlow,
-          ) { started, authenticatorReady, deviceInfo, isCloudProjectBeingCreated ->
-            val enabled = !started && authenticatorReady
+          ) { started, reservationAvailable, deviceInfo, isCloudProjectBeingCreated ->
+            val enabled = !started && reservationAvailable && deviceInfo.isInCatalog
             // TODO(b/314857500): Improve user experience with null
             // deviceAvailabilityEstimateSeconds.
             val icon =
@@ -442,10 +461,14 @@ class DirectAccessDeviceTemplate(
               detail =
                 when {
                   enabled -> null
-                  started -> "Activation already in progress"
+                  started -> "Activation already in progress."
                   isCloudProjectBeingCreated ->
                     "Android Device Streaming is setting up and will be ready in a few minutes."
-                  else -> "Device unavailable: click the Firebase action to address issues"
+                  !reservationAvailable ->
+                    "Device unavailable: click the Firebase action to address issues."
+                  reservationAvailable && !deviceInfo.isInCatalog ->
+                    "${properties.title} removed from the Firebase Test Lab catalog."
+                  else -> throw RuntimeException("Conditions exhausted")
                 },
             )
           }
@@ -478,8 +501,12 @@ class DirectAccessDeviceTemplate(
    *
    * TODO (b/246171065): activating multiple devices.
    */
-  fun createDeviceHandleIfAbsent(reservationName: String): DeviceHandle? {
+  suspend fun createDeviceHandleIfAbsent(reservationName: String): DeviceHandle? {
     if (isActivationStarted.compareAndSet(expect = false, update = true)) {
+      withTimeoutOrNull(2.seconds) { isAvailableFlow.takeWhile { !it }.collect() }
+        ?: throw DeviceActionException(
+          "${deviceInfo.name} not available for reserving with reservation $reservationName."
+        )
       try {
         return createDeviceHandle(reservationName)
       } catch (e: Exception) {
@@ -507,16 +534,6 @@ class DirectAccessDeviceTemplate(
         reservationName,
       )
       .also { activeDevice = it }
-  }
-
-  init {
-    scope.launch {
-      isAuthenticatorReady.distinctUntilChanged().collect { isReady ->
-        if (!isReady) {
-          activeDevice = null
-        }
-      }
-    }
   }
 
   private fun CoroutineScope.logReserveMetricWhenReservationActive(

@@ -25,6 +25,7 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
+import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
@@ -42,6 +43,7 @@ import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.android.tools.idea.testing.DebugLoggerRule
@@ -117,11 +119,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -148,10 +152,13 @@ class DirectAccessDeviceProvisionerTest {
   // The default test logger throws after an error is logged, whereas the default JB
   // logger doesn't. This caused b/349020104 not to be found by tests.
   private val debugLoggerRule = DebugLoggerRule(LoggerFactory::class.java)
+  // TODO(b/368129295): Update test for the new dialog.
+  private val flagRule = FlagRule(StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED, false)
 
   @get:Rule
   val ruleChain: RuleChain =
     RuleChain.outerRule(debugLoggerRule)
+      .around(flagRule)
       .around(projectRule)
       .around(grpcConnectionRule)
       .around(loginUsersRule)
@@ -215,7 +222,7 @@ class DirectAccessDeviceProvisionerTest {
   @After
   fun tearDown() = runBlockingWithTimeout {
     TestDialogManager.setTestDialog(null)
-    scope.cancel()
+    scope.coroutineContext.job.cancelAndJoin()
     session.close()
   }
 
@@ -362,6 +369,31 @@ class DirectAccessDeviceProvisionerTest {
     projectRule.project.refreshReservations()
     yieldUntil {
       provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
+    }
+  }
+
+  @Test
+  fun testRemovedTemplates() = runBlockingWithTimeout {
+    yieldUntil { provisioner.templates.value.isNotEmpty() }
+    yieldUntil {
+      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
+    }
+    val accessibleDevicesFlow =
+      projectRule.project
+        .service<DirectAccessService>()
+        .cloudProjectManager
+        .value
+        ?.accessibleDeviceInfoListFlow
+        ?.stateFlow
+    (accessibleDevicesFlow as MutableStateFlow).value = listOf()
+    yieldUntil {
+      provisioner.templates.value.all {
+        !it.activationAction.presentation.value.enabled &&
+          it.activationAction.presentation.value.detail ==
+            "${it.properties.title} removed from the Firebase Test Lab catalog." &&
+          it.state.error?.severity == DeviceError.Severity.WARNING
+        it.state.error?.message == "No longer available"
+      }
     }
   }
 

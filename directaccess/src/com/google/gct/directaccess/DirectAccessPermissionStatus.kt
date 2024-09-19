@@ -16,9 +16,11 @@
 package com.google.gct.directaccess
 
 import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsRequest
+import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsResponse
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
+import java.io.IOException
 
 const val SERVICES_USE = "serviceusage.services.use"
 const val ENV_CATALOG_GET = "cloudtestservice.environmentcatalog.get"
@@ -83,24 +85,38 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
       }
     }
 
-    fun checkDirectAccessPermission(cloudProject: CloudProjectEntry): DirectAccessPermissionStatus {
+    private fun getTestIamPermissionsResponse(
+      cloudProject: CloudProjectEntry,
+      applyUserProject: Boolean,
+    ): TestIamPermissionsResponse {
       val request =
         TestIamPermissionsRequest().apply { permissions = FULL_PERMISSIONS_SET.toList() }
+      return service<CloudClientService>()
+        .client
+        .cloudResourceManager
+        .projects()
+        .testIamPermissions("projects/${cloudProject.name}", request)
+        .apply { if (applyUserProject) requestHeaders["X-Goog-User-Project"] = cloudProject.name }
+        .execute()
+    }
+
+    fun checkDirectAccessPermission(cloudProject: CloudProjectEntry): DirectAccessPermissionStatus {
       val response =
         try {
-          service<CloudClientService>()
-            .client
-            .cloudResourceManager
-            .projects()
-            .testIamPermissions("projects/${cloudProject.name}", request)
-            .execute()
-        } catch (e: Exception) {
-          thisLogger()
-            .warn(
-              "Could not fetch permissions for user ${cloudProject.user} for project ${cloudProject.name}: ${e.message}"
-            )
-          return None(FULL_PERMISSIONS_SET)
+          getTestIamPermissionsResponse(cloudProject, true)
+        } catch (e: IOException) {
+          thisLogger().warn("Cloud Resource Manager API may not be enabled.", e)
+          null
         }
+          ?: try {
+            getTestIamPermissionsResponse(cloudProject, false)
+          } catch (e: IOException) {
+            thisLogger()
+              .warn(
+                "Could not fetch permissions for user ${cloudProject.user} for project ${cloudProject.name}: ${e.message}"
+              )
+            return None(FULL_PERMISSIONS_SET)
+          }
       // response.permission is null if the user does not have any permissions
       val permissions = response.permissions ?: emptyList()
       return parseFrom(permissions.toSet())
