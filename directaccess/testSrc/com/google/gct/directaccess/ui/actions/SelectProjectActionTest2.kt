@@ -32,7 +32,7 @@ import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
-import com.google.common.truth.Truth
+import com.google.common.truth.Truth.assertThat
 import com.google.devtools.testing.v1.DeviceSession
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DEFAULT_DEVICE_LIST_KEY
@@ -56,6 +56,7 @@ import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl2
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.SelectProjectDialog
+import com.google.gct.directaccess.ui.UsageProgressBar
 import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseLoginFeature
@@ -250,7 +251,7 @@ class SelectProjectActionTest2 {
         projectRule.disposable,
       )
 
-      Truth.assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
+      assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
         .isInstanceOf(SelectProjectAction::class.java)
 
       // Check if DirectAccessProjectSelector2 chooses the preferred project.
@@ -262,7 +263,7 @@ class SelectProjectActionTest2 {
       val testSelector =
         DirectAccessProjectSelectorImpl2(projectRule.project, supportedProjectName, true, scope)
       testSelector.isReady.takeWhile { !it }.collect()
-      Truth.assertThat(testSelector.selectedProject.value).isEqualTo(supportedProjectName)
+      assertThat(testSelector.selectedProject.value).isEqualTo(supportedProjectName)
 
       firebaseProjectClientRule.setupFirebaseClient(
         throwErrorOnExecute = false,
@@ -427,20 +428,33 @@ class SelectProjectActionTest2 {
               usedLabel.text?.endsWith("mins remaining") == true
             }
 
-          Truth.assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
-          Truth.assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
-          Truth.assertThat(fakePropertiesComponent[projectRule.project])
+          val usageProgressBar = dialog.rootPane.findAllDescendants<UsageProgressBar>().first()
+
+          val instructionLabel =
+            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
+              usedLabel.text == "Click "
+            }
+          val instructionsPanel = instructionLabel.parent
+          val instructionLabelWithIcon = instructionsPanel.components[1] as JBLabel
+          assertThat(instructionLabelWithIcon.icon).isEqualTo(StudioIcons.Common.ADD)
+          assertThat(instructionLabelWithIcon.text)
+            .isEqualTo("dropdown in device manager to add new devices.")
+
+          assertThat(usageProgressBar.percentage.value).isNull()
+          assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
+          assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
+          assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
 
           comboBox.model.selectedItem = ERROR_FETCHING_FIREBASE_PROJECT
-          Truth.assertThat(fakePropertiesComponent[projectRule.project])
+          assertThat(fakePropertiesComponent[projectRule.project])
             .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
-          Truth.assertThat(fakePropertiesComponent[projectRule.project])
+          assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
 
           comboBox.model.selectedItem = NO_PROJECTS_AVAILABLE
           waitForCondition { cloudProjectManagerFlow.value == null }
-          Truth.assertThat(fakePropertiesComponent[projectRule.project])
+          assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
 
           // Select a blaze project that supports direct access.
@@ -464,12 +478,12 @@ class SelectProjectActionTest2 {
               .getHelpToolTipText()
               .contains("Spark plans provide limited usage at no cost.")
           }
-          Truth.assertThat(fakePropertiesComponent[projectRule.project])
-            .isEqualTo(supportedProjectName)
-          Truth.assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
+          assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
+          assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
           waitForCondition { usedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
+          assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
 
           // Select a spark project that's out of quota
           comboBox.model.selectedItem = noQuotaProjectName
@@ -478,6 +492,7 @@ class SelectProjectActionTest2 {
           }
           waitForCondition { usedMinutesLabel.text == "70 mins used" }
           waitForCondition { remainingMinutesLabel.text == "0 mins remaining" }
+          assertThat(usageProgressBar.percentage.value).isEqualTo(1.0)
 
           // Select a blaze project that supports direct access with monthly quota.
           comboBox.model.selectedItem = blazeProjectName
@@ -505,19 +520,19 @@ class SelectProjectActionTest2 {
                   "Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
               )
           }
-          Truth.assertThat(fakePropertiesComponent[projectRule.project])
-            .isEqualTo(supportedProjectName)
-          Truth.assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
+          assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
+          assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
           waitForCondition { usedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
+          assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
           mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
           dialog.clickDefaultButton()
         }
 
         // Verify DeviceSource after updating selection.
         val deviceSource = DirectAccessDeviceSource(projectRule.project)
-        Truth.assertThat(deviceSource.profiles.first().valueOrNull()!!.map { it.name })
+        assertThat(deviceSource.profiles.first().valueOrNull()!!.map { it.name })
           .isEqualTo(extraDeviceInfoList.map { it.name })
       }
 
@@ -537,15 +552,14 @@ class SelectProjectActionTest2 {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) { dialog
           ->
           val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
-          Truth.assertThat(selector.isEnabled).isFalse()
-          Truth.assertThat(selector.toolTipText).isEqualTo("Return all devices to change projects")
+          assertThat(selector.isEnabled).isFalse()
+          assertThat(selector.toolTipText).isEqualTo("Return all devices to change projects")
           dialog.clickDefaultButton()
         }
       }
 
       selectDeviceAction.update(event)
-      Truth.assertThat(selectDeviceAction.templatePresentation.icon)
-        .isEqualTo(FirebaseIcons.ACTION_ICON)
+      assertThat(selectDeviceAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
     }
 
   @RunsInEdt
@@ -613,7 +627,7 @@ class SelectProjectActionTest2 {
         projectRule.disposable,
       )
 
-      Truth.assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
+      assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
         .isInstanceOf(SelectProjectAction::class.java)
 
       firebaseProjectClientRule.setupFirebaseClient(
@@ -646,7 +660,7 @@ class SelectProjectActionTest2 {
       CoroutineTestUtils.yieldUntil {
         mockDeviceSelectionListFlow.value.count { it.isSelected } > 0
       }
-      Truth.assertThat(
+      assertThat(
           mockDeviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.key }
         )
         .isEqualTo(listOf("shiba/34"))
@@ -655,7 +669,7 @@ class SelectProjectActionTest2 {
       CoroutineTestUtils.yieldUntil { plugin.templates.value.size == 1 }
       val template = plugin.templates.value.first()
       CoroutineTestUtils.yieldUntil { template.state.error?.severity == DeviceError.Severity.INFO }
-      Truth.assertThat(template.state.error?.message).isEqualTo("Ready in a few minutes")
+      assertThat(template.state.error?.message).isEqualTo("Ready in a few minutes")
       CoroutineTestUtils.yieldUntil {
         template.activationAction.presentation.value.detail ==
           "Android Device Streaming is setting up and will be ready in a few minutes."
@@ -677,7 +691,7 @@ class SelectProjectActionTest2 {
               }
             projectCreatedLabel != null
           }
-          Truth.assertThat(projectCreatedLabel!!.text).isEqualTo("Creating project $createdProject")
+          assertThat(projectCreatedLabel!!.text).isEqualTo("Creating project $createdProject")
 
           // Set up the created project.
           firebaseProjectClientRule.setupFirebaseClient(
@@ -741,7 +755,7 @@ class SelectProjectActionTest2 {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
           val dialog = it as SelectProjectDialog
           val action = dialog.rootPane.findAllDescendants<JButton>().first()
-          Truth.assertThat(action.text).isEqualTo("Login and enable Device Streaming")
+          assertThat(action.text).isEqualTo("Login and enable Device Streaming")
           action.doClick()
 
           waitForCondition { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
@@ -771,7 +785,7 @@ class SelectProjectActionTest2 {
           }
         }
       selectDeviceAction.update(event)
-      Truth.assertThat(event.presentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+      assertThat(event.presentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
     }
 
   @Test
@@ -780,7 +794,7 @@ class SelectProjectActionTest2 {
       val selectDeviceAction = SelectProjectAction()
       val event = TestActionEvent.createTestEvent { null }
       selectDeviceAction.update(event)
-      Truth.assertThat(event.presentation.isVisible).isFalse()
+      assertThat(event.presentation.isVisible).isFalse()
     }
 
   @Test(expected = IllegalArgumentException::class)
@@ -794,7 +808,7 @@ class SelectProjectActionTest2 {
 
   @Test
   fun testDescription() {
-    Truth.assertThat(SelectProjectAction().templatePresentation.description)
+    assertThat(SelectProjectAction().templatePresentation.description)
       .isEqualTo("Open the Device Streaming dialog to select Firebase project and devices")
   }
 

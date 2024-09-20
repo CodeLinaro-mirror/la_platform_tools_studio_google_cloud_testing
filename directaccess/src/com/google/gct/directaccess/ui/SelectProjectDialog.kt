@@ -60,6 +60,7 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
@@ -187,11 +188,24 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       }
     val usedMinutesLabel = JBLabel()
     val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
+    val usageFlow = MutableStateFlow<Double?>(null)
+    val usageProgressBar = UsageProgressBar(scope, usageFlow)
+    val grayLabelFactory: (String) -> JBLabel = { text ->
+      JBLabel(text).apply { foreground = UIUtil.getLabelInfoForeground() }
+    }
     val informationLabel =
-      JBLabel("Estimated minutes based on usage across all Firebase project members.").apply {
+      grayLabelFactory("Estimated minutes based on usage across all Firebase project members.")
+    val instructionPanel =
+      JPanel(HorizontalLayout(0)).apply {
         foreground = UIUtil.getLabelInfoForeground()
+        add(grayLabelFactory("Click "))
+        add(
+          grayLabelFactory("dropdown in device manager to add new devices.").apply {
+            icon = StudioIcons.Common.ADD
+          }
+        )
       }
-    updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
+    updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, usageFlow, null)
     updatePlan(planLabel, planHelpIcon, null)
 
     val preferredProject =
@@ -234,6 +248,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           planHelpIcon,
           usedMinutesLabel,
           remainingMinutesLabel,
+          usageFlow,
         )
       }
     }
@@ -247,7 +262,9 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     panel.add(chooseProjectPanel)
     panel.add(planPanel)
     panel.add(usagePanel)
+    panel.add(usageProgressBar)
     panel.add(informationLabel)
+    panel.add(instructionPanel)
     return panel
   }
 
@@ -260,6 +277,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     planHelpIcon: JBLabel,
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
+    usageFlow: MutableStateFlow<Double?>,
   ) {
     errorIcon.isVisible = false
     if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
@@ -297,7 +315,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           errorIcon.isVisible = true
           errorIcon.revalidate()
           errorIcon.repaint()
-          updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, null)
+          updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, usageFlow, null)
           updatePlan(planLabel, planHelpIcon, null)
         } else {
           errorIcon.toolTipText = ""
@@ -308,6 +326,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
             updateRemainingQuota(
               usedMinutesLabel,
               remainingMinutesLabel,
+              usageFlow,
               withContext(Dispatchers.IO) {
                 try {
                   project.directAccessCloudProjectManager?.usageQuota
@@ -388,9 +407,12 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   private fun updateRemainingQuota(
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
+    usageFlow: MutableStateFlow<Double?>,
     quota: Pair<Long, Long>?,
     isBillingEnabled: Boolean? = null,
   ) {
+    usageFlow.value = quota?.let { it.first.toDouble() / it.second }
+
     usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
 
     if (isBillingEnabled == true) {
