@@ -430,6 +430,16 @@ class SelectProjectActionTest2 {
 
           val usageProgressBar = dialog.rootPane.findAllDescendants<UsageProgressBar>().first()
 
+          val instructionLabel =
+            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
+              usedLabel.text == "Click "
+            }
+          val instructionsPanel = instructionLabel.parent
+          val instructionLabelWithIcon = instructionsPanel.components[1] as JBLabel
+          assertThat(instructionLabelWithIcon.icon).isEqualTo(StudioIcons.Common.ADD)
+          assertThat(instructionLabelWithIcon.text)
+            .isEqualTo("dropdown in device manager to add new devices.")
+
           assertThat(usageProgressBar.percentage.value).isNull()
           assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
           assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
