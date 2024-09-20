@@ -190,9 +190,20 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
     val usageFlow = MutableStateFlow<Double?>(null)
     val usageProgressBar = UsageProgressBar(scope, usageFlow)
+    val grayLabelFactory: (String) -> JBLabel = { text ->
+      JBLabel(text).apply { foreground = UIUtil.getLabelInfoForeground() }
+    }
     val informationLabel =
-      JBLabel("Estimated minutes based on usage across all Firebase project members.").apply {
+      grayLabelFactory("Estimated minutes based on usage across all Firebase project members.")
+    val instructionPanel =
+      JPanel(HorizontalLayout(0)).apply {
         foreground = UIUtil.getLabelInfoForeground()
+        add(grayLabelFactory("Click "))
+        add(
+          grayLabelFactory("dropdown in device manager to add new devices.").apply {
+            icon = StudioIcons.Common.ADD
+          }
+        )
       }
     updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, usageFlow, null)
     updatePlan(planLabel, planHelpIcon, null)
@@ -253,6 +264,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     panel.add(usagePanel)
     panel.add(usageProgressBar)
     panel.add(informationLabel)
+    panel.add(instructionPanel)
     return panel
   }
 
