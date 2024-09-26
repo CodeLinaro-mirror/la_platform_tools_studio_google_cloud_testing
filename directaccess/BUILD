@@ -46,5 +46,7 @@ iml_module(
         "//tools/adt/idea/artwork-compose:intellij.android.artwork-compose[module]",
         "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
         "//tools/adt/idea/.idea/libraries:mockito-kotlin[test]",
+        "@intellij//:intellij.libraries.grpc",
+        "@intellij//:intellij.libraries.grpc.netty.shaded",
     ],
 )

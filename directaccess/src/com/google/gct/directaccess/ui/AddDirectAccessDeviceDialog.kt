@@ -53,7 +53,7 @@ internal fun createAddDirectAccessDeviceDialog(
 }
 
 private val directAccessColumns =
-  with(DeviceTableColumns) { persistentListOf(icon, oem, name, width, height, density) }
+  with(DeviceTableColumns) { persistentListOf(icon, oem, name, api, width, height, density) }
 
 internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
   val manufacturerFilter = SetFilterState(Manufacturer)
