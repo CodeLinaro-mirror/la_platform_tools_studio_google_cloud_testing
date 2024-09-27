@@ -188,7 +188,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       }
     val usedMinutesLabel = JBLabel()
     val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
-    val usageFlow = MutableStateFlow<Double?>(null)
+    val usageFlow = MutableStateFlow<Double>(0.0)
     val usageProgressBar = UsageProgressBar(scope, usageFlow)
     val grayLabelFactory: (String) -> JBLabel = { text ->
       JBLabel(text).apply { foreground = UIUtil.getLabelInfoForeground() }
@@ -277,7 +277,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     planHelpIcon: JBLabel,
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
-    usageFlow: MutableStateFlow<Double?>,
+    usageFlow: MutableStateFlow<Double>,
   ) {
     errorIcon.isVisible = false
     if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
@@ -407,11 +407,11 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   private fun updateRemainingQuota(
     usedMinutesLabel: JBLabel,
     remainingMinutesLabel: JBLabel,
-    usageFlow: MutableStateFlow<Double?>,
+    usageFlow: MutableStateFlow<Double>,
     quota: Pair<Long, Long>?,
     isBillingEnabled: Boolean? = null,
   ) {
-    usageFlow.value = quota?.let { it.first.toDouble() / it.second }
+    usageFlow.value = quota?.let { it.first.toDouble() / it.second } ?: 0.0
 
     usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
 
