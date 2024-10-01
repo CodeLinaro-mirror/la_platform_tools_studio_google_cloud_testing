@@ -34,6 +34,7 @@ data class DeviceInfo(
   val screenY: Int,
   val screenDensity: Int,
   val deviceAvailabilityEstimateSeconds: Long?,
+  val isDefault: Boolean = false,
   val isInCatalog: Boolean = true,
 ) {
   /** A string key to distinguish itself from other [DeviceInfo]s. */
