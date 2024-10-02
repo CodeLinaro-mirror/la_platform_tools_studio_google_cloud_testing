@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess
 
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
@@ -52,12 +53,17 @@ class CloudClientService(scope: CoroutineScope) {
 
   /** Returns devices available for streaming, filtered based on Studio version. */
   fun getAvailableDevices(endpoint: String, cloudProject: String?) =
-    client.getAvailableDevices(endpoint, cloudProject).filter { (_, perVersionInfo) ->
-      BuildNumber.fromString(perVersionInfo.directAccessVersionInfo?.minimumAndroidStudioVersion)
-        .let { catalogBuildNumber ->
-          catalogBuildNumber == null || catalogBuildNumber <= ApplicationInfo.getInstance().build
-        }
-    }
+    client
+      .getAvailableDevices(endpoint, cloudProject)
+      .filter { (androidModel, _) ->
+        StudioFlags.SHOW_OEM_LAB_DEVICES.get() || androidModel.labInfo == null
+      }
+      .filter { (_, perVersionInfo) ->
+        BuildNumber.fromString(perVersionInfo.directAccessVersionInfo?.minimumAndroidStudioVersion)
+          .let { catalogBuildNumber ->
+            catalogBuildNumber == null || catalogBuildNumber <= ApplicationInfo.getInstance().build
+          }
+      }
 
   companion object {
     fun instance() = service<CloudClientService>()

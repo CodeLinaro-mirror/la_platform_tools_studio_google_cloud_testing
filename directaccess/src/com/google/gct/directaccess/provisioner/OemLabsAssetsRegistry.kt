@@ -15,6 +15,9 @@
  */
 package com.google.gct.directaccess.provisioner
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toPainter
 import com.android.annotations.concurrency.Slow
 import com.android.ide.common.repository.IdeNetworkCacheUtils
 import com.android.ide.common.repository.NetworkCache
@@ -24,10 +27,21 @@ import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.ui.icons.CachedImageIcon
+import com.intellij.ui.icons.IconTransform
+import com.intellij.ui.icons.ImageDataLoader
+import com.intellij.ui.icons.LoadIconParameters
+import com.intellij.ui.scale.ScaleContext
+import com.intellij.ui.scale.ScaleType
+import com.intellij.ui.svg.renderSvg
+import java.awt.Image
 import java.io.InputStream
+import java.net.URL
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
+import javax.swing.Icon
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 
 private const val ASSETS_BASE_URL = "https://www.gstatic.com/android-devtools-oem-labs/labs/"
 private const val OEM_LABS_ASSETS_CACHE_DIR_KEY = "oem.labs.assets"
@@ -147,7 +161,66 @@ class OemLabsAssetsRegistry(
     assetsMap[assetId] = asset
   }
 
-  class OemLabIcon(description: String, lightThemeData: ByteArray, darkThemeData: ByteArray)
+  class OemLabIcon(
+    val description: String,
+    val lightThemeData: ByteArray,
+    val darkThemeData: ByteArray,
+  ) :
+    CachedImageIcon(
+      loader =
+        object : ImageDataLoader {
+          override val path: String? = null
+          override val url: URL? = null
+
+          override fun isMyClassLoader(classLoader: ClassLoader) = false
+
+          override fun patch(transform: IconTransform): ImageDataLoader? = null
+
+          override fun loadImage(
+            parameters: LoadIconParameters,
+            scaleContext: ScaleContext,
+          ): Image {
+            val data = if (parameters.isDark) darkThemeData else lightThemeData
+            return renderSvg(data, scaleContext.getScale(ScaleType.USR_SCALE).toFloat())
+          }
+        }
+    ) {
+
+    fun getIcon(): Icon = this
+
+    @Composable
+    fun Icon(modifier: Modifier, isDark: Boolean = JewelTheme.isDark) {
+      val scale = ScaleContext.create().getScale(ScaleType.USR_SCALE).toFloat()
+      val image = if (isDark) renderSvg(darkThemeData, scale) else renderSvg(lightThemeData, scale)
+      val painter = image.toPainter()
+
+      org.jetbrains.jewel.ui.component.Icon(
+        painter = painter,
+        contentDescription = description,
+        modifier = modifier,
+      )
+    }
+
+    override fun equals(other: Any?): Boolean {
+      if (this === other) return true
+      if (javaClass != other?.javaClass) return false
+
+      other as OemLabIcon
+
+      if (description != other.description) return false
+      if (!lightThemeData.contentEquals(other.lightThemeData)) return false
+      if (!darkThemeData.contentEquals(other.darkThemeData)) return false
+
+      return true
+    }
+
+    override fun hashCode(): Int {
+      var result = description.hashCode()
+      result = 31 * result + lightThemeData.contentHashCode()
+      result = 31 * result + darkThemeData.contentHashCode()
+      return result
+    }
+  }
 
   enum class IconType(val type: String) {
     CAR("car"),

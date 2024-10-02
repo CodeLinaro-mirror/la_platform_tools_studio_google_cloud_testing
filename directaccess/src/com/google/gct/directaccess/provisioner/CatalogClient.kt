@@ -18,10 +18,12 @@ package com.google.gct.directaccess.provisioner
 import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.api.services.testing.model.AndroidModel
+import com.google.api.services.testing.model.LabInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.directaccess.CloudClientService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.util.text.nullize
 
 object CatalogClient {
 
@@ -60,6 +62,11 @@ object CatalogClient {
       brand,
       if (name.startsWith("$manufacturer ", true)) name.substring(manufacturer.length + 1)
       else name,
+      labId =
+        labInfo.getFormattedLabId().also {
+          // We pre-populate here for the following usages
+          OemLabsAssetsRegistry.getInstance().getAssetById(it)
+        },
       manufacturer,
       codename,
       perVersionInfo.versionId.toInt(),
@@ -71,6 +78,13 @@ object CatalogClient {
       deviceAvailabilityEstimateSeconds,
       tags?.contains("dda-default") == true,
     )
+  }
+
+  private fun LabInfo?.getFormattedLabId(): String {
+    return (this?.name?.nullize(true)
+        ?: "Google") // Fallback here means google owned labs (i.e. Direct Access).
+      .lowercase()
+      .replace(Regex("[ -]"), "_")
   }
 
   private fun AndroidModel.isAnyCriticalDeviceInfoValueNull(): Boolean {

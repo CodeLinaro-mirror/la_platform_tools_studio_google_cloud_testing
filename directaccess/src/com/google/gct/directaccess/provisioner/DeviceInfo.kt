@@ -16,16 +16,13 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceType
-import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_CAR
-import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
-import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_TV
-import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import javax.swing.Icon
 
 data class DeviceInfo(
   val id: String,
   val brand: String,
   val name: String,
+  val labId: String,
   val manufacturer: String,
   val codename: String,
   val api: Int,
@@ -45,11 +42,15 @@ data class DeviceInfo(
 data class DeviceSelection(var isSelected: Boolean, val deviceInfo: DeviceInfo)
 
 internal val DeviceInfo.icon: Icon
-  get() =
-    when (type) {
-      DeviceType.HANDHELD -> FIREBASE_DEVICE_PHONE
-      DeviceType.TV -> FIREBASE_DEVICE_TV
-      DeviceType.WEAR -> FIREBASE_DEVICE_WEAR
-      DeviceType.AUTOMOTIVE -> FIREBASE_DEVICE_CAR
-      else -> FIREBASE_DEVICE_PHONE
-    }
+  get() {
+    val iconType =
+      when (type) {
+        DeviceType.HANDHELD -> OemLabsAssetsRegistry.IconType.PHONE
+        DeviceType.TV -> OemLabsAssetsRegistry.IconType.TV
+        DeviceType.WEAR -> OemLabsAssetsRegistry.IconType.WEAR
+        DeviceType.AUTOMOTIVE -> OemLabsAssetsRegistry.IconType.CAR
+        else -> OemLabsAssetsRegistry.IconType.PHONE
+      }
+
+    return OemLabsAssetsRegistry.getInstance().retrieveIcon(labId, iconType).getIcon()
+  }
