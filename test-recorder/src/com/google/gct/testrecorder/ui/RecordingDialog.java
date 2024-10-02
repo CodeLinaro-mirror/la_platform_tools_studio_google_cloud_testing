@@ -36,6 +36,7 @@ import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.isTextView;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
+import com.android.repository.api.ProgressIndicator;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.uiautomator.tree.BasicTreeNode;
@@ -149,7 +150,12 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private JButton myRecordPauseButton;
   private CountDownLatch myCountDownLatch;
 
-  public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName, boolean isRecordingTest, CountDownLatch latch) {
+  public RecordingDialog(AndroidFacet facet,
+                         IDevice device,
+                         String packageName,
+                         String launchedActivityName,
+                         boolean isRecordingTest,
+                         CountDownLatch latch) {
     super(facet.getModule().getProject(), true, IdeModalityType.MODELESS);
     myProject = facet.getModule().getProject();
     myFacet = facet;
@@ -370,6 +376,14 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
         request.setEnabled(myIsRecording);
       }
     }
+  }
+
+  @Override
+  public void doCancelAction() {
+    if (myCountDownLatch.getCount() > 0) {
+      this.myCountDownLatch.countDown();
+    }
+    super.doCancelAction();
   }
 
   @VisibleForTesting
