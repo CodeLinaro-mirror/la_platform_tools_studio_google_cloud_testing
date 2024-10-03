@@ -30,6 +30,7 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
@@ -68,6 +69,7 @@ fun generateTest(
   allModelActions: List<ElementAction>,
   launchedActivityName: String,
   wasEverPaused: Boolean,
+  progressIndicator: ProgressIndicator,
 ): String {
   val application = ApplicationManager.getApplication()
   val isKotlinClass = (KOTLIN_LANGUAGE_NAME == selectedLanguage)
@@ -76,6 +78,7 @@ fun generateTest(
     withContext(Dispatchers.IO) {
       DumbService.getInstance(project).waitForSmartMode()
     }
+    progressIndicator.checkCanceled()
     val testClass = withContext(Dispatchers.EDT) {
       createClassFromTemplate(project, testClassName, testClassParent, isKotlinClass)
     }
@@ -114,6 +117,7 @@ fun generateTest(
       ).generate()
     }
 
+    progressIndicator.checkCanceled()
     // Show created test file in editor
     withContext(Dispatchers.EDT) {
       FileEditorManager.getInstance(project).openTextEditor(
