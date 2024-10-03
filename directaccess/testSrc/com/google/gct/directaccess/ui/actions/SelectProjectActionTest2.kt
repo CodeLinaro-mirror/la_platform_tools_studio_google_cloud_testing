@@ -35,7 +35,6 @@ import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.devtools.testing.v1.DeviceSession
 import com.google.gct.directaccess.CloudProjectEntry
-import com.google.gct.directaccess.DEFAULT_DEVICE_LIST_KEY
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessPermissionStatus
@@ -65,7 +64,6 @@ import com.google.services.firebase.directaccess.client.FakeDirectAccessReservat
 import com.intellij.icons.AllIcons
 import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
-import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -103,6 +101,7 @@ import org.junit.rules.RuleChain
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -182,11 +181,11 @@ class SelectProjectActionTest2 {
       screenY = 2400,
       screenDensity = 420,
       deviceAvailabilityEstimateSeconds = 30,
+      isDefault = true,
     )
 
   @Before
   fun setUp() {
-    PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, false)
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     Mockito.doReturn(TestUtils.deviceInfoListProvider())
       .whenever(mockDirectAccessServiceSetup)
@@ -202,7 +201,6 @@ class SelectProjectActionTest2 {
   @After
   fun tearDown() {
     scope.cancel()
-    PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, false)
   }
 
   @RunsInEdt
@@ -602,6 +600,15 @@ class SelectProjectActionTest2 {
         .cloudProjectManager
       Mockito.doReturn(scope).whenever(mockDirectAccessService).scope
       val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
+      doAnswer {
+          mockDeviceSelectionListFlow.update {
+            it.map { selection ->
+              selection.copy(isSelected = selection.isSelected || selection.deviceInfo.isDefault)
+            }
+          }
+        }
+        .whenever(mockDirectAccessService)
+        .maybeApplyDefaultDevices()
       Mockito.doReturn(mockDeviceSelectionListFlow)
         .whenever(mockDirectAccessService)
         .deviceSelectionListFlow
@@ -673,10 +680,6 @@ class SelectProjectActionTest2 {
       CoroutineTestUtils.yieldUntil {
         template.activationAction.presentation.value.detail ==
           "Android Device Streaming is setting up and will be ready in a few minutes."
-      }
-
-      CoroutineTestUtils.yieldUntil {
-        PropertiesComponent.getInstance().getBoolean(DEFAULT_DEVICE_LIST_KEY)
       }
       withContext(AndroidDispatchers.uiThread) {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {

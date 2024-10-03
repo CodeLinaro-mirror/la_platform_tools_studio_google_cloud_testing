@@ -153,27 +153,17 @@ class DirectAccessDeviceProvisionerPlugin(
     // Clean up remaining templates when scope is cancelled.
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
 
+    // Select project from login onboarding tasks.
     if (StudioFlags.DIRECT_ACCESS_CREATE_PROJECT.get()) {
       scope.launch {
         service<DirectAccessOnboardingService>().taskFlow.filterNotNull().collect { task ->
           if (task.isPending) {
-            if (task.applyDefaultDevices) {
-              // Wait until device catalog updated.
-              project
-                .service<DirectAccessService>()
-                .deviceSelectionListFlow
-                .takeWhile { it.isEmpty() }
-                .collect()
-              project.service<DirectAccessService>().deviceSelectionListFlow.update {
-                deviceSelections ->
-                // Select a default list of devices if none of them are selected.
-                if (deviceSelections.any { it.isSelected }) return@update deviceSelections
-                deviceSelections.map {
-                  if (it.deviceInfo.key in PRESELECTED_DEVICE_KEY_SET) it.copy(isSelected = true)
-                  else it
-                }
-              }
-            }
+            project
+              .service<DirectAccessService>()
+              .deviceSelectionListFlow
+              .takeWhile { it.isEmpty() }
+              .collect()
+            project.service<DirectAccessService>().maybeApplyDefaultDevices()
           } else {
             project.service<DirectAccessService>().selectCloudProject(task.cloudProject.name)
           }

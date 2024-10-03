@@ -16,12 +16,10 @@
 package com.google.gct.directaccess
 
 import com.android.tools.idea.flags.StudioFlags
-import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.checkDirectAccessPermission
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
-import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import java.io.IOException
@@ -33,7 +31,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-@VisibleForTesting const val DEFAULT_DEVICE_LIST_KEY = "direct.access.onboarding"
 private const val INITIAL_WAIT_TIME_SECONDS = 60L
 private const val WAIT_TIME_INTERVAL_SECONDS = 10L
 
@@ -47,13 +44,8 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
    * A data class to track the task with its newly created [cloudProject].
    *
    * @param isPending if the project is not ready within a timeout
-   * @param applyDefaultDevices if the device manager should apply a default list of devices
    */
-  data class Task(
-    val cloudProject: CloudProjectEntry,
-    val isPending: Boolean,
-    val applyDefaultDevices: Boolean,
-  )
+  data class Task(val cloudProject: CloudProjectEntry, val isPending: Boolean)
 
   /**
    * After a new cloud project is created with login, the [taskFlow] emits a pending [Task], waits
@@ -66,13 +58,10 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
           val loginFeature = LoginFeature.feature<FirebaseLoginFeature>()
           service<GoogleLoginService>().activeUserFlow.collectLatest { user ->
             if (user?.isLoggedIn(loginFeature) == true) {
-              val applyDefaultDevices =
-                !PropertiesComponent.getInstance().getBoolean(DEFAULT_DEVICE_LIST_KEY, false)
-              PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, true)
               val createdProject =
                 loginFeature.handler?.latestCreatedFirebaseProject?.value ?: return@collectLatest
               val cloudProject = CloudProjectEntry(user.email, createdProject)
-              value = Task(cloudProject, true, applyDefaultDevices)
+              value = Task(cloudProject, true)
               // Wait a minimum time before project ready.
               delay(TimeUnit.SECONDS.toMillis(INITIAL_WAIT_TIME_SECONDS))
               // Check permissions of the cloud project every [WAIT_TIME_INTERVAL_SECONDS].
@@ -86,7 +75,7 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
                 }
                 delay(TimeUnit.SECONDS.toMillis(WAIT_TIME_INTERVAL_SECONDS))
               }
-              value = Task(cloudProject, false, applyDefaultDevices)
+              value = Task(cloudProject, false)
             } else {
               value = null
             }

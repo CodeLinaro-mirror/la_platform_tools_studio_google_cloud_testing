@@ -35,6 +35,7 @@ import com.intellij.openapi.project.Project
 class DirectAccessPersistentStateComponent(val project: Project) :
   SimplePersistentStateComponent<DirectAccessPersistentStateComponent.State>(State()) {
   class State : BaseState() {
+    var defaultDeviceApplied by property(false)
     var selectedCloudProject by string("")
     var deviceSelectionList by list<PersistentDeviceSelectionData>()
   }
@@ -101,6 +102,7 @@ data class PersistentDeviceSelectionData(
   var screenX: Int = 0,
   var screenY: Int = 0,
   var screenDensity: Int = 0,
+  var isDefault: Boolean = false,
 ) {
   fun createDeviceSelection() =
     DeviceSelection(
@@ -117,6 +119,7 @@ data class PersistentDeviceSelectionData(
         screenY,
         screenDensity,
         null,
+        isDefault,
       ),
     )
 }
@@ -137,4 +140,5 @@ fun DeviceInfo.createPersistentDeviceSelectionData(isSelected: Boolean) =
     screenX,
     screenY,
     screenDensity,
+    isDefault,
   )

@@ -29,6 +29,7 @@ import com.intellij.util.messages.MessageBusConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @Service(Service.Level.PROJECT)
@@ -65,6 +66,20 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
       }
     _cloudProjectManager.value =
       service<DirectAccessApplicationService>().registerCloudProject(project, cloudProjectEntry)
+  }
+
+  /** Selects default devices only once for each user project. */
+  fun maybeApplyDefaultDevices() {
+    val state = project.service<DirectAccessPersistentStateComponent>().state
+    if (state.defaultDeviceApplied) return
+    state.defaultDeviceApplied = true
+
+    deviceSelectionListFlow.update { deviceSelections ->
+      if (deviceSelections.any { it.isSelected }) return@update deviceSelections
+      deviceSelections.map {
+        if (it.deviceInfo.isDefault && !it.isSelected) it.copy(isSelected = true) else it
+      }
+    }
   }
 
   init {
