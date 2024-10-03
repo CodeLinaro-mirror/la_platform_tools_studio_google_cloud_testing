@@ -50,6 +50,7 @@ import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Iterator;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
@@ -166,6 +167,9 @@ public class TestClassNameInputDialog extends DialogWrapper {
         // If the launched activity is a Kotlin class, select Kotlin as the default output language for the test class.
         myClassLanguageComboBox.setSelectedIndex(1);
       }
+    }
+    if (launchedActivitySourceRoot == null) {
+      throw new RuntimeException("Failed to obtain launched activity source root.");
     }
 
     List<VirtualFile> existingAndroidTestSourceRoots = getExistingAndroidTestSourceRoots();
@@ -373,15 +377,21 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
   @Nullable
   private VirtualFile getContainingSourceRoot(String fileRelativePath) {
-    List<Module> relevantModules = Lists.newLinkedList();
-    collectModulesClosure(myTestClassModule, relevantModules);
-    for (Module module : relevantModules) {
-      for (VirtualFile sourceRoot : ModuleRootManager.getInstance(module).getSourceRoots(JavaSourceRootType.SOURCE)) {
-        if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(sourceRoot, myProject)
-            && sourceRoot.findFileByRelativePath(fileRelativePath) != null) {
-          myTestClassModule = module;
-          return sourceRoot;
-        }
+    AndroidFacet facet = AndroidFacet.getInstance(myTestClassModule);
+    if (facet == null) return null;
+    IdeaSourceProvider mainIdeaSourceProvider = SourceProviders.getInstance(facet).getMainIdeaSourceProvider();
+    Iterator<VirtualFile> iterator = mainIdeaSourceProvider.getJavaDirectories().iterator();
+    if (!iterator.hasNext()) {
+      iterator = mainIdeaSourceProvider.getKotlinDirectories().iterator();
+    }
+    if (!iterator.hasNext()) {
+      return null;
+    }
+    while (iterator.hasNext()) {
+      VirtualFile sourceRoot = iterator.next();
+      if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(sourceRoot, myProject)
+          && sourceRoot.findFileByRelativePath(fileRelativePath) != null) {
+        return sourceRoot;
       }
     }
     return null;

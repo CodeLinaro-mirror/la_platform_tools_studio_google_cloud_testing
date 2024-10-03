@@ -179,17 +179,16 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
       // Also, consider waiting for the app to be ready first (e.g., such that we can take a screenshot).
       ApplicationManager.getApplication().invokeLater(() -> {
         //Show Test Recorder dialog after adding and enabling breakpoints.
-        myRecordingDialog = new RecordingDialog(myFacet, myDevice, myPackageName, launchedActivityName, myIsRecordingTest);
+        myRecordingDialog = new RecordingDialog(myFacet, myDevice, myPackageName, launchedActivityName, myIsRecordingTest, latch);
         myRecordingDialog.setDebuggerSession(myDebuggerSession);
         for (BreakpointCommand breakpointCommand : myBreakpointCommands) {
           breakpointCommand.setEventListener(myRecordingDialog);
         }
-        myRecordingDialog.showAndGet();
-        latch.countDown();
+        myRecordingDialog.show();
       });
 
       if (myDebuggerSession.isAttached() && myDevice.isOnline()) {
-        ProgressManager.getInstance().run(new Task.Backgroundable(myProject, "Creating test file", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(myProject, "Espresso test recorder running", true) {
           @Override
           public void run(@NotNull ProgressIndicator indicator) {
             NotificationsManager notificationsManager = NotificationsManager.getNotificationsManager();
@@ -197,6 +196,7 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
               // Wait for end of recording session
               latch.await();
               if (myRecordingDialog.isOK()) {
+                indicator.setText("Creating test file");
                 GenerateTestHelperKt.generateTest(
                   myProject,
                   myRecordingDialog.getTestClassName(),
@@ -233,12 +233,18 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
 
           @Override
           public void onCancel() {
+            if (latch.getCount() > 0) {
+              latch.countDown();
+            }
             stopDebugger();
             super.onCancel();
           }
 
           @Override
           public void onFinished() {
+            if (latch.getCount() > 0) {
+              latch.countDown();
+            }
             stopDebugger();
             super.onFinished();
           }

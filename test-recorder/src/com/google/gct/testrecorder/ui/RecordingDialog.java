@@ -85,6 +85,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
@@ -146,9 +147,10 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
   private JButton mySaveAssertionAndAddAnotherButton;
   private JPanel myRecordingPanel;
   private JButton myRecordPauseButton;
+  private CountDownLatch myCountDownLatch;
 
-  public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName, boolean isRecordingTest) {
-    super(facet.getModule().getProject(), true, IdeModalityType.IDE);
+  public RecordingDialog(AndroidFacet facet, IDevice device, String packageName, String launchedActivityName, boolean isRecordingTest, CountDownLatch latch) {
+    super(facet.getModule().getProject(), true, IdeModalityType.MODELESS);
     myProject = facet.getModule().getProject();
     myFacet = facet;
     myDevice = device;
@@ -156,6 +158,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     myLaunchedActivityName = launchedActivityName;
     myIsRecordingTest = isRecordingTest;
     myAssertionMode = false;
+    myCountDownLatch = latch;
 
     init();
 
@@ -438,6 +441,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       myTestClassParent = chooser.getTestClassParent();
       mySelectedLanguage = chooser.getSelectedLanguage();
       super.doOKAction();
+      myCountDownLatch.countDown();
     }
     else {
       FileSaverDescriptor descriptor = new FileSaverDescriptor("Save Robo Script", "Save Robo script to a file", "json");
@@ -462,6 +466,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
             .setKind(AndroidStudioEvent.EventKind.TEST_RECORDER_SAVE_ROBO_SCRIPT),
           myProject));
         super.doOKAction();
+        myCountDownLatch.countDown();
       }
     }
   }

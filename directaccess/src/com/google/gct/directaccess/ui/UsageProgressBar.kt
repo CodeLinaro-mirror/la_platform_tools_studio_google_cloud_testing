@@ -41,13 +41,12 @@ private const val DEFAULT_GAP = 3
  */
 class UsageProgressBar(
   scope: CoroutineScope,
-  @VisibleForTesting val percentage: StateFlow<Double?>,
+  @VisibleForTesting val percentage: StateFlow<Double>,
 ) : JPanel() {
 
   override fun paintComponent(g: Graphics?) {
     val buffImg = ImageUtil.createImage(width, height, BufferedImage.TYPE_INT_ARGB)
     val g2d = buffImg.createGraphics()
-    val color = background
     g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
     g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
     val gap = JBUIScale.scale(DEFAULT_GAP)
@@ -62,13 +61,13 @@ class UsageProgressBar(
     g2d.color = JBColor.GRAY
     g2d.fillRect(0, 0, width, height)
     val p = percentage.value
-    if (p != null) {
-      g2d.color = JBColor.BLUE
-      val effectiveBarWidth = width - 3 * gap - radius
-      g2d.fillRect(0, 0, radius + gap * 2 + (effectiveBarWidth * p).toInt(), height)
+    val effectiveBarWidth = width - 2 * gap
+    g2d.color = JBColor.BLUE
+    g2d.fillRect(0, 0, gap + (effectiveBarWidth * p).toInt(), height)
+    if (p > 0) {
+      g2d.color = background
+      g2d.fillRect(gap + (effectiveBarWidth * p).toInt(), 0, gap, height)
     }
-    g2d.color = color
-    g2d.fillRect(radius + gap, 0, gap, height)
     (g as Graphics2D).drawImage(buffImg, 0, 0, width, height, null)
   }
 
