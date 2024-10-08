@@ -25,6 +25,7 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Extension
 import com.android.sdklib.deviceprovisioner.ExtensionRegistry
 import com.android.sdklib.deviceprovisioner.providedBy
+import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
@@ -42,6 +43,8 @@ import com.google.gct.directaccess.ui.createAddDirectAccessDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
+import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DeviceManagerEvent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.ControlFlowException
@@ -359,8 +362,19 @@ class DirectAccessDeviceProvisionerPlugin(
       override suspend fun create() {
         if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
           withContext(AndroidDispatchers.uiThread) {
-            createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
-              .showAndGet()
+            if (
+              createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
+                .showAndGet()
+            ) {
+              UsageTracker.log(
+                AndroidStudioEvent.newBuilder()
+                  .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)
+                  .setDeviceManagerEvent(
+                    DeviceManagerEvent.newBuilder()
+                      .setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
+                  )
+              )
+            }
           }
         } else {
           withContext(AndroidDispatchers.uiThread) { SelectDeviceDialog(project).show() }
