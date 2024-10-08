@@ -26,7 +26,7 @@ import com.android.tools.idea.adddevicedialog.FormFactor
 import com.android.tools.idea.adddevicedialog.Manufacturer
 import com.android.tools.idea.adddevicedialog.SetFilter
 import com.android.tools.idea.adddevicedialog.SetFilterState
-import com.android.tools.idea.adddevicedialog.SingleSelectionDropdown
+import com.android.tools.idea.adddevicedialog.SingleSelectionRadioButtons
 import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
@@ -75,6 +75,6 @@ internal fun RemoteDeviceFilters(
   profiles: List<DeviceProfile>,
   filterState: RemoteDeviceFilterState,
 ) {
-  SingleSelectionDropdown(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
+  SingleSelectionRadioButtons(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
   SetFilter(Manufacturer.uniqueValuesOf(profiles), filterState.manufacturerFilter)
 }
