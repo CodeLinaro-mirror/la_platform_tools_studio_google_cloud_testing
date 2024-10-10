@@ -75,8 +75,8 @@ internal data class DirectAccessDeviceProfile(
   override val displayDensity: Int,
   override val abis: List<Abi>,
   override val formFactor: String,
-  override val isAlreadyPresent: Boolean,
-  override val availabilityEstimate: Duration,
+  val isAlreadyPresent: Boolean,
+  val availabilityEstimate: Duration,
   val key: String,
 ) : DeviceProfile {
   constructor(
@@ -127,6 +127,8 @@ internal data class DirectAccessDeviceProfile(
     fun copyFrom(profile: DirectAccessDeviceProfile) {
       super.copyFrom(profile)
       key = profile.key
+      availabilityEstimate = profile.availabilityEstimate
+      isAlreadyPresent = profile.isAlreadyPresent
     }
 
     override fun build(): DeviceProfile =
