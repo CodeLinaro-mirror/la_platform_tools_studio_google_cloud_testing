@@ -21,51 +21,12 @@ import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
-import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.adddevicedialog.FormFactors
-import com.android.tools.idea.adddevicedialog.LoadingState
-import com.android.tools.idea.adddevicedialog.WizardAction
-import com.android.tools.idea.adddevicedialog.WizardPageScope
 import com.google.common.collect.Range
-import com.google.gct.directaccess.DirectAccessService
-import com.intellij.openapi.components.service
-import com.intellij.openapi.project.Project
 import icons.StudioIconsCompose
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import org.jetbrains.jewel.ui.component.Icon
-
-/** Implements support for Direct Access devices in the Add Device dialog. */
-internal class DirectAccessDeviceSource(private val project: Project) :
-  DeviceSource<DirectAccessDeviceProfile> {
-
-  override val profiles: Flow<LoadingState<List<DirectAccessDeviceProfile>>>
-    get() {
-      return project.service<DirectAccessService>().deviceSelectionListFlow.map { list ->
-        LoadingState.Ready(
-          list.map { deviceSelection ->
-            DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
-          }
-        )
-      }
-    }
-
-  override fun WizardPageScope.selectionUpdated(device: DirectAccessDeviceProfile) {
-    nextAction = WizardAction.Disabled
-    finishAction =
-      if (device.isAlreadyPresent) WizardAction.Disabled
-      else
-        WizardAction {
-          project.service<DirectAccessService>().deviceSelectionListFlow.update { devices ->
-            devices.map { if (it.deviceInfo.key == device.key) it.copy(isSelected = true) else it }
-          }
-          close()
-        }
-  }
-}
 
 internal data class DirectAccessDeviceProfile(
   override val apiRange: Range<Int>,
