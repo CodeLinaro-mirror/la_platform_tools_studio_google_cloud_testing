@@ -25,6 +25,7 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Extension
 import com.android.sdklib.deviceprovisioner.ExtensionRegistry
 import com.android.sdklib.deviceprovisioner.providedBy
+import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
@@ -42,6 +43,8 @@ import com.google.gct.directaccess.ui.createAddDirectAccessDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
+import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DeviceManagerEvent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.ControlFlowException
@@ -153,27 +156,17 @@ class DirectAccessDeviceProvisionerPlugin(
     // Clean up remaining templates when scope is cancelled.
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
 
+    // Select project from login onboarding tasks.
     if (StudioFlags.DIRECT_ACCESS_CREATE_PROJECT.get()) {
       scope.launch {
         service<DirectAccessOnboardingService>().taskFlow.filterNotNull().collect { task ->
           if (task.isPending) {
-            if (task.applyDefaultDevices) {
-              // Wait until device catalog updated.
-              project
-                .service<DirectAccessService>()
-                .deviceSelectionListFlow
-                .takeWhile { it.isEmpty() }
-                .collect()
-              project.service<DirectAccessService>().deviceSelectionListFlow.update {
-                deviceSelections ->
-                // Select a default list of devices if none of them are selected.
-                if (deviceSelections.any { it.isSelected }) return@update deviceSelections
-                deviceSelections.map {
-                  if (it.deviceInfo.key in PRESELECTED_DEVICE_KEY_SET) it.copy(isSelected = true)
-                  else it
-                }
-              }
-            }
+            project
+              .service<DirectAccessService>()
+              .deviceSelectionListFlow
+              .takeWhile { it.isEmpty() }
+              .collect()
+            project.service<DirectAccessService>().maybeApplyDefaultDevices()
           } else {
             project.service<DirectAccessService>().selectCloudProject(task.cloudProject.name)
           }
@@ -369,8 +362,19 @@ class DirectAccessDeviceProvisionerPlugin(
       override suspend fun create() {
         if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
           withContext(AndroidDispatchers.uiThread) {
-            createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
-              .showAndGet()
+            if (
+              createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
+                .showAndGet()
+            ) {
+              UsageTracker.log(
+                AndroidStudioEvent.newBuilder()
+                  .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)
+                  .setDeviceManagerEvent(
+                    DeviceManagerEvent.newBuilder()
+                      .setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
+                  )
+              )
+            }
           }
         } else {
           withContext(AndroidDispatchers.uiThread) { SelectDeviceDialog(project).show() }

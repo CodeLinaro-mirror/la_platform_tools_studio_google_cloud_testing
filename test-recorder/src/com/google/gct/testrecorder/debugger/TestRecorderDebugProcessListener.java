@@ -62,6 +62,7 @@ import com.intellij.notification.NotificationType;
 import com.intellij.notification.NotificationsManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
@@ -78,6 +79,7 @@ import com.intellij.xdebugger.XDebuggerManager;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import javax.swing.SwingUtilities;
 import org.jetbrains.android.dom.manifest.Activity;
 import org.jetbrains.android.dom.manifest.ActivityAlias;
@@ -193,8 +195,10 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
           public void run(@NotNull ProgressIndicator indicator) {
             NotificationsManager notificationsManager = NotificationsManager.getNotificationsManager();
             try {
-              // Wait for end of recording session
-              latch.await();
+              // Wait for end of recording session or if progress is cancelled.
+              while (!latch.await(1, TimeUnit.SECONDS)) {
+                indicator.checkCanceled();
+              }
               if (myRecordingDialog.isOK()) {
                 indicator.setText("Creating test file");
                 GenerateTestHelperKt.generateTest(
@@ -206,15 +210,16 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
                   myRecordingDialog.getRootPanel(),
                   myRecordingDialog.getAllModelActions(),
                   myRecordingDialog.getLaunchedActivityName(),
-                  myRecordingDialog.getWasEverPaused());
+                  myRecordingDialog.getWasEverPaused(),
+                  indicator);
               }
             }
-            catch (InterruptedException e) {
+            catch (InterruptedException | ProcessCanceledException e) {
               notificationsManager.showNotification(
                 new Notification(
                   this.getClass().toString(),
                   NOTIFICATION_TITLE,
-                  "Create test file action interrupted",
+                  "Espresso test recorder interrupted",
                   NotificationType.ERROR
                 ), myProject
               );
@@ -224,7 +229,7 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
                 new Notification(
                   this.getClass().toString(),
                   NOTIFICATION_TITLE,
-                  "Error creating test file",
+                  "Error recording espresso test",
                   NotificationType.ERROR
                 ), myProject
               );
@@ -234,7 +239,7 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
           @Override
           public void onCancel() {
             if (latch.getCount() > 0) {
-              latch.countDown();
+              myRecordingDialog.doCancelAction();
             }
             stopDebugger();
             super.onCancel();
@@ -242,9 +247,6 @@ public class TestRecorderDebugProcessListener implements DebugProcessListener {
 
           @Override
           public void onFinished() {
-            if (latch.getCount() > 0) {
-              latch.countDown();
-            }
             stopDebugger();
             super.onFinished();
           }

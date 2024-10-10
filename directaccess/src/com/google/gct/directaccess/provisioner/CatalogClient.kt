@@ -59,6 +59,7 @@ object CatalogClient {
       screenY,
       screenDensity,
       deviceAvailabilityEstimateSeconds,
+      tags?.contains("dda-default") == true,
     )
   }
 

@@ -14,7 +14,7 @@
         <CLASSES>
           <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/google/apis/google-api-services-storage/v1-rev20230301-2.0.0/google-api-services-storage-v1-rev20230301-2.0.0.jar!/" />
           <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/google/apis/google-api-services-toolresults/v1beta3-rev20230410-2.0.0/google-api-services-toolresults-v1beta3-rev20230410-2.0.0.jar!/" />
-          <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/google/apis/google-api-services-testing/v1-rev20240213-2.0.0/google-api-services-testing-v1-rev20240213-2.0.0.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../../../../prebuilts/tools/common/m2/repository/com/google/apis/google-api-services-testing/v1-rev20240917-2.0.0/google-api-services-testing-v1-rev20240917-2.0.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

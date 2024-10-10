@@ -467,6 +467,21 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       .installOn(helpIcon)
   }
 
+  override fun doOKAction() {
+    super.doOKAction()
+    val directAccessService = project.service<DirectAccessService>()
+    // Apply default devices if the selected project has a nonempty device catalog.
+    if (
+      directAccessService.cloudProjectManager.value
+        ?.accessibleDeviceInfoListFlow
+        ?.stateFlow
+        ?.value
+        ?.isNotEmpty() == true
+    ) {
+      directAccessService.maybeApplyDefaultDevices()
+    }
+  }
+
   /** This dialog only shows the OK action that does nothing. */
   override fun createActions(): Array<Action> {
     return arrayOf(okAction)

@@ -79,6 +79,7 @@ class DirectAccessPersistentStateComponentTest {
       200,
       300,
       null,
+      isDefault = true,
     )
 
   private val persistentDeviceSelectionData =
@@ -94,6 +95,7 @@ class DirectAccessPersistentStateComponentTest {
       100,
       200,
       300,
+      isDefault = true,
     )
 
   @Before

@@ -38,7 +38,6 @@ import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.CloudProjectEntry
-import com.google.gct.directaccess.DEFAULT_DEVICE_LIST_KEY
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
@@ -67,7 +66,6 @@ import com.google.services.firebase.directaccess.client.FakeDirectAccessReservat
 import com.intellij.icons.AllIcons
 import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
-import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -168,11 +166,11 @@ class SelectProjectActionTest {
       screenY = 2400,
       screenDensity = 420,
       deviceAvailabilityEstimateSeconds = 30,
+      isDefault = true,
     )
 
   @Before
   fun setUp() {
-    PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, false)
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     doReturn(deviceInfoListProvider())
       .whenever(mockDirectAccessServiceSetup)
@@ -188,7 +186,6 @@ class SelectProjectActionTest {
   @After
   fun tearDown() {
     scope.cancel()
-    PropertiesComponent.getInstance().setValue(DEFAULT_DEVICE_LIST_KEY, false)
   }
 
   @RunsInEdt
@@ -558,6 +555,15 @@ class SelectProjectActionTest {
     val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
     doReturn(mockDeviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
     doAnswer {
+        mockDeviceSelectionListFlow.update {
+          it.map { selection ->
+            selection.copy(isSelected = selection.isSelected || selection.deviceInfo.isDefault)
+          }
+        }
+      }
+      .whenever(mockDirectAccessService)
+      .maybeApplyDefaultDevices()
+    doAnswer {
         val cloudProjectName = it.arguments[0] as? String
         cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
         cloudProjectManagerFlow.value =
@@ -623,7 +629,6 @@ class SelectProjectActionTest {
         "Android Device Streaming is setting up and will be ready in a few minutes."
     }
 
-    yieldUntil { PropertiesComponent.getInstance().getBoolean(DEFAULT_DEVICE_LIST_KEY) }
     withContext(AndroidDispatchers.uiThread) {
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
         // Start select action before login.
