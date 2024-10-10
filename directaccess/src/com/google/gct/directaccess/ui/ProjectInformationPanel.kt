@@ -27,6 +27,8 @@ import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
+import java.awt.CardLayout
+import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +37,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.jdesktop.swingx.VerticalLayout
+
+private val SPARK_PLAN_KEY = "Spark"
+private val BLAZE_PLAN_KEY = "Blaze"
 
 class ProjectInformationPanel(
   scope: CoroutineScope,
@@ -57,8 +62,12 @@ class ProjectInformationPanel(
     JBLabel(text).apply { foreground = UIUtil.getLabelInfoForeground() }
   }
 
-  private val usedMinutesLabel = JBLabel()
-  private val remainingMinutesLabel = grayLabelFactory("")
+  private val sparkUsedMinutesLabel = JBLabel()
+  private val sparkRemainingMinutesLabel = grayLabelFactory("")
+  private val blazeUsedMinutesLabel = JBLabel().apply { font = JBFont.h2().asBold() }
+  private val blazeUsedMinutesUnitLabel = JBLabel("mins used")
+  private val blazePricingInfoLabel = grayLabelFactory("Blaze Plan may incur charges")
+
   private val usageFlow = MutableStateFlow<Double?>(null)
   private val usageProgressBar = UsageProgressBar(scope, usageFlow)
 
@@ -75,19 +84,39 @@ class ProjectInformationPanel(
       )
     }
 
+  private val planCardLayout = CardLayout()
+  private val usagePanel = JPanel(planCardLayout)
+
   private val viewPricingDetailsHyperlink =
     HyperlinkLabel("View Pricing Details").apply { setHyperlinkTarget(VIEW_PRICING_DETAILS_LINK) }
 
   init {
-    val usagePanel =
-      JPanel(HorizontalLayout(5)).apply {
-        add(usedMinutesLabel)
-        add(remainingMinutesLabel)
-        add(viewPricingDetailsHyperlink)
+    val sparkUsagePanel =
+      JPanel(VerticalLayout(5)).apply {
+        add(
+          JPanel(HorizontalLayout(5)).apply {
+            add(sparkUsedMinutesLabel)
+            add(sparkRemainingMinutesLabel)
+            add(viewPricingDetailsHyperlink)
+          }
+        )
+        add(usageProgressBar)
       }
+    val blazeUsagePanel =
+      JPanel(HorizontalLayout(5)).apply {
+        add(blazeUsedMinutesLabel.apply { verticalAlignment = JLabel.BOTTOM })
+        add(blazeUsedMinutesUnitLabel.apply { verticalAlignment = JLabel.BOTTOM })
+        add(blazePricingInfoLabel.apply { verticalAlignment = JLabel.BOTTOM })
+        // Add a bottom border to place the text component in the middle.
+        val gap = (sparkUsagePanel.preferredSize.height - preferredSize.height) / 2
+        border = JBUI.Borders.emptyBottom(JBUI.unscale(gap))
+      }
+    usagePanel.add(sparkUsagePanel, SPARK_PLAN_KEY)
+    usagePanel.add(blazeUsagePanel, BLAZE_PLAN_KEY)
+    planCardLayout.show(usagePanel, SPARK_PLAN_KEY)
+
     add(planPanel)
     add(usagePanel)
-    add(usageProgressBar)
     add(informationLabel)
     add(instructionPanel)
 
@@ -144,23 +173,27 @@ class ProjectInformationPanel(
       }
       .installOn(planHelpIcon)
 
-    usageFlow.value = quota?.let { it.first.toDouble() / it.second }
-
-    usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
+    val quotaUsage = quota?.first
+    val usedMinutesText = quotaUsage?.toString() ?: "--"
 
     if (isBillingEnabled == true) {
-      remainingMinutesLabel.text = "Blaze Plan may incur charges"
+      blazeUsedMinutesLabel.text = usedMinutesText
+      planCardLayout.show(usagePanel, BLAZE_PLAN_KEY)
     } else {
+      val quotaLimit = quota?.second
+      usageFlow.value =
+        quotaUsage?.let { usage -> quotaLimit?.let { limit -> usage.toDouble() / limit } }
+      sparkUsedMinutesLabel.text = "$usedMinutesText mins used"
+      val remainingMinutes = quotaUsage?.let { usage -> quotaLimit?.let { limit -> limit - usage } }
       val remainingText =
-        quota?.let {
-          val remainingMinutes = it.second - it.first
-          when {
-            remainingMinutes <= 0 -> "0"
-            remainingMinutes < 15 -> "less than 15"
-            else -> remainingMinutes.toString()
-          }
-        } ?: "--"
-      remainingMinutesLabel.text = "$remainingText mins remaining"
+        when {
+          remainingMinutes == null -> "--"
+          remainingMinutes <= 0 -> "0"
+          remainingMinutes < 15 -> "less than 15"
+          else -> remainingMinutes.toString()
+        }
+      sparkRemainingMinutesLabel.text = "$remainingText mins remaining"
+      planCardLayout.show(usagePanel, SPARK_PLAN_KEY)
     }
   }
 }
