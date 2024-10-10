@@ -29,14 +29,12 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
-import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.HelpTooltip
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
-import com.intellij.ui.HyperlinkLabel
 import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.panels.HorizontalLayout
@@ -44,10 +42,8 @@ import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.dsl.builder.Align
 import com.intellij.ui.dsl.builder.EmptySpacingConfiguration
 import com.intellij.ui.dsl.builder.panel
-import com.intellij.util.applyIf
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -59,8 +55,6 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
@@ -77,9 +71,6 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
   private val uiDispatcher: CoroutineDispatcher
     get() = AndroidDispatchers.uiThread(ModalityState.any())
-
-  private val viewPricingDetailsHyperlink =
-    HyperlinkLabel("View Pricing Details").apply { setHyperlinkTarget(VIEW_PRICING_DETAILS_LINK) }
 
   private val isDirectAccessEnabled =
     service<GoogleLoginService>()
@@ -175,40 +166,6 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     val panel = JPanel(VerticalLayout(5)).apply { border = JBUI.Borders.empty(5, 10) }
     panel.add(createTitleLabel("Project Information"))
 
-    val planLabel =
-      JBLabel().apply {
-        horizontalTextPosition = JBLabel.LEFT
-        font = JBFont.medium().asBold()
-      }
-    val planHelpIcon = JBLabel(AllIcons.General.ContextHelp)
-    val planPanel =
-      JPanel(HorizontalLayout(5)).apply {
-        border = JBUI.Borders.empty(1, 0)
-        add(planLabel)
-        add(planHelpIcon)
-      }
-    val usedMinutesLabel = JBLabel()
-    val remainingMinutesLabel = JBLabel().apply { foreground = UIUtil.getLabelInfoForeground() }
-    val usageFlow = MutableStateFlow<Double?>(null)
-    val usageProgressBar = UsageProgressBar(scope, usageFlow)
-    val grayLabelFactory: (String) -> JBLabel = { text ->
-      JBLabel(text).apply { foreground = UIUtil.getLabelInfoForeground() }
-    }
-    val informationLabel =
-      grayLabelFactory("Estimated minutes based on usage across all Firebase project members.")
-    val instructionPanel =
-      JPanel(HorizontalLayout(0)).apply {
-        foreground = UIUtil.getLabelInfoForeground()
-        add(grayLabelFactory("Click "))
-        add(
-          grayLabelFactory("dropdown in device manager to add new devices.").apply {
-            icon = StudioIcons.Common.ADD
-          }
-        )
-      }
-    updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, usageFlow, null)
-    updatePlan(planLabel, planHelpIcon, null)
-
     val preferredProject =
       project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
         ?: project.service<DirectAccessPersistentStateComponent>().compatibleSelectedCloudProject
@@ -237,49 +194,20 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
         isVisible = false
       }
     chooseProjectPanel.add(errorIcon)
+    val projectInformationPanel =
+      ProjectInformationPanel(scope, project.service<DirectAccessService>().cloudProjectManager)
+
     scope.launch {
       selector.isReady.takeWhile { !it }.collect()
-      selector.selectedProject.collect {
-        onProjectChanged(
-          project,
-          it,
-          panel,
-          errorIcon,
-          planLabel,
-          planHelpIcon,
-          usedMinutesLabel,
-          remainingMinutesLabel,
-          usageFlow,
-        )
-      }
+      selector.selectedProject.collect { onProjectChanged(it, panel, errorIcon) }
     }
 
-    val usagePanel =
-      JPanel(HorizontalLayout(5)).apply {
-        add(usedMinutesLabel)
-        add(remainingMinutesLabel)
-        add(viewPricingDetailsHyperlink)
-      }
     panel.add(chooseProjectPanel)
-    panel.add(planPanel)
-    panel.add(usagePanel)
-    panel.add(usageProgressBar)
-    panel.add(informationLabel)
-    panel.add(instructionPanel)
+    panel.add(projectInformationPanel)
     return panel
   }
 
-  private suspend fun onProjectChanged(
-    project: Project,
-    cloudProject: String,
-    parent: JPanel,
-    errorIcon: JBLabel,
-    planLabel: JBLabel,
-    planHelpIcon: JBLabel,
-    usedMinutesLabel: JBLabel,
-    remainingMinutesLabel: JBLabel,
-    usageFlow: MutableStateFlow<Double?>,
-  ) {
+  private suspend fun onProjectChanged(cloudProject: String, parent: JPanel, errorIcon: JBLabel) {
     errorIcon.isVisible = false
     if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
       withContext(AndroidDispatchers.uiThread) { parent.revalidate() }
@@ -316,30 +244,9 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           errorIcon.isVisible = true
           errorIcon.revalidate()
           errorIcon.repaint()
-          updateRemainingQuota(usedMinutesLabel, remainingMinutesLabel, usageFlow, null)
-          updatePlan(planLabel, planHelpIcon, null)
         } else {
           errorIcon.toolTipText = ""
           errorIcon.isVisible = false
-          launch {
-            val isBillingEnabled =
-              project.directAccessCloudProjectManager?.isBillingEnabledFlow?.value
-            updateRemainingQuota(
-              usedMinutesLabel,
-              remainingMinutesLabel,
-              usageFlow,
-              withContext(Dispatchers.IO) {
-                try {
-                  project.directAccessCloudProjectManager?.usageQuota
-                } catch (e: Exception) {
-                  null
-                }
-              },
-              isBillingEnabled,
-            )
-            updatePlan(planLabel, planHelpIcon, isBillingEnabled)
-            parent.revalidate()
-          }
         }
         parent.revalidate()
       }
@@ -404,69 +311,6 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     } else {
       "An unknown error occurred when checking your permissions."
     }
-
-  private fun updateRemainingQuota(
-    usedMinutesLabel: JBLabel,
-    remainingMinutesLabel: JBLabel,
-    usageFlow: MutableStateFlow<Double?>,
-    quota: Pair<Long, Long>?,
-    isBillingEnabled: Boolean? = null,
-  ) {
-    usageFlow.value = quota?.let { it.first.toDouble() / it.second }
-
-    usedMinutesLabel.text = "${quota?.first?.toString() ?: "--" } mins used"
-
-    if (isBillingEnabled == true) {
-      remainingMinutesLabel.text = "Blaze Plan may incur charges"
-    } else {
-      val remainingText =
-        quota?.let {
-          val remainingMinutes = it.second - it.first
-          when {
-            remainingMinutes <= 0 -> "0"
-            remainingMinutes < 15 -> "less than 15"
-            else -> remainingMinutes.toString()
-          }
-        } ?: "--"
-      remainingMinutesLabel.text = "$remainingText mins remaining"
-    }
-  }
-
-  private fun updatePlan(planLabel: JBLabel, helpIcon: JBLabel, isBillingEnabled: Boolean?) {
-    planLabel.text = isBillingEnabled?.let { if (it) "Blaze Plan" else "Spark Plan" } ?: "Plan: -"
-
-    var description =
-      when (isBillingEnabled) {
-        true -> "This project is on the Blaze plan."
-        false -> "Spark plans provide limited usage at no cost."
-        null -> "Billing information not available."
-      }
-
-    when (isBillingEnabled) {
-      true -> description = "Blaze plans allow extended usage and is billed monthly."
-      false ->
-        description +=
-          " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
-      else -> {}
-    }
-
-    HelpTooltip()
-      .setDescription(description)
-      .applyIf(isBillingEnabled != null) {
-        val linkText =
-          when (isBillingEnabled!!) {
-            true -> "View Pricing"
-            false -> "Learn More..."
-          }
-        val link =
-          when (isBillingEnabled) {
-            true -> VIEW_PRICING_DETAILS_LINK
-            false -> "https://d.android.com/r/studio-ui/device-streaming/firebase-plans"
-          }
-        setLink(linkText) { BrowserUtil.browse(link) }
-      }
-      .installOn(helpIcon)
-  }
 
   override fun doOKAction() {
     super.doOKAction()
