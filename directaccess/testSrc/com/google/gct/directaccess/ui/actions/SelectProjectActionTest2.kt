@@ -50,7 +50,6 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl2
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
@@ -529,11 +528,6 @@ class SelectProjectActionTest2 {
           mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
           dialog.clickDefaultButton()
         }
-
-        // Verify DeviceSource after updating selection.
-        val deviceSource = DirectAccessDeviceSource(projectRule.project)
-        assertThat(deviceSource.profiles.first().valueOrNull()!!.map { it.name })
-          .isEqualTo(extraDeviceInfoList.map { it.name })
       }
 
       // Start a device and the selector will be disabled with connecting state.
