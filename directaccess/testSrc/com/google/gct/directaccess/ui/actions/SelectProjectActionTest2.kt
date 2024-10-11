@@ -841,7 +841,11 @@ class SelectProjectActionTest2 {
     Mockito.doReturn(reservationListFlow)
       .whenever(mockCloudProjectManager)
       .reservationListFlowWithException
-    Mockito.doReturn(Pair(if (outOfQuota) 70L else 60L, 70L))
+    Mockito.doAnswer {
+        if (permissionFlow.value.missingPermissions.isEmpty())
+          Pair(if (outOfQuota) 70L else 60L, 70L)
+        else null
+      }
       .whenever(mockCloudProjectManager)
       .usageQuota
 
