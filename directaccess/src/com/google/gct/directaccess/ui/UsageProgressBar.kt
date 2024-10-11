@@ -41,7 +41,7 @@ private const val DEFAULT_GAP = 3
  */
 class UsageProgressBar(
   scope: CoroutineScope,
-  @VisibleForTesting val percentage: StateFlow<Double>,
+  @VisibleForTesting val percentage: StateFlow<Double?>,
 ) : JPanel() {
 
   override fun paintComponent(g: Graphics?) {
@@ -61,13 +61,12 @@ class UsageProgressBar(
     g2d.color = JBColor.GRAY
     g2d.fillRect(0, 0, width, height)
     val p = percentage.value
-    val effectiveBarWidth = width - 2 * gap
+    val effectiveBarWidth = width - 2 * gap - radius
+    val activeBarWidth = p?.let { gap + radius + p * effectiveBarWidth }?.toInt() ?: 0
     g2d.color = JBColor.BLUE
-    g2d.fillRect(0, 0, gap + (effectiveBarWidth * p).toInt(), height)
-    if (p > 0) {
-      g2d.color = background
-      g2d.fillRect(gap + (effectiveBarWidth * p).toInt(), 0, gap, height)
-    }
+    g2d.fillRect(0, 0, activeBarWidth, height)
+    g2d.color = background
+    g2d.fillRect(activeBarWidth.coerceAtLeast(gap + radius), 0, gap, height)
     (g as Graphics2D).drawImage(buffImg, 0, 0, width, height, null)
   }
 

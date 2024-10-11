@@ -439,7 +439,7 @@ class SelectProjectActionTest2 {
           assertThat(instructionLabelWithIcon.text)
             .isEqualTo("dropdown in device manager to add new devices.")
 
-          assertThat(usageProgressBar.percentage.value).isZero()
+          assertThat(usageProgressBar.percentage.value).isNull()
           assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
           assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
           assertThat(fakePropertiesComponent[projectRule.project])
