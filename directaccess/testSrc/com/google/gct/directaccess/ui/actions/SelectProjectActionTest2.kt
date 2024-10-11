@@ -418,14 +418,23 @@ class SelectProjectActionTest2 {
               )
           }
 
-          val usedMinutesLabel =
+          val sparkUsedMinutesLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-              usedLabel.text?.endsWith("mins used") == true
+              usedLabel.text?.endsWith(" mins used") == true
             }
+
           val remainingMinutesLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
               usedLabel.text?.endsWith("mins remaining") == true
             }
+
+          val blazeUsedMinutesUnitLabel =
+            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
+              usedLabel.text == "mins used"
+            }
+          assertThat(blazeUsedMinutesUnitLabel).isNotNull()
+          val blazeUsedMinutesLabel = blazeUsedMinutesUnitLabel.parent.components[0] as JBLabel
+          val blazePricingInfoLabel = blazeUsedMinutesUnitLabel.parent.components[2] as JBLabel
 
           val usageProgressBar = dialog.rootPane.findAllDescendants<UsageProgressBar>().first()
 
@@ -440,7 +449,7 @@ class SelectProjectActionTest2 {
             .isEqualTo("dropdown in device manager to add new devices.")
 
           assertThat(usageProgressBar.percentage.value).isNull()
-          assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
+          assertThat(sparkUsedMinutesLabel.text).isEqualTo("-- mins used")
           assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
           assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
@@ -480,7 +489,7 @@ class SelectProjectActionTest2 {
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
           assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
-          waitForCondition { usedMinutesLabel.text == "60 mins used" }
+          waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
 
@@ -489,7 +498,7 @@ class SelectProjectActionTest2 {
           waitForCondition {
             cloudProjectManagerFlow.value?.cloudProject?.name == noQuotaProjectName
           }
-          waitForCondition { usedMinutesLabel.text == "70 mins used" }
+          waitForCondition { sparkUsedMinutesLabel.text == "70 mins used" }
           waitForCondition { remainingMinutesLabel.text == "0 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(1.0)
 
@@ -502,8 +511,8 @@ class SelectProjectActionTest2 {
               .getHelpToolTipText()
               .contains("Blaze plans allow extended usage and is billed monthly.")
           }
-          waitForCondition { usedMinutesLabel.text == "60 mins used" }
-          waitForCondition { remainingMinutesLabel.text == "Blaze Plan may incur charges" }
+          waitForCondition { blazeUsedMinutesLabel.text == "60" }
+          waitForCondition { blazePricingInfoLabel.text == "Blaze Plan may incur charges" }
 
           // Select a spark project that supports direct access with monthly quota.
           comboBox.model.selectedItem = supportedProjectName
@@ -522,7 +531,7 @@ class SelectProjectActionTest2 {
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
           assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
-          waitForCondition { usedMinutesLabel.text == "60 mins used" }
+          waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
           mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
