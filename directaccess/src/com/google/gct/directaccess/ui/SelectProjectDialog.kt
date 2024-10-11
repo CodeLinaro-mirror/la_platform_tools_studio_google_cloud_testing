@@ -94,6 +94,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   init {
     setOKButtonText("Done")
     title = "Configure Device Streaming"
+    okAction.putValue(Action.NAME, "Confirm")
     init()
   }
 
@@ -484,6 +485,6 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
   /** This dialog only shows the OK action that does nothing. */
   override fun createActions(): Array<Action> {
-    return arrayOf(okAction)
+    return arrayOf(cancelAction, okAction)
   }
 }

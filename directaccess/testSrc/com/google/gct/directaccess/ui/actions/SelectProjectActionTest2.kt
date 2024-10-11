@@ -227,6 +227,8 @@ class SelectProjectActionTest2 {
       Mockito.doReturn(mockDeviceSelectionListFlow)
         .whenever(mockDirectAccessService)
         .deviceSelectionListFlow
+
+      val lastSelectedProject = MutableStateFlow<String?>(null)
       Mockito.doAnswer {
           val cloudProjectName = it.arguments[0] as? String
           cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
