@@ -163,7 +163,7 @@ public class GoogleCloudTestResultsConnectionUtil {
                                                        @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
     //build messages consumer
     final OutputToGoogleCloudTestEventsConverter
-      outputConsumer = new OutputToGoogleCloudTestEventsConverter(testFrameworkName, consoleProperties);
+      outputConsumer = new OutputToGoogleCloudTestEventsConverter(testFrameworkName);
 
     //events processor
     final GoogleCloudTestEventsProcessor eventsProcessor;

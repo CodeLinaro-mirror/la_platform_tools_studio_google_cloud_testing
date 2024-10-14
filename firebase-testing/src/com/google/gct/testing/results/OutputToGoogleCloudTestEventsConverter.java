@@ -20,7 +20,7 @@ import com.google.gct.testing.results.events.*;
 import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.sm.runner.GeneralToSMTRunnerEventsConvertor;
-import com.intellij.execution.testframework.sm.runner.OutputLineSplitter;
+import com.intellij.execution.testframework.sm.runner.OutputEventSplitter;
 import com.intellij.execution.testframework.sm.runner.events.TestSuiteFinishedEvent;
 import com.intellij.execution.testframework.sm.runner.events.TestSuiteStartedEvent;
 import com.intellij.openapi.diagnostic.Logger;
@@ -37,9 +37,9 @@ import java.util.Map;
 import static com.google.gct.testing.CloudTestingUtils.ConfigurationStopReason;
 
 /**
- *         This implementation also supports messages splitted in parts by early flush.
+ *         This implementation also supports messages split in parts by early flush.
  *         Implementation assumes that buffer is being flushed on line end or by timer,
- *         i.e. incomming text contains no more than one line's end marker ('\r', '\n', or "\r\n")
+ *         i.e. incoming text contains no more than one line's end marker ('\r', '\n', or "\r\n")
  *         (e.g. process was run with IDEA program's runner)
  */
 public class OutputToGoogleCloudTestEventsConverter implements GoogleCloudTestingProcessOutputConsumer {
@@ -49,18 +49,17 @@ public class OutputToGoogleCloudTestEventsConverter implements GoogleCloudTestin
   private final MyServiceMessageVisitor myServiceMessageVisitor;
   private final String myTestFrameworkName;
 
-  private final OutputLineSplitter mySplitter;
+  private final OutputEventSplitter mySplitter;
   private boolean myPendingLineBreakFlag;
 
-  public OutputToGoogleCloudTestEventsConverter(@NotNull final String testFrameworkName,
-                                                @NotNull final TestConsoleProperties consoleProperties) {
+  public OutputToGoogleCloudTestEventsConverter(@NotNull final String testFrameworkName) {
     myTestFrameworkName = testFrameworkName;
     myServiceMessageVisitor = new MyServiceMessageVisitor();
 
-    mySplitter = new OutputLineSplitter(consoleProperties.isEditable()) {
+    mySplitter = new OutputEventSplitter(true, true) {
       @Override
-      protected void onLineAvailable(@NotNull String text, @NotNull Key outputType, boolean tcLikeFakeOutput) {
-        processConsistentText(text, outputType, tcLikeFakeOutput);
+      public void onTextAvailable(@NotNull String text, @NotNull Key<?> outputType) {
+        processConsistentText(text, outputType);
       }
     };
   }
@@ -95,7 +94,7 @@ public class OutputToGoogleCloudTestEventsConverter implements GoogleCloudTestin
     fireOnUncapturedOutput("\n", ProcessOutputTypes.STDOUT);
   }
 
-  private void processConsistentText(final String text, final Key outputType, boolean tcLikeFakeOutput) {
+  private void processConsistentText(final String text, final Key outputType) {
     try {
       if (!processServiceMessages(text, outputType, myServiceMessageVisitor)) {
         if (myPendingLineBreakFlag) {
@@ -106,16 +105,16 @@ public class OutputToGoogleCloudTestEventsConverter implements GoogleCloudTestin
         }
         // Filters \n
         String outputToProcess = text;
-        if (tcLikeFakeOutput && text.endsWith("\n")) {
+        if (text.endsWith("\n")) {
           // ServiceMessages protocol requires that every message
-          // should start with new line, so such behaviour may led to generating
+          // should start with new line, so such behaviour may lead to generating
           // some number of useless \n.
           //
           // IDEA process handler flush output by size or line break
           // So:
           //  1. "a\n\nb\n" -> ["a\n", "\n", "b\n"]
           //  2. "a\n##teamcity[..]\n" -> ["a\n", "#teamcity[..]\n"]
-          // We need distinguish 1) and 2) cases, in 2) first linebreak is redundant and must be ignored
+          // We need to distinguish 1) and 2) cases, in 2) first linebreak is redundant and must be ignored
           // in 2) linebreak must be considered as output
           // output will be in TestOutput message
           // Lets set myPendingLineBreakFlag if we meet "\n" and then ignore it or apply depending on
