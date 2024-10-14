@@ -20,9 +20,9 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.toMutableStateMap
 import androidx.compose.ui.unit.dp
 import com.android.tools.idea.adddevicedialog.ComposeWizard
-import com.android.tools.idea.adddevicedialog.DefaultDeviceGridPage
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
 import com.android.tools.idea.adddevicedialog.DeviceProfile
+import com.android.tools.idea.adddevicedialog.DeviceTable
 import com.android.tools.idea.adddevicedialog.DeviceTableColumns
 import com.android.tools.idea.adddevicedialog.FormFactor
 import com.android.tools.idea.adddevicedialog.Manufacturer
@@ -62,12 +62,12 @@ internal fun createAddDirectAccessDeviceDialog(
   return ComposeWizard(project, "Add Remote Device") {
     val filterState = getOrCreateState { RemoteDeviceFilterState() }
     val rows = profiles.keys.toList()
-    DefaultDeviceGridPage(
+
+    DeviceTable(
       rows,
       persistentListOf(selectionColumn).plus(directAccessColumns),
       filterContent = { RemoteDeviceFilters(rows, filterState) },
       filterState = filterState,
-      onSelectionUpdated = {},
     )
 
     nextAction = WizardAction.Disabled
