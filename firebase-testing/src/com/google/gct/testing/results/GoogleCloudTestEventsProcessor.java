@@ -24,6 +24,7 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Condition;
+import com.intellij.openapi.util.Conditions;
 import com.intellij.openapi.util.Key;
 import com.intellij.util.Processor;
 import com.intellij.util.containers.TransferToEDTQueue;
@@ -119,7 +120,7 @@ public abstract class GoogleCloudTestEventsProcessor implements Disposable {
   }
 
   public Condition getDisposedCondition() {
-    return Condition.FALSE;
+    return Conditions.alwaysFalse();
   }
 
   /**
