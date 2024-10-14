@@ -27,12 +27,12 @@ import org.jetbrains.annotations.NotNull;
 )
 public class GoogleCloudTestingDeveloperSettings implements PersistentStateComponent<GoogleCloudTestingDeveloperConfigurable.GoogleCloudTestingDeveloperState> {
 
-  private final PsiModificationTrackerImpl myTracker;
+  private final PsiManager myPsiManager;
 
   private GoogleCloudTestingDeveloperConfigurable.GoogleCloudTestingDeveloperState myGoogleCloudTestingDeveloperState;
 
   protected GoogleCloudTestingDeveloperSettings(Project project) {
-    myTracker = (PsiModificationTrackerImpl)PsiManager.getInstance(project).getModificationTracker();
+    myPsiManager = PsiManager.getInstance(project);
   }
 
   public static GoogleCloudTestingDeveloperSettings getInstance(Project project) {
@@ -53,7 +53,7 @@ public class GoogleCloudTestingDeveloperSettings implements PersistentStateCompo
     GoogleCloudTestingDeveloperConfigurable.GoogleCloudTestingDeveloperState oldState = myGoogleCloudTestingDeveloperState;
     myGoogleCloudTestingDeveloperState = state;
     if (oldState != null) {
-      myTracker.incCounter();
+      myPsiManager.dropPsiCaches();
     }
   }
 
