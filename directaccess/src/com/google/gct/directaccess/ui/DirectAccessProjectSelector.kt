@@ -268,7 +268,7 @@ class DirectAccessProjectSelectorImpl2(
       chooseProjectPanel.add(JBLabel("Project:"))
       chooseProjectPanel.add(this@DirectAccessProjectSelectorImpl2)
       add(chooseProjectPanel)
-      add(createProjectMessagePanel)
+      add(createProjectMessagePanel.apply { isVisible = false })
     }
 
   private val uiDispatcher: CoroutineDispatcher
@@ -283,7 +283,7 @@ class DirectAccessProjectSelectorImpl2(
 
   private fun showCard(card: String) {
     (layout as CardLayout).show(this, card)
-    createProjectMessagePanel.isVisible = card != projectSelectorCard
+    createProjectMessagePanel.isVisible = card == noProjectsCard
   }
 
   private fun CoroutineScope.refreshProjects() = launch {
