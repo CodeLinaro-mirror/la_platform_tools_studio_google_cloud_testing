@@ -34,10 +34,6 @@ import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
-import com.android.testutils.MockitoKt
-import com.android.testutils.MockitoKt.any
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
@@ -135,10 +131,12 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
-import org.mockito.Mockito
-import org.mockito.Mockito.doAnswer
-import org.mockito.Mockito.doReturn
-import org.mockito.Mockito.verify
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 class DirectAccessDeviceProvisionerTest {
 
@@ -186,9 +184,7 @@ class DirectAccessDeviceProvisionerTest {
       .replaceService(DirectAccessUsageTracker::class.java, usageTracker, projectRule.disposable)
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(listOf<DeviceInfo>())
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(null)
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null)).thenReturn(listOf())
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -232,14 +228,15 @@ class DirectAccessDeviceProvisionerTest {
     val cloudProjectName = "test-project"
     val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
     val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
-    doReturn(CloudProjectEntry("", cloudProjectName)).whenever(mockCloudProjectManager).cloudProject
+    whenever(mockCloudProjectManager.cloudProject)
+      .thenReturn(CloudProjectEntry("", cloudProjectName))
     val deviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
-    doReturn(deviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
-    doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
-    doReturn(scope).whenever(mockDirectAccessService).scope
+    whenever(mockDirectAccessService.deviceSelectionListFlow).thenReturn(deviceSelectionListFlow)
+    whenever(mockDirectAccessService.cloudProjectManager).thenReturn(cloudProjectManagerFlow)
+    whenever(mockDirectAccessService.scope).thenReturn(scope)
     doAnswer { runBlocking { fakeConnection.endReservation(true) } }
       .whenever(mockDirectAccessService)
-      .selectCloudProject(MockitoKt.eq(null))
+      .selectCloudProject(eq(null))
     projectRule.project.replaceService(
       DirectAccessService::class.java,
       mockDirectAccessService,
@@ -260,17 +257,18 @@ class DirectAccessDeviceProvisionerTest {
           Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
-    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
+    whenever(mockCloudProjectManager.reservationListFlowWithException)
+      .thenReturn(reservationListFlow)
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) { deviceInfoListProvider() }
-    doReturn(accessibleDeviceInfoListFlow)
-      .whenever(mockCloudProjectManager)
-      .accessibleDeviceInfoListFlow
-    doReturn(directAccessReservationManager).whenever(mockCloudProjectManager).reservationManager
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow)
+      .thenReturn(accessibleDeviceInfoListFlow)
+    whenever(mockCloudProjectManager.reservationManager).thenReturn(directAccessReservationManager)
 
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
-    doReturn(mockDirectAccessConnectionManager).whenever(mockCloudProjectManager).connectionManager
+    whenever(mockCloudProjectManager.connectionManager)
+      .thenReturn(mockDirectAccessConnectionManager)
 
     // Sets up connectionManager.
     doAnswer {
@@ -1737,17 +1735,16 @@ class DirectAccessDeviceProvisionerTest {
   private fun setupMockContentForRunningDevicePanel(
     bannerNotificationHolder: MutableList<EditorNotificationPanel>
   ): Content {
-    val mockStreamingDevicePanel = Mockito.mock(StreamingDevicePanel::class.java)
-    doReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
-      .whenever(mockStreamingDevicePanel)
-      .id
+    val mockStreamingDevicePanel = mock<StreamingDevicePanel>()
+    whenever(mockStreamingDevicePanel.id)
+      .thenReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
     doAnswer { bannerNotificationHolder.add(it.arguments[0] as EditorNotificationPanel) }
       .whenever(mockStreamingDevicePanel)
       .addNotification(any())
     doAnswer { bannerNotificationHolder.remove(it.arguments[0] as EditorNotificationPanel) }
       .whenever(mockStreamingDevicePanel)
       .removeNotification(any())
-    val mockContent = Mockito.mock(Content::class.java)
+    val mockContent = mock<Content>()
     doAnswer { mockStreamingDevicePanel }.whenever(mockContent).component
     return mockContent
   }

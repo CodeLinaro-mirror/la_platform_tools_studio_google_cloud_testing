@@ -19,9 +19,6 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
-import com.android.testutils.MockitoKt.any
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
@@ -57,7 +54,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
-import org.mockito.Mockito.doReturn
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class DirectAccessMultiProjectTest {
   private val service = FakeDirectAccessGrpcService()
@@ -96,7 +95,7 @@ class DirectAccessMultiProjectTest {
     )
 
     val mockAdbLibApplicationService = mock<AdbLibApplicationService>()
-    doReturn(session).whenever(mockAdbLibApplicationService).session
+    whenever(mockAdbLibApplicationService.session).thenReturn(session)
     ApplicationManager.getApplication()
       .replaceService(
         AdbLibApplicationService::class.java,
@@ -105,11 +104,10 @@ class DirectAccessMultiProjectTest {
       )
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(TestUtils.deviceInfoListProvider())
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(any())
-    doReturn(grpcConnectionRule.channel).whenever(mockDirectAccessServiceSetup).channel
-    doReturn("testToken").whenever(mockDirectAccessServiceSetup).fetchAccessToken()
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(any()))
+      .thenReturn(TestUtils.deviceInfoListProvider())
+    whenever(mockDirectAccessServiceSetup.channel).thenReturn(grpcConnectionRule.channel)
+    whenever(mockDirectAccessServiceSetup.fetchAccessToken()).thenReturn("testToken")
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -120,10 +118,9 @@ class DirectAccessMultiProjectTest {
     val mockPersistentService = mock<DirectAccessPersistentStateComponent>()
     val fakePersistentState =
       DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
-    doReturn(fakePersistentState).whenever(mockPersistentService).state
-    doReturn(fakePersistentState.selectedCloudProject)
-      .whenever(mockPersistentService)
-      .compatibleSelectedCloudProject
+    whenever(mockPersistentService.state).thenReturn(fakePersistentState)
+    whenever(mockPersistentService.compatibleSelectedCloudProject)
+      .thenReturn(fakePersistentState.selectedCloudProject)
 
     project1.replaceService(
       DirectAccessPersistentStateComponent::class.java,
