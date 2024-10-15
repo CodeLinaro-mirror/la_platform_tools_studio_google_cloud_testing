@@ -23,8 +23,6 @@ import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceType
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.waitForCondition
 import com.android.tools.adtui.swing.HeadlessDialogRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
@@ -89,7 +87,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
@@ -101,7 +98,8 @@ import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.Mockito.any
 import org.mockito.Mockito.doAnswer
-import org.mockito.Mockito.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 private const val SELECT_PROJECT_ID = "SelectProjectAction"
 private val TIMEOUT = 100.seconds
@@ -171,9 +169,8 @@ class SelectProjectActionTest {
   @Before
   fun setUp() {
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(deviceInfoListProvider())
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(null)
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null))
+      .thenReturn(deviceInfoListProvider())
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -193,8 +190,8 @@ class SelectProjectActionTest {
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
     val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
-    doReturn(devices).whenever(mockProvisioner).devices
-    doReturn(mockProvisioner).whenever(mockDeviceProvisionerService).deviceProvisioner
+    whenever(mockProvisioner.devices).thenReturn(devices)
+    whenever(mockDeviceProvisionerService.deviceProvisioner).thenReturn(mockProvisioner)
     projectRule.project.replaceService(
       DeviceProvisionerService::class.java,
       mockDeviceProvisionerService,
@@ -202,10 +199,11 @@ class SelectProjectActionTest {
     )
 
     val mockDirectAccessService = mock<DirectAccessService>()
-    doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
-    doReturn(scope).whenever(mockDirectAccessService).scope
+    whenever(mockDirectAccessService.cloudProjectManager).thenReturn(cloudProjectManagerFlow)
+    whenever(mockDirectAccessService.scope).thenReturn(scope)
     val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
-    doReturn(mockDeviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
+    whenever(mockDirectAccessService.deviceSelectionListFlow)
+      .thenReturn(mockDeviceSelectionListFlow)
     doAnswer {
         val cloudProjectName = it.arguments[0] as? String
         cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
@@ -489,13 +487,13 @@ class SelectProjectActionTest {
     // Start a device and the selector will be disabled with connecting state.
     val mockConnectingDeviceHandle = mock<DirectAccessDeviceHandle>()
     val mockState = mock<DeviceState.Disconnected>()
-    doReturn(true).whenever(mockState).isTransitioning
-    doReturn(mockState).whenever(mockConnectingDeviceHandle).state
+    whenever(mockState.isTransitioning).thenReturn(true)
+    whenever(mockConnectingDeviceHandle.state).thenReturn(mockState)
     devices.value = listOf(mockConnectingDeviceHandle)
 
     // Start a device and the selector will be disabled with connected state.
     val mockDeviceHandle = mock<DirectAccessDeviceHandle>()
-    doReturn(mock<DeviceState.Connected>()).whenever(mockDeviceHandle).state
+    whenever(mockDeviceHandle.state).thenReturn(mock<DeviceState.Connected>())
     devices.value = listOf(mockDeviceHandle)
 
     withContext(AndroidDispatchers.uiThread) {
@@ -523,9 +521,8 @@ class SelectProjectActionTest {
       )
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(deviceInfoListProvider() + preselectedDeviceInfo)
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(null)
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null))
+      .thenReturn(deviceInfoListProvider() + preselectedDeviceInfo)
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -535,8 +532,8 @@ class SelectProjectActionTest {
     val devices = MutableStateFlow(listOf<DeviceHandle>())
     val mockProvisioner = mock<DeviceProvisioner>()
     val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
-    doReturn(devices).whenever(mockProvisioner).devices
-    doReturn(mockProvisioner).whenever(mockDeviceProvisionerService).deviceProvisioner
+    whenever(mockProvisioner.devices).thenReturn(devices)
+    whenever(mockDeviceProvisionerService.deviceProvisioner).thenReturn(mockProvisioner)
     projectRule.project.replaceService(
       DeviceProvisionerService::class.java,
       mockDeviceProvisionerService,
@@ -544,10 +541,11 @@ class SelectProjectActionTest {
     )
 
     val mockDirectAccessService = mock<DirectAccessService>()
-    doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
-    doReturn(scope).whenever(mockDirectAccessService).scope
+    whenever(mockDirectAccessService.cloudProjectManager).thenReturn(cloudProjectManagerFlow)
+    whenever(mockDirectAccessService.scope).thenReturn(scope)
     val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
-    doReturn(mockDeviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
+    whenever(mockDirectAccessService.deviceSelectionListFlow)
+      .thenReturn(mockDeviceSelectionListFlow)
     doAnswer {
         mockDeviceSelectionListFlow.update {
           it.map { selection ->
@@ -759,7 +757,7 @@ class SelectProjectActionTest {
       return null
     }
     val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
-    doReturn(CloudProjectEntry("", name)).whenever(mockCloudProjectManager).cloudProject
+    whenever(mockCloudProjectManager.cloudProject).thenReturn(CloudProjectEntry("", name))
     val directAccessReservationManager =
       object : FakeDirectAccessReservationManager() {
         override fun listReservations(): List<Reservation> {
@@ -767,25 +765,25 @@ class SelectProjectActionTest {
           throw RuntimeException("unauthorized")
         }
       }
-    doReturn(directAccessReservationManager).whenever(mockCloudProjectManager).reservationManager
+    whenever(mockCloudProjectManager.reservationManager).thenReturn(directAccessReservationManager)
 
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
         if (isAuthorized) Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, exceptionToThrow)
       }
-    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
-    doReturn(Pair(if (outOfQuota) 70L else 60L, 70L)).whenever(mockCloudProjectManager).usageQuota
-
+    @Suppress("UNCHECKED_CAST")
+    whenever(mockCloudProjectManager.reservationListFlowWithException)
+      .thenReturn(reservationListFlow as RefreshableStateFlow<Pair<List<Reservation>?, Exception?>>)
+    whenever(mockCloudProjectManager.usageQuota).thenReturn(Pair(if (outOfQuota) 70L else 60L, 70L))
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
         if (isAuthorized) deviceInfoListProvider() + preselectedDeviceInfo else listOf()
       }
-    doReturn(accessibleDeviceInfoListFlow)
-      .whenever(mockCloudProjectManager)
-      .accessibleDeviceInfoListFlow
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow)
+      .thenReturn(accessibleDeviceInfoListFlow)
 
-    doReturn(permissionFlow).whenever(mockCloudProjectManager).permissionFlow
+    whenever(mockCloudProjectManager.permissionFlow).thenReturn(permissionFlow)
 
     val isBillingEnabledFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
@@ -796,7 +794,7 @@ class SelectProjectActionTest {
           else -> null
         }
       }
-    doReturn(isBillingEnabledFlow).whenever(mockCloudProjectManager).isBillingEnabledFlow
+    whenever(mockCloudProjectManager.isBillingEnabledFlow).thenReturn(isBillingEnabledFlow)
     return mockCloudProjectManager
   }
 }

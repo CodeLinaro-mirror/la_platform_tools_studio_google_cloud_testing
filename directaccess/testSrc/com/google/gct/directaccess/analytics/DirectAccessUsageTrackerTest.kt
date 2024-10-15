@@ -22,9 +22,6 @@ import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
-import com.android.testutils.MockitoKt.any
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
@@ -101,7 +98,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.Mockito.doAnswer
-import org.mockito.Mockito.doReturn
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class DirectAccessUsageTrackerTest {
 
@@ -159,9 +158,8 @@ class DirectAccessUsageTrackerTest {
 
   private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(listOf<DeviceInfo>())
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(null)
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null))
+      .thenReturn(listOf<DeviceInfo>())
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -173,11 +171,12 @@ class DirectAccessUsageTrackerTest {
     val cloudProjectName = "test-project"
     val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
     val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
-    doReturn(CloudProjectEntry("", cloudProjectName)).whenever(mockCloudProjectManager).cloudProject
+    whenever(mockCloudProjectManager.cloudProject)
+      .thenReturn(CloudProjectEntry("", cloudProjectName))
     val deviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
     var isProjectClosing = false
-    doReturn(deviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
-    doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
+    whenever(mockDirectAccessService.deviceSelectionListFlow).thenReturn(deviceSelectionListFlow)
+    whenever(mockDirectAccessService.cloudProjectManager).thenReturn(cloudProjectManagerFlow)
     doAnswer { isProjectClosing }.whenever(mockDirectAccessService).isProjectClosing
     application.messageBus
       .connect(projectRule.disposable)
@@ -211,17 +210,18 @@ class DirectAccessUsageTrackerTest {
           Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
-    doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
+    whenever(mockCloudProjectManager.reservationListFlowWithException)
+      .thenReturn(reservationListFlow)
 
     val accessibleDeviceInfoListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) { TestUtils.deviceInfoListProvider() }
-    doReturn(accessibleDeviceInfoListFlow)
-      .whenever(mockCloudProjectManager)
-      .accessibleDeviceInfoListFlow
-    doReturn(directAccessReservationManager).whenever(mockCloudProjectManager).reservationManager
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow)
+      .thenReturn(accessibleDeviceInfoListFlow)
+    whenever(mockCloudProjectManager.reservationManager).thenReturn(directAccessReservationManager)
 
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
-    doReturn(mockDirectAccessConnectionManager).whenever(mockCloudProjectManager).connectionManager
+    whenever(mockCloudProjectManager.connectionManager)
+      .thenReturn(mockDirectAccessConnectionManager)
 
     // Sets up connectionManager.
     doAnswer {

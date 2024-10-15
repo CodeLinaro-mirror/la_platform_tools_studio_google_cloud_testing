@@ -15,7 +15,6 @@
  */
 package com.google.gct.directaccess.rule
 
-import com.android.testutils.MockitoKt
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.testing.disposable
 import com.intellij.openapi.project.Project
@@ -30,6 +29,9 @@ import com.intellij.ui.content.ContentManager
 import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
 import org.junit.rules.ExternalResource
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class FakeToolWindowRule(private val projectRule: ProjectRule) : ExternalResource() {
 
@@ -59,7 +61,7 @@ private class FakeToolWindowManager(
 }
 
 class FakeToolWindow(project: Project) : ToolWindowHeadlessManagerImpl.MockToolWindow(project) {
-  private val contentManager = MockitoKt.mock<ContentManager>()
+  private val contentManager = mock<ContentManager>()
   private val contents = mutableListOf<Content>()
   private val listeners = mutableListOf<ContentManagerListener>()
   private var selectedContent: Content? = null
@@ -70,8 +72,8 @@ class FakeToolWindow(project: Project) : ToolWindowHeadlessManagerImpl.MockToolW
     }
 
   init {
-    MockitoKt.whenever(contentManager.contents).thenAnswer { contents.toTypedArray() }
-    MockitoKt.whenever(contentManager.addContent(MockitoKt.any())).then {
+    whenever(contentManager.contents).thenAnswer { contents.toTypedArray() }
+    whenever(contentManager.addContent(any())).thenAnswer {
       // Event for content about to be unselected
       val content = it.arguments[0] as Content
       contents.add(content)
@@ -80,12 +82,12 @@ class FakeToolWindow(project: Project) : ToolWindowHeadlessManagerImpl.MockToolW
       Any()
     }
 
-    MockitoKt.whenever(contentManager.setSelectedContent(MockitoKt.any())).then {
+    whenever(contentManager.setSelectedContent(any())).thenAnswer {
       selectedContent = it.arguments[0] as Content
       // then requires a return value that is not provided by the setter above
       Any()
     }
-    MockitoKt.whenever(contentManager.selectedContent).thenAnswer { selectedContent }
+    whenever(contentManager.selectedContent).thenAnswer { selectedContent }
   }
 
   override fun getContentManager() = contentManager
