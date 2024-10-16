@@ -30,6 +30,7 @@ data class DeviceInfo(
   val codename: String,
   val api: Int,
   val type: DeviceType,
+  val formFactor: String,
   val screenX: Int,
   val screenY: Int,
   val screenDensity: Int,

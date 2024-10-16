@@ -21,6 +21,7 @@ import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceType as ProvisionerDeviceType
 import com.android.tools.idea.adblib.AdbLibApplicationService
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
@@ -74,6 +75,7 @@ class DirectAccessPersistentStateComponentTest {
       "codename1",
       31,
       ProvisionerDeviceType.HANDHELD,
+      FormFactors.PHONE,
       100,
       200,
       300,
@@ -91,6 +93,7 @@ class DirectAccessPersistentStateComponentTest {
       "codename1",
       31,
       DeviceType.PHONE,
+      FormFactors.PHONE,
       100,
       200,
       300,

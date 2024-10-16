@@ -28,6 +28,7 @@ import com.android.tools.adtui.swing.HeadlessDialogRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
@@ -159,6 +160,7 @@ class SelectProjectActionTest {
       codename = "shiba",
       api = 34,
       type = DeviceType.HANDHELD,
+      formFactor = FormFactors.PHONE,
       screenX = 1080,
       screenY = 2400,
       screenDensity = 420,

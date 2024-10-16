@@ -16,6 +16,7 @@
 package com.google.gct.directaccess
 
 import com.android.sdklib.deviceprovisioner.DeviceType as ProvisionerDeviceType
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.intellij.openapi.components.BaseState
@@ -98,6 +99,7 @@ data class PersistentDeviceSelectionData(
   var codename: String = "",
   var api: Int = 0,
   var type: DeviceType = DeviceType.PHONE,
+  var formFactor: String = FormFactors.PHONE,
   var screenX: Int = 0,
   var screenY: Int = 0,
   var screenDensity: Int = 0,
@@ -114,6 +116,7 @@ data class PersistentDeviceSelectionData(
         codename,
         api,
         type.toProvisionerDeviceType(),
+        formFactor,
         screenX,
         screenY,
         screenDensity,
@@ -136,6 +139,7 @@ fun DeviceInfo.createPersistentDeviceSelectionData(isSelected: Boolean) =
     codename,
     api,
     type.toSerializationDeviceType(),
+    formFactor,
     screenX,
     screenY,
     screenDensity,
