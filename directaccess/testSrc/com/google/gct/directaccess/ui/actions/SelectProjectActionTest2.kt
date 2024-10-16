@@ -73,6 +73,7 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
+import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.components.JBLabel
 import icons.FirebaseIcons
 import icons.StudioIcons
@@ -380,7 +381,7 @@ class SelectProjectActionTest2 {
           val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           val errorLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
-              label.icon == StudioIcons.Common.ERROR
+              label.icon == StudioIcons.Common.ERROR || label.icon is AnimatedIcon
             }
           val planTooltipLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
@@ -405,6 +406,7 @@ class SelectProjectActionTest2 {
                   permissionFlow.value.missingPermissions.joinToString("")
               )
           }
+          assertThat(errorLabel.icon).isEqualTo(StudioIcons.Common.ERROR)
 
           // Select a project with a mix of permission
           comboBox.model.selectedItem = unknownPermissionTestProject
