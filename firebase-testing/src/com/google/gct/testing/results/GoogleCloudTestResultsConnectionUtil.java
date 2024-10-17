@@ -20,22 +20,19 @@ import com.intellij.execution.Location;
 import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessHandler;
-import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.sm.FileUrlProvider;
+import com.intellij.execution.testframework.sm.runner.SMTRunnerConsoleProperties;
 import com.intellij.execution.testframework.sm.runner.SMTestLocator;
 import com.intellij.execution.testframework.sm.runner.TestProxyFilterProvider;
 import com.intellij.execution.testframework.sm.runner.TestProxyPrinterProvider;
-import com.intellij.execution.testframework.sm.runner.ui.AttachToProcessListener;
 import com.intellij.execution.testframework.ui.BaseTestsOutputConsoleView;
-import com.intellij.openapi.extensions.Extensions;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.testIntegration.TestLocationProvider;
 import com.intellij.util.io.URLUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -78,31 +75,6 @@ public class GoogleCloudTestResultsConnectionUtil {
     return console;
   }
 
-  public static BaseTestsOutputConsoleView createConsoleWithCustomLocator(@NotNull final String testFrameworkName,
-                                                                          @NotNull final TestConsoleProperties consoleProperties,
-                                                                          @Nullable final TestLocationProvider locator,
-                                                                          @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
-    return createConsoleWithCustomLocator(testFrameworkName,
-                                          consoleProperties,
-                                          new CompositeTestLocationProvider(locator),
-                                          false,
-                                          null,
-                                          matrixExecutionCancellator);
-  }
-
-  public static GoogleCloudTestingConsoleView createConsoleWithCustomLocator(@NotNull final String testFrameworkName,
-                                                                    @NotNull final TestConsoleProperties consoleProperties,
-                                                                    @Nullable final SMTestLocator locator,
-                                                                    final boolean idBasedTreeConstruction,
-                                                                    @Nullable final TestProxyFilterProvider filterProvider,
-                                                                    @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
-    String splitterPropertyName = getSplitterPropertyName(testFrameworkName);
-    GoogleCloudTestingConsoleView consoleView = new GoogleCloudTestingConsoleView(consoleProperties,
-                                                                splitterPropertyName);
-    initConsoleView(consoleView, testFrameworkName, locator, idBasedTreeConstruction, filterProvider, matrixExecutionCancellator);
-    return consoleView;
-  }
-
   @NotNull
   public static String getSplitterPropertyName(@NotNull String testFrameworkName) {
     return testFrameworkName + ".Splitter.Proportion";
@@ -114,23 +86,20 @@ public class GoogleCloudTestResultsConnectionUtil {
                                      final boolean idBasedTreeConstruction,
                                      @Nullable final TestProxyFilterProvider filterProvider,
                                      @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
-    consoleView.addAttachToProcessListener(new AttachToProcessListener() {
-      @Override
-      public void onAttachToProcess(@NotNull ProcessHandler processHandler) {
-        TestProxyPrinterProvider printerProvider = null;
-        if (filterProvider != null) {
-          printerProvider = new TestProxyPrinterProvider(consoleView, filterProvider);
-        }
-        GoogleCloudTestingResultsForm resultsForm = consoleView.getResultsViewer();
-        attachEventsProcessors(consoleView.getProperties(),
-                               resultsForm,
-                               processHandler,
-                               testFrameworkName,
-                               locator,
-                               idBasedTreeConstruction,
-                               printerProvider,
-                               matrixExecutionCancellator);
+    consoleView.addAttachToProcessListener(processHandler -> {
+      TestProxyPrinterProvider printerProvider = null;
+      if (filterProvider != null) {
+        printerProvider = new TestProxyPrinterProvider(consoleView, filterProvider);
       }
+      GoogleCloudTestingResultsForm resultsForm = consoleView.getResultsViewer();
+      attachEventsProcessors(consoleView.getProperties(),
+                             resultsForm,
+                             processHandler,
+                             testFrameworkName,
+                             locator,
+                             idBasedTreeConstruction,
+                             printerProvider,
+                             matrixExecutionCancellator);
     });
     consoleView.setHelpId("reference.runToolWindow.testResultsTab");
     consoleView.initUI();
@@ -140,7 +109,12 @@ public class GoogleCloudTestResultsConnectionUtil {
                                                          @NotNull final TestConsoleProperties consoleProperties,
                                                          @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
 
-    return createConsoleWithCustomLocator(testFrameworkName, consoleProperties, null, matrixExecutionCancellator);
+    String splitterPropertyName = getSplitterPropertyName(testFrameworkName);
+    GoogleCloudTestingConsoleView consoleView = new GoogleCloudTestingConsoleView(consoleProperties,
+                                                                                  splitterPropertyName);
+    SMTestLocator locator = new CompositeTestLocationProvider(((SMTRunnerConsoleProperties) consoleProperties).getTestLocator());
+    initConsoleView(consoleView, testFrameworkName, locator, false, null, matrixExecutionCancellator);
+    return consoleView;
   }
 
   /**
@@ -150,7 +124,7 @@ public class GoogleCloudTestResultsConnectionUtil {
    * @return true if in debug mode, otherwise false.
    */
   public static boolean isInDebugMode() {
-    return Boolean.valueOf(System.getProperty(TEST_RUNNER_DEBUG_MODE_PROPERTY));
+    return Boolean.parseBoolean(System.getProperty(TEST_RUNNER_DEBUG_MODE_PROPERTY));
   }
 
   private static void attachEventsProcessors(@NotNull final TestConsoleProperties consoleProperties,
@@ -163,7 +137,7 @@ public class GoogleCloudTestResultsConnectionUtil {
                                                        @NotNull final CloudMatrixExecutionCancellator matrixExecutionCancellator) {
     //build messages consumer
     final OutputToGoogleCloudTestEventsConverter
-      outputConsumer = new OutputToGoogleCloudTestEventsConverter(testFrameworkName, consoleProperties);
+      outputConsumer = new OutputToGoogleCloudTestEventsConverter(testFrameworkName);
 
     //events processor
     final GoogleCloudTestEventsProcessor eventsProcessor;
@@ -216,13 +190,10 @@ public class GoogleCloudTestResultsConnectionUtil {
   }
 
   public static class CompositeTestLocationProvider implements SMTestLocator {
-    @SuppressWarnings("deprecation") private final TestLocationProvider myPrimaryLocator;
-    @SuppressWarnings("deprecation") private final TestLocationProvider[] myLocators;
+    private final SMTestLocator myPrimaryLocator;
 
-    @SuppressWarnings("deprecation")
-    public CompositeTestLocationProvider(@Nullable TestLocationProvider primaryLocator) {
+    public CompositeTestLocationProvider(@Nullable SMTestLocator primaryLocator) {
       myPrimaryLocator = primaryLocator;
-      myLocators = Extensions.getExtensions(TestLocationProvider.EP_NAME);
     }
 
     @NotNull
@@ -231,7 +202,7 @@ public class GoogleCloudTestResultsConnectionUtil {
       boolean isDumbMode = DumbService.isDumb(project);
 
       if (myPrimaryLocator != null && (!isDumbMode || myPrimaryLocator instanceof DumbAware)) {
-        List<Location> locations = myPrimaryLocator.getLocation(protocol, path, project);
+        List<Location> locations = myPrimaryLocator.getLocation(protocol, path, project, scope);
         if (!locations.isEmpty()) {
           return locations;
         }
@@ -241,15 +212,6 @@ public class GoogleCloudTestResultsConnectionUtil {
         List<Location> locations = FileUrlProvider.INSTANCE.getLocation(protocol, path, project, scope);
         if (!locations.isEmpty()) {
           return locations;
-        }
-      }
-
-      for (@SuppressWarnings("deprecation") TestLocationProvider provider : myLocators) {
-        if (!isDumbMode || provider instanceof DumbAware) {
-          List<Location> locations = provider.getLocation(protocol, path, project);
-          if (!locations.isEmpty()) {
-            return locations;
-          }
         }
       }
 

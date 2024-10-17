@@ -16,38 +16,71 @@
 package com.google.gct.directaccess.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.compose.runtime.toMutableStateMap
+import androidx.compose.ui.unit.dp
 import com.android.tools.idea.adddevicedialog.ComposeWizard
-import com.android.tools.idea.adddevicedialog.DefaultDeviceGridPage
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
-import com.android.tools.idea.adddevicedialog.DeviceLoadingPage
 import com.android.tools.idea.adddevicedialog.DeviceProfile
+import com.android.tools.idea.adddevicedialog.DeviceTable
 import com.android.tools.idea.adddevicedialog.DeviceTableColumns
 import com.android.tools.idea.adddevicedialog.FormFactor
 import com.android.tools.idea.adddevicedialog.Manufacturer
 import com.android.tools.idea.adddevicedialog.SetFilter
 import com.android.tools.idea.adddevicedialog.SetFilterState
-import com.android.tools.idea.adddevicedialog.SingleSelectionDropdown
+import com.android.tools.idea.adddevicedialog.SingleSelectionRadioButtons
+import com.android.tools.idea.adddevicedialog.TableColumn
+import com.android.tools.idea.adddevicedialog.TableColumnWidth
 import com.android.tools.idea.adddevicedialog.TextFilterState
+import com.android.tools.idea.adddevicedialog.WizardAction
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
+import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
 import com.intellij.openapi.project.Project
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import org.jetbrains.jewel.ui.component.Checkbox
 
 internal fun createAddDirectAccessDeviceDialog(
-  source: DirectAccessDeviceSource,
   project: Project?,
+  deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>,
 ): ComposeWizard {
+  val profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> =
+    deviceSelectionListFlow.value
+      .map { deviceSelection ->
+        DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected) to
+          deviceSelection.isSelected
+      }
+      .toMutableStateMap()
+
+  val selectionColumn =
+    TableColumn<DirectAccessDeviceProfile>("", TableColumnWidth.Fixed(24.dp)) { profile ->
+      Checkbox(profiles[profile] == true, onCheckedChange = { profiles[profile] = it })
+    }
+
   return ComposeWizard(project, "Add Remote Device") {
     val filterState = getOrCreateState { RemoteDeviceFilterState() }
-    DeviceLoadingPage(source) { profiles ->
-      DefaultDeviceGridPage(
-        profiles,
-        directAccessColumns,
-        filterContent = { RemoteDeviceFilters(profiles, filterState) },
-        filterState = filterState,
-        onSelectionUpdated = { with(source) { selectionUpdated(it) } },
-      )
+    val rows = profiles.keys.toList()
+
+    DeviceTable(
+      rows,
+      persistentListOf(selectionColumn).plus(directAccessColumns),
+      filterContent = { RemoteDeviceFilters(rows, filterState) },
+      filterState = filterState,
+    )
+
+    nextAction = WizardAction.Disabled
+    finishAction = WizardAction {
+      deviceSelectionListFlow.update { devices ->
+        val selectedKeys: Map<String, Boolean> =
+          profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
+
+        devices.map { selection: DeviceSelection ->
+          selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
+        }
+      }
+      close()
     }
   }
 }
@@ -75,6 +108,6 @@ internal fun RemoteDeviceFilters(
   profiles: List<DeviceProfile>,
   filterState: RemoteDeviceFilterState,
 ) {
-  SingleSelectionDropdown(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
+  SingleSelectionRadioButtons(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
   SetFilter(Manufacturer.uniqueValuesOf(profiles), filterState.manufacturerFilter)
 }

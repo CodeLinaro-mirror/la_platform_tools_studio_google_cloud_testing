@@ -24,9 +24,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Extension
 import com.android.sdklib.deviceprovisioner.ExtensionRegistry
-import com.android.sdklib.deviceprovisioner.providedBy
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.adddevicedialog.DeviceSource
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
@@ -90,8 +88,7 @@ class DirectAccessDeviceProvisionerPlugin(
   // TODO: find a proper priority
   override val priority: Int = 120
 
-  private val extensionRegistry =
-    ExtensionRegistry(this, DeviceSource::class providedBy { DirectAccessDeviceSource(project) })
+  private val extensionRegistry = ExtensionRegistry(this)
 
   override fun <T : Extension> extension(extensionClass: Class<T>): T? =
     extensionRegistry.extension(extensionClass)
@@ -208,7 +205,16 @@ class DirectAccessDeviceProvisionerPlugin(
           oldDeviceSelectionList ->
           // A device will occur in the new list if it was selected with the previous project
           // or accessible with the new project.
-          val selectedDeviceSelectionList = oldDeviceSelectionList.filter { it.isSelected }
+
+          // Keeps the selected devices in order and updates their [DeviceInfo].
+          val selectedDeviceSelectionList =
+            oldDeviceSelectionList
+              .filter { it.isSelected }
+              .map { oldSelection ->
+                accessibleDeviceInfoMap[oldSelection.deviceInfo.key]?.let { newDeviceInfo ->
+                  oldSelection.copy(deviceInfo = newDeviceInfo)
+                } ?: oldSelection
+              }
           val selectedDeviceKeySet = selectedDeviceSelectionList.map { it.deviceInfo.key }.toSet()
 
           val unSelectedDeviceList =
@@ -362,10 +368,9 @@ class DirectAccessDeviceProvisionerPlugin(
       override suspend fun create() {
         if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
           withContext(AndroidDispatchers.uiThread) {
-            if (
-              createAddDirectAccessDeviceDialog(DirectAccessDeviceSource(project), project)
-                .showAndGet()
-            ) {
+            val deviceSelectionListFlow =
+              project.service<DirectAccessService>().deviceSelectionListFlow
+            if (createAddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
               UsageTracker.log(
                 AndroidStudioEvent.newBuilder()
                   .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)

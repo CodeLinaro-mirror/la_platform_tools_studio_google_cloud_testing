@@ -17,8 +17,6 @@ package com.google.gct.directaccess.ui
 
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.concurrency.AndroidExecutors
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
@@ -40,6 +38,8 @@ import kotlinx.coroutines.job
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class DirectAccessProjectSelectorTest {
 

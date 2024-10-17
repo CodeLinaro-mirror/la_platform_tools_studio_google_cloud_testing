@@ -20,10 +20,8 @@ import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceType as ProvisionerDeviceType
-import com.android.testutils.MockitoKt.any
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.adblib.AdbLibApplicationService
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
@@ -43,7 +41,9 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.doReturn
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 private const val CLOUD_PROJECT_NAME = "testProject"
 
@@ -75,6 +75,7 @@ class DirectAccessPersistentStateComponentTest {
       "codename1",
       31,
       ProvisionerDeviceType.HANDHELD,
+      FormFactors.PHONE,
       100,
       200,
       300,
@@ -92,6 +93,7 @@ class DirectAccessPersistentStateComponentTest {
       "codename1",
       31,
       DeviceType.PHONE,
+      FormFactors.PHONE,
       100,
       200,
       300,
@@ -101,7 +103,7 @@ class DirectAccessPersistentStateComponentTest {
   @Before
   fun setUp() = runBlockingWithTimeout {
     val mockAdbLibApplicationService = mock<AdbLibApplicationService>()
-    doReturn(session).whenever(mockAdbLibApplicationService).session
+    whenever(mockAdbLibApplicationService.session).thenReturn(session)
     ApplicationManager.getApplication()
       .replaceService(
         AdbLibApplicationService::class.java,
@@ -110,11 +112,10 @@ class DirectAccessPersistentStateComponentTest {
       )
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(listOf(deviceInfo))
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(any())
-    doReturn(grpcConnectionRule.channel).whenever(mockDirectAccessServiceSetup).channel
-    doReturn("testToken").whenever(mockDirectAccessServiceSetup).fetchAccessToken()
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(any()))
+      .thenReturn(listOf(deviceInfo))
+    whenever(mockDirectAccessServiceSetup.channel).thenReturn(grpcConnectionRule.channel)
+    whenever(mockDirectAccessServiceSetup.fetchAccessToken()).thenReturn("testToken")
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,

@@ -16,11 +16,8 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceType
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.testing.AndroidProjectRule
-import com.google.api.client.auth.oauth2.Credential
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudClientService
@@ -33,10 +30,12 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito
 import org.mockito.Mockito.doCallRealMethod
-import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.spy
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class CatalogClientTest {
   @get:Rule val projectRule = AndroidProjectRule.inMemory()
@@ -50,18 +49,12 @@ class CatalogClientTest {
   private fun setupCloudClient(deviceCatalog: AndroidDeviceCatalog) {
     val client: CloudClient =
       spy(
-        CloudClient(
-          MutableStateFlow<Credential>(mock()),
-          AndroidCoroutineScope(projectRule.testRootDisposable),
-        )
+        CloudClient(MutableStateFlow(mock()), AndroidCoroutineScope(projectRule.testRootDisposable))
       )
     CloudClientService.instance().overrideClientForTest = client
-    doCallRealMethod()
-      .whenever(client)
-      .getAvailableDevices(Mockito.anyString(), Mockito.anyString())
-    doReturn(deviceCatalog)
-      .whenever(client)
-      .getAndroidDeviceCatalogForEnvironment(Mockito.anyString(), Mockito.anyString())
+    doCallRealMethod().whenever(client).getAvailableDevices(any(), any())
+    // Use "doReturn" vs "whenever/thenReturn" so we don't call the real method, which will throw.
+    doReturn(deviceCatalog).whenever(client).getAndroidDeviceCatalogForEnvironment(any(), any())
   }
 
   @After

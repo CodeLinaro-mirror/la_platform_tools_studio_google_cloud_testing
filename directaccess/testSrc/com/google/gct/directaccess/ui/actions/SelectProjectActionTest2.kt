@@ -27,6 +27,7 @@ import com.android.tools.adtui.swing.HeadlessDialogRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
@@ -50,7 +51,6 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceSource
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl2
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
@@ -73,6 +73,7 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
+import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.components.JBLabel
 import icons.FirebaseIcons
 import icons.StudioIcons
@@ -177,6 +178,7 @@ class SelectProjectActionTest2 {
       codename = "shiba",
       api = 34,
       type = DeviceType.HANDHELD,
+      formFactor = FormFactors.PHONE,
       screenX = 1080,
       screenY = 2400,
       screenDensity = 420,
@@ -227,6 +229,8 @@ class SelectProjectActionTest2 {
       Mockito.doReturn(mockDeviceSelectionListFlow)
         .whenever(mockDirectAccessService)
         .deviceSelectionListFlow
+
+      val lastSelectedProject = MutableStateFlow<String?>(null)
       Mockito.doAnswer {
           val cloudProjectName = it.arguments[0] as? String
           cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
@@ -377,7 +381,7 @@ class SelectProjectActionTest2 {
           val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           val errorLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
-              label.icon == StudioIcons.Common.ERROR
+              label.icon == StudioIcons.Common.ERROR || label.icon is AnimatedIcon
             }
           val planTooltipLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
@@ -402,6 +406,7 @@ class SelectProjectActionTest2 {
                   permissionFlow.value.missingPermissions.joinToString("")
               )
           }
+          assertThat(errorLabel.icon).isEqualTo(StudioIcons.Common.ERROR)
 
           // Select a project with a mix of permission
           comboBox.model.selectedItem = unknownPermissionTestProject
@@ -417,14 +422,23 @@ class SelectProjectActionTest2 {
               )
           }
 
-          val usedMinutesLabel =
+          val sparkUsedMinutesLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-              usedLabel.text?.endsWith("mins used") == true
+              usedLabel.text?.endsWith(" mins used") == true
             }
+
           val remainingMinutesLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
               usedLabel.text?.endsWith("mins remaining") == true
             }
+
+          val blazeUsedMinutesUnitLabel =
+            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
+              usedLabel.text == "mins used"
+            }
+          assertThat(blazeUsedMinutesUnitLabel).isNotNull()
+          val blazeUsedMinutesLabel = blazeUsedMinutesUnitLabel.parent.components[0] as JBLabel
+          val blazePricingInfoLabel = blazeUsedMinutesUnitLabel.parent.components[2] as JBLabel
 
           val usageProgressBar = dialog.rootPane.findAllDescendants<UsageProgressBar>().first()
 
@@ -438,8 +452,8 @@ class SelectProjectActionTest2 {
           assertThat(instructionLabelWithIcon.text)
             .isEqualTo("dropdown in device manager to add new devices.")
 
-          assertThat(usageProgressBar.percentage.value).isZero()
-          assertThat(usedMinutesLabel.text).isEqualTo("-- mins used")
+          assertThat(usageProgressBar.percentage.value).isNull()
+          assertThat(sparkUsedMinutesLabel.text).isEqualTo("-- mins used")
           assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
           assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
@@ -479,7 +493,7 @@ class SelectProjectActionTest2 {
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
           assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
-          waitForCondition { usedMinutesLabel.text == "60 mins used" }
+          waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
 
@@ -488,7 +502,7 @@ class SelectProjectActionTest2 {
           waitForCondition {
             cloudProjectManagerFlow.value?.cloudProject?.name == noQuotaProjectName
           }
-          waitForCondition { usedMinutesLabel.text == "70 mins used" }
+          waitForCondition { sparkUsedMinutesLabel.text == "70 mins used" }
           waitForCondition { remainingMinutesLabel.text == "0 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(1.0)
 
@@ -501,8 +515,8 @@ class SelectProjectActionTest2 {
               .getHelpToolTipText()
               .contains("Blaze plans allow extended usage and is billed monthly.")
           }
-          waitForCondition { usedMinutesLabel.text == "60 mins used" }
-          waitForCondition { remainingMinutesLabel.text == "Blaze Plan may incur charges" }
+          waitForCondition { blazeUsedMinutesLabel.text == "60" }
+          waitForCondition { blazePricingInfoLabel.text == "Blaze Plan may incur charges" }
 
           // Select a spark project that supports direct access with monthly quota.
           comboBox.model.selectedItem = supportedProjectName
@@ -521,17 +535,12 @@ class SelectProjectActionTest2 {
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
           assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
 
-          waitForCondition { usedMinutesLabel.text == "60 mins used" }
+          waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
           mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
           dialog.clickDefaultButton()
         }
-
-        // Verify DeviceSource after updating selection.
-        val deviceSource = DirectAccessDeviceSource(projectRule.project)
-        assertThat(deviceSource.profiles.first().valueOrNull()!!.map { it.name })
-          .isEqualTo(extraDeviceInfoList.map { it.name })
       }
 
       // Start a device and the selector will be disabled with connecting state.
@@ -845,7 +854,11 @@ class SelectProjectActionTest2 {
     Mockito.doReturn(reservationListFlow)
       .whenever(mockCloudProjectManager)
       .reservationListFlowWithException
-    Mockito.doReturn(Pair(if (outOfQuota) 70L else 60L, 70L))
+    Mockito.doAnswer {
+        if (permissionFlow.value.missingPermissions.isEmpty())
+          Pair(if (outOfQuota) 70L else 60L, 70L)
+        else null
+      }
       .whenever(mockCloudProjectManager)
       .usageQuota
 

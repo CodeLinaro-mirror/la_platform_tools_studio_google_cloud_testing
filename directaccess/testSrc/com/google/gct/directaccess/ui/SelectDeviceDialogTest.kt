@@ -17,8 +17,7 @@ package com.google.gct.directaccess.ui
 
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
-import com.android.testutils.MockitoKt.mock
-import com.android.testutils.MockitoKt.whenever
+import com.android.mockito.kotlin.whenever
 import com.android.testutils.waitForCondition
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
@@ -55,6 +54,8 @@ import org.junit.Test
 import org.mockito.Mockito
 import org.mockito.Mockito.anyString
 import org.mockito.Mockito.doAnswer
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @RunsInEdt
 class SelectDeviceDialogTest {
