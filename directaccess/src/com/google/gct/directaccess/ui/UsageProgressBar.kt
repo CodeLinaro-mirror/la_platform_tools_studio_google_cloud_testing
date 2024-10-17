@@ -45,6 +45,7 @@ class UsageProgressBar(
 ) : JPanel() {
 
   override fun paintComponent(g: Graphics?) {
+    super.paintComponent(g)
     val buffImg = ImageUtil.createImage(width, height, BufferedImage.TYPE_INT_ARGB)
     val g2d = buffImg.createGraphics()
     g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
