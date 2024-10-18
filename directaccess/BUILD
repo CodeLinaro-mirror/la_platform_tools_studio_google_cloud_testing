@@ -6,6 +6,7 @@ iml_module(
     srcs = ["src"],
     iml_files = ["directaccess.iml"],
     kotlin_use_compose = True,
+    resources = ["resources"],
     tags = ["noci:studio-win"],  # b/213385827
     test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
     test_srcs = ["testSrc"],
