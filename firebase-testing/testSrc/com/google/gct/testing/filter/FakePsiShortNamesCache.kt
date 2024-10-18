@@ -15,12 +15,9 @@
  */
 package com.google.gct.testing.filter
 
-import com.android.testutils.MockitoKt.mock
-import com.android.tools.idea.util.toVirtualFile
 import com.intellij.mock.MockPsiFile
 import com.intellij.mock.MockPsiManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
@@ -29,8 +26,8 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiShortNamesCache
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.util.Processor
-import org.mockito.Mockito.`when`
-import java.io.File
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 
 internal data class ClassNameFileTuple(
   val shortClassName: String,
@@ -39,11 +36,12 @@ internal data class ClassNameFileTuple(
 )
 
 internal class FakePsiShortNamesCache(project: Project, exceptionClasses: List<ClassNameFileTuple>) : PsiShortNamesCache() {
-  private val projectClasses: Map<String, Array<PsiClass>> = exceptionClasses.map {
-    val fakePsiClass: PsiClass = mock()
-    `when`(fakePsiClass.qualifiedName).thenReturn(it.fullClassName)
-    `when`(fakePsiClass.containingFile).thenReturn(FakePsiFile(project, it.fileLocation))
-    (it.shortClassName to fakePsiClass)
+  private val projectClasses: Map<String, Array<PsiClass>> = exceptionClasses.map { klass ->
+    val fakePsiClass: PsiClass = mock {
+      on { qualifiedName } doReturn klass.fullClassName
+      on { containingFile } doReturn FakePsiFile(project, klass.fileLocation)
+    }
+    (klass.shortClassName to fakePsiClass)
   }.groupBy({ it.first }, {it.second}).mapValues { (_, values) -> values.toTypedArray() }
 
   override fun getClassesByName(name: String, scope: GlobalSearchScope): Array<PsiClass> = projectClasses[name] ?: emptyArray()

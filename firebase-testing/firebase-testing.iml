@@ -52,5 +52,6 @@
     <orderEntry type="module" module-name="analytics" />
     <orderEntry type="library" scope="TEST" name="truth" level="project" />
     <orderEntry type="module" module-name="firebase" />
+    <orderEntry type="library" scope="TEST" name="mockito-kotlin" level="project" />
   </component>
 </module>

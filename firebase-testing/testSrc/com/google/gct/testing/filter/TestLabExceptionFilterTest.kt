@@ -15,7 +15,6 @@
  */
 package com.google.gct.testing.filter
 
-import com.android.testutils.MockitoKt.mock
 import com.android.tools.idea.testing.ProjectServiceRule
 import com.google.common.truth.Truth.assertThat
 import com.intellij.execution.filters.Filter
@@ -28,6 +27,7 @@ import com.intellij.testFramework.RuleChain
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.kotlin.mock
 
 /**
  * Tests for [TestLabExceptionFilter]

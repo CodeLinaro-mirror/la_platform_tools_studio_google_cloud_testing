@@ -47,5 +47,6 @@ iml_module(
         "//tools/adt/idea/analytics[module]",
         "//tools/adt/idea/.idea/libraries:truth[test]",
         "//tools/vendor/google/firebase[module]",
+        "//tools/adt/idea/.idea/libraries:mockito-kotlin[test]",
     ],
 )
