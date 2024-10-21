@@ -35,6 +35,7 @@ import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.panels.HorizontalLayout
@@ -207,9 +208,12 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   }
 
   private suspend fun onProjectChanged(cloudProject: String, parent: JPanel, errorIcon: JBLabel) {
-    errorIcon.isVisible = false
+    withContext(uiDispatcher) {
+      errorIcon.isVisible = true
+      errorIcon.icon = AnimatedIcon.Default()
+      parent.revalidate()
+    }
     if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
-      withContext(AndroidDispatchers.uiThread) { parent.revalidate() }
       return
     } else if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
       project.service<DirectAccessService>().selectCloudProject(null)
@@ -240,6 +244,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
             .setDescription(errorMessage)
             .setLink(linkText) { BrowserUtil.browse(link) }
             .installOn(errorIcon)
+          errorIcon.icon = StudioIcons.Common.ERROR
           errorIcon.isVisible = true
           errorIcon.revalidate()
           errorIcon.repaint()
