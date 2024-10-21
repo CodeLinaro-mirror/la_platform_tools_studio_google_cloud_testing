@@ -1,0 +1,25 @@
+{
+  "name": "Google",
+  "icons": [
+    {
+      "formFactor": "car",
+      "pathLight": "car.svg",
+      "pathDark": "car_dark.svg"
+    },
+    {
+      "formFactor": "phone",
+      "pathLight": "phone.svg",
+      "pathDark": "phone_dark.svg"
+    },
+    {
+      "formFactor": "tv",
+      "pathLight": "tv.svg",
+      "pathDark": "tv_dark.svg"
+    },
+    {
+      "formFactor": "wear",
+      "pathLight": "wear.svg",
+      "pathDark": "wear_dark.svg"
+    }
+  ]
+}
