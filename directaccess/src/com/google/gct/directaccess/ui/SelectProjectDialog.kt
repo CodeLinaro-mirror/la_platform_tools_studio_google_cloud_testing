@@ -83,9 +83,8 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       )
 
   init {
-    setOKButtonText("Done")
+    setOKButtonText("Confirm")
     title = "Configure Device Streaming"
-    okAction.putValue(Action.NAME, "Confirm")
     init()
   }
 
