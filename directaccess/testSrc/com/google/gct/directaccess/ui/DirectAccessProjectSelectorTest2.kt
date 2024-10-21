@@ -17,6 +17,7 @@ package com.google.gct.directaccess.ui
 
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.concurrency.AndroidExecutors
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
@@ -24,6 +25,7 @@ import com.google.services.firebase.FirebaseProjectClientRule
 import com.intellij.openapi.application.ModalityState
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
+import com.intellij.ui.components.AnActionLink
 import com.intellij.util.application
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.ui.NamedColorUtil
@@ -52,6 +54,18 @@ class DirectAccessProjectSelectorTest2 {
   @Before
   fun setup() {
     projectList = firebaseProjectClientRule.setupFirebaseClient().toMutableList()
+  }
+
+  @Test
+  fun testNoProject() = runBlockingWithTimeout {
+    firebaseProjectClientRule.setupFirebaseClient(false, false, 0, 200).toMutableList()
+    selector = DirectAccessProjectSelectorImpl2(projectRule.project, "", true, scope)
+    yieldUntil {
+      selector
+        .findAllDescendants<AnActionLink> { it.text == "Create a Spark Plan Project..." }
+        .firstOrNull()
+        ?.isVisible == true
+    }
   }
 
   @Test
