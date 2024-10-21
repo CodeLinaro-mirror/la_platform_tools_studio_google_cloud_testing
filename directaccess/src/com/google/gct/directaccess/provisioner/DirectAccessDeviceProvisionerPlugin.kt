@@ -205,7 +205,16 @@ class DirectAccessDeviceProvisionerPlugin(
           oldDeviceSelectionList ->
           // A device will occur in the new list if it was selected with the previous project
           // or accessible with the new project.
-          val selectedDeviceSelectionList = oldDeviceSelectionList.filter { it.isSelected }
+
+          // Keeps the selected devices in order and updates their [DeviceInfo].
+          val selectedDeviceSelectionList =
+            oldDeviceSelectionList
+              .filter { it.isSelected }
+              .map { oldSelection ->
+                accessibleDeviceInfoMap[oldSelection.deviceInfo.key]?.let { newDeviceInfo ->
+                  oldSelection.copy(deviceInfo = newDeviceInfo)
+                } ?: oldSelection
+              }
           val selectedDeviceKeySet = selectedDeviceSelectionList.map { it.deviceInfo.key }.toSet()
 
           val unSelectedDeviceList =

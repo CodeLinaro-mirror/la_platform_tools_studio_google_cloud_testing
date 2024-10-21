@@ -37,6 +37,7 @@ import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
 import com.android.tools.idea.flags.StudioFlags
@@ -1497,6 +1498,7 @@ class DirectAccessDeviceProvisionerTest {
         "max-one-reservation",
         33,
         DeviceType.HANDHELD,
+        FormFactors.PHONE,
         50,
         100,
         100,

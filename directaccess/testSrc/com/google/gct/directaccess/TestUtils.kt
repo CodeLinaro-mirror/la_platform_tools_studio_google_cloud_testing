@@ -17,6 +17,7 @@ package com.google.gct.directaccess
 
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceType
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.DirectAccessVersionInfo
@@ -43,6 +44,7 @@ object TestUtils {
         "codename1",
         31,
         DeviceType.HANDHELD,
+        FormFactors.PHONE,
         100,
         200,
         300,
@@ -56,6 +58,7 @@ object TestUtils {
         "codename2",
         32,
         DeviceType.HANDHELD,
+        FormFactors.PHONE,
         200,
         300,
         400,
@@ -69,6 +72,7 @@ object TestUtils {
         "codename3",
         33,
         DeviceType.HANDHELD,
+        FormFactors.PHONE,
         300,
         400,
         500,
@@ -82,6 +86,7 @@ object TestUtils {
         "watch",
         33,
         DeviceType.WEAR,
+        FormFactors.WEAR,
         50,
         100,
         150,
@@ -95,6 +100,7 @@ object TestUtils {
         "watch",
         34,
         DeviceType.WEAR,
+        FormFactors.WEAR,
         50,
         100,
         150,
@@ -114,6 +120,7 @@ object TestUtils {
           "codename5",
           33,
           DeviceType.HANDHELD,
+          FormFactors.PHONE,
           300,
           400,
           500,

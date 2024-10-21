@@ -17,7 +17,6 @@ package com.google.gct.directaccess.provisioner
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
@@ -50,7 +49,7 @@ internal data class DirectAccessDeviceProfile(
     resolution = Resolution(deviceInfo.screenX, deviceInfo.screenY),
     displayDensity = deviceInfo.screenDensity,
     abis = emptyList(), // TODO
-    formFactor = deviceInfo.type.toFormFactor(),
+    formFactor = deviceInfo.formFactor,
     isAlreadyPresent = isAlreadyPresent,
     availabilityEstimate = deviceInfo.deviceAvailabilityEstimateSeconds?.seconds ?: Duration.ZERO,
     key = deviceInfo.key,
@@ -107,13 +106,3 @@ internal data class DirectAccessDeviceProfile(
       )
   }
 }
-
-private fun DeviceType.toFormFactor(): String =
-  when (this) {
-    DeviceType.HANDHELD -> FormFactors.PHONE
-    DeviceType.TV -> FormFactors.TV
-    DeviceType.WEAR -> FormFactors.WEAR
-    DeviceType.AUTOMOTIVE -> FormFactors.AUTO
-    DeviceType.DESKTOP -> FormFactors.TABLET
-    DeviceType.XR -> FormFactors.PHONE
-  }
