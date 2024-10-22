@@ -89,7 +89,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
@@ -320,10 +319,15 @@ class SelectProjectActionTest2 {
             cloudProjectManagerFlow.value?.cloudProject?.name ==
               unsupportedTestProjectWithServiceUse
           }
-          val label =
-            dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
-              label.icon == StudioIcons.Common.ERROR
-            }
+          var firstIconWithError: JBLabel? = null
+          waitForCondition {
+            firstIconWithError =
+              dialog.rootPane.findAllDescendants<JBLabel>().firstOrNull { label ->
+                label.icon == StudioIcons.Common.ERROR
+              }
+            firstIconWithError != null
+          }
+          val label = firstIconWithError!!
           waitForCondition {
             label
               .getHelpToolTipText()
@@ -491,8 +495,7 @@ class SelectProjectActionTest2 {
               .contains("Spark plans provide limited usage at no cost.")
           }
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
-          assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
-
+          waitForCondition { errorLabel.getHelpToolTipText().isEmpty() }
           waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
@@ -533,7 +536,7 @@ class SelectProjectActionTest2 {
               )
           }
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
-          assertThat(errorLabel.getHelpToolTipText()).isEqualTo("")
+          waitForCondition { errorLabel.getHelpToolTipText().isEmpty() }
 
           waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
