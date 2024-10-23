@@ -43,6 +43,7 @@ import com.android.tools.idea.adddevicedialog.SetFilterState
 import com.android.tools.idea.adddevicedialog.SingleSelectionRadioButtons
 import com.android.tools.idea.adddevicedialog.TableColumn
 import com.android.tools.idea.adddevicedialog.TableColumnWidth
+import com.android.tools.idea.adddevicedialog.TableTextColumn
 import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
 import com.google.gct.directaccess.provisioner.DeviceSelection
@@ -82,15 +83,22 @@ internal fun createAddDirectAccessDeviceDialog(
       Checkbox(profiles[profile] == true, onCheckedChange = { profiles[profile] = it })
     }
 
+  val modelColumn =
+    TableTextColumn<DirectAccessDeviceProfile>(
+      "Model",
+      TableColumnWidth.Weighted(2f),
+      attribute = { it.codename },
+      maxLines = 2,
+    )
+
   return object : DialogWrapper(project) {
     init {
+      title = "Select Remote Devices"
       init()
     }
 
     val filterState by mutableStateOf(RemoteDeviceFilterState())
     val rows = profiles.keys.toList()
-
-    override fun getTitle() = "Add Remote Device"
 
     override fun createActions(): Array<Action> {
       return arrayOf()
@@ -149,7 +157,19 @@ internal fun createAddDirectAccessDeviceDialog(
       Box(Modifier.weight(1f)) {
         DeviceTable(
           rows,
-          persistentListOf(selectionColumn).plus(directAccessColumns),
+          with(DeviceTableColumns) {
+            persistentListOf(
+              selectionColumn,
+              icon,
+              oem,
+              name,
+              modelColumn,
+              api,
+              width,
+              height,
+              density,
+            )
+          },
           filterContent = { RemoteDeviceFilters(rows, filterState) },
           filterState = filterState,
         )
@@ -157,9 +177,6 @@ internal fun createAddDirectAccessDeviceDialog(
     }
   }
 }
-
-private val directAccessColumns =
-  with(DeviceTableColumns) { persistentListOf(icon, oem, name, api, width, height, density) }
 
 internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
   val manufacturerFilter = SetFilterState(Manufacturer)
