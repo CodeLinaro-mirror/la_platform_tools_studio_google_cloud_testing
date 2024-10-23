@@ -38,6 +38,7 @@ internal data class DirectAccessDeviceProfile(
   val isAlreadyPresent: Boolean,
   val availabilityEstimate: Duration,
   val key: String,
+  val codename: String,
 ) : DeviceProfile {
   constructor(
     deviceInfo: DeviceInfo,
@@ -53,6 +54,7 @@ internal data class DirectAccessDeviceProfile(
     isAlreadyPresent = isAlreadyPresent,
     availabilityEstimate = deviceInfo.deviceAvailabilityEstimateSeconds?.seconds ?: Duration.ZERO,
     key = deviceInfo.key,
+    codename = deviceInfo.codename,
   )
 
   override val isVirtual: Boolean
@@ -83,10 +85,12 @@ internal data class DirectAccessDeviceProfile(
 
   class Builder : DeviceProfile.Builder() {
     lateinit var key: String
+    lateinit var codename: String
 
     fun copyFrom(profile: DirectAccessDeviceProfile) {
       super.copyFrom(profile)
       key = profile.key
+      codename = profile.codename
       availabilityEstimate = profile.availabilityEstimate
       isAlreadyPresent = profile.isAlreadyPresent
     }
@@ -103,6 +107,7 @@ internal data class DirectAccessDeviceProfile(
         isAlreadyPresent = isAlreadyPresent,
         availabilityEstimate = availabilityEstimate,
         key = key,
+        codename = codename,
       )
   }
 }
