@@ -188,18 +188,18 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
         scope,
       )
     chooseProjectPanel.add(selector.component)
-    val errorIcon =
+    val statusIcon =
       JBLabel().apply {
         icon = StudioIcons.Common.ERROR
         isVisible = false
       }
-    chooseProjectPanel.add(errorIcon)
+    chooseProjectPanel.add(statusIcon)
     val projectInformationPanel =
       ProjectInformationPanel(scope, project.service<DirectAccessService>().cloudProjectManager)
 
     scope.launch {
       selector.isReady.takeWhile { !it }.collect()
-      selector.selectedProject.collect { onProjectChanged(it, panel, errorIcon) }
+      selector.selectedProject.collect { onProjectChanged(it, panel, statusIcon) }
     }
 
     panel.add(chooseProjectPanel)
@@ -207,19 +207,36 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     return panel
   }
 
-  private suspend fun onProjectChanged(cloudProject: String, parent: JPanel, errorIcon: JBLabel) {
+  /** Returns true and updates selection if [cloudProject] is invalid. */
+  private fun handleInvalidProject(cloudProject: String): Boolean {
+    if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) return true
+    if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
+      project.service<DirectAccessService>().selectCloudProject(null)
+      return true
+    }
+    return false
+  }
+
+  private suspend fun onProjectChanged(cloudProject: String, parent: JPanel, statusIcon: JBLabel) {
+    // Removes statusIcon if the cloudProject is invalid.
+    if (handleInvalidProject(cloudProject)) {
+      withContext(uiDispatcher) {
+        statusIcon.isVisible = false
+        parent.revalidate()
+      }
+      return
+    }
+
+    // Shows a loading icon while processing cloudProject.
     withContext(uiDispatcher) {
-      errorIcon.isVisible = true
-      errorIcon.icon = AnimatedIcon.Default()
+      statusIcon.isVisible = true
+      statusIcon.icon = AnimatedIcon.Default()
+      HelpTooltip.dispose(statusIcon)
       parent.revalidate()
     }
-    if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) {
-      return
-    } else if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
-      project.service<DirectAccessService>().selectCloudProject(null)
-      return
-    }
     project.service<DirectAccessService>().selectCloudProject(cloudProject)
+
+    // Update statusIcon and its tooltip after fetching cloudProject information.
     withContext(uiDispatcher) {
       parent.revalidate()
       launch {
@@ -243,14 +260,14 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           HelpTooltip()
             .setDescription(errorMessage)
             .setLink(linkText) { BrowserUtil.browse(link) }
-            .installOn(errorIcon)
-          errorIcon.icon = StudioIcons.Common.ERROR
-          errorIcon.isVisible = true
-          errorIcon.revalidate()
-          errorIcon.repaint()
+            .installOn(statusIcon)
+          statusIcon.icon = StudioIcons.Common.ERROR
+          statusIcon.isVisible = true
+          statusIcon.revalidate()
+          statusIcon.repaint()
         } else {
-          errorIcon.toolTipText = ""
-          errorIcon.isVisible = false
+          statusIcon.toolTipText = ""
+          statusIcon.isVisible = false
         }
         parent.revalidate()
       }
