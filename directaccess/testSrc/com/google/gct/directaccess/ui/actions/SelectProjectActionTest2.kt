@@ -470,6 +470,7 @@ class SelectProjectActionTest2 {
 
           comboBox.model.selectedItem = NO_PROJECTS_AVAILABLE
           waitForCondition { cloudProjectManagerFlow.value == null }
+          waitForCondition { !errorLabel.isVisible }
           assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
 
@@ -526,6 +527,7 @@ class SelectProjectActionTest2 {
           waitForCondition {
             cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
           }
+          assertThat(errorLabel.getHelpToolTipText()).isEmpty()
           waitForCondition { planLabel.text == "Spark Plan" }
           waitForCondition {
             planTooltipLabel
@@ -536,7 +538,7 @@ class SelectProjectActionTest2 {
               )
           }
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
-          waitForCondition { errorLabel.getHelpToolTipText().isEmpty() }
+          waitForCondition { !errorLabel.isVisible }
 
           waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
