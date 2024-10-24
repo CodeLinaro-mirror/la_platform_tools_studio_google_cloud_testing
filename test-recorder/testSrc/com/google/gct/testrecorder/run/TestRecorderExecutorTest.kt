@@ -1,7 +1,6 @@
 package com.google.gct.testrecorder.run
 
 import com.android.ddmlib.IDevice
-import com.android.testutils.MockitoKt.mock
 import com.android.tools.analytics.UsageTrackerRule
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutor
 import com.android.tools.idea.execution.common.assertTaskPresentedInStats
@@ -20,6 +19,7 @@ import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.progress.ProgressIndicator
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.kotlin.mock
 
 class TestRecorderExecutorTest {
 

@@ -1,0 +1,10 @@
+{
+  "name": "Unknown",
+  "icons": [
+    {
+      "formFactor": "phone",
+      "pathLight": "phone.svg",
+      "pathDark": "phone_dark.svg"
+    }
+  ]
+}

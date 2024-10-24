@@ -15,37 +15,61 @@
  */
 package com.google.gct.directaccess.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.toMutableStateMap
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.android.tools.idea.adddevicedialog.ComposeWizard
+import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
 import com.android.tools.idea.adddevicedialog.DeviceProfile
 import com.android.tools.idea.adddevicedialog.DeviceTable
 import com.android.tools.idea.adddevicedialog.DeviceTableColumns
 import com.android.tools.idea.adddevicedialog.FormFactor
+import com.android.tools.idea.adddevicedialog.LocalProject
 import com.android.tools.idea.adddevicedialog.Manufacturer
 import com.android.tools.idea.adddevicedialog.SetFilter
 import com.android.tools.idea.adddevicedialog.SetFilterState
 import com.android.tools.idea.adddevicedialog.SingleSelectionRadioButtons
 import com.android.tools.idea.adddevicedialog.TableColumn
 import com.android.tools.idea.adddevicedialog.TableColumnWidth
+import com.android.tools.idea.adddevicedialog.TableTextColumn
 import com.android.tools.idea.adddevicedialog.TextFilterState
-import com.android.tools.idea.adddevicedialog.WizardAction
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.util.ui.JBUI
+import javax.swing.Action
+import javax.swing.JComponent
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import org.jetbrains.jewel.foundation.ExperimentalJewelApi
+import org.jetbrains.jewel.foundation.enableNewSwingCompositing
+import org.jetbrains.jewel.ui.Orientation
 import org.jetbrains.jewel.ui.component.Checkbox
+import org.jetbrains.jewel.ui.component.DefaultButton
+import org.jetbrains.jewel.ui.component.Divider
+import org.jetbrains.jewel.ui.component.OutlinedButton
+import org.jetbrains.jewel.ui.component.Text
 
 internal fun createAddDirectAccessDeviceDialog(
   project: Project?,
   deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>,
-): ComposeWizard {
+): DialogWrapper {
+
   val profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> =
     deviceSelectionListFlow.value
       .map { deviceSelection ->
@@ -59,34 +83,100 @@ internal fun createAddDirectAccessDeviceDialog(
       Checkbox(profiles[profile] == true, onCheckedChange = { profiles[profile] = it })
     }
 
-  return ComposeWizard(project, "Add Remote Device") {
-    val filterState = getOrCreateState { RemoteDeviceFilterState() }
-    val rows = profiles.keys.toList()
-
-    DeviceTable(
-      rows,
-      persistentListOf(selectionColumn).plus(directAccessColumns),
-      filterContent = { RemoteDeviceFilters(rows, filterState) },
-      filterState = filterState,
+  val modelColumn =
+    TableTextColumn<DirectAccessDeviceProfile>(
+      "Model",
+      TableColumnWidth.Weighted(2f),
+      attribute = { it.codename },
+      maxLines = 2,
     )
 
-    nextAction = WizardAction.Disabled
-    finishAction = WizardAction {
-      deviceSelectionListFlow.update { devices ->
-        val selectedKeys: Map<String, Boolean> =
-          profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
+  return object : DialogWrapper(project) {
+    init {
+      title = "Select Remote Devices"
+      init()
+    }
 
-        devices.map { selection: DeviceSelection ->
-          selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
+    val filterState by mutableStateOf(RemoteDeviceFilterState())
+    val rows = profiles.keys.toList()
+
+    override fun createActions(): Array<Action> {
+      return arrayOf()
+    }
+
+    // Don't include the default border; our banners need to span the entire width
+    override fun createContentPaneBorder() = null
+
+    // Don't include the bottom panel; we'll make buttons ourselves
+    override fun createSouthPanel(): JComponent? = null
+
+    override fun createCenterPanel(): JComponent {
+      @OptIn(ExperimentalJewelApi::class) (enableNewSwingCompositing())
+      val component = StudioComposePanel {
+        CompositionLocalProvider(LocalProject provides project) {
+          Column {
+            Content()
+            Divider(Orientation.Horizontal)
+            ButtonBar()
+          }
         }
       }
-      close()
+      component.preferredSize = JBUI.size(900, 650)
+      component.minimumSize = JBUI.size(600, 350)
+      return component
+    }
+
+    @Composable
+    private fun ButtonBar() {
+      Row(
+        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+      ) {
+        Spacer(Modifier.weight(1f))
+        OutlinedButton(onClick = { close(CANCEL_EXIT_CODE) }) { Text("Cancel") }
+        DefaultButton(
+          onClick = {
+            deviceSelectionListFlow.update { devices ->
+              val selectedKeys: Map<String, Boolean> =
+                profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
+
+              devices.map { selection: DeviceSelection ->
+                selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
+              }
+            }
+            close(OK_EXIT_CODE)
+          }
+        ) {
+          Text("Confirm")
+        }
+      }
+    }
+
+    @Composable
+    private fun ColumnScope.Content() {
+      Box(Modifier.weight(1f)) {
+        DeviceTable(
+          rows,
+          with(DeviceTableColumns) {
+            persistentListOf(
+              selectionColumn,
+              icon,
+              oem,
+              name,
+              modelColumn,
+              api,
+              width,
+              height,
+              density,
+            )
+          },
+          filterContent = { RemoteDeviceFilters(rows, filterState) },
+          filterState = filterState,
+        )
+      }
     }
   }
 }
-
-private val directAccessColumns =
-  with(DeviceTableColumns) { persistentListOf(icon, oem, name, api, width, height, density) }
 
 internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
   val manufacturerFilter = SetFilterState(Manufacturer)

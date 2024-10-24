@@ -3,15 +3,14 @@ package com.google.gct.testrecorder.run
 import com.android.ddmlib.IDevice
 import com.android.sdklib.AndroidVersion
 import com.android.sdklib.devices.Abi
-import com.android.testutils.MockitoKt
 import com.android.tools.idea.execution.common.AndroidConfigurationExecutorRunProfileState
 import com.android.tools.idea.gradle.project.sync.snapshots.AndroidCoreTestProject
 import com.android.tools.idea.run.AndroidDevice
 import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfigurationType
+import com.android.tools.idea.run.FakeAndroidDevice
 import com.android.tools.idea.run.editor.DeployTarget
 import com.android.tools.idea.run.editor.DeployTargetState
-import com.android.tools.idea.run.FakeAndroidDevice
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.executeMakeBeforeRunStepInTest
 import com.android.tools.idea.testing.mockDeviceFor
@@ -26,6 +25,7 @@ import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.openapi.project.Project
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.kotlin.mock
 
 
 class AndroidRunConfigurationTestRecorderExecutorProviderTest {
@@ -42,7 +42,7 @@ class AndroidRunConfigurationTestRecorderExecutorProviderTest {
 
           override fun getRunProfileState(executor: Executor, env: ExecutionEnvironment, state: DeployTargetState) = null
 
-          override fun getDevices(project: Project) = FakeAndroidDevice.forDevices(listOf(MockitoKt.mock<IDevice>()))
+          override fun getDevices(project: Project) = FakeAndroidDevice.forDevices(listOf(mock<IDevice>()))
 
           override fun getAndroidDevices(project: Project): List<AndroidDevice> = throw UnsupportedOperationException()
         }
