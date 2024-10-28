@@ -32,12 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
-import com.android.tools.idea.adddevicedialog.DeviceProfile
 import com.android.tools.idea.adddevicedialog.DeviceTable
 import com.android.tools.idea.adddevicedialog.DeviceTableColumns
 import com.android.tools.idea.adddevicedialog.FormFactor
 import com.android.tools.idea.adddevicedialog.LocalProject
 import com.android.tools.idea.adddevicedialog.Manufacturer
+import com.android.tools.idea.adddevicedialog.RowAttribute
 import com.android.tools.idea.adddevicedialog.SetFilter
 import com.android.tools.idea.adddevicedialog.SetFilterState
 import com.android.tools.idea.adddevicedialog.SingleSelectionRadioButtons
@@ -178,12 +178,20 @@ internal fun createAddDirectAccessDeviceDialog(
   }
 }
 
+private fun <V : Comparable<V>> DirectAccessDeviceAttribute(
+  name: String,
+  value: (DirectAccessDeviceProfile) -> V,
+) = RowAttribute(name, Comparator.naturalOrder(), value)
+
+private val Lab = DirectAccessDeviceAttribute("Device Lab") { it.labIdDisplayName }
+
 internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
+  val labFilter = SetFilterState(Lab)
   val manufacturerFilter = SetFilterState(Manufacturer)
   override val textFilter = RemoteDeviceTextFilter()
 
   override fun apply(row: DirectAccessDeviceProfile): Boolean =
-    super.apply(row) && manufacturerFilter.apply(row)
+    super.apply(row) && labFilter.apply(row) && manufacturerFilter.apply(row)
 }
 
 internal class RemoteDeviceTextFilter : TextFilterState<DirectAccessDeviceProfile>() {
@@ -195,9 +203,10 @@ internal class RemoteDeviceTextFilter : TextFilterState<DirectAccessDeviceProfil
 
 @Composable
 internal fun RemoteDeviceFilters(
-  profiles: List<DeviceProfile>,
+  profiles: List<DirectAccessDeviceProfile>,
   filterState: RemoteDeviceFilterState,
 ) {
   SingleSelectionRadioButtons(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
   SetFilter(Manufacturer.uniqueValuesOf(profiles), filterState.manufacturerFilter)
+  SetFilter(Lab.uniqueValuesOf(profiles), filterState.labFilter)
 }

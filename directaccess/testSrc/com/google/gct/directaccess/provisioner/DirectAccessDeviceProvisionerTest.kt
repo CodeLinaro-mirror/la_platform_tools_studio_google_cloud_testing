@@ -101,8 +101,6 @@ import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
 import icons.StudioIcons
-import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_PHONE
-import icons.StudioIcons.DeviceExplorer.FIREBASE_DEVICE_WEAR
 import java.time.Duration
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -310,7 +308,11 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
     assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
-    assertThat(provisioner.templates.value[0].properties.icon).isEqualTo(FIREBASE_DEVICE_PHONE)
+    assertThat(
+        (provisioner.templates.value[0].properties.icon as OemLabsAssetsRegistry.OemLabIcon)
+          .description
+      )
+      .isEqualTo("google_phone")
     assertThat(provisioner.templates.value[0].properties.isRemote).isTrue()
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
     assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
@@ -440,7 +442,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(state.value).isInstanceOf(Connected::class.java)
     assertThat(state.value.reservation!!.stateMessage).isEmpty()
     with(state.value.properties) {
-      assertThat(icon).isEqualTo(FIREBASE_DEVICE_PHONE)
+      assertThat((icon as OemLabsAssetsRegistry.OemLabIcon).description).isEqualTo("google_phone")
       assertThat(androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
       assertThat(model).isEqualTo(deviceInfo.name)
       assertThat(manufacturer).isEqualTo(deviceInfo.manufacturer)
@@ -1193,13 +1195,13 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   fun testCorrectIconForPhone() = runBlockingWithTimeout {
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
-    testCorrectIcon(template, FIREBASE_DEVICE_PHONE)
+    testCorrectIcon(template, "google_phone")
   }
 
   @Test
   fun testCorrectIconForWatch() = runBlockingWithTimeout {
     val template = plugin.templates.value[3] as DirectAccessDeviceTemplate
-    testCorrectIcon(template, FIREBASE_DEVICE_WEAR)
+    testCorrectIcon(template, "google_wear")
   }
 
   @RunsInEdt
@@ -1216,13 +1218,13 @@ class DirectAccessDeviceProvisionerTest {
         val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
         val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
-        assertThat(icons)
+        assertThat(icons.map { (it as OemLabsAssetsRegistry.OemLabIcon).description })
           .containsExactly(
-            FIREBASE_DEVICE_PHONE,
-            FIREBASE_DEVICE_PHONE,
-            FIREBASE_DEVICE_PHONE,
-            FIREBASE_DEVICE_WEAR,
-            FIREBASE_DEVICE_WEAR,
+            "google_phone",
+            "google_phone",
+            "google_phone",
+            "google_wear",
+            "google_wear",
           )
         val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
         checkboxList.forEach { assertThat(it.isSelected).isTrue() }
@@ -1494,6 +1496,7 @@ class DirectAccessDeviceProvisionerTest {
         "max-one-reservation",
         "brand",
         "name",
+        "lab_name",
         "manufacturer",
         "max-one-reservation",
         33,
@@ -1649,14 +1652,20 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(countDownLatch.count).isEqualTo(0)
   }
 
-  private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, icon: Icon) {
+  private suspend fun testCorrectIcon(
+    template: DirectAccessDeviceTemplate,
+    iconDescription: String,
+  ) {
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     session.hostServices.connect(handle.connection.deviceAddress()!!)
     yieldUntil { handle.state is Connected }
 
-    assertThat(template.icon).isEqualTo(icon)
-    assertThat(handle.icon).isEqualTo(icon)
-    assertThat(handle.state.properties.icon).isEqualTo(icon)
+    assertThat((template.icon as OemLabsAssetsRegistry.OemLabIcon).description)
+      .isEqualTo(iconDescription)
+    assertThat((handle.icon as OemLabsAssetsRegistry.OemLabIcon).description)
+      .isEqualTo(iconDescription)
+    assertThat((handle.state.properties.icon as OemLabsAssetsRegistry.OemLabIcon).description)
+      .isEqualTo(iconDescription)
   }
 
   private suspend fun Notification.assertReservationExpiringNotification(
