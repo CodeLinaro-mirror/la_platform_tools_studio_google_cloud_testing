@@ -38,8 +38,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.jdesktop.swingx.VerticalLayout
 
-private val SPARK_PLAN_KEY = "Spark"
-private val BLAZE_PLAN_KEY = "Blaze"
+private const val SPARK_PLAN_KEY = "Spark"
+private const val BLAZE_PLAN_KEY = "Blaze"
 
 class ProjectInformationPanel(
   scope: CoroutineScope,

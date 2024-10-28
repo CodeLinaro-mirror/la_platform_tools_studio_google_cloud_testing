@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.ui.actions
 
 import com.android.adblib.testingutils.CoroutineTestUtils
+import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceHandle
@@ -36,6 +37,7 @@ import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.devtools.testing.v1.DeviceSession
 import com.google.gct.directaccess.CloudProjectEntry
+import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessPermissionStatus
@@ -220,6 +222,33 @@ class SelectProjectActionTest2 {
         projectRule.disposable,
       )
 
+      val mockDirectAccessApplicationService = mock<DirectAccessApplicationService>()
+      doAnswer {
+          val cloudProjectName = (it.arguments[0] as? CloudProjectEntry?)?.name
+          cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
+          if (cloudProjectName == null) {
+            cloudProjectManagerFlow.value = null
+            return@doAnswer null
+          }
+          cloudProjectManagerFlow.value =
+            createCloudProjectManager(
+              scope,
+              cloudProjectName,
+              cloudProjectName == supportedProjectName || cloudProjectName == noQuotaProjectName,
+              cloudProjectName == noQuotaProjectName,
+            )
+          runBlocking { permissionFlow.refresh() }
+          cloudProjectManagerFlow.value
+        }
+        .whenever(mockDirectAccessApplicationService)
+        .getCloudProjectManager(anyOrNull())
+      ApplicationManager.getApplication()
+        .replaceService(
+          DirectAccessApplicationService::class.java,
+          mockDirectAccessApplicationService,
+          projectRule.disposable,
+        )
+
       val mockDirectAccessService = mock<DirectAccessService>()
       Mockito.doReturn(cloudProjectManagerFlow)
         .whenever(mockDirectAccessService)
@@ -230,18 +259,12 @@ class SelectProjectActionTest2 {
         .whenever(mockDirectAccessService)
         .deviceSelectionListFlow
 
-      val lastSelectedProject = MutableStateFlow<String?>(null)
+      val selectedCloudProject = MutableStateFlow<String?>(null)
       Mockito.doAnswer {
           val cloudProjectName = it.arguments[0] as? String
           cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
-          cloudProjectManagerFlow.value =
-            createCloudProjectManager(
-              scope,
-              cloudProjectName,
-              cloudProjectName == supportedProjectName || cloudProjectName == noQuotaProjectName,
-              cloudProjectName == noQuotaProjectName,
-            )
-          runBlocking { permissionFlow.refresh() }
+          assertThat(cloudProjectName).isEqualTo(cloudProjectManagerFlow.value?.cloudProject?.name)
+          selectedCloudProject.value = cloudProjectName
           Unit
         }
         .whenever(mockDirectAccessService)
@@ -548,6 +571,19 @@ class SelectProjectActionTest2 {
           dialog.clickDefaultButton()
         }
       }
+
+      // Cancel selection
+      yieldUntil { selectedCloudProject.value == supportedProjectName }
+      withContext(AndroidDispatchers.uiThread) {
+        createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) { dialog
+          ->
+          val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
+          selector.model.selectedItem = blazeProjectName
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
+          dialog.doCancelAction()
+        }
+      }
+      assertThat(selectedCloudProject.value).isEqualTo(supportedProjectName)
 
       // Start a device and the selector will be disabled with connecting state.
       val mockConnectingDeviceHandle = mock<DirectAccessDeviceHandle>()
