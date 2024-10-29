@@ -20,11 +20,13 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.gct.directaccess.CloudProjectEntry
+import com.google.gct.directaccess.DirectAccessApplicationService
+import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.FULL_PERMISSIONS_SET
-import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
@@ -33,8 +35,11 @@ import com.intellij.ide.BrowserUtil
 import com.intellij.ide.HelpTooltip
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.openapi.wm.ex.ProgressIndicatorEx
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBLabel
@@ -56,6 +61,7 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
@@ -82,6 +88,10 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
         SharingStarted.Eagerly,
         LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn(),
       )
+
+  private var temporarySelectedCloudProjectName: String? = null
+  private val temporarySelectedCloudProjectManager =
+    MutableStateFlow<DirectAccessCloudProjectManager?>(null)
 
   init {
     setOKButtonText("Confirm")
@@ -195,7 +205,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       }
     chooseProjectPanel.add(statusIcon)
     val projectInformationPanel =
-      ProjectInformationPanel(scope, project.service<DirectAccessService>().cloudProjectManager)
+      ProjectInformationPanel(scope, temporarySelectedCloudProjectManager)
 
     scope.launch {
       selector.isReady.takeWhile { !it }.collect()
@@ -207,11 +217,24 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     return panel
   }
 
+  private fun updateTemporarySelectedCloudProject(cloudProject: String?) {
+    // Update [selectedCloudProjectName] immediately to avoid delays of creating its cloud project
+    // manager.
+    temporarySelectedCloudProjectName = cloudProject
+    val service = service<DirectAccessApplicationService>()
+    service.removeUnusedCloudProjectManager(
+      temporarySelectedCloudProjectManager.value?.cloudProject
+    )
+    val user = service<GoogleLoginService>().getEmail() ?: return
+    val cloudProjectEntry = cloudProject?.let { CloudProjectEntry(user, it) }
+    temporarySelectedCloudProjectManager.value = service.getCloudProjectManager(cloudProjectEntry)
+  }
+
   /** Returns true and updates selection if [cloudProject] is invalid. */
   private fun handleInvalidProject(cloudProject: String): Boolean {
     if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) return true
     if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
-      project.service<DirectAccessService>().selectCloudProject(null)
+      updateTemporarySelectedCloudProject(null)
       return true
     }
     return false
@@ -234,17 +257,17 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       HelpTooltip.dispose(statusIcon)
       parent.revalidate()
     }
-    project.service<DirectAccessService>().selectCloudProject(cloudProject)
-
+    updateTemporarySelectedCloudProject(cloudProject)
+    val cloudProjectManager = temporarySelectedCloudProjectManager.value
     // Update statusIcon and its tooltip after fetching cloudProject information.
     withContext(uiDispatcher) {
       parent.revalidate()
       launch {
         val permission =
-          project.directAccessCloudProjectManager?.permissionFlow?.value
+          cloudProjectManager?.permissionFlow?.value
             ?: throw RuntimeException("Unable to retrieve permission")
         val reservationListException =
-          project.directAccessCloudProjectManager?.reservationListFlowWithException?.value?.second
+          cloudProjectManager.reservationListFlowWithException.value.second
         val errorMessage = getErrorMessage(cloudProject, permission, reservationListException)
         if (errorMessage != null) {
           val (linkText, link) =
@@ -333,9 +356,9 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       "An unknown error occurred when checking your permissions."
     }
 
-  override fun doOKAction() {
-    super.doOKAction()
+  private fun confirmSelection() {
     val directAccessService = project.service<DirectAccessService>()
+    directAccessService.selectCloudProject(temporarySelectedCloudProjectName)
     // Apply default devices if the selected project has a nonempty device catalog.
     if (
       directAccessService.cloudProjectManager.value
@@ -346,6 +369,34 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     ) {
       directAccessService.maybeApplyDefaultDevices()
     }
+  }
+
+  override fun doOKAction() {
+    if (
+      temporarySelectedCloudProjectName !=
+        temporarySelectedCloudProjectManager.value?.cloudProject?.name
+    ) {
+      object : Task.Modal(project, "Loading cloud project information...", false) {
+          override fun run(indicator: ProgressIndicator) {
+            indicator.isIndeterminate = true
+            if (indicator !is ProgressIndicatorEx) {
+              return
+            }
+            confirmSelection()
+          }
+        }
+        .queue()
+    } else {
+      confirmSelection()
+    }
+    super.doOKAction()
+  }
+
+  override fun dispose() {
+    super.dispose()
+    // Dispose the temporary selected project manager when its selection is not performed.
+    // This usually happens when user cancels or closes the dialog.
+    updateTemporarySelectedCloudProject(null)
   }
 
   /** This dialog only shows the OK action that does nothing. */
