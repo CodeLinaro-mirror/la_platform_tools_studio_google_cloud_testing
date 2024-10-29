@@ -17,7 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toPainter
+import androidx.compose.ui.platform.LocalDensity
 import com.android.annotations.concurrency.Slow
 import com.android.ide.common.repository.IdeNetworkCacheUtils
 import com.android.ide.common.repository.NetworkCache
@@ -31,8 +31,9 @@ import com.intellij.ui.icons.CachedImageIcon
 import com.intellij.ui.icons.IconTransform
 import com.intellij.ui.icons.ImageDataLoader
 import com.intellij.ui.icons.LoadIconParameters
+import com.intellij.ui.icons.convertImage
+import com.intellij.ui.scale.DerivedScaleType
 import com.intellij.ui.scale.ScaleContext
-import com.intellij.ui.scale.ScaleType
 import com.intellij.ui.svg.renderSvg
 import java.awt.Image
 import java.io.InputStream
@@ -41,6 +42,8 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.decodeToSvgPainter
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 
 private const val ASSETS_BASE_URL = "https://www.gstatic.com/android-devtools-oem-labs/labs/"
@@ -181,18 +184,19 @@ class OemLabsAssetsRegistry(
             scaleContext: ScaleContext,
           ): Image {
             val data = if (parameters.isDark) darkThemeData else lightThemeData
-            return renderSvg(data, scaleContext.getScale(ScaleType.USR_SCALE).toFloat())
+            val scale = scaleContext.getScale(DerivedScaleType.PIX_SCALE).toFloat()
+            return renderSvgToImage(data, scale, parameters, scaleContext)
           }
         }
     ) {
 
     fun getIcon(): Icon = this
 
+    @OptIn(ExperimentalResourceApi::class)
     @Composable
     fun Icon(modifier: Modifier, isDark: Boolean = JewelTheme.isDark) {
-      val scale = ScaleContext.create().getScale(ScaleType.USR_SCALE).toFloat()
-      val image = if (isDark) renderSvg(darkThemeData, scale) else renderSvg(lightThemeData, scale)
-      val painter = image.toPainter()
+      val data = if (isDark) darkThemeData else lightThemeData
+      val painter = data.decodeToSvgPainter(LocalDensity.current)
 
       org.jetbrains.jewel.ui.component.Icon(
         painter = painter,
@@ -273,4 +277,20 @@ class OemLabsAssetsRegistry(
   companion object {
     fun getInstance() = service<OemLabsAssetsRegistry>()
   }
+}
+
+private fun renderSvgToImage(
+  data: ByteArray,
+  scale: Float,
+  parameters: LoadIconParameters,
+  scaleContext: ScaleContext,
+): Image {
+  val image = renderSvg(data, scale)
+  return convertImage(
+    image = image,
+    filters = parameters.filters,
+    scaleContext = scaleContext,
+    isUpScaleNeeded = false,
+    imageScale = scale,
+  )
 }
