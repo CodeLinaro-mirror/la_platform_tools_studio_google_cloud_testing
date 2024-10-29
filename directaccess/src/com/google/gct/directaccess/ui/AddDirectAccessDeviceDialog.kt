@@ -46,6 +46,7 @@ import com.android.tools.idea.adddevicedialog.TableColumnWidth
 import com.android.tools.idea.adddevicedialog.TableTextColumn
 import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
+import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
 import com.intellij.openapi.project.Project
@@ -65,12 +66,11 @@ import org.jetbrains.jewel.ui.component.Divider
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 
-internal fun createAddDirectAccessDeviceDialog(
-  project: Project?,
-  deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>,
-): DialogWrapper {
-
-  val profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> =
+class AddDirectAccessDeviceDialog(
+  private val project: Project,
+  private val deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>,
+) : DialogWrapper(project) {
+  private val profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> =
     deviceSelectionListFlow.value
       .map { deviceSelection ->
         DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected) to
@@ -78,12 +78,12 @@ internal fun createAddDirectAccessDeviceDialog(
       }
       .toMutableStateMap()
 
-  val selectionColumn =
+  private val selectionColumn =
     TableColumn<DirectAccessDeviceProfile>("", TableColumnWidth.Fixed(24.dp)) { profile ->
       Checkbox(profiles[profile] == true, onCheckedChange = { profiles[profile] = it })
     }
 
-  val modelColumn =
+  private val modelColumn =
     TableTextColumn<DirectAccessDeviceProfile>(
       "Model",
       TableColumnWidth.Weighted(2f),
@@ -91,89 +91,91 @@ internal fun createAddDirectAccessDeviceDialog(
       maxLines = 2,
     )
 
-  return object : DialogWrapper(project) {
-    init {
-      title = "Select Remote Devices"
-      init()
+  init {
+    title = "Select Remote Devices"
+    init()
+  }
+
+  private val filterState by mutableStateOf(RemoteDeviceFilterState())
+  private val rows = profiles.keys.toList()
+
+  override fun createActions(): Array<Action> {
+    return arrayOf()
+  }
+
+  // Don't include the default border; our banners need to span the entire width
+  override fun createContentPaneBorder() = null
+
+  // Don't include the bottom panel; we'll make buttons ourselves
+  override fun createSouthPanel(): JComponent? = null
+
+  override fun createCenterPanel(): JComponent {
+    @OptIn(ExperimentalJewelApi::class) (enableNewSwingCompositing())
+    val component = StudioComposePanel {
+      CompositionLocalProvider(LocalProject provides project) { ComposeContent() }
     }
+    component.preferredSize = JBUI.size(900, 650)
+    component.minimumSize = JBUI.size(600, 350)
+    return component
+  }
 
-    val filterState by mutableStateOf(RemoteDeviceFilterState())
-    val rows = profiles.keys.toList()
-
-    override fun createActions(): Array<Action> {
-      return arrayOf()
+  @VisibleForTesting
+  @Composable
+  fun ComposeContent() {
+    Column {
+      Content()
+      Divider(Orientation.Horizontal)
+      ButtonBar()
     }
+  }
 
-    // Don't include the default border; our banners need to span the entire width
-    override fun createContentPaneBorder() = null
+  @Composable
+  private fun ButtonBar() {
+    Row(
+      modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+      horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+      Spacer(Modifier.weight(1f))
+      OutlinedButton(onClick = { close(CANCEL_EXIT_CODE) }) { Text("Cancel") }
+      DefaultButton(
+        onClick = {
+          deviceSelectionListFlow.update { devices ->
+            val selectedKeys: Map<String, Boolean> =
+              profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
 
-    // Don't include the bottom panel; we'll make buttons ourselves
-    override fun createSouthPanel(): JComponent? = null
-
-    override fun createCenterPanel(): JComponent {
-      @OptIn(ExperimentalJewelApi::class) (enableNewSwingCompositing())
-      val component = StudioComposePanel {
-        CompositionLocalProvider(LocalProject provides project) {
-          Column {
-            Content()
-            Divider(Orientation.Horizontal)
-            ButtonBar()
-          }
-        }
-      }
-      component.preferredSize = JBUI.size(900, 650)
-      component.minimumSize = JBUI.size(600, 350)
-      return component
-    }
-
-    @Composable
-    private fun ButtonBar() {
-      Row(
-        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-      ) {
-        Spacer(Modifier.weight(1f))
-        OutlinedButton(onClick = { close(CANCEL_EXIT_CODE) }) { Text("Cancel") }
-        DefaultButton(
-          onClick = {
-            deviceSelectionListFlow.update { devices ->
-              val selectedKeys: Map<String, Boolean> =
-                profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
-
-              devices.map { selection: DeviceSelection ->
-                selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
-              }
+            devices.map { selection: DeviceSelection ->
+              selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
             }
-            close(OK_EXIT_CODE)
           }
-        ) {
-          Text("Confirm")
+          close(OK_EXIT_CODE)
         }
+      ) {
+        Text("Confirm")
       }
     }
+  }
 
-    @Composable
-    private fun ColumnScope.Content() {
-      Box(Modifier.weight(1f)) {
-        DeviceTable(
-          rows,
-          with(DeviceTableColumns) {
-            persistentListOf(
-              selectionColumn,
-              icon,
-              oem,
-              name,
-              modelColumn,
-              api,
-              width,
-              height,
-              density,
-            )
-          },
-          filterContent = { RemoteDeviceFilters(rows, filterState) },
-          filterState = filterState,
-        )
-      }
+  @Composable
+  private fun ColumnScope.Content() {
+    Box(Modifier.weight(1f)) {
+      DeviceTable(
+        rows,
+        with(DeviceTableColumns) {
+          persistentListOf(
+            selectionColumn,
+            icon,
+            oem,
+            name,
+            modelColumn,
+            api,
+            width,
+            height,
+            density,
+          )
+        },
+        filterContent = { RemoteDeviceFilters(rows, filterState) },
+        filterState = filterState,
+      )
     }
   }
 }
