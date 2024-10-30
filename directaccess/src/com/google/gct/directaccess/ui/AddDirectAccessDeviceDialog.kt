@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.toMutableStateMap
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.unit.dp
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
@@ -80,7 +81,11 @@ class AddDirectAccessDeviceDialog(
 
   private val selectionColumn =
     TableColumn<DirectAccessDeviceProfile>("", TableColumnWidth.Fixed(24.dp)) { profile ->
-      Checkbox(profiles[profile] == true, onCheckedChange = { profiles[profile] = it })
+      Checkbox(
+        profiles[profile] == true,
+        onCheckedChange = { profiles[profile] = it },
+        Modifier.focusProperties { canFocus = false },
+      )
     }
 
   private val modelColumn =
