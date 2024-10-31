@@ -36,8 +36,8 @@ import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.directAccessCloudProjectManager
+import com.google.gct.directaccess.ui.AddDirectAccessDeviceDialog
 import com.google.gct.directaccess.ui.SelectDeviceDialog
-import com.google.gct.directaccess.ui.createAddDirectAccessDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
@@ -370,7 +370,7 @@ class DirectAccessDeviceProvisionerPlugin(
           withContext(AndroidDispatchers.uiThread) {
             val deviceSelectionListFlow =
               project.service<DirectAccessService>().deviceSelectionListFlow
-            if (createAddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
+            if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
               UsageTracker.log(
                 AndroidStudioEvent.newBuilder()
                   .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)

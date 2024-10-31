@@ -48,16 +48,23 @@ class DirectAccessApplicationService(private val scope: CoroutineScope) {
     } else {
       cloudProjectMap.remove(project)
     }
-    if (existingCloudProject != null && existingCloudProject !in cloudProjectMap.values) {
-      cloudProjectManagerMap.remove(existingCloudProject)?.close()
-    }
-
+    removeUnusedCloudProjectManager(existingCloudProject)
     return getCloudProjectManager(cloudProject)
   }
 
-  private fun getCloudProjectManager(
-    cloudProject: CloudProjectEntry?
-  ): DirectAccessCloudProjectManager? {
+  fun removeUnusedCloudProjectManager(cloudProject: CloudProjectEntry?) {
+    if (cloudProject != null && cloudProject !in cloudProjectMap.values) {
+      cloudProjectManagerMap.remove(cloudProject)?.close()
+    }
+  }
+
+  /**
+   * Returns a unique [DirectAccessCloudProjectManager] from [cloudProject]. Do not dispose the
+   * returned [DirectAccessCloudProjectManager] manually, use [removeUnusedCloudProjectManager]
+   * instead to potentially reuse it elsewhere.
+   */
+  @Synchronized
+  fun getCloudProjectManager(cloudProject: CloudProjectEntry?): DirectAccessCloudProjectManager? {
     if (cloudProject == null) return null
     return cloudProjectManagerMap.computeIfAbsent(cloudProject) {
       DirectAccessCloudProjectManager(it, scope.createChildScope(true))

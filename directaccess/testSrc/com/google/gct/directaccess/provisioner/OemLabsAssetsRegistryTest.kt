@@ -40,7 +40,15 @@ class OemLabsAssetsRegistryTest {
     val asset: OemLabsAssetsRegistry.OemLabAsset = registry.getAssetById("some_new_lab")!!
     with(asset) {
       assertThat(name).isEqualTo("Unknown")
-      assertThat(icons.keys).containsExactlyElementsIn(listOf(OemLabsAssetsRegistry.IconType.PHONE))
+      assertThat(icons.keys)
+        .containsExactlyElementsIn(
+          listOf(
+            OemLabsAssetsRegistry.IconType.CAR,
+            OemLabsAssetsRegistry.IconType.PHONE,
+            OemLabsAssetsRegistry.IconType.TV,
+            OemLabsAssetsRegistry.IconType.WEAR,
+          )
+        )
     }
   }
 }

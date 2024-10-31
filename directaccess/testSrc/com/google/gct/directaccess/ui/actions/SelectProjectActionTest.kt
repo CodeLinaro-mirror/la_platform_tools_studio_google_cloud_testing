@@ -156,6 +156,7 @@ class SelectProjectActionTest {
       id = "shiba",
       brand = "google",
       name = "Pixel 8",
+      labId = "google",
       manufacturer = "Google",
       codename = "shiba",
       api = 34,

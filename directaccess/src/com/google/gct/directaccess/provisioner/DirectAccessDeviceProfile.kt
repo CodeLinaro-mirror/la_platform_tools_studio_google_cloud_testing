@@ -22,10 +22,8 @@ import com.android.sdklib.devices.Abi
 import com.android.tools.idea.adddevicedialog.DeviceProfile
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.common.collect.Range
-import icons.StudioIconsCompose
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import org.jetbrains.jewel.ui.component.Icon
 
 internal data class DirectAccessDeviceProfile(
   override val apiRange: Range<Int>,
@@ -39,6 +37,7 @@ internal data class DirectAccessDeviceProfile(
   val availabilityEstimate: Duration,
   val key: String,
   val codename: String,
+  val labId: String,
 ) : DeviceProfile {
   constructor(
     deviceInfo: DeviceInfo,
@@ -55,7 +54,10 @@ internal data class DirectAccessDeviceProfile(
     availabilityEstimate = deviceInfo.deviceAvailabilityEstimateSeconds?.seconds ?: Duration.ZERO,
     key = deviceInfo.key,
     codename = deviceInfo.codename,
+    labId = deviceInfo.labId,
   )
+
+  val labIdDisplayName = OemLabsAssetsRegistry.getInstance().retrieveName(labId)
 
   override val isVirtual: Boolean
     get() = false
@@ -65,20 +67,16 @@ internal data class DirectAccessDeviceProfile(
 
   @Composable
   override fun Icon(modifier: Modifier) {
-    val iconKey =
+    val iconType =
       when (formFactor) {
-        FormFactors.TV -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceTv
-        FormFactors.AUTO -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceCar
-        FormFactors.WEAR -> StudioIconsCompose.DeviceExplorer.FirebaseDeviceWear
-        FormFactors.TABLET -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone
-        else -> StudioIconsCompose.DeviceExplorer.FirebaseDevicePhone
+        FormFactors.TV -> OemLabsAssetsRegistry.IconType.TV
+        FormFactors.AUTO -> OemLabsAssetsRegistry.IconType.CAR
+        FormFactors.WEAR -> OemLabsAssetsRegistry.IconType.WEAR
+        FormFactors.TABLET -> OemLabsAssetsRegistry.IconType.PHONE
+        else -> OemLabsAssetsRegistry.IconType.PHONE
       }
-    Icon(
-      iconKey,
-      contentDescription = "Firebase $formFactor",
-      modifier = modifier,
-      iconClass = StudioIconsCompose::class.java,
-    )
+
+    OemLabsAssetsRegistry.getInstance().retrieveIcon(labId, iconType).Icon(modifier)
   }
 
   override fun toBuilder(): Builder = Builder().apply { copyFrom(this@DirectAccessDeviceProfile) }
@@ -86,11 +84,13 @@ internal data class DirectAccessDeviceProfile(
   class Builder : DeviceProfile.Builder() {
     lateinit var key: String
     lateinit var codename: String
+    lateinit var labId: String
 
     fun copyFrom(profile: DirectAccessDeviceProfile) {
       super.copyFrom(profile)
       key = profile.key
       codename = profile.codename
+      labId = profile.labId
       availabilityEstimate = profile.availabilityEstimate
       isAlreadyPresent = profile.isAlreadyPresent
     }
@@ -108,6 +108,7 @@ internal data class DirectAccessDeviceProfile(
         availabilityEstimate = availabilityEstimate,
         key = key,
         codename = codename,
+        labId = labId,
       )
   }
 }
