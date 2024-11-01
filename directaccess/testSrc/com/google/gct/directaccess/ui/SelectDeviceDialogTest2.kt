@@ -15,6 +15,10 @@
  */
 package com.google.gct.directaccess.ui
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.KeyInjectionScope
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsToggleable
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnySibling
@@ -22,7 +26,9 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextReplacement
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.tools.adtui.compose.utils.StudioComposeTestRule.Companion.createStudioComposeTestRule
@@ -147,4 +153,89 @@ class SelectDeviceDialogTest2 {
     composeTestRule.waitForIdle()
     assertThat(deviceSelectionListFlow.value.none { it.isSelected }).isTrue()
   }
+
+  @OptIn(ExperimentalTestApi::class)
+  @Test
+  fun keyboard() {
+    // Click to select phones[0].
+    composeTestRule.onNodeWithText(phones[0].codename).performClick()
+    composeTestRule
+      .onNodeWithText(phones[0].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Arrow down to phone[1].
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.DirectionDown) }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[1].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Tab to phone[2] and press space to select.
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[2].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Spacebar) }
+
+    // Up to phone[1].
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.DirectionUp) }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[1].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Shift tab to phone[0].
+    composeTestRule.onRoot().performKeyInput {
+      keyDown(Key.ShiftLeft)
+      keyDown(Key.Tab)
+      keyUp(Key.Tab)
+      keyUp(Key.ShiftLeft)
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[0].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Tab to actions.
+    for (index in 1 until phones.size) {
+      composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+      composeTestRule.waitForIdle()
+      composeTestRule
+        .onNodeWithText(phones[index].codename)
+        .onChild()
+        .assertIsToggleable()
+        .assertIsFocused()
+    }
+
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("Cancel").assertIsFocused()
+
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("Confirm").assertIsFocused().performClick()
+
+    // Verify selected device.
+    assertThat(
+        deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename ==
+          phones[2].codename
+      )
+      .isTrue()
+  }
+}
+
+private fun KeyInjectionScope.keyPress(key: Key) {
+  keyDown(key)
+  keyUp(key)
 }
