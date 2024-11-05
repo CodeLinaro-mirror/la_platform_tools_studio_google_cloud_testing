@@ -24,6 +24,7 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Extension
 import com.android.sdklib.deviceprovisioner.ExtensionRegistry
+import com.android.tools.adtui.compose.initializeComposeMainDispatcherChecker
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
@@ -370,6 +371,7 @@ class DirectAccessDeviceProvisionerPlugin(
           withContext(AndroidDispatchers.uiThread) {
             val deviceSelectionListFlow =
               project.service<DirectAccessService>().deviceSelectionListFlow
+            initializeComposeMainDispatcherChecker()
             if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
               UsageTracker.log(
                 AndroidStudioEvent.newBuilder()
