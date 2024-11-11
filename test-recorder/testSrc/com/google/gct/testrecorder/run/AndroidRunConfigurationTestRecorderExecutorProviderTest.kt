@@ -44,7 +44,7 @@ class AndroidRunConfigurationTestRecorderExecutorProviderTest {
 
           override fun getDevices(project: Project) = FakeAndroidDevice.forDevices(listOf(mock<IDevice>()))
 
-          override fun getAndroidDevices(project: Project): List<AndroidDevice> = throw UnsupportedOperationException()
+          override fun getAndroidDevices(project: Project): List<AndroidDevice> = listOf(FakeAndroidDevice(mock<IDevice>()))
         }
       }
     }
