@@ -38,7 +38,6 @@ import com.google.gct.directaccess.TestUtils
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.reservation
 import com.google.gct.directaccess.TestUtils.showAllTemplates
-import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
@@ -59,6 +58,7 @@ import com.google.services.firebase.directaccess.client.deviceAddress
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DeviceInfo
 import com.google.wireless.android.sdk.stats.DeviceInfo.DeviceType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
@@ -158,8 +158,7 @@ class DirectAccessUsageTrackerTest {
 
   private fun setupConnection(createConnection: (String) -> FakeDirectAccessConnection) {
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null))
-      .thenReturn(listOf<DeviceInfo>())
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null)).thenReturn(listOf())
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -253,6 +252,25 @@ class DirectAccessUsageTrackerTest {
 
     val studioEvent = findUsageEvent(RESERVE_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+    assertThat(studioEvent.deviceInfo)
+      .isEqualTo(
+        DeviceInfo.newBuilder()
+          .apply {
+            anonymizedSerialNumber = ""
+            buildTags = ""
+            buildType = ""
+            buildVersionRelease = ""
+            cpuAbi = DeviceInfo.ApplicationBinaryInterface.UNKNOWN_ABI
+            manufacturer = "Google"
+            model = "Pixel 5"
+            deviceType = DeviceType.CLOUD_PHYSICAL
+            buildApiLevelFull = "31"
+            deviceProvisionerId = "FirebaseDirectAccess"
+            connectionId = "0"
+            oemLabName = "google"
+          }
+          .build()
+      )
 
     val directAccessEvent = studioEvent.directAccessUsageEvent
     assertThat(directAccessEvent.type).isEqualTo(RESERVE_DEVICE)
@@ -330,6 +348,7 @@ class DirectAccessUsageTrackerTest {
     val studioEvent = findUsageEvent(CONNECT_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
     assertThat(studioEvent.deviceInfo.connectionId).isEqualTo("1")
+    assertThat(studioEvent.deviceInfo.oemLabName).isEqualTo("google")
 
     val directAccessEvent = studioEvent.directAccessUsageEvent
     assertThat(directAccessEvent.type).isEqualTo(CONNECT_DEVICE)
