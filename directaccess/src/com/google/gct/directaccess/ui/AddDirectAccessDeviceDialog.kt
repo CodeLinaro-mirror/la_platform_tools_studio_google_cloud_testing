@@ -24,11 +24,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.toMutableStateMap
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
@@ -70,17 +74,26 @@ class AddDirectAccessDeviceDialog(
   private val project: Project,
   private val deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>,
 ) : DialogWrapper(project) {
+  private val rows =
+    deviceSelectionListFlow.value.map { deviceSelection ->
+      DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
+    }
   private val profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> =
-    deviceSelectionListFlow.value
-      .map { deviceSelection ->
-        DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected) to
-          deviceSelection.isSelected
-      }
-      .toMutableStateMap()
+    rows.map { profile -> profile to profile.isAlreadyPresent }.toMutableStateMap()
 
   private val selectionColumn =
-    TableColumn<DirectAccessDeviceProfile>("", TableColumnWidth.Fixed(24.dp)) { profile ->
-      Checkbox(profiles[profile] == true, onCheckedChange = { profiles[profile] = it })
+    TableColumn<DirectAccessDeviceProfile>("", TableColumnWidth.Fixed(24.dp)) { profile, selected ->
+      val focusRequester = remember(profile) { FocusRequester() }
+      Checkbox(
+        profiles[profile] == true,
+        onCheckedChange = { profiles[profile] = it },
+        modifier = Modifier.focusRequester(focusRequester),
+      )
+      LaunchedEffect(selected, profile) {
+        if (selected) {
+          focusRequester.requestFocus()
+        }
+      }
     }
 
   private val modelColumn =
@@ -97,7 +110,6 @@ class AddDirectAccessDeviceDialog(
   }
 
   private val filterState by mutableStateOf(RemoteDeviceFilterState())
-  private val rows = profiles.keys.toList()
 
   override fun createActions(): Array<Action> {
     return arrayOf()
