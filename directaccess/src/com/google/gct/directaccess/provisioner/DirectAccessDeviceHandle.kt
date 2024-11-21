@@ -491,6 +491,7 @@ class DirectAccessDeviceHandle(
         properties,
         connectionAttempts.toString(),
       )
+      deviceInfoProto.oemLabName = sourceTemplate.deviceInfo.labId
       icon = this@DirectAccessDeviceHandle.icon
     }
 

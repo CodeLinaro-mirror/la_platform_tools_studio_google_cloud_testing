@@ -591,5 +591,6 @@ internal fun DeviceInfo.toDeviceProperties(connectionCount: Int = 0): DeviceProp
     density = info.screenDensity
     icon = info.icon
     populateDeviceInfoProto(PLUGIN_ID, null, emptyMap(), connectionCount.toString())
+    deviceInfoProto.oemLabName = labId
   }
 }
