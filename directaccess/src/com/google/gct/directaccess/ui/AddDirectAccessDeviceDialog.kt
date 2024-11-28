@@ -34,12 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
+import com.android.tools.adtui.compose.LocalProject
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
 import com.android.tools.idea.adddevicedialog.DeviceTable
 import com.android.tools.idea.adddevicedialog.DeviceTableColumns
 import com.android.tools.idea.adddevicedialog.FormFactor
-import com.android.tools.idea.adddevicedialog.LocalProject
 import com.android.tools.idea.adddevicedialog.Manufacturer
 import com.android.tools.idea.adddevicedialog.RowAttribute
 import com.android.tools.idea.adddevicedialog.SetFilter
