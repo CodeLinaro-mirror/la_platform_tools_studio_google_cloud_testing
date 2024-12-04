@@ -46,10 +46,12 @@ import com.intellij.ide.actions.SelectInContextImpl;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.ProjectViewPane;
 import com.intellij.openapi.actionSystem.ActionPlaces;
+import com.intellij.openapi.actionSystem.ActionUiKind;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
+import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.editor.Document;
@@ -151,22 +153,11 @@ public class TestCodeGenerator {
         String currentViewId = projectView.getCurrentViewId() == null ? ProjectViewPane.ID : projectView.getCurrentViewId();
         for (SelectInTarget target : projectView.getSelectInTargets()) {
           if (currentViewId.equals(target.getMinorViewId())) {
-            AnActionEvent event = AnActionEvent.createFromDataContext(ActionPlaces.UNKNOWN, null, new DataContext() {
-              @Nullable
-              @Override
-              public Object getData(String dataId) {
-                if (CommonDataKeys.PROJECT.getName().equals(dataId)) {
-                  return myProject;
-                }
-                else if (PlatformDataKeys.FILE_EDITOR.getName().equals(dataId)) {
-                  return FileEditorManagerEx.getInstanceEx(myProject).getSelectedEditor(testVirtualFile);
-                }
-                else if (CommonDataKeys.VIRTUAL_FILE.getName().equals(dataId)) {
-                  return testVirtualFile;
-                }
-                return null;
-              }
-            });
+            AnActionEvent event = AnActionEvent.createEvent(SimpleDataContext.builder()
+                                                              .add(CommonDataKeys.PROJECT, myProject)
+                                                              .add(PlatformDataKeys.FILE_EDITOR, FileEditorManagerEx.getInstanceEx(myProject).getSelectedEditor(testVirtualFile))
+                                                              .add(CommonDataKeys.VIRTUAL_FILE, testVirtualFile)
+                                                              .build(), null, ActionPlaces.UNKNOWN, ActionUiKind.MAIN_MENU, null);
             SelectInContext context = SelectInContextImpl.createContext(event);
             target.selectIn(context, false);
             break;
