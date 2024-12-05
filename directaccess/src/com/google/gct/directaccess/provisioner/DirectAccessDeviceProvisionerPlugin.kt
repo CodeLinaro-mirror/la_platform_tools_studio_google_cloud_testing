@@ -51,6 +51,7 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
+import java.awt.Component
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -366,7 +367,7 @@ class DirectAccessDeviceProvisionerPlugin(
 
   override val createDeviceTemplateAction =
     object : CreateDeviceTemplateAction {
-      override suspend fun create() {
+      override suspend fun create(parent: Component?) {
         if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
           withContext(AndroidDispatchers.uiThread) {
             val deviceSelectionListFlow =
