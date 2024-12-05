@@ -45,6 +45,7 @@ object CatalogClient {
         "PHONE",
         "TABLET" -> DeviceType.HANDHELD
         "WEARABLE" -> DeviceType.WEAR
+        "XR" -> DeviceType.XR
         else -> DeviceType.HANDHELD
       }
     val provisionerFormFactor =
@@ -53,6 +54,7 @@ object CatalogClient {
         "TABLET" -> FormFactors.TABLET
         "WEARABLE" -> FormFactors.WEAR
         "TV" -> FormFactors.TV
+        "XR" -> FormFactors.XR
         else -> FormFactors.PHONE
       }
     val deviceAvailabilityEstimateSeconds =
