@@ -1213,7 +1213,7 @@ class DirectAccessDeviceProvisionerTest {
 
     withContext(AndroidDispatchers.uiThread) {
       createModalDialogAndInteractWithIt({
-        scope.launch { plugin.createDeviceTemplateAction.create() }
+        scope.launch { plugin.createDeviceTemplateAction.create(null) }
       }) {
         val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
@@ -1242,7 +1242,7 @@ class DirectAccessDeviceProvisionerTest {
     // Re-select a template
     withContext(AndroidDispatchers.uiThread) {
       createModalDialogAndInteractWithIt({
-        scope.launch { plugin.createDeviceTemplateAction.create() }
+        scope.launch { plugin.createDeviceTemplateAction.create(null) }
       }) {
         val dialog = it as SelectDeviceDialog
         assertThat(dialog.deviceTable.componentCount).isEqualTo(5)

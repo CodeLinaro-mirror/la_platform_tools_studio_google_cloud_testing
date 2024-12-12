@@ -149,7 +149,7 @@ public class TestRecorderAction extends AnAction {
         launchTestRecorderOnConfiguration(project, selectedConfiguration.getConfiguration(), isRecordingTest);
       } else {
         // If there is more than one possible choice, ask the user to pick a configuration.
-        ListPopupImpl configurationPickerPopup = new ListPopupImpl(
+        ListPopupImpl configurationPickerPopup = new ListPopupImpl(project,
           new BaseListPopupStep<RunConfiguration>("Pick configuration to launch", suitableRunConfigurations) {
             @NotNull
             @Override

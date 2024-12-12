@@ -303,7 +303,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
             projectModel.applyChanges();
 
             if (myProject != null) {
-              getProjectSystem(myProject).getSyncManager().syncProject(new ProjectSystemSyncManager.SyncReason(TRIGGER_ESPRESSO_SETUP));
+              getProjectSystem(myProject).getSyncManager().requestSyncProject(new ProjectSystemSyncManager.SyncReason(TRIGGER_ESPRESSO_SETUP));
             }
           });
         }
