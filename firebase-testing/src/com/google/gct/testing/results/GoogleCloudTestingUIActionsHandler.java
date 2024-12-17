@@ -21,6 +21,7 @@ import com.intellij.execution.testframework.TestConsoleProperties;
 import com.intellij.execution.testframework.TestFrameworkRunningModel;
 import com.intellij.execution.testframework.actions.ScrollToTestSourceAction;
 import com.intellij.execution.testframework.sm.runner.ProxyFilters;
+import com.intellij.ide.DataManager;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.util.OpenSourceUtil;
@@ -79,12 +80,12 @@ public class GoogleCloudTestingUIActionsHandler extends GoogleCloudTestResultsVi
   public void onSelected(@Nullable final GoogleCloudTestProxy selectedTestProxy,
                          @NotNull final GoogleCloudTestResultsViewer viewer,
                          @NotNull final TestFrameworkRunningModel model) {
-    //TODO: tests o "onSelected"
+    //TODO: tests of "onSelected"
     CloudTestingUtils.runInEventDispatchThread(new Runnable() {
       @Override
       public void run() {
         if (ScrollToTestSourceAction.isScrollEnabled(model)) {
-          DataContext dataContext = k -> model.getTreeView().getData(k);
+          DataContext dataContext = DataManager.getInstance().getDataContext(model.getTreeView());
           OpenSourceUtil.openSourcesFrom(dataContext, false);
         }
       }
