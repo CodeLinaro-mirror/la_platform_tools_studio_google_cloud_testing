@@ -17,7 +17,9 @@ package com.google.gct.testing.ui;
 
 import com.google.gct.testing.CloudTestingUtils;
 import com.intellij.ui.JBColor;
-import com.intellij.util.ui.UIUtil;
+import com.intellij.uiDesigner.core.GridConstraints;
+import com.intellij.uiDesigner.core.GridLayoutManager;
+import com.intellij.uiDesigner.core.Spacer;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -51,6 +53,7 @@ public class AddCompareScreenshotPanel {
   List<AddScreenshotListener> listeners = new LinkedList<AddScreenshotListener>();
 
   public AddCompareScreenshotPanel() {
+    setupUI();
     BufferedImage darkImage = null;
     BufferedImage lightImage = null;
     BufferedImage brightImage = null;
@@ -100,6 +103,34 @@ public class AddCompareScreenshotPanel {
     return myPanel;
   }
 
+  private void setupUI() {
+    myPanel = new JPanel();
+    myPanel.setLayout(new BorderLayout(0, 0));
+    myPanel.setOpaque(true);
+    final JPanel panel1 = new JPanel();
+    panel1.setLayout(new GridLayoutManager(4, 1, new Insets(0, 0, 0, 0), -1, -1));
+    panel1.setOpaque(false);
+    myPanel.add(panel1, BorderLayout.CENTER);
+    textLabel = new JLabel();
+    textLabel.setText("Compare");
+    panel1.add(textLabel, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE,
+                                              GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                              GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null,
+                                              0, false));
+    imageLabel = new JLabel();
+    imageLabel.setText("Image");
+    panel1.add(imageLabel, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE,
+                                               GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                               GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null,
+                                               null, 0, false));
+    final Spacer spacer1 = new Spacer();
+    panel1.add(spacer1, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1,
+                                            GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+    final Spacer spacer2 = new Spacer();
+    panel1.add(spacer2, new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1,
+                                            GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+  }
+
   class MouseListener extends MouseAdapter {
     @Override
     public void mouseClicked(MouseEvent e) {
@@ -139,7 +170,7 @@ public class AddCompareScreenshotPanel {
   public static Border createDashedBorder(Paint paint, float thickness, float length, float spacing, boolean rounded) {
     int cap = rounded ? BasicStroke.CAP_ROUND : BasicStroke.CAP_SQUARE;
     int join = rounded ? BasicStroke.JOIN_ROUND : BasicStroke.JOIN_MITER;
-    float[] array = { thickness * (length - 1.0f), thickness * (spacing + 1.0f) };
+    float[] array = {thickness * (length - 1.0f), thickness * (spacing + 1.0f)};
     Border border = new StrokeBorder(new BasicStroke(thickness, cap, join, thickness * 2.0f, array, 0.0f), paint);
     return border;
   }

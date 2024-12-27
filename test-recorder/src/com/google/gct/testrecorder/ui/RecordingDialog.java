@@ -36,7 +36,6 @@ import static com.google.gct.testrecorder.util.UiAutomatorNodeHelper.isTextView;
 
 import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.IDevice;
-import com.android.repository.api.ProgressIndicator;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.uiautomator.tree.BasicTreeNode;
@@ -70,9 +69,13 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.psi.PsiDirectory;
+import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.uiDesigner.core.GridConstraints;
+import com.intellij.uiDesigner.core.GridLayoutManager;
+import com.intellij.uiDesigner.core.Spacer;
 import com.intellij.util.ui.JBDimension;
 import com.intellij.util.ui.JBUI;
 import com.sun.jdi.request.BreakpointRequest;
@@ -80,6 +83,7 @@ import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Insets;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -87,6 +91,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
@@ -97,6 +102,7 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.border.TitledBorder;
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
@@ -157,6 +163,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
                          boolean isRecordingTest,
                          CountDownLatch latch) {
     super(facet.getModule().getProject(), true, IdeModalityType.MODELESS);
+    setupUI();
     myProject = facet.getModule().getProject();
     myFacet = facet;
     myDevice = device;
@@ -384,6 +391,126 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       this.myCountDownLatch.countDown();
     }
     super.doCancelAction();
+  }
+
+  private void setupUI() {
+    createUIComponents();
+    myRootPanel = new JPanel();
+    myRootPanel.setLayout(new GridLayoutManager(1, 2, new Insets(0, 0, 0, 0), 0, 0));
+    myRecordingPanel = new JPanel();
+    myRecordingPanel.setLayout(new GridLayoutManager(2, 1, new Insets(0, 0, 0, 0), 0, 0));
+    myRootPanel.add(myRecordingPanel, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
+                                                          GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                          GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null,
+                                                          new Dimension(596, 306), null, 0, false));
+    myActionListPanel = new JPanel();
+    myActionListPanel.setLayout(new GridLayoutManager(2, 1, new Insets(0, 0, 0, 0), 0, 0));
+    myRecordingPanel.add(myActionListPanel, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
+                                                                GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                                GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                                null, new Dimension(539, 132), null, 0, false));
+    myScrollPane = new JBScrollPane();
+    myActionListPanel.add(myScrollPane, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
+                                                            GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                            GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                            null, new Dimension(238, 128), null, 0, false));
+    myActionList = new JBList();
+    myActionList.setSelectionMode(0);
+    myScrollPane.setViewportView(myActionList);
+    myRecordPauseButton = new JButton();
+    myRecordPauseButton.setHideActionText(false);
+    myRecordPauseButton.setText("Pause");
+    myActionListPanel.add(myRecordPauseButton,
+                          new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
+                                              GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                              GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(0, 40), null, 0, false));
+    myAssertionPanel = new JPanel();
+    myAssertionPanel.setLayout(new CardLayout(0, 0));
+    myRecordingPanel.add(myAssertionPanel, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_SOUTH, GridConstraints.FILL_HORIZONTAL,
+                                                               GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                               GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(539, 150), null, 0,
+                                                               false));
+    myButtonsPanel = new JPanel();
+    myButtonsPanel.setLayout(new GridLayoutManager(3, 5, new Insets(0, 0, 0, 0), 0, 0));
+    myAssertionPanel.add(myButtonsPanel, "myButtonsPanel");
+    myAddAssertionButton = new JButton();
+    myAddAssertionButton.setText("Add Assertion");
+    myButtonsPanel.add(myAddAssertionButton, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_EAST, GridConstraints.FILL_NONE,
+                                                                 GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null,
+                                                                 null, null, 0, false));
+    myTakeScreenshotButton = new JButton();
+    myTakeScreenshotButton.setText("Take Screenshot");
+    myButtonsPanel.add(myTakeScreenshotButton,
+                       new GridConstraints(1, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
+                                           GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                           GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+    final Spacer spacer1 = new Spacer();
+    myButtonsPanel.add(spacer1, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1,
+                                                    GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+    final JPanel panel1 = new JPanel();
+    panel1.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), 0, 0));
+    myButtonsPanel.add(panel1, new GridConstraints(0, 0, 1, 5, GridConstraints.ANCHOR_NORTH, GridConstraints.FILL_HORIZONTAL,
+                                                   GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                   GridConstraints.SIZEPOLICY_FIXED, new Dimension(0, 5), new Dimension(0, 5),
+                                                   new Dimension(0, 5), 0, false));
+    myEditAssertionPanel = new JPanel();
+    myEditAssertionPanel.setLayout(new GridLayoutManager(4, 1, new Insets(0, 0, 0, 0), 0, 0));
+    myAssertionPanel.add(myEditAssertionPanel, "myEditAssertionPanel");
+    myEditAssertionPanel.setBorder(
+      IdeBorderFactory.PlainSmallWithIndent.createTitledBorder(BorderFactory.createEtchedBorder(), "Edit assertion",
+                                                               TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, null,
+                                                               null));
+    myAssertionRuleComboBox = new JComboBox();
+    myEditAssertionPanel.add(myAssertionRuleComboBox,
+                             new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL,
+                                                 GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null,
+                                                 new Dimension(230, 25), null, 0, false));
+    final JPanel panel2 = new JPanel();
+    panel2.setLayout(new GridLayoutManager(1, 4, new Insets(0, 0, 0, 0), 0, 0));
+    myEditAssertionPanel.add(panel2, new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
+                                                         GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                         GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null,
+                                                         new Dimension(230, 35), null, 0, false));
+    mySaveAssertionButton = new JButton();
+    mySaveAssertionButton.setText("Save Assertion");
+    panel2.add(mySaveAssertionButton, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
+                                                          GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                          GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+    final Spacer spacer2 = new Spacer();
+    panel2.add(spacer2, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
+                                            GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
+    mySaveAssertionAndAddAnotherButton = new JButton();
+    mySaveAssertionAndAddAnotherButton.setText("Save and Add Another");
+    panel2.add(mySaveAssertionAndAddAnotherButton,
+               new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
+                                   GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                   GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+    myCancelButton = new JButton();
+    myCancelButton.setText("Cancel");
+    panel2.add(myCancelButton, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
+                                                   GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                   GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+    myTextFieldWrapper = new JPanel();
+    myTextFieldWrapper.setLayout(new CardLayout(0, 0));
+    myEditAssertionPanel.add(myTextFieldWrapper, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
+                                                                     GridConstraints.SIZEPOLICY_CAN_SHRINK |
+                                                                     GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                                     GridConstraints.SIZEPOLICY_CAN_SHRINK |
+                                                                     GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(230, 24),
+                                                                     null, 0, false));
+    myAssertionTextField = new JTextField();
+    myTextFieldWrapper.add(myAssertionTextField, "myAssertionTextField");
+    final JPanel panel3 = new JPanel();
+    panel3.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), 0, 0));
+    myTextFieldWrapper.add(panel3, "myPlaceHolder");
+    myAssertionElementComboBox = new JComboBox();
+    myEditAssertionPanel.add(myAssertionElementComboBox,
+                             new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL,
+                                                 GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null,
+                                                 new Dimension(230, 25), null, 0, false));
+    myRootPanel.add(myScreenshotPanel, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_EAST, GridConstraints.FILL_VERTICAL,
+                                                           GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null,
+                                                           null, 0, false));
   }
 
   @VisibleForTesting

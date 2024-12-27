@@ -41,23 +41,30 @@ import com.intellij.ui.AnActionButtonRunnable;
 import com.intellij.ui.AnActionButtonUpdater;
 import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.DocumentAdapter;
+import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.SimpleTextAttributes;
 import com.intellij.ui.ToolbarDecorator;
 import com.intellij.ui.treeStructure.Tree;
+import com.intellij.uiDesigner.core.GridConstraints;
+import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.IconUtil;
 import com.intellij.util.PlatformIcons;
-import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.tree.TreeUtil;
 import icons.StudioIcons;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -65,6 +72,7 @@ import javax.swing.JTextField;
 import javax.swing.JTree;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
@@ -119,6 +127,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
                                          @NotNull CloudConfiguration.Kind configurationKind) {
 
     super(module.getProject(), true);
+    setupUI();
 
     this.configurationKind = configurationKind;
 
@@ -135,16 +144,16 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
 
       UsageTracker.log(UsageTrackerUtils.withProjectId(
         AndroidStudioEvent.newBuilder()
-         .setCategory(EventCategory.CLOUD_TESTING)
-         .setKind(EventKind.CLOUD_TESTING_CONFIGURE_CLOUD_DEVICE),
+          .setCategory(EventCategory.CLOUD_TESTING)
+          .setKind(EventKind.CLOUD_TESTING_CONFIGURE_CLOUD_DEVICE),
         module.getProject()));
 
     } else {
       setTitle("Matrix Configurations");
       UsageTracker.log(UsageTrackerUtils.withProjectId(
         AndroidStudioEvent.newBuilder()
-         .setCategory(EventCategory.CLOUD_TESTING)
-         .setKind(EventKind.CLOUD_TESTING_CONFIGURE_MATRIX),
+          .setCategory(EventCategory.CLOUD_TESTING)
+          .setKind(EventKind.CLOUD_TESTING_CONFIGURE_MATRIX),
         module.getProject()));
     }
 
@@ -169,7 +178,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
           selectedConfiguration = null;
         } else {
           updateConfigurationControls(true);
-          selectedConfiguration = (CloudConfigurationImpl) ((DefaultMutableTreeNode)selectedPath.getPath()[2]).getUserObject();
+          selectedConfiguration = (CloudConfigurationImpl)((DefaultMutableTreeNode)selectedPath.getPath()[2]).getUserObject();
           myConfigurationName.setText(selectedConfiguration.getName());
           myConfigurationName.setEnabled(selectedConfiguration.isEditable());
         }
@@ -203,7 +212,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
             append("Defaults", SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
             setIcon(AllIcons.General.Settings);
           } else if (node.getUserObject() instanceof CloudConfigurationImpl) {
-            CloudConfigurationImpl config = (CloudConfigurationImpl) node.getUserObject();
+            CloudConfigurationImpl config = (CloudConfigurationImpl)node.getUserObject();
             boolean isInvalidConfiguration = config.getDeviceConfigurationCount() < 1;
             boolean oldMySelected = mySelected;
             // This is a trick to avoid using white color for the selected element if it has to be red.
@@ -315,7 +324,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
    */
   private void removeConfigurationFromTree(CloudConfigurationImpl configuration) {
     configuration.removeConfigurationChangeListener(this);
-    MutableTreeNode toRemove = (MutableTreeNode) TreeUtil.findNodeWithObject(configuration, myConfigurationTree.getModel(), customRoot);
+    MutableTreeNode toRemove = (MutableTreeNode)TreeUtil.findNodeWithObject(configuration, myConfigurationTree.getModel(), customRoot);
     customRoot.remove(toRemove);
   }
 
@@ -437,6 +446,72 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
     myConfigurationTreePanel.updateUI();
   }
 
+  private void setupUI() {
+    myPanel = new JPanel();
+    myPanel.setLayout(new BorderLayout(0, 0));
+    myConfigurationPanel = new JPanel();
+    myConfigurationPanel.setLayout(new BorderLayout(0, 0));
+    myPanel.add(myConfigurationPanel, BorderLayout.NORTH);
+    final JPanel panel1 = new JPanel();
+    panel1.setLayout(new GridLayoutManager(3, 2, new Insets(0, 0, 0, 0), -1, -1));
+    myConfigurationPanel.add(panel1, BorderLayout.NORTH);
+    myConfigurationName = new JTextField();
+    panel1.add(myConfigurationName, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL,
+                                                        GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null,
+                                                        new Dimension(150, -1), null, 0, false));
+    myConfigurationNameLabel = new JLabel();
+    myConfigurationNameLabel.setText("Name");
+    panel1.add(myConfigurationNameLabel,
+               new GridConstraints(0, 0, 2, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED,
+                                   GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+    myGroupDescriptionLabel = new JLabel();
+    myGroupDescriptionLabel.setText("Label");
+    myGroupDescriptionLabel.setVisible(false);
+    panel1.add(myGroupDescriptionLabel,
+               new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED,
+                                   GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+    final JPanel panel2 = new JPanel();
+    panel2.setLayout(new BorderLayout(0, 0));
+    myConfigurationPanel.add(panel2, BorderLayout.CENTER);
+    final JPanel panel3 = new JPanel();
+    panel3.setLayout(new GridBagLayout());
+    panel2.add(panel3, BorderLayout.NORTH);
+    myConfigurationEditorPanel = new JPanel();
+    myConfigurationEditorPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
+    GridBagConstraints gbc;
+    gbc = new GridBagConstraints();
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.weightx = 1.0;
+    gbc.weighty = 1.0;
+    gbc.fill = GridBagConstraints.BOTH;
+    panel3.add(myConfigurationEditorPanel, gbc);
+    myConfigurationInfoPanel = new JPanel();
+    myConfigurationInfoPanel.setLayout(new GridBagLayout());
+    myConfigurationInfoPanel.setMinimumSize(new Dimension(540, 150));
+    myConfigurationInfoPanel.setOpaque(true);
+    myConfigurationInfoPanel.setPreferredSize(new Dimension(10, 10));
+    gbc = new GridBagConstraints();
+    gbc.gridx = 0;
+    gbc.gridy = 1;
+    gbc.anchor = GridBagConstraints.NORTH;
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    panel3.add(myConfigurationInfoPanel, gbc);
+    myConfigurationInfoPanel.setBorder(
+      IdeBorderFactory.PlainSmallWithIndent.createTitledBorder(BorderFactory.createEtchedBorder(), "Details",
+                                                               TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, null,
+                                                               null));
+    myConfigurationTreePanel = new JPanel();
+    myConfigurationTreePanel.setLayout(new BorderLayout(0, 0));
+    myPanel.add(myConfigurationTreePanel, BorderLayout.CENTER);
+    myConfigurationTree = new Tree();
+    myConfigurationTree.setAutoscrolls(true);
+    myConfigurationTree.setEditable(false);
+    myConfigurationTree.setRootVisible(false);
+    myConfigurationTree.setShowsRootHandles(true);
+    myConfigurationTreePanel.add(myConfigurationTree, BorderLayout.CENTER);
+  }
+
   private class MyRemoveAction extends AnAction implements AnActionButtonRunnable, AnActionButtonUpdater {
 
     @Override
@@ -495,8 +570,8 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
     public void actionPerformed(AnActionEvent e) {
       // selectedConfiguration should not be null here, but handle this scenario just in case.
       CloudConfigurationImpl newConfiguration = selectedConfiguration != null
-                                                    ? selectedConfiguration.copy("Copy of ")
-                                                    : new CloudConfigurationImpl(facet, configurationKind);
+                                                ? selectedConfiguration.copy("Copy of ")
+                                                : new CloudConfigurationImpl(facet, configurationKind);
 
       addNewConfiguration(newConfiguration);
     }
@@ -608,7 +683,7 @@ public class CloudConfigurationChooserDialog extends DialogWrapper implements Co
   }
 
   private void updateConfigurationTree() {
-    ((DefaultTreeModel) myConfigurationTree.getModel()).reload();
+    ((DefaultTreeModel)myConfigurationTree.getModel()).reload();
     expandAllRows(myConfigurationTree);
     myConfigurationTree.updateUI();
   }
