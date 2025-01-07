@@ -212,7 +212,9 @@ internal class RemoteDeviceTextFilter : TextFilterState<DirectAccessDeviceProfil
   override val description = "Search for a device by name, model, or OEM"
 
   override fun apply(row: DirectAccessDeviceProfile): Boolean =
-    super.apply(row) || row.manufacturer.contains(searchText.trim(), ignoreCase = true)
+    super.apply(row) ||
+      row.manufacturer.contains(searchText.trim(), ignoreCase = true) ||
+      row.codename.contains(searchText.trim(), ignoreCase = true)
 }
 
 @Composable

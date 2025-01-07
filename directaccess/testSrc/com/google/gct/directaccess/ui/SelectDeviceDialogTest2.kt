@@ -18,12 +18,14 @@ package com.google.gct.directaccess.ui
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.KeyInjectionScope
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsToggleable
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -101,6 +103,18 @@ class SelectDeviceDialogTest2 {
     for (device in phones) {
       if (device.name.contains("Pro")) {
         composeTestRule.onNodeWithText(device.codename).assertExists()
+      } else {
+        composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
+      }
+    }
+  }
+
+  @Test
+  fun textSearchByCodename() {
+    composeTestRule.onNode(hasSetTextAction()).performTextReplacement("codename5")
+    for (device in phones) {
+      if (device.codename.contains("codename5")) {
+        composeTestRule.onAllNodesWithText(device.codename).assertCountEquals(2)
       } else {
         composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
       }
