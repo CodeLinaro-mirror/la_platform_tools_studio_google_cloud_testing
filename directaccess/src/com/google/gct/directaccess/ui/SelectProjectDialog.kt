@@ -95,6 +95,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
   init {
     setOKButtonText("Confirm")
+    okAction.isEnabled = false
     title = "Configure Device Streaming"
     init()
   }
@@ -221,6 +222,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     // Update [selectedCloudProjectName] immediately to avoid delays of creating its cloud project
     // manager.
     temporarySelectedCloudProjectName = cloudProject
+    okAction.isEnabled = (cloudProject != null)
     val service = service<DirectAccessApplicationService>()
     service.removeUnusedCloudProjectManager(
       temporarySelectedCloudProjectManager.value?.cloudProject
