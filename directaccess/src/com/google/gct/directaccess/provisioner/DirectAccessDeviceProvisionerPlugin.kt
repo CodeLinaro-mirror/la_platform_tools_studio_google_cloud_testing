@@ -23,16 +23,19 @@ import com.android.sdklib.deviceprovisioner.DeviceProvisionerPlugin
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Extension
-import com.android.sdklib.deviceprovisioner.ExtensionRegistry
 import com.android.tools.adtui.compose.initializeComposeMainDispatcherChecker
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.gservices.DevServicesDeprecationData
+import com.android.tools.idea.gservices.DevServicesDeprecationStatus
 import com.google.common.annotations.VisibleForTesting
 import com.google.devtools.testing.v1.DeviceSession as Reservation
+import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
@@ -44,15 +47,22 @@ import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DeviceManagerEvent
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.updateSettings.impl.UpdateChecker
 import com.intellij.openapi.util.Disposer
+import com.intellij.ui.EditorNotificationPanel
+import com.intellij.util.ui.JBUI
+import icons.StudioIcons
+import java.awt.BorderLayout
 import java.awt.Component
 import java.time.Duration
+import javax.swing.SwingConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,10 +100,14 @@ class DirectAccessDeviceProvisionerPlugin(
   // TODO: find a proper priority
   override val priority: Int = 120
 
-  private val extensionRegistry = ExtensionRegistry(this)
+  private val notificationBanners = MutableStateFlow<List<EditorNotificationPanel>>(listOf())
 
-  override fun <T : Extension> extension(extensionClass: Class<T>): T? =
-    extensionRegistry.extension(extensionClass)
+  override fun <T : Extension> extension(extensionClass: Class<T>): T? {
+    if (extensionClass == NotificationBannersExtension::class.java) {
+      @Suppress("UNCHECKED_CAST") return NotificationBannersExtension(notificationBanners) as T
+    }
+    return null
+  }
 
   private val _devices = MutableStateFlow(emptyList<DeviceHandle>())
   override val devices: StateFlow<List<DeviceHandle>> = _devices
@@ -154,6 +168,16 @@ class DirectAccessDeviceProvisionerPlugin(
     Disposer.register(project.service<DeviceProvisionerService>(), this)
     // Clean up remaining templates when scope is cancelled.
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
+
+    val deprecationData = service<DirectAccessDeprecationState>().serviceDeprecationData
+    if (deprecationData.status == DevServicesDeprecationStatus.UNSUPPORTED) {
+      val banners = listOf(DeprecationBanner(deprecationData))
+      scope.launch {
+        templates.collect { list ->
+          notificationBanners.value = if (list.isEmpty()) listOf() else banners
+        }
+      }
+    }
 
     // Select project from login onboarding tasks.
     if (StudioFlags.DIRECT_ACCESS_CREATE_PROJECT.get()) {
@@ -392,12 +416,51 @@ class DirectAccessDeviceProvisionerPlugin(
       override val presentation: StateFlow<DeviceAction.Presentation> =
         MutableStateFlow(
             StudioDefaultDeviceActionPresentation.fromContext()
-              .copy(label = "Select Remote Devices")
+              .copy(
+                label = "Select Remote Devices",
+                enabled = service<DirectAccessDeprecationState>().isServiceEnabled,
+              )
           )
           .asStateFlow()
     }
 
   override fun dispose() {
     service<GoogleLoginService>().removeVetoableLogoutListener(vetoableLogOutListener)
+  }
+
+  private inner class DeprecationBanner(deprecationData: DevServicesDeprecationData) :
+    EditorNotificationPanel() {
+    init {
+      text = "<html>${deprecationData.description}</html>"
+      icon(StudioIcons.Common.WARNING)
+      var hasAction = false
+      if (deprecationData.showUpdateAction) {
+        hasAction = true
+        createActionLabel("Update") { UpdateChecker.updateAndShowResult(project) }
+      }
+      if (deprecationData.moreInfoUrl.isNotEmpty()) {
+        hasAction = true
+        createActionLabel("More info") { BrowserUtil.browse(deprecationData.moreInfoUrl) }
+      }
+      if (hasAction) {
+        moveActionLabels()
+      }
+    }
+
+    /**
+     * Move the action labels to the south of the banner.
+     *
+     * TODO (b/394364819) layout action labels with stable APIs
+     */
+    private fun moveActionLabels() {
+      val parent = myLinksPanel.parent
+      if (parent.layout is BorderLayout) {
+        myLabel.verticalTextPosition = SwingConstants.TOP
+        parent.add(myLinksPanel, BorderLayout.SOUTH)
+        // Align firstActionLabel vertically with myLabel.
+        myLinksPanel.border =
+          JBUI.Borders.empty(2, myLabel.icon.iconWidth + myLabel.iconTextGap - 2, 0, 0)
+      }
+    }
   }
 }
