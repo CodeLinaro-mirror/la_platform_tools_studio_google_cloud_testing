@@ -324,6 +324,8 @@ class SelectProjectActionTest2 {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
           // Start select action before login.
           val dialog = it as SelectProjectDialog
+
+          assertThat(dialog.isOKActionEnabled).isFalse()
           val button = dialog.rootPane.findAllDescendants<JButton>().first()
           button.doClick()
 
@@ -343,6 +345,7 @@ class SelectProjectActionTest2 {
             cloudProjectManagerFlow.value?.cloudProject?.name ==
               unsupportedTestProjectWithServiceUse
           }
+          assertThat(dialog.isOKActionEnabled).isTrue()
           var firstIconWithError: JBLabel? = null
           waitForCondition {
             firstIconWithError =
