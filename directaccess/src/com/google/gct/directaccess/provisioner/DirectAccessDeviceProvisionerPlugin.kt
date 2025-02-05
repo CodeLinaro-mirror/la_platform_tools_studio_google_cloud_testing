@@ -58,7 +58,6 @@ import com.intellij.openapi.updateSettings.impl.UpdateChecker
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.util.ui.JBUI
-import icons.StudioIcons
 import java.awt.BorderLayout
 import java.awt.Component
 import java.time.Duration
@@ -429,10 +428,9 @@ class DirectAccessDeviceProvisionerPlugin(
   }
 
   private inner class DeprecationBanner(deprecationData: DevServicesDeprecationData) :
-    EditorNotificationPanel() {
+    EditorNotificationPanel(Status.Warning) {
     init {
       text = "<html>${deprecationData.description}</html>"
-      icon(StudioIcons.Common.WARNING)
       var hasAction = false
       if (deprecationData.showUpdateAction) {
         hasAction = true
