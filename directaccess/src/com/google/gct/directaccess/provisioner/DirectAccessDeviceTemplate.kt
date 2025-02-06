@@ -33,6 +33,7 @@ import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.google.devtools.testing.v1.DeviceSession as Reservation
+import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
@@ -130,38 +131,47 @@ class DirectAccessDeviceTemplate(
 
   /** Update state of the template from multiple sources. */
   override val stateFlow =
-    combine(
-        isActivationStarted,
-        isReservable,
-        deviceInfoFlow,
-        service<DirectAccessOnboardingService>().taskFlow,
-      ) { isStarted, reservationAvailable, deviceInfo, task ->
-        val waitTimeText =
-          deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
+    if (service<DirectAccessDeprecationState>().isServiceEnabled) {
+      combine(
+          isActivationStarted,
+          isReservable,
+          deviceInfoFlow,
+          service<DirectAccessOnboardingService>().taskFlow,
+        ) { isStarted, reservationAvailable, deviceInfo, task ->
+          val waitTimeText =
+            deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
 
-        if (reservationAvailable) {
-          isCloudProjectBeingCreatedFlow.value = false
-        } else {
-          if (task?.isPending == true) {
-            isCloudProjectBeingCreatedFlow.value = true
+          if (reservationAvailable) {
+            isCloudProjectBeingCreatedFlow.value = false
+          } else {
+            if (task?.isPending == true) {
+              isCloudProjectBeingCreatedFlow.value = true
+            }
           }
-        }
 
+          TemplateState(
+            isActivating = isStarted,
+            error =
+              when {
+                reservationAvailable && deviceInfo.isInCatalog && waitTimeText != null ->
+                  DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
+                reservationAvailable && !deviceInfo.isInCatalog ->
+                  DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
+                isCloudProjectBeingCreatedFlow.value ->
+                  DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
+                else -> null
+              },
+          )
+        }
+        .stateIn(scope, SharingStarted.Eagerly, TemplateState())
+    } else {
+      MutableStateFlow(
         TemplateState(
-          isActivating = isStarted,
-          error =
-            when {
-              reservationAvailable && deviceInfo.isInCatalog && waitTimeText != null ->
-                DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
-              reservationAvailable && !deviceInfo.isInCatalog ->
-                DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
-              isCloudProjectBeingCreatedFlow.value ->
-                DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
-              else -> null
-            },
+          false,
+          DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available"),
         )
-      }
-      .stateIn(scope, SharingStarted.Eagerly, TemplateState())
+      )
+    }
 
   /** Icon to show for the template and handle */
   val icon: Icon

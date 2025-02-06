@@ -17,6 +17,7 @@ package com.google.gct.directaccess.ui.actions
 
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
+import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.ui.SelectDeviceDialog
@@ -46,6 +47,11 @@ class SelectProjectAction :
   override fun update(e: AnActionEvent) {
     if (e.project == null) {
       e.presentation.isVisible = false
+      return
+    }
+    if (!service<DirectAccessDeprecationState>().isServiceEnabled) {
+      e.presentation.isEnabled = false
+      e.presentation.text = "Unsupported version: update required"
       return
     }
     // An exception will be caught only when all selected templates are not disabled.

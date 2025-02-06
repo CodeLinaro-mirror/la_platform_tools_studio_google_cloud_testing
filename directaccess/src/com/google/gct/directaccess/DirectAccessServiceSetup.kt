@@ -61,8 +61,12 @@ class DirectAccessServiceSetup {
    * [cloudProject].
    */
   fun getAccessibleDeviceInfoList(cloudProject: String?): List<DeviceInfo> =
-    CatalogClient.getAvailableDevices(
-      "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
-      cloudProject,
-    )
+    if (service<DirectAccessDeprecationState>().isServiceEnabled) {
+      CatalogClient.getAvailableDevices(
+        "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
+        cloudProject,
+      )
+    } else {
+      listOf()
+    }
 }
