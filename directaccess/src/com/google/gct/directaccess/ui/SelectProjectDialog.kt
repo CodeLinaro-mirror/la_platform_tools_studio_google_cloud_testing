@@ -206,7 +206,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       }
     chooseProjectPanel.add(statusIcon)
     val projectInformationPanel =
-      ProjectInformationPanel(scope, temporarySelectedCloudProjectManager)
+      ProjectInformationPanel(scope, uiDispatcher, temporarySelectedCloudProjectManager)
 
     scope.launch {
       selector.isReady.takeWhile { !it }.collect()
