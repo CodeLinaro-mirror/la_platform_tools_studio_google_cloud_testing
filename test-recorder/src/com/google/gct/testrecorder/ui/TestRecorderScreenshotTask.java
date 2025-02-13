@@ -123,6 +123,6 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
   private static AdbScreenCapScreenshotSupplier createScreenshotSupplier(@NotNull Project project, @NotNull IDevice device) {
     String serialNumber = device.getSerialNumber();
     return new AdbScreenCapScreenshotSupplier(
-      project, serialNumber, new ScreenshotOptions(serialNumber, DevicePropertyUtil.getModel(device, "unknown"), null));
+      project, serialNumber, new ScreenshotOptions(serialNumber, DevicePropertyUtil.getModel(device, "unknown"), 0, null));
   }
 }
