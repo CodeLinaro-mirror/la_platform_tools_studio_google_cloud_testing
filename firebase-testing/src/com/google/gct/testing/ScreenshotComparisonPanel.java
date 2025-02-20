@@ -34,6 +34,8 @@ import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.ui.JBColor;
+import com.intellij.uiDesigner.core.GridConstraints;
+import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.ui.UIUtil;
 
 import javax.imageio.ImageIO;
@@ -50,6 +52,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import javax.swing.border.TitledBorder;
 
 import static com.intellij.icons.AllIcons.RunConfigurations.*;
 import static java.awt.Color.BLACK;
@@ -59,11 +62,11 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
   private enum StaticImageKind {LOADING, NO_IMAGE};
 
   public static final Function<CloudConfigurationTypeSelection, CloudTestingType> GET_SELECTED_TYPE = new Function<CloudConfigurationTypeSelection, CloudTestingType>() {
-    @Override
-    public CloudTestingType apply(CloudConfigurationTypeSelection input) {
-      return input.getType();
-    }
-  };
+      @Override
+      public CloudTestingType apply(CloudConfigurationTypeSelection input) {
+        return input.getType();
+      }
+    };
   public static final Color GREEN = new Color(61, 138, 78);
   public static final Color RED = !JBColor.isBright() ? CloudTestingUtils.makeDarker(new Color(183, 14, 10), 2) : new Color(183, 14, 10);
 
@@ -128,6 +131,7 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
                                    AbstractTestProxy testTreeRoot, CloudConfigurationImpl configuration,
                                    ConfigurationInstance configurationInstance, TestName currentTest, int currentStep,
                                    Map<String, ConfigurationResult> results) {
+    setupUI();
     lock = this;
     this.parent = parent;
     if (clonedPanel != null) {
@@ -162,7 +166,7 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
         JLabel label = (JLabel)super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
         if (value instanceof CloudTestingType) {
-          final CloudTestingType type = (CloudTestingType) value;
+          final CloudTestingType type = (CloudTestingType)value;
 
           label.setText(type.getResultsViewerDisplayName());
           //label.setIcon(type.getIcon());
@@ -277,8 +281,8 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
 
   private void setStaticImage(StaticImageKind imageKind) {
     BufferedImage staticImage = imageKind == StaticImageKind.LOADING
-      ? (isPortrait() ? LOADING_PORTRAIT : LOADING_LANDSCAPE)
-      : (isPortrait() ? NO_IMAGE_PORTRAIT : NO_IMAGE_LANSCAPE);
+                                ? (isPortrait() ? LOADING_PORTRAIT : LOADING_LANDSCAPE)
+                                : (isPortrait() ? NO_IMAGE_PORTRAIT : NO_IMAGE_LANSCAPE);
     Pair<Integer, Integer> imageSize = getStaticImageSize();
     myImageLabel.setIcon(new ImageIcon(staticImage.getScaledInstance(imageSize.getFirst(), imageSize.getSecond(), Image.SCALE_SMOOTH)));
     isLoaded = imageKind != StaticImageKind.LOADING;
@@ -296,6 +300,37 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
       return new Pair(PORTRAIT_WIDTH, MAX_IMAGE_HEIGHT);
     }
     return new Pair(MAX_IMAGE_WIDTH, LANDSCAPE_HEIGHT);
+  }
+
+  private void setupUI() {
+    myPanel = new JPanel();
+    myPanel.setLayout(new BorderLayout(0, 0));
+    myScreenshotPanel = new JPanel();
+    myScreenshotPanel.setLayout(new GridLayoutManager(2, 1, new Insets(0, 0, 3, 0), -1, -1));
+    myScreenshotPanel.setBackground(new Color(-723724));
+    myScreenshotPanel.setEnabled(false);
+    myPanel.add(myScreenshotPanel, BorderLayout.CENTER);
+    myScreenshotPanel.setBorder(
+      BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(-10066330)), null, TitledBorder.DEFAULT_JUSTIFICATION,
+                                       TitledBorder.DEFAULT_POSITION, null, new Color(-16777216)));
+    myImagePanel = new JPanel();
+    myImagePanel.setLayout(new BorderLayout(0, 0));
+    myScreenshotPanel.add(myImagePanel, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL,
+                                                            GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                            GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                                            null, null, null, 0, false));
+    myConfigurationChooserPanel = new JPanel();
+    myConfigurationChooserPanel.setLayout(new GridBagLayout());
+    myConfigurationChooserPanel.setBackground(new Color(-1513240));
+    myConfigurationChooserPanel.setOpaque(false);
+    myScreenshotPanel.add(myConfigurationChooserPanel,
+                          new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE,
+                                              GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
+                                              GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null,
+                                              0, false));
+    myButtonPanel = new JPanel();
+    myButtonPanel.setLayout(new BorderLayout(0, 0));
+    myPanel.add(myButtonPanel, BorderLayout.NORTH);
   }
 
   private class UpdateImageThread extends Thread {
@@ -487,7 +522,7 @@ public class ScreenshotComparisonPanel implements ScreenshotComparisonHeaderPane
 
   public void stopListeningToResults() {
     ConfigurationResult selectedConfigurationResult = getSelectedConfigurationResult();
-    if (selectedConfigurationResult != null ) {
+    if (selectedConfigurationResult != null) {
       selectedConfigurationResult.removeConfigurationResultListener(this);
     }
   }

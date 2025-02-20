@@ -16,6 +16,8 @@
 
 package com.google.gct.testrecorder.ui;
 
+import static com.android.SdkConstants.PRIMARY_DISPLAY_ID;
+
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.ddms.DevicePropertyUtil;
@@ -123,6 +125,6 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
   private static AdbScreenCapScreenshotSupplier createScreenshotSupplier(@NotNull Project project, @NotNull IDevice device) {
     String serialNumber = device.getSerialNumber();
     return new AdbScreenCapScreenshotSupplier(
-      project, serialNumber, new ScreenshotOptions(serialNumber, DevicePropertyUtil.getModel(device, "unknown"), null));
+      project, serialNumber, new ScreenshotOptions(serialNumber, DevicePropertyUtil.getModel(device, "unknown"), PRIMARY_DISPLAY_ID, null));
   }
 }

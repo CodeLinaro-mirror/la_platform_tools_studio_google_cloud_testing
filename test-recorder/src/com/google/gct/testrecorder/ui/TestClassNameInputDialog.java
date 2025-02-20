@@ -48,10 +48,14 @@ import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiNameHelper;
 import com.intellij.ui.JBColor;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -62,6 +66,8 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.plaf.FontUIResource;
+import javax.swing.text.StyleContext;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -86,6 +92,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
   protected TestClassNameInputDialog(Module launchedModule, String launchedActivityName) {
     super(launchedModule.getProject(), true);
+    setupUI();
     myProject = launchedModule.getProject();
     myLaunchedActivityName = launchedActivityName;
     myTestClassModule = launchedModule;
@@ -267,6 +274,82 @@ public class TestClassNameInputDialog extends DialogWrapper {
       androidSourceProvider.getJavaDirectoryUrls(),
       androidSourceProvider.getKotlinDirectoryUrls()
     )).map(TestClassNameInputDialog::getURLPath).collect(toList());
+  }
+  
+  private void setupUI() {
+    myRootPanel = new JPanel();
+    myRootPanel.setLayout(new BorderLayout(0, 0));
+    myRootPanel.setInheritsPopupMenu(false);
+    myRootPanel.setMinimumSize(new Dimension(450, 85));
+    myRootPanel.setOpaque(true);
+    myRootPanel.setPreferredSize(new Dimension(450, 85));
+    myErrorMessageLabel = new JLabel();
+    Font myErrorMessageLabelFont = getFont(null, Font.BOLD, -1, myErrorMessageLabel.getFont());
+    if (myErrorMessageLabelFont != null) myErrorMessageLabel.setFont(myErrorMessageLabelFont);
+    myErrorMessageLabel.setHorizontalAlignment(4);
+    myErrorMessageLabel.setHorizontalTextPosition(4);
+    myErrorMessageLabel.setText("ERROR");
+    myRootPanel.add(myErrorMessageLabel, BorderLayout.SOUTH);
+    final JPanel panel1 = new JPanel();
+    panel1.setLayout(new BorderLayout(0, 0));
+    panel1.setMinimumSize(new Dimension(450, 66));
+    panel1.setOpaque(true);
+    panel1.setPreferredSize(new Dimension(450, 66));
+    myRootPanel.add(panel1, BorderLayout.NORTH);
+    final JPanel panel2 = new JPanel();
+    panel2.setLayout(new BorderLayout(0, 0));
+    panel2.setMinimumSize(new Dimension(450, 27));
+    panel2.setPreferredSize(new Dimension(450, 27));
+    panel1.add(panel2, BorderLayout.NORTH);
+    final JLabel label1 = new JLabel();
+    label1.setOpaque(true);
+    label1.setText("Test class name:");
+    panel2.add(label1, BorderLayout.WEST);
+    myClassNameArea = new JTextArea();
+    myClassNameArea.setLineWrap(true);
+    myClassNameArea.setMinimumSize(new Dimension(320, 27));
+    myClassNameArea.setOpaque(true);
+    myClassNameArea.setPreferredSize(new Dimension(320, 27));
+    panel2.add(myClassNameArea, BorderLayout.EAST);
+    final JPanel panel3 = new JPanel();
+    panel3.setLayout(new BorderLayout(0, 0));
+    panel3.setMinimumSize(new Dimension(450, 29));
+    panel3.setPreferredSize(new Dimension(450, 29));
+    panel1.add(panel3, BorderLayout.SOUTH);
+    final JLabel label2 = new JLabel();
+    label2.setOpaque(true);
+    label2.setText("Test class language:");
+    panel3.add(label2, BorderLayout.WEST);
+    myClassLanguageComboBox = new JComboBox();
+    myClassLanguageComboBox.setMaximumSize(new Dimension(320, 29));
+    myClassLanguageComboBox.setMinimumSize(new Dimension(320, 29));
+    myClassLanguageComboBox.setOpaque(true);
+    myClassLanguageComboBox.setPopupVisible(false);
+    myClassLanguageComboBox.setPreferredSize(new Dimension(320, 29));
+    panel3.add(myClassLanguageComboBox, BorderLayout.EAST);
+  }
+
+  private Font getFont(String fontName, int style, int size, Font currentFont) {
+    if (currentFont == null) return null;
+    String resultName;
+    if (fontName == null) {
+      resultName = currentFont.getName();
+    }
+    else {
+      Font testFont = new Font(fontName, Font.PLAIN, 10);
+      if (testFont.canDisplay('a') && testFont.canDisplay('1')) {
+        resultName = fontName;
+      }
+      else {
+        resultName = currentFont.getName();
+      }
+    }
+    Font font = new Font(resultName, style >= 0 ? style : currentFont.getStyle(), size >= 0 ? size : currentFont.getSize());
+    boolean isMac = System.getProperty("os.name", "").toLowerCase(Locale.ENGLISH).startsWith("mac");
+    Font fontWithFallback = isMac
+                            ? new Font(font.getFamily(), font.getStyle(), font.getSize())
+                            : new StyleContext().getFont(font.getFamily(), font.getStyle(), font.getSize());
+    return fontWithFallback instanceof FontUIResource ? fontWithFallback : new FontUIResource(fontWithFallback);
   }
 
   private static String getURLPath(String url) {

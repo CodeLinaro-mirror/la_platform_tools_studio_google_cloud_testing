@@ -36,8 +36,10 @@ import com.intellij.openapi.actionSystem.impl.ActionButton;
 import com.intellij.openapi.actionSystem.impl.PresentationFactory;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogBuilder;
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
@@ -52,6 +54,7 @@ import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -99,6 +102,8 @@ public class ScreenshotComparisonDialog {
                                     List<TestName> allTests,
                                     TestName currentTest,
                                     Map<String, ConfigurationResult> results) {
+    setupUI();
+
     myProject = project;
     this.testTreeRoot = testTreeRoot;
     this.configuration = configuration;
@@ -171,9 +176,9 @@ public class ScreenshotComparisonDialog {
 
     UsageTracker.log(UsageTrackerUtils.withProjectId(
       AndroidStudioEvent.newBuilder()
-       .setCategory(EventCategory.CLOUD_TESTING)
-       .setKind(EventKind.CLOUD_TESTING_COMPARE_SCREENSHOTS_OPENED)
-       .setCloudTestingLoadedScreenshotsCount(loadedScreenshotsCount),
+        .setCategory(EventCategory.CLOUD_TESTING)
+        .setKind(EventKind.CLOUD_TESTING_COMPARE_SCREENSHOTS_OPENED)
+        .setCloudTestingLoadedScreenshotsCount(loadedScreenshotsCount),
       myProject));
   }
 
@@ -368,5 +373,28 @@ public class ScreenshotComparisonDialog {
     synchronized (this) {
       loadedScreenshotsCount++;
     }
+  }
+
+  private void setupUI() {
+    myPanel = new JPanel();
+    myPanel.setLayout(new BorderLayout(0, 0));
+    myHeaderPanel = new JPanel();
+    myHeaderPanel.setLayout(new BorderLayout(0, 0));
+    myPanel.add(myHeaderPanel, BorderLayout.NORTH);
+    final JPanel panel1 = new JPanel();
+    panel1.setLayout(new BorderLayout(0, 0));
+    myHeaderPanel.add(panel1, BorderLayout.NORTH);
+    myLeftHeaderPanel = new JPanel();
+    myLeftHeaderPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));
+    panel1.add(myLeftHeaderPanel, BorderLayout.WEST);
+    myRightHeaderPanel = new JPanel();
+    myRightHeaderPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+    panel1.add(myRightHeaderPanel, BorderLayout.EAST);
+    myScreenshotNamePanel = new JPanel();
+    myScreenshotNamePanel.setLayout(new BorderLayout(0, 0));
+    myHeaderPanel.add(myScreenshotNamePanel, BorderLayout.CENTER);
+    myAllScreenshotsPanel = new JPanel();
+    myAllScreenshotsPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));
+    myPanel.add(myAllScreenshotsPanel, BorderLayout.CENTER);
   }
 }

@@ -30,12 +30,13 @@ import icons.StudioIcons
 import java.awt.CardLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jdesktop.swingx.VerticalLayout
 
 private const val SPARK_PLAN_KEY = "Spark"
@@ -43,6 +44,7 @@ private const val BLAZE_PLAN_KEY = "Blaze"
 
 class ProjectInformationPanel(
   scope: CoroutineScope,
+  uiDispatcher: CoroutineDispatcher,
   cloudProjectManagerFlow: StateFlow<DirectAccessCloudProjectManager?>,
 ) : JPanel(VerticalLayout()) {
   private val planLabel =
@@ -121,9 +123,9 @@ class ProjectInformationPanel(
     add(instructionPanel)
 
     updatePlanInformation(null)
-    scope.launch(Dispatchers.Default) {
+    scope.launch {
       cloudProjectManagerFlow.collectLatest { cloudProjectManager ->
-        onProjectChanged(cloudProjectManager)
+        withContext(uiDispatcher) { onProjectChanged(cloudProjectManager) }
       }
     }
   }
