@@ -18,11 +18,10 @@ package com.google.gct.testrecorder.ui;
 
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
-import com.android.tools.idea.ddms.DevicePropertyUtil;
-import com.android.tools.idea.ui.screenshot.AdbScreenCapScreenshotSupplier;
 import com.android.tools.idea.ui.screenshot.ScreenshotImage;
 import com.android.tools.idea.ui.screenshot.ScreenshotOptions;
 import com.android.tools.idea.ui.screenshot.ScreenshotTask;
+import com.android.tools.idea.ui.screenshot.ShellCommandScreenshotProvider;
 import com.android.uiautomator.UiAutomatorModel;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
@@ -45,7 +44,7 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
   private boolean success = false;
 
   public TestRecorderScreenshotTask(Project project, IDevice device, String packageName, ScreenshotCallback callback) {
-    super(project, createScreenshotSupplier(project, device));
+    super(project, createScreenshotProvider(project, device));
     myProject = project;
     myDevice = device;
     myPackageName = packageName;
@@ -120,8 +119,8 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
   }
 
   @NotNull
-  private static AdbScreenCapScreenshotSupplier createScreenshotSupplier(@NotNull Project project, @NotNull IDevice device) {
+  private static ShellCommandScreenshotProvider createScreenshotProvider(@NotNull Project project, @NotNull IDevice device) {
     String serialNumber = device.getSerialNumber();
-    return new AdbScreenCapScreenshotSupplier(project, serialNumber, new ScreenshotOptions(serialNumber));
+    return new ShellCommandScreenshotProvider(project, serialNumber, new ScreenshotOptions(serialNumber));
   }
 }
