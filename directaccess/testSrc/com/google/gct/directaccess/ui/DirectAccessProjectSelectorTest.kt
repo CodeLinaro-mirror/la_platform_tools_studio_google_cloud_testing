@@ -17,29 +17,20 @@ package com.google.gct.directaccess.ui
 
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
-import com.android.tools.idea.concurrency.AndroidExecutors
-import com.android.tools.idea.testing.disposable
+import com.android.testutils.delayUntilCondition
 import com.google.common.truth.Truth.assertThat
 import com.google.services.firebase.FirebaseProjectClientRule
-import com.intellij.openapi.application.ModalityState
 import com.intellij.testFramework.ProjectRule
-import com.intellij.testFramework.replaceService
-import com.intellij.util.application
-import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.ui.NamedColorUtil
 import java.awt.Color
-import java.util.concurrent.CountDownLatch
 import javax.swing.JTextField
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 class DirectAccessProjectSelectorTest {
 
@@ -130,29 +121,11 @@ class DirectAccessProjectSelectorTest {
   }
 
   @Test
-  fun testModelSetInUiThread() = runBlockingWithTimeout {
-    val countDownLatch = CountDownLatch(1)
-    val mockAndroidExecutors = mock<AndroidExecutors>()
-    val fakeUiExecutor: (ModalityState, Runnable) -> Unit = { _, runnable ->
-      if (runnable.toString().contains("DirectAccessProjectSelectorImpl\$refreshProjects")) {
-        countDownLatch.countDown()
-      }
-      runnable.run()
-    }
-    whenever(mockAndroidExecutors.uiThreadExecutor).thenReturn(fakeUiExecutor)
-    application.replaceService(
-      AndroidExecutors::class.java,
-      AndroidExecutors(
-        fakeUiExecutor,
-        AppExecutorUtil.getAppExecutorService(),
-        AndroidExecutors.getInstance().diskIoThreadExecutor,
-      ),
-      projectRule.disposable,
-    )
+  fun testComboBoxGetsEnabled() = runBlockingWithTimeout {
     selector = DirectAccessProjectSelectorImpl(projectRule.project, "preferredProject", true, scope)
-
-    yieldUntil { selector.comboBox.isEnabled }
-    assertThat(countDownLatch.count).isEqualTo(0)
+    assertThat(selector.comboBox.isEnabled).isFalse()
+    delayUntilCondition(250L) { selector.comboBox.isEnabled }
+    assertThat(selector.comboBox.isEnabled).isTrue()
   }
 
   @Test

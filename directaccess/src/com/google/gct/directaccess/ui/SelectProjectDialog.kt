@@ -18,7 +18,6 @@ package com.google.gct.directaccess.ui
 import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
-import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessApplicationService
@@ -33,7 +32,9 @@ import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.HelpTooltip
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
@@ -60,7 +61,8 @@ import javax.swing.Action
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
@@ -76,8 +78,8 @@ private const val CLOUD_TEST_API_ENABLE_LINK =
 class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
 
-  private val uiDispatcher: CoroutineDispatcher
-    get() = AndroidDispatchers.uiThread(ModalityState.any())
+  private val uiContext: CoroutineContext
+    get() = Dispatchers.EDT + ModalityState.any().asContextElement()
 
   private val isDirectAccessEnabled =
     service<GoogleLoginService>()
@@ -206,7 +208,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       }
     chooseProjectPanel.add(statusIcon)
     val projectInformationPanel =
-      ProjectInformationPanel(scope, uiDispatcher, temporarySelectedCloudProjectManager)
+      ProjectInformationPanel(scope, uiContext, temporarySelectedCloudProjectManager)
 
     scope.launch {
       selector.isReady.takeWhile { !it }.collect()
@@ -245,7 +247,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   private suspend fun onProjectChanged(cloudProject: String, parent: JPanel, statusIcon: JBLabel) {
     // Removes statusIcon if the cloudProject is invalid.
     if (handleInvalidProject(cloudProject)) {
-      withContext(uiDispatcher) {
+      withContext(uiContext) {
         statusIcon.isVisible = false
         parent.revalidate()
       }
@@ -253,7 +255,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     }
 
     // Shows a loading icon while processing cloudProject.
-    withContext(uiDispatcher) {
+    withContext(uiContext) {
       statusIcon.isVisible = true
       statusIcon.icon = AnimatedIcon.Default()
       HelpTooltip.dispose(statusIcon)
@@ -262,7 +264,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     updateTemporarySelectedCloudProject(cloudProject)
     val cloudProjectManager = temporarySelectedCloudProjectManager.value
     // Update statusIcon and its tooltip after fetching cloudProject information.
-    withContext(uiDispatcher) {
+    withContext(uiContext) {
       parent.revalidate()
       launch {
         val permission =

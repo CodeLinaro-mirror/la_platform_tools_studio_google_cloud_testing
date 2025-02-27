@@ -38,7 +38,9 @@ import com.intellij.ide.HelpTooltip
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
@@ -71,7 +73,7 @@ import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.event.DocumentEvent
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
@@ -96,8 +98,8 @@ const val VIEW_PRICING_DETAILS_LINK = "https://d.android.com/r/studio-ui/device-
 class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
 
-  private val uiDispatcher: CoroutineDispatcher
-    get() = AndroidDispatchers.uiThread(ModalityState.any())
+  private val uiContext: CoroutineContext
+    get() = Dispatchers.EDT + ModalityState.any().asContextElement()
 
   private val loginLink =
     AnActionLink(
@@ -346,7 +348,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
                 usedMinutesLabel,
                 remainingMinutesLabel,
               )
-              withContext(uiDispatcher) {
+              withContext(uiContext) {
                 refreshTableData()
                 panel.revalidate()
                 panel.repaint()
@@ -405,7 +407,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       minimumHeight = SELECTION_TABLE_MINIMUM_HEIGHT
       preferredHeight = minimumHeight
 
-      scope.launch(uiDispatcher) {
+      scope.launch(uiContext) {
         project.service<DirectAccessService>().deviceSelectionListFlow.collect {
           refreshTableData()
         }
@@ -431,7 +433,7 @@ class SelectDeviceDialog(private val project: Project) : DialogWrapper(false) {
       return
     }
     project.service<DirectAccessService>().selectCloudProject(cloudProject)
-    withContext(uiDispatcher) {
+    withContext(uiContext) {
       parent.revalidate()
       launch {
         val permission =
