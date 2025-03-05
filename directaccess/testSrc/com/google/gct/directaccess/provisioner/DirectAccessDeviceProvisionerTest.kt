@@ -854,6 +854,23 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   @Test
+  fun noDuplicateNotificationsOnDisconnectDevice() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+
+    handle.deactivationAction.deactivate()
+    handle.deactivationAction.deactivate()
+    yieldUntil { handle.connectionState is ConnectionState.Disconnected }
+
+    val firstNotificationsList = getNotifications(projectRule.project)
+    assertThat(firstNotificationsList.size).isEqualTo(1)
+  }
+
+  @Test
   fun testSessionLostNotification() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
     val template = plugin.templates.value[0]
