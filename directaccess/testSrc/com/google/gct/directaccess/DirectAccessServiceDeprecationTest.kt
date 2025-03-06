@@ -18,6 +18,9 @@ package com.google.gct.directaccess
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.testutils.VirtualTimeScheduler
+import com.android.tools.analytics.TestUsageTracker
+import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.gservices.DevServicesDeprecationData
 import com.android.tools.idea.gservices.DevServicesDeprecationDataProvider
@@ -29,6 +32,8 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.ui.actions.SelectProjectAction
+import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -73,6 +78,8 @@ class DirectAccessServiceDeprecationTest {
       screenDensity = 1000
     }
 
+  private lateinit var tracker: TestUsageTracker
+
   @Before
   fun setUp() {
     val mockDevServicesDeprecationDataProvider = mock<DevServicesDeprecationDataProvider>()
@@ -110,6 +117,9 @@ class DirectAccessServiceDeprecationTest {
         DirectAccessServiceSetup(),
         projectRule.disposable,
       )
+
+    tracker = TestUsageTracker(VirtualTimeScheduler())
+    UsageTracker.setWriterForTest(tracker)
   }
 
   @After
@@ -126,10 +136,38 @@ class DirectAccessServiceDeprecationTest {
     templates.value = listOf(mock<DirectAccessDeviceTemplate>())
     val banners = plugin.extension(NotificationBannersExtension::class.java)!!.notificationBanners
     yieldUntil { banners.value.size == 1 }
-    with(banners.value.first()) {
-      assertThat(text).isEqualTo("<html>${deprecationProto.description}</html>")
-      assertThat(findLabelByName("Update")).isNotNull()
-      assertThat(findLabelByName("More info")).isNotNull()
+    val banner = banners.value.first()
+    assertThat(banner.text).isEqualTo("<html>${deprecationProto.description}</html>")
+
+    findUsageEvent().let {
+      assertThat(it.deprecationStatus)
+        .isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
+      assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
+      assertThat(it.userNotified).isTrue()
+      assertThat(it.hasMoreInfoClicked()).isFalse()
+      assertThat(it.hasUpdateClicked()).isFalse()
+    }
+
+    val updateLink = banner.findLabelByName("Update")
+    updateLink?.doClick()
+    findUsageEvent().let {
+      assertThat(it.deprecationStatus)
+        .isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
+      assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
+      assertThat(it.hasUserNotified()).isFalse()
+      assertThat(it.hasMoreInfoClicked()).isFalse()
+      assertThat(it.updateClicked).isTrue()
+    }
+
+    val moreInfoLink = banner.findLabelByName("More info")
+    moreInfoLink?.doClick()
+    findUsageEvent().let {
+      assertThat(it.deprecationStatus)
+        .isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
+      assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
+      assertThat(it.hasUserNotified()).isFalse()
+      assertThat(it.moreInfoClicked).isTrue()
+      assertThat(it.hasUpdateClicked()).isFalse()
     }
 
     // Hide the banner when all remote templates are removed.
@@ -166,5 +204,19 @@ class DirectAccessServiceDeprecationTest {
       )
     action.update(event)
     assertThat(event.presentation.isEnabled).isFalse()
+  }
+
+  private suspend fun findUsageEvent(): DevServiceDeprecationInfo {
+    var info: DevServiceDeprecationInfo? = null
+    yieldUntil {
+      val event =
+        tracker.usages.lastOrNull {
+          it.studioEvent.directAccessUsageEvent.type ==
+            DirectAccessUsageEventType.SERVICE_DEPRECATION
+        }
+      info = event?.studioEvent?.directAccessUsageEvent?.devServiceDeprecationInfo
+      info != null
+    }
+    return info!!
   }
 }

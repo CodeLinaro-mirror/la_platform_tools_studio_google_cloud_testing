@@ -39,6 +39,7 @@ import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.AddDirectAccessDeviceDialog
 import com.google.gct.directaccess.ui.SelectDeviceDialog
@@ -176,6 +177,7 @@ class DirectAccessDeviceProvisionerPlugin(
           notificationBanners.value = if (list.isEmpty()) listOf() else banners
         }
       }
+      DirectAccessUsageTracker.getInstance().trackServiceDeprecation(userNotified = true)
     }
 
     // Select project from login onboarding tasks.
@@ -434,11 +436,17 @@ class DirectAccessDeviceProvisionerPlugin(
       var hasAction = false
       if (deprecationData.showUpdateAction) {
         hasAction = true
-        createActionLabel("Update") { UpdateChecker.updateAndShowResult(project) }
+        createActionLabel("Update") {
+          UpdateChecker.updateAndShowResult(project)
+          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(updateClicked = true)
+        }
       }
       if (deprecationData.moreInfoUrl.isNotEmpty()) {
         hasAction = true
-        createActionLabel("More info") { BrowserUtil.browse(deprecationData.moreInfoUrl) }
+        createActionLabel("More info") {
+          BrowserUtil.browse(deprecationData.moreInfoUrl)
+          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(moreInfoClicked = true)
+        }
       }
       if (hasAction) {
         moveActionLabels()
