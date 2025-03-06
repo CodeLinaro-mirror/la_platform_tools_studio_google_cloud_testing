@@ -15,7 +15,6 @@
  */
 package com.google.gct.directaccess.ui
 
-import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
@@ -24,7 +23,9 @@ import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClient
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -37,6 +38,7 @@ import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.dsl.builder.Align
 import com.intellij.ui.dsl.builder.EmptySpacingConfiguration
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.util.concurrency.ThreadingAssertions.assertEventDispatchThread
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.NamedColorUtil
 import java.awt.CardLayout
@@ -44,7 +46,7 @@ import java.awt.Color
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JTextField
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -104,8 +106,8 @@ class DirectAccessProjectSelectorImpl(
 
   private val projectCreatingLabel = JBLabel()
 
-  private val uiDispatcher: CoroutineDispatcher
-    get() = AndroidDispatchers.uiThread(ModalityState.any())
+  private val uiContext: CoroutineContext
+    get() = Dispatchers.EDT + ModalityState.any().asContextElement()
 
   init {
     add(comboBox, projectSelectorCard)
@@ -121,7 +123,7 @@ class DirectAccessProjectSelectorImpl(
     if (task?.isPending == true) {
       val projectName = task.cloudProject.name
       projectCreatingLabel.text = "Creating project $projectName"
-      withContext(uiDispatcher) { showCard(newProjectCreatedCard) }
+      withContext(uiContext) { showCard(newProjectCreatedCard) }
       launch {
         // Show [projectSelectorCard] after the created project is selected.
         project
@@ -130,7 +132,7 @@ class DirectAccessProjectSelectorImpl(
           .takeWhile { it?.cloudProject?.name != projectName }
           .collect()
         preferredProject = projectName
-        withContext(uiDispatcher) {
+        withContext(uiContext) {
           showCard(projectSelectorCard)
           comboBox.updateProjects(getProjects())
         }
@@ -143,7 +145,7 @@ class DirectAccessProjectSelectorImpl(
         preferredProject = projects.first()
       }
 
-      withContext(uiDispatcher) {
+      withContext(uiContext) {
         showCard(card)
         comboBox.updateProjects(projects)
       }
@@ -172,10 +174,11 @@ class DirectAccessProjectSelectorImpl(
         toolTipText = "Return all devices to change projects"
       }
       preferredSize = null
-      addItemListener { scope.launch(uiDispatcher) { updateSelectedItem(it.item as String) } }
+      addItemListener { scope.launch(uiContext) { updateSelectedItem(it.item as String) } }
     }
 
     fun updateProjects(projects: List<String>?) {
+      assertEventDispatchThread()
       when {
         projects == null -> {
           model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
@@ -271,8 +274,8 @@ class DirectAccessProjectSelectorImpl2(
       add(createProjectMessagePanel.apply { isVisible = false })
     }
 
-  private val uiDispatcher: CoroutineDispatcher
-    get() = AndroidDispatchers.uiThread(ModalityState.any())
+  private val uiDispatcher: CoroutineContext
+    get() = Dispatchers.EDT + ModalityState.any().asContextElement()
 
   init {
     add(comboBox, projectSelectorCard)
@@ -346,6 +349,7 @@ class DirectAccessProjectSelectorImpl2(
     }
 
     fun updateProjects(projects: List<String>?) {
+      assertEventDispatchThread()
       when {
         projects == null -> {
           model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))

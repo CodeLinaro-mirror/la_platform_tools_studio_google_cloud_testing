@@ -30,7 +30,7 @@ import icons.StudioIcons
 import java.awt.CardLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,7 +44,7 @@ private const val BLAZE_PLAN_KEY = "Blaze"
 
 class ProjectInformationPanel(
   scope: CoroutineScope,
-  uiDispatcher: CoroutineDispatcher,
+  uiContext: CoroutineContext,
   cloudProjectManagerFlow: StateFlow<DirectAccessCloudProjectManager?>,
 ) : JPanel(VerticalLayout()) {
   private val planLabel =
@@ -125,7 +125,7 @@ class ProjectInformationPanel(
     updatePlanInformation(null)
     scope.launch {
       cloudProjectManagerFlow.collectLatest { cloudProjectManager ->
-        withContext(uiDispatcher) { onProjectChanged(cloudProjectManager) }
+        withContext(uiContext) { onProjectChanged(cloudProjectManager) }
       }
     }
   }
