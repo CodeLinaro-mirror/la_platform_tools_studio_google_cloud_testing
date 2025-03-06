@@ -20,6 +20,8 @@ import com.android.tools.idea.stats.AndroidStudioUsageTracker
 import com.android.tools.idea.stats.AnonymizerUtil
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionMetrics
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo.DeliveryType
+import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo.DeprecationStatus
 import com.google.wireless.android.sdk.stats.DeviceInfo as MetricsDeviceInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
@@ -160,6 +162,29 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
             .build()
       }
     track(deviceInfo, event)
+  }
+
+  fun trackServiceDeprecation(
+    userNotified: Boolean? = null,
+    moreInfoClicked: Boolean? = null,
+    updateClicked: Boolean? = null,
+  ) {
+    UsageTracker.log(
+      AndroidStudioEvent.newBuilder().apply {
+        kind = AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT
+        directAccessUsageEventBuilder.apply {
+          type = DirectAccessUsageEvent.DirectAccessUsageEventType.SERVICE_DEPRECATION
+          devServiceDeprecationInfoBuilder.apply {
+            deprecationStatus = DeprecationStatus.UNSUPPORTED
+            deliveryType = DeliveryType.BANNER
+            userNotified?.let { this.userNotified = it }
+            moreInfoClicked?.let { this.moreInfoClicked = it }
+            updateClicked?.let { this.updateClicked = it }
+          }
+        }
+        productDetails = AndroidStudioUsageTracker.productDetails
+      }
+    )
   }
 
   private fun track(deviceInformation: MetricsDeviceInfo, usageEvent: DirectAccessUsageEvent) {
