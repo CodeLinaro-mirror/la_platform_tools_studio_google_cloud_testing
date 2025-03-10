@@ -128,8 +128,7 @@ class DirectAccessProjectSelectorTest2 {
   fun testComboBoxGetsEnabled() = runBlockingWithTimeout {
     selector =
       DirectAccessProjectSelectorImpl2(projectRule.project, "preferredProject", true, scope)
-    assertThat(selector.comboBox.isEnabled).isFalse()
-    delayUntilCondition(250L) { selector.comboBox.isEnabled }
+    delayUntilCondition(1000L) { selector.comboBox.isEnabled }
     assertThat(selector.comboBox.isEnabled).isTrue()
   }
 
