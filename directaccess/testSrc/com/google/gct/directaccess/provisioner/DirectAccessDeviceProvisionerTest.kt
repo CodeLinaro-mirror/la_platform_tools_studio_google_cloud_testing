@@ -25,7 +25,6 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.adblib.utils.createChildScope
-import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceActionException
 import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
@@ -34,12 +33,9 @@ import com.android.sdklib.deviceprovisioner.DeviceState.Disconnected
 import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.sdklib.deviceprovisioner.ReservationState
 import com.android.sdklib.deviceprovisioner.Resolution
-import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
-import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.android.tools.idea.testing.DebugLoggerRule
@@ -64,7 +60,6 @@ import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.rule.PropertiesComponentRule
-import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
@@ -87,18 +82,14 @@ import com.intellij.notification.NotificationDisplayType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.openapi.ui.messages.MessageDialog
 import com.intellij.testFramework.ProjectRule
-import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.EditorNotificationPanel
-import com.intellij.ui.SearchTextField
-import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.content.Content
 import icons.StudioIcons
 import java.time.Duration
@@ -108,11 +99,9 @@ import java.time.format.FormatStyle
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
-import javax.swing.JLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
@@ -147,16 +136,14 @@ class DirectAccessDeviceProvisionerTest {
   private val fakeToolWindowRule = FakeToolWindowRule(projectRule)
   private val cleanUpNotificationRule = CleanUpNotificationRule(projectRule)
   private val propertiesComponentRule = PropertiesComponentRule(projectRule)
+
   // The default test logger throws after an error is logged, whereas the default JB
   // logger doesn't. This caused b/349020104 not to be found by tests.
   private val debugLoggerRule = DebugLoggerRule(LoggerFactory::class.java)
-  // TODO(b/368129295): Update test for the new dialog.
-  private val flagRule = FlagRule(StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED, false)
 
   @get:Rule
   val ruleChain: RuleChain =
     RuleChain.outerRule(debugLoggerRule)
-      .around(flagRule)
       .around(projectRule)
       .around(grpcConnectionRule)
       .around(loginUsersRule)
@@ -1220,112 +1207,6 @@ class DirectAccessDeviceProvisionerTest {
   fun testCorrectIconForWatch() = runBlockingWithTimeout {
     val template = plugin.templates.value[3] as DirectAccessDeviceTemplate
     testCorrectIcon(template, "google_wear")
-  }
-
-  @RunsInEdt
-  @Test
-  fun selectTemplates() = runBlockingWithTimeout {
-    assertThat(plugin.templates.value.size).isEqualTo(5)
-    val deviceInfoList =
-      plugin.templates.value.map { (it as DirectAccessDeviceTemplate).deviceInfo }
-
-    withContext(Dispatchers.EDT) {
-      createModalDialogAndInteractWithIt({
-        scope.launch { plugin.createDeviceTemplateAction.create(null) }
-      }) {
-        val dialog = it as SelectDeviceDialog
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val icons = dialog.deviceTable.findAllDescendants<JLabel>().mapNotNull { it.icon }.toList()
-        assertThat(icons.map { (it as OemLabsAssetsRegistry.OemLabIcon).description })
-          .containsExactly(
-            "google_phone",
-            "google_phone",
-            "google_phone",
-            "google_wear",
-            "google_wear",
-          )
-        val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
-        checkboxList.forEach { assertThat(it.isSelected).isTrue() }
-
-        checkboxList[1].isSelected = false
-        checkboxList[2].isSelected = false
-        dialog.clickDefaultButton()
-      }
-    }
-    yieldUntil { plugin.templates.value.size == 3 }
-    var templates = plugin.templates.value
-    assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
-    assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
-
-    // Re-select a template
-    withContext(Dispatchers.EDT) {
-      createModalDialogAndInteractWithIt({
-        scope.launch { plugin.createDeviceTemplateAction.create(null) }
-      }) {
-        val dialog = it as SelectDeviceDialog
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val checkboxList = dialog.deviceTable.findAllDescendants<JBCheckBox>().toList()
-        checkboxList[1].isSelected = true
-        dialog.clickDefaultButton()
-      }
-    }
-    yieldUntil { plugin.templates.value.size == 4 }
-    templates = plugin.templates.value
-    assertThat((templates[0] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[0])
-    assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[1])
-    assertThat((templates[2] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
-  }
-
-  @RunsInEdt
-  @Test
-  fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
-    assertThat(plugin.templates.value.size).isEqualTo(5)
-
-    withContext(Dispatchers.EDT) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-        val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
-        // Case-insensitive search
-        searchTextField.text = "GoOgLe       WaTcH"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel Watch")
-
-        // Search for devices with 6 in their name
-        searchTextField.text = "6"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6")
-        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel 6 Pro")
-
-        // Search for api 33
-        searchTextField.text = "33"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-        assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6 Pro")
-        assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel Watch")
-
-        // Search matching no device
-        searchTextField.text = "no match search"
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
-      }
-    }
-  }
-
-  @RunsInEdt
-  @Test
-  fun testSelectDeviceDialogWhenNoAvailableDevicesToSelect() = runBlockingWithTimeout {
-    (plugin.templates as MutableStateFlow).value = emptyList()
-    assertThat(plugin.templates.value.isEmpty()).isTrue()
-
-    (projectRule.project.service<DirectAccessService>().cloudProjectManager as MutableStateFlow)
-      .value = null
-    projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value = emptyList()
-
-    withContext(Dispatchers.EDT) {
-      val dialog = SelectDeviceDialog(projectRule.project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
-        assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
-      }
-    }
   }
 
   @Test

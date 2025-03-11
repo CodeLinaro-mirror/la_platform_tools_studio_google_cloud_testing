@@ -42,7 +42,6 @@ import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.AddDirectAccessDeviceDialog
-import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
@@ -393,24 +392,20 @@ class DirectAccessDeviceProvisionerPlugin(
   override val createDeviceTemplateAction =
     object : CreateDeviceTemplateAction {
       override suspend fun create(parent: Component?) {
-        if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
-          withContext(AndroidDispatchers.uiThread) {
-            val deviceSelectionListFlow =
-              project.service<DirectAccessService>().deviceSelectionListFlow
-            initializeComposeMainDispatcherChecker()
-            if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
-              UsageTracker.log(
-                AndroidStudioEvent.newBuilder()
-                  .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)
-                  .setDeviceManagerEvent(
-                    DeviceManagerEvent.newBuilder()
-                      .setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
-                  )
-              )
-            }
+        withContext(AndroidDispatchers.uiThread) {
+          val deviceSelectionListFlow =
+            project.service<DirectAccessService>().deviceSelectionListFlow
+          initializeComposeMainDispatcherChecker()
+          if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
+            UsageTracker.log(
+              AndroidStudioEvent.newBuilder()
+                .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)
+                .setDeviceManagerEvent(
+                  DeviceManagerEvent.newBuilder()
+                    .setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
+                )
+            )
           }
-        } else {
-          withContext(AndroidDispatchers.uiThread) { SelectDeviceDialog(project).show() }
         }
       }
 

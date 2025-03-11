@@ -39,6 +39,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jdesktop.swingx.VerticalLayout
 
+private const val VIEW_PRICING_DETAILS_LINK =
+  "https://d.android.com/r/studio-ui/device-streaming/pricing"
 private const val SPARK_PLAN_KEY = "Spark"
 private const val BLAZE_PLAN_KEY = "Blaze"
 
