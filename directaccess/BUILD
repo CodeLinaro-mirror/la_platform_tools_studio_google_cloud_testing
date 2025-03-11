@@ -9,6 +9,20 @@ iml_module(
     resources = ["resources"],
     tags = ["noci:studio-win"],  # b/213385827
     test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
+    # do not sort: must match IML order
+    test_deps = [
+        "//tools/adt/idea/.idea/libraries:junit4",
+        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
+        "//tools/adt/idea/.idea/libraries:mockito",
+        "//tools/base/testutils:studio.android.sdktools.testutils",
+        "//tools/adt/idea/.idea/libraries:truth",
+        "//tools/adt/idea/android-test-framework:intellij.android.testFramework",
+        "//tools/adt/idea/.idea/libraries:jetbrains.kotlinx.coroutines.test",
+        "//tools/base/fakeadbserver:studio.android.sdktools.fakeadbserver",
+        "//tools/analytics-library/testing:android.sdktools.analytics-testing",
+        "//tools/adt/idea/android-plugin:intellij.android.plugin",
+        "//tools/adt/idea/.idea/libraries:mockito-kotlin",
+    ],
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
@@ -39,16 +53,5 @@ iml_module(
         "//tools/adt/idea/artwork-compose:intellij.android.artwork-compose",
         "@intellij//:intellij.libraries.grpc",
         "@intellij//:intellij.libraries.grpc.netty.shaded",
-        "//tools/adt/idea/.idea/libraries:junit4[test]",
-        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[test]",
-        "//tools/adt/idea/.idea/libraries:mockito[test]",
-        "//tools/base/testutils:studio.android.sdktools.testutils[test]",
-        "//tools/adt/idea/.idea/libraries:truth[test]",
-        "//tools/adt/idea/android-test-framework:intellij.android.testFramework[test]",
-        "//tools/adt/idea/.idea/libraries:jetbrains.kotlinx.coroutines.test[test]",
-        "//tools/base/fakeadbserver:studio.android.sdktools.fakeadbserver[test]",
-        "//tools/analytics-library/testing:android.sdktools.analytics-testing[test]",
-        "//tools/adt/idea/android-plugin:intellij.android.plugin[test]",
-        "//tools/adt/idea/.idea/libraries:mockito-kotlin[test]",
     ],
 )
