@@ -39,9 +39,9 @@ import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.AddDirectAccessDeviceDialog
-import com.google.gct.directaccess.ui.SelectDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
@@ -176,6 +176,7 @@ class DirectAccessDeviceProvisionerPlugin(
           notificationBanners.value = if (list.isEmpty()) listOf() else banners
         }
       }
+      DirectAccessUsageTracker.getInstance().trackServiceDeprecation(userNotified = true)
     }
 
     // Select project from login onboarding tasks.
@@ -391,24 +392,20 @@ class DirectAccessDeviceProvisionerPlugin(
   override val createDeviceTemplateAction =
     object : CreateDeviceTemplateAction {
       override suspend fun create(parent: Component?) {
-        if (StudioFlags.DIRECT_ACCESS_DEVICE_CATALOG_ENABLED.get()) {
-          withContext(AndroidDispatchers.uiThread) {
-            val deviceSelectionListFlow =
-              project.service<DirectAccessService>().deviceSelectionListFlow
-            initializeComposeMainDispatcherChecker()
-            if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
-              UsageTracker.log(
-                AndroidStudioEvent.newBuilder()
-                  .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)
-                  .setDeviceManagerEvent(
-                    DeviceManagerEvent.newBuilder()
-                      .setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
-                  )
-              )
-            }
+        withContext(AndroidDispatchers.uiThread) {
+          val deviceSelectionListFlow =
+            project.service<DirectAccessService>().deviceSelectionListFlow
+          initializeComposeMainDispatcherChecker()
+          if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
+            UsageTracker.log(
+              AndroidStudioEvent.newBuilder()
+                .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)
+                .setDeviceManagerEvent(
+                  DeviceManagerEvent.newBuilder()
+                    .setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
+                )
+            )
           }
-        } else {
-          withContext(AndroidDispatchers.uiThread) { SelectDeviceDialog(project).show() }
         }
       }
 
@@ -434,11 +431,17 @@ class DirectAccessDeviceProvisionerPlugin(
       var hasAction = false
       if (deprecationData.showUpdateAction) {
         hasAction = true
-        createActionLabel("Update") { UpdateChecker.updateAndShowResult(project) }
+        createActionLabel("Update") {
+          UpdateChecker.updateAndShowResult(project)
+          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(updateClicked = true)
+        }
       }
       if (deprecationData.moreInfoUrl.isNotEmpty()) {
         hasAction = true
-        createActionLabel("More info") { BrowserUtil.browse(deprecationData.moreInfoUrl) }
+        createActionLabel("More info") {
+          BrowserUtil.browse(deprecationData.moreInfoUrl)
+          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(moreInfoClicked = true)
+        }
       }
       if (hasAction) {
         moveActionLabels()

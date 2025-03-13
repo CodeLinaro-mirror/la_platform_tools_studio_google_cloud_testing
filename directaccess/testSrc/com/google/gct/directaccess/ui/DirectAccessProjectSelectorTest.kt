@@ -18,9 +18,11 @@ package com.google.gct.directaccess.ui
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.testutils.delayUntilCondition
+import com.android.tools.adtui.swing.findAllDescendants
 import com.google.common.truth.Truth.assertThat
 import com.google.services.firebase.FirebaseProjectClientRule
 import com.intellij.testFramework.ProjectRule
+import com.intellij.ui.components.AnActionLink
 import com.intellij.util.ui.NamedColorUtil
 import java.awt.Color
 import javax.swing.JTextField
@@ -43,6 +45,18 @@ class DirectAccessProjectSelectorTest {
   @Before
   fun setup() {
     projectList = firebaseProjectClientRule.setupFirebaseClient().toMutableList()
+  }
+
+  @Test
+  fun testNoProject() = runBlockingWithTimeout {
+    firebaseProjectClientRule.setupFirebaseClient(false, false, 0, 200).toMutableList()
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, "", true, scope)
+    yieldUntil {
+      selector
+        .findAllDescendants<AnActionLink> { it.text == "Create a Spark Plan Project..." }
+        .firstOrNull()
+        ?.isVisible == true
+    }
   }
 
   @Test
@@ -96,19 +110,6 @@ class DirectAccessProjectSelectorTest {
   }
 
   @Test
-  fun testEmptyProjectListShowsLink() = runBlockingWithTimeout {
-    projectList = firebaseProjectClientRule.setupFirebaseClient(numProjects = 0).toMutableList()
-    selector = DirectAccessProjectSelectorImpl(projectRule.project, "preferredProject", true, scope)
-
-    yieldUntil { /*scope.coroutineContext.job.children.toList().isEmpty()*/
-      selector.createProjectHyperlink.isVisible
-    }
-
-    assertThat(selector.createProjectHyperlink.isVisible).isTrue()
-    assertThat(selector.comboBox.isVisible).isFalse()
-  }
-
-  @Test
   fun testSelectorDisabledIfShouldEnableIsFalse() = runBlockingWithTimeout {
     selector =
       DirectAccessProjectSelectorImpl(projectRule.project, projectList.last(), false, scope)
@@ -123,8 +124,7 @@ class DirectAccessProjectSelectorTest {
   @Test
   fun testComboBoxGetsEnabled() = runBlockingWithTimeout {
     selector = DirectAccessProjectSelectorImpl(projectRule.project, "preferredProject", true, scope)
-    assertThat(selector.comboBox.isEnabled).isFalse()
-    delayUntilCondition(250L) { selector.comboBox.isEnabled }
+    delayUntilCondition(1000L) { selector.comboBox.isEnabled }
     assertThat(selector.comboBox.isEnabled).isTrue()
   }
 

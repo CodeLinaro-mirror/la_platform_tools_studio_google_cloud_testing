@@ -30,7 +30,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.CollectionComboBoxModel
-import com.intellij.ui.HyperlinkLabel
 import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.panels.HorizontalLayout
@@ -74,160 +73,10 @@ interface DirectAccessProjectSelector {
 /**
  * A [DirectAccessProjectSelector] that returns a combo box of available projects.
  *
- * TODO (b/366306650): remove this component once the new device catalog is enabled.
- *
  * @param preferredProject the project to select initially if available
  * @param shouldEnable true if project selection is enabled
  */
 class DirectAccessProjectSelectorImpl(
-  private val project: Project,
-  private var preferredProject: String,
-  private val shouldEnable: Boolean,
-  scope: CoroutineScope,
-) : DirectAccessProjectSelector, JPanel(CardLayout()) {
-
-  private val noProjectsCard = "no projects"
-  private val projectSelectorCard = "project selector"
-  private val newProjectCreatedCard = "project created"
-
-  override val component: JComponent
-    get() = this
-
-  override val selectedProject = MutableStateFlow("")
-
-  override val isReady = MutableStateFlow(false)
-
-  @VisibleForTesting internal val comboBox = MyComboBox(scope)
-  @VisibleForTesting
-  internal val createProjectHyperlink =
-    HyperlinkLabel("Create a Firebase project...").apply {
-      setHyperlinkTarget(userSpecificFirebaseConsoleLink)
-    }
-
-  private val projectCreatingLabel = JBLabel()
-
-  private val uiContext: CoroutineContext
-    get() = Dispatchers.EDT + ModalityState.any().asContextElement()
-
-  init {
-    add(comboBox, projectSelectorCard)
-    add(createProjectHyperlink, noProjectsCard)
-    add(projectCreatingLabel, newProjectCreatedCard)
-    scope.refreshProjects()
-  }
-
-  private fun showCard(card: String) = (layout as CardLayout).show(this, card)
-
-  private fun CoroutineScope.refreshProjects() = launch {
-    val task = service<DirectAccessOnboardingService>().taskFlow.value
-    if (task?.isPending == true) {
-      val projectName = task.cloudProject.name
-      projectCreatingLabel.text = "Creating project $projectName"
-      withContext(uiContext) { showCard(newProjectCreatedCard) }
-      launch {
-        // Show [projectSelectorCard] after the created project is selected.
-        project
-          .service<DirectAccessService>()
-          .cloudProjectManager
-          .takeWhile { it?.cloudProject?.name != projectName }
-          .collect()
-        preferredProject = projectName
-        withContext(uiContext) {
-          showCard(projectSelectorCard)
-          comboBox.updateProjects(getProjects())
-        }
-      }
-    } else {
-      val projects = getProjects()
-      val card = if (projects?.isEmpty() == true) noProjectsCard else projectSelectorCard
-
-      if (projects?.size == 1) {
-        preferredProject = projects.first()
-      }
-
-      withContext(uiContext) {
-        showCard(card)
-        comboBox.updateProjects(projects)
-      }
-    }
-  }
-
-  private suspend fun getProjects() =
-    try {
-      withContext(Dispatchers.IO) {
-        FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
-      }
-    } catch (e: Exception) {
-      null
-    }
-
-  inner class MyComboBox(scope: CoroutineScope) : ComboBox<String>() {
-    private var isPreferredProjectApplied = false
-
-    init {
-      isEditable = false
-      renderer = DirectAccessProjectSelectorRenderer
-      model = CollectionComboBoxModel(listOf("Loading..."))
-      isEnabled = false
-      setDisabledTextColor(NamedColorUtil.getInactiveTextColor())
-      if (!shouldEnable) {
-        toolTipText = "Return all devices to change projects"
-      }
-      preferredSize = null
-      addItemListener { scope.launch(uiContext) { updateSelectedItem(it.item as String) } }
-    }
-
-    fun updateProjects(projects: List<String>?) {
-      assertEventDispatchThread()
-      when {
-        projects == null -> {
-          model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
-          updateSelectedItem(ERROR_FETCHING_FIREBASE_PROJECT)
-          isEnabled = false
-          setDisabledTextColor(NamedColorUtil.getErrorForeground())
-        }
-        projects.isEmpty() -> {
-          model = CollectionComboBoxModel(listOf(NO_PROJECTS_AVAILABLE))
-          updateSelectedItem(NO_PROJECTS_AVAILABLE)
-          isEnabled = false
-        }
-        else -> {
-          // Append an empty project if one is not selected initially.
-          // This prevents calling the APIs of the first project in the list.
-          val finalProjects = if (preferredProject.isEmpty()) listOf("") + projects else projects
-          model = CollectionComboBoxModel(finalProjects)
-          updateSelectedItem(preferredProject)
-          isEnabled = shouldEnable
-        }
-      }
-    }
-
-    private fun setDisabledTextColor(color: Color) {
-      val textField = editor.editorComponent as JTextField
-      textField.disabledTextColor = color
-    }
-
-    private fun updateSelectedItem(item: String) {
-      if (!isPreferredProjectApplied) {
-        selectedItem = item
-      }
-      selectedProject.value = selectedItem as String
-      // Set isReady to true after preferred project applied.
-      if (!isPreferredProjectApplied) {
-        isReady.value = true
-        isPreferredProjectApplied = true
-      }
-    }
-  }
-}
-
-/**
- * A [DirectAccessProjectSelector] that returns a combo box of available projects.
- *
- * @param preferredProject the project to select initially if available
- * @param shouldEnable true if project selection is enabled
- */
-class DirectAccessProjectSelectorImpl2(
   private val project: Project,
   private var preferredProject: String,
   private val shouldEnable: Boolean,
@@ -256,7 +105,7 @@ class DirectAccessProjectSelectorImpl2(
       object : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
           LoginFeature.feature<FirebaseLoginFeature>()
-            .logInAsync(parentComponent = this@DirectAccessProjectSelectorImpl2)
+            .logInAsync(parentComponent = this@DirectAccessProjectSelectorImpl)
         }
       },
     )
@@ -269,7 +118,7 @@ class DirectAccessProjectSelectorImpl2(
       val chooseProjectPanel = JPanel(HorizontalLayout(5))
 
       chooseProjectPanel.add(JBLabel("Project:"))
-      chooseProjectPanel.add(this@DirectAccessProjectSelectorImpl2)
+      chooseProjectPanel.add(this@DirectAccessProjectSelectorImpl)
       add(chooseProjectPanel)
       add(createProjectMessagePanel.apply { isVisible = false })
     }

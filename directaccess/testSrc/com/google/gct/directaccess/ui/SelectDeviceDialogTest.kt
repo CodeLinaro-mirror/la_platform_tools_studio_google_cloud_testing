@@ -15,227 +15,241 @@
  */
 package com.google.gct.directaccess.ui
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.KeyInjectionScope
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsToggleable
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasAnySibling
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onChild
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTextReplacement
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
-import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
-import com.android.mockito.kotlin.whenever
-import com.android.testutils.waitForCondition
-import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
-import com.android.tools.adtui.swing.enableHeadlessDialogs
-import com.android.tools.adtui.swing.findAllDescendants
-import com.android.tools.idea.testing.disposable
+import com.android.tools.adtui.compose.utils.StudioComposeTestRule.Companion.createStudioComposeTestRule
+import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.common.truth.Truth.assertThat
-import com.google.common.util.concurrent.MoreExecutors
-import com.google.gct.directaccess.DirectAccessCloudProjectManager
-import com.google.gct.directaccess.DirectAccessService
-import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils.extendedDeviceInfoListProvider
+import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
-import com.google.gct.login2.GoogleLoginService
-import com.intellij.ide.BrowserUtil
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
-import com.intellij.testFramework.replaceService
-import com.intellij.ui.HyperlinkLabel
-import com.intellij.ui.SearchTextField
-import com.intellij.util.application
-import javax.swing.JCheckBox
-import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito
-import org.mockito.Mockito.anyString
-import org.mockito.Mockito.doAnswer
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 @RunsInEdt
 class SelectDeviceDialogTest {
-
-  @get:Rule val projectRule = ProjectRule()
   @get:Rule val edtRule = EdtRule()
+  @get:Rule val projectRule = ProjectRule()
+  @get:Rule val composeTestRule = createStudioComposeTestRule()
 
-  private val scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
   private val project: Project
     get() = projectRule.project
 
+  private lateinit var dialog: AddDirectAccessDeviceDialog
   private lateinit var deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>
+  private lateinit var phones: List<DeviceInfo>
+  private lateinit var watches: List<DeviceInfo>
 
   @Before
-  fun setUp() = runBlockingWithTimeout {
-    enableHeadlessDialogs(projectRule.disposable)
-    val mockDirectAccessService = mock<DirectAccessService>()
-    val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
-    val cloudProjectManagerFlow =
-      MutableStateFlow<DirectAccessCloudProjectManager?>(mockCloudProjectManager)
-    val accessibleDeviceInfoFlow =
-      RefreshableStateFlow(scope, Long.MAX_VALUE) { extendedDeviceInfoListProvider() }
+  fun setUp() {
     deviceSelectionListFlow =
-      MutableStateFlow(extendedDeviceInfoListProvider().map { DeviceSelection(true, it) })
-    doAnswer { accessibleDeviceInfoFlow }
-      .whenever(mockCloudProjectManager)
-      .accessibleDeviceInfoListFlow
-    doAnswer { cloudProjectManagerFlow }.whenever(mockDirectAccessService).cloudProjectManager
-    doAnswer { deviceSelectionListFlow }.whenever(mockDirectAccessService).deviceSelectionListFlow
-    doAnswer { scope }.whenever(mockDirectAccessService).scope
-    project.replaceService(
-      DirectAccessService::class.java,
-      mockDirectAccessService,
-      projectRule.disposable,
-    )
-
-    val mockGoogleLoginService = mock<GoogleLoginService>()
-    doAnswer { "test@gmail.com" }.whenever(mockGoogleLoginService).getEmail()
-    application.replaceService(
-      GoogleLoginService::class.java,
-      mockGoogleLoginService,
-      projectRule.disposable,
-    )
+      MutableStateFlow(extendedDeviceInfoListProvider().map { DeviceSelection(false, it) })
+    phones =
+      deviceSelectionListFlow.value
+        .map { it.deviceInfo }
+        .filter { it.formFactor == FormFactors.PHONE }
+    watches =
+      deviceSelectionListFlow.value
+        .map { it.deviceInfo }
+        .filter { it.formFactor == FormFactors.WEAR }
+    dialog = AddDirectAccessDeviceDialog(project, deviceSelectionListFlow)
+    composeTestRule.setContent { dialog.ComposeContent() }
   }
 
   @After
   fun tearDown() {
-    scope.cancel()
+    dialog.disposeIfNeeded()
   }
 
   @Test
-  fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
-    val dialog = SelectDeviceDialog(project)
-    createModalDialogAndInteractWithIt({ dialog.show() }) {
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(6)
-      val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
-      // Case-insensitive search
-      searchTextField.text = "GoOgLe       WaTcH"
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-      assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel Watch")
-      assertThat(dialog.deviceTable.values[0].deviceInfo.api).isEqualTo(33)
-      assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel Watch")
-      assertThat(dialog.deviceTable.values[1].deviceInfo.api).isEqualTo(34)
-
-      // Search for devices with 6 in their name
-      searchTextField.text = "6"
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(2)
-      assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6")
-      assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel 6 Pro")
-
-      // Search for api 33
-      searchTextField.text = "33"
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(3)
-      assertThat(dialog.deviceTable.values[0].deviceInfo.name).isEqualTo("Pixel 6 Pro")
-      assertThat(dialog.deviceTable.values[1].deviceInfo.name).isEqualTo("Pixel Watch")
-      assertThat(dialog.deviceTable.values[2].deviceInfo.name).isEqualTo("SomeName")
-
-      // Search matching no device
-      searchTextField.text = "no match search"
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
+  fun tableContents() {
+    for (device in phones) {
+      val node = composeTestRule.onNodeWithText(device.codename)
+      node.assertExists()
+      node.assertTextContains(device.name)
+      node.assertTextContains(device.api.toString())
+    }
+    for (device in watches) {
+      composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
     }
   }
 
   @Test
-  fun testSelectDeviceDialogWhenNoAvailableDevicesToSelect() = runBlockingWithTimeout {
-    (project.service<DirectAccessService>().cloudProjectManager as MutableStateFlow).value = null
-    project.service<DirectAccessService>().deviceSelectionListFlow.value = emptyList()
-
-    val dialog = SelectDeviceDialog(project)
-    createModalDialogAndInteractWithIt({ dialog.show() }) {
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(0)
-    }
-  }
-
-  @Test
-  fun testCheckUncheckWhenDevicesFilteredBySearch() = runBlockingWithTimeout {
-    val dialog = SelectDeviceDialog(project)
-    createModalDialogAndInteractWithIt({ dialog.show() }) {
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(6)
-      val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
-      searchTextField.text = "Google"
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
-      val lastCheckBox = dialog.deviceTable.findAllDescendants<JCheckBox>().first()
-      lastCheckBox.doClick()
-      assertThat(lastCheckBox.isSelected).isFalse()
-      dialog.clickDefaultButton()
-    }
-
-    yieldUntil { deviceSelectionListFlow.value.filter { it.isSelected }.size == 5 }
-    val selectedDevices =
-      deviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.name }
-    assertThat(selectedDevices).doesNotContain("Pixel 5")
-    assertThat(selectedDevices)
-      .containsExactly("Pixel 6", "Pixel 6 Pro", "Pixel Watch", "Pixel Watch", "SomeName")
-      .inOrder()
-  }
-
-  @Test
-  fun testCheckBoxRetainStateAfterSearch() = runBlockingWithTimeout {
-    val dialog = SelectDeviceDialog(project)
-    createModalDialogAndInteractWithIt({ dialog.show() }) {
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(6)
-      val checkBoxes = dialog.deviceTable.findAllDescendants<JCheckBox>().toList()
-      checkBoxes.forEach { assertThat(it.isSelected).isTrue() }
-      val searchTextField = dialog.contentPanel.findAllDescendants<SearchTextField>().first()
-      searchTextField.text = "SomeName"
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(1)
-      val searchCheckBoxes = dialog.deviceTable.findAllDescendants<JCheckBox>().toList()
-      assertThat(searchCheckBoxes.size).isEqualTo(1)
-      assertThat(searchCheckBoxes[0].isSelected).isTrue()
-      searchTextField.text = ""
-      val checkBoxList = dialog.deviceTable.findAllDescendants<JCheckBox>().toList()
-      checkBoxList.forEach { assertThat(it.isSelected).isTrue() }
-      checkBoxList[0].doClick()
-      assertThat(checkBoxList[0].isSelected).isFalse()
-      dialog.clickDefaultButton()
-    }
-
-    yieldUntil { deviceSelectionListFlow.value.filter { it.isSelected }.size == 5 }
-    val selectedDevices =
-      deviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.name }
-    assertThat(selectedDevices).doesNotContain("Pixel 5")
-    assertThat(selectedDevices)
-      .containsExactly("Pixel 6", "Pixel 6 Pro", "Pixel Watch", "Pixel Watch", "SomeName")
-      .inOrder()
-  }
-
-  @Test
-  fun testFirebaseLinkContainsUserEmail() {
-    Mockito.mockStatic(BrowserUtil::class.java).use { mockBrowserUtil ->
-      val dialog = SelectDeviceDialog(project)
-      createModalDialogAndInteractWithIt({ dialog.show() }) {
-        var url = ""
-        mockBrowserUtil
-          .whenever<String> { BrowserUtil.browse(anyString()) }
-          .thenAnswer {
-            url = it.getArgument(0) as String
-            Unit
-          }
-        val allProjectLink = dialog.contentPanel.findAllDescendants<HyperlinkLabel>().first()
-        assertThat(allProjectLink.text).isEqualTo("View All Projects")
-        allProjectLink.doClick()
-        waitForCondition(1.seconds) { url != "" }
-        assertThat(url).isEqualTo("https://console.firebase.google.com?authuser=test@gmail.com")
+  fun textSearch() {
+    composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Pro")
+    for (device in phones) {
+      if (device.name.contains("Pro")) {
+        composeTestRule.onNodeWithText(device.codename).assertExists()
+      } else {
+        composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
       }
     }
   }
 
   @Test
-  fun testCancel() = runBlockingWithTimeout {
-    val dialog = SelectDeviceDialog(project)
-    createModalDialogAndInteractWithIt({ dialog.show() }) {
-      assertThat(dialog.deviceTable.componentCount).isEqualTo(6)
-      val checkBoxes = dialog.deviceTable.findAllDescendants<JCheckBox>().toList()
-      checkBoxes.forEach { assertThat(it.isSelected).isTrue() }
-      checkBoxes.forEachIndexed { idx, cb -> if (idx % 2 == 0) cb.doClick() }
-      assertThat(checkBoxes.filter { it.isSelected }.size).isEqualTo(3)
-      dialog.doCancelAction()
+  fun textSearchByCodename() {
+    composeTestRule.onNode(hasSetTextAction()).performTextReplacement("codename5")
+    for (device in phones) {
+      if (device.codename.contains("codename5")) {
+        composeTestRule.onAllNodesWithText(device.codename).assertCountEquals(2)
+      } else {
+        composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
+      }
+    }
+  }
+
+  @Test
+  fun formFactor() {
+    composeTestRule
+      .onNode(hasText("Phone") and hasAnySibling(hasText("Form Factor")))
+      .performClick()
+    composeTestRule.onNodeWithText("Wear OS").performClick()
+    composeTestRule.waitForIdle()
+    for (device in watches) {
+      val node = composeTestRule.onNodeWithText(device.api.toString())
+      node.assertExists()
+      node.assertTextContains(device.name)
+    }
+    for (device in phones) {
+      composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
+    }
+  }
+
+  @Test
+  fun confirmSelection(): Unit = runBlockingWithTimeout {
+    val deviceToSelect = phones[2]
+    composeTestRule
+      .onNodeWithText(deviceToSelect.codename)
+      .onChild()
+      .assertIsToggleable()
+      .performClick()
+    composeTestRule.onNodeWithText("Confirm").performClick()
+    composeTestRule.waitForIdle()
+    assertThat(
+        deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename ==
+          deviceToSelect.codename
+      )
+      .isTrue()
+  }
+
+  @Test
+  fun cancelSelection() {
+    val deviceToSelect = phones[2]
+    composeTestRule
+      .onNodeWithText(deviceToSelect.codename)
+      .onChild()
+      .assertIsToggleable()
+      .performClick()
+    composeTestRule.onNodeWithText("Cancel").performClick()
+    composeTestRule.waitForIdle()
+    assertThat(deviceSelectionListFlow.value.none { it.isSelected }).isTrue()
+  }
+
+  @OptIn(ExperimentalTestApi::class)
+  @Test
+  fun keyboard() {
+    // Click to select phones[0].
+    composeTestRule.onNodeWithText(phones[0].codename).performClick()
+    composeTestRule
+      .onNodeWithText(phones[0].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Arrow down to phone[1].
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.DirectionDown) }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[1].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Tab to phone[2] and press space to select.
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[2].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Spacebar) }
+
+    // Up to phone[1].
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.DirectionUp) }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[1].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Shift tab to phone[0].
+    composeTestRule.onRoot().performKeyInput {
+      keyDown(Key.ShiftLeft)
+      keyDown(Key.Tab)
+      keyUp(Key.Tab)
+      keyUp(Key.ShiftLeft)
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule
+      .onNodeWithText(phones[0].codename)
+      .onChild()
+      .assertIsToggleable()
+      .assertIsFocused()
+
+    // Tab to actions.
+    for (index in 1 until phones.size) {
+      composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+      composeTestRule.waitForIdle()
+      composeTestRule
+        .onNodeWithText(phones[index].codename)
+        .onChild()
+        .assertIsToggleable()
+        .assertIsFocused()
     }
 
-    yieldUntil { deviceSelectionListFlow.value.all { it.isSelected } }
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("Cancel").assertIsFocused()
+
+    composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("Confirm").assertIsFocused().performClick()
+
+    // Verify selected device.
+    assertThat(
+        deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename ==
+          phones[2].codename
+      )
+      .isTrue()
   }
+}
+
+private fun KeyInjectionScope.keyPress(key: Key) {
+  keyDown(key)
+  keyUp(key)
 }
