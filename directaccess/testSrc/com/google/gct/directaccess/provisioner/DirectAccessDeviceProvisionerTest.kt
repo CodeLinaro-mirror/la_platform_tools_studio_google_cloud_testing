@@ -38,7 +38,6 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.idea.adddevicedialog.FormFactors
-import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.streaming.core.DeviceId
@@ -88,6 +87,7 @@ import com.intellij.notification.NotificationDisplayType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
@@ -112,6 +112,7 @@ import javax.swing.JLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
@@ -1228,7 +1229,7 @@ class DirectAccessDeviceProvisionerTest {
     val deviceInfoList =
       plugin.templates.value.map { (it as DirectAccessDeviceTemplate).deviceInfo }
 
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       createModalDialogAndInteractWithIt({
         scope.launch { plugin.createDeviceTemplateAction.create(null) }
       }) {
@@ -1257,7 +1258,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat((templates[1] as DirectAccessDeviceTemplate).deviceInfo).isEqualTo(deviceInfoList[3])
 
     // Re-select a template
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       createModalDialogAndInteractWithIt({
         scope.launch { plugin.createDeviceTemplateAction.create(null) }
       }) {
@@ -1280,7 +1281,7 @@ class DirectAccessDeviceProvisionerTest {
   fun testSelectDeviceDialogSearchTest() = runBlockingWithTimeout {
     assertThat(plugin.templates.value.size).isEqualTo(5)
 
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       val dialog = SelectDeviceDialog(projectRule.project)
       createModalDialogAndInteractWithIt({ dialog.show() }) {
         assertThat(dialog.deviceTable.componentCount).isEqualTo(5)
@@ -1319,7 +1320,7 @@ class DirectAccessDeviceProvisionerTest {
       .value = null
     projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value = emptyList()
 
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       val dialog = SelectDeviceDialog(projectRule.project)
       createModalDialogAndInteractWithIt({ dialog.show() }) {
         assertThat(dialog.deviceTable.componentCount).isEqualTo(0)

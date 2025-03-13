@@ -29,7 +29,6 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.adddevicedialog.FormFactors
-import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
@@ -66,6 +65,7 @@ import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -273,7 +273,7 @@ class SelectProjectActionTest {
         mouseEvent,
       )
 
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
         // Start select action before login.
         val dialog = it as SelectDeviceDialog
@@ -499,7 +499,7 @@ class SelectProjectActionTest {
     whenever(mockDeviceHandle.state).thenReturn(mock<DeviceState.Connected>())
     devices.value = listOf(mockDeviceHandle)
 
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) { dialog ->
         val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
         assertThat(selector.isEnabled).isFalse()
@@ -624,7 +624,7 @@ class SelectProjectActionTest {
         "Android Device Streaming is setting up and will be ready in a few minutes."
     }
 
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
         // Start select action before login.
         val dialog = it as SelectDeviceDialog
@@ -694,7 +694,7 @@ class SelectProjectActionTest {
         mouseEvent,
       )
 
-    withContext(AndroidDispatchers.uiThread) {
+    withContext(Dispatchers.EDT) {
       createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
         val dialog = it as SelectDeviceDialog
         val action = dialog.rootPane.findAllDescendants<AnActionLink>().first()

@@ -29,7 +29,6 @@ import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.adddevicedialog.FormFactors
-import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
@@ -68,6 +67,7 @@ import com.intellij.ide.HelpTooltip
 import com.intellij.ide.ui.customization.CustomActionsSchema
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -304,13 +304,13 @@ class SelectProjectActionTest2 {
             noQuotaProjectName,
           ),
       )
-      val selectDeviceAction = SelectProjectAction()
+      val selectProjectAction = SelectProjectAction()
 
       // Click the device selection button.
       val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
       val event =
         TestActionEvent.createTestEvent(
-          selectDeviceAction,
+          selectProjectAction,
           {
             when (it) {
               CommonDataKeys.PROJECT.name -> projectRule.project
@@ -320,8 +320,8 @@ class SelectProjectActionTest2 {
           mouseEvent,
         )
 
-      withContext(AndroidDispatchers.uiThread) {
-        createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
+      withContext(Dispatchers.EDT) {
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) {
           // Start select action before login.
           val dialog = it as SelectProjectDialog
 
@@ -403,7 +403,7 @@ class SelectProjectActionTest2 {
         }
 
         val extraDeviceInfoList = TestUtils.deviceInfoListProvider() + preselectedDeviceInfo
-        createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) {
           dialogWrapper ->
           val dialog = dialogWrapper as SelectProjectDialog
           waitForCondition {
@@ -577,10 +577,11 @@ class SelectProjectActionTest2 {
 
       // Cancel selection
       yieldUntil { selectedCloudProject.value == supportedProjectName }
-      withContext(AndroidDispatchers.uiThread) {
-        createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) { dialog
+      withContext(Dispatchers.EDT) {
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog
           ->
           val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
+          waitForCondition { selector.model.selectedItem == NO_PROJECTS_AVAILABLE }
           selector.model.selectedItem = blazeProjectName
           waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
           dialog.doCancelAction()
@@ -600,8 +601,8 @@ class SelectProjectActionTest2 {
       Mockito.doReturn(mock<DeviceState.Connected>()).whenever(mockDeviceHandle).state
       devices.value = listOf(mockDeviceHandle)
 
-      withContext(AndroidDispatchers.uiThread) {
-        createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) { dialog
+      withContext(Dispatchers.EDT) {
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog
           ->
           val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           assertThat(selector.isEnabled).isFalse()
@@ -610,8 +611,8 @@ class SelectProjectActionTest2 {
         }
       }
 
-      selectDeviceAction.update(event)
-      assertThat(selectDeviceAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+      selectProjectAction.update(event)
+      assertThat(selectProjectAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
     }
 
   @RunsInEdt
@@ -735,7 +736,7 @@ class SelectProjectActionTest2 {
         template.activationAction.presentation.value.detail ==
           "Android Device Streaming is setting up and will be ready in a few minutes."
       }
-      withContext(AndroidDispatchers.uiThread) {
+      withContext(Dispatchers.EDT) {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
           // Start select action before login.
           val dialog = it as SelectProjectDialog
@@ -808,7 +809,7 @@ class SelectProjectActionTest2 {
           mouseEvent,
         )
 
-      withContext(AndroidDispatchers.uiThread) {
+      withContext(Dispatchers.EDT) {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
           val dialog = it as SelectProjectDialog
           val action = dialog.rootPane.findAllDescendants<JButton>().first()
