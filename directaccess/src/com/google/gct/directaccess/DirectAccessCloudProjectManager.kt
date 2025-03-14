@@ -58,6 +58,25 @@ class DirectAccessCloudProjectManager(
   private val scope: CoroutineScope,
 ) : AutoCloseable {
 
+  /**
+   * True if the new device streaming API is enabled for [cloudProject].
+   *
+   * TODO(b/403595323) remove the check once FTL direct access API gets disabled.
+   */
+  val isDefaultApiEnabled =
+    try {
+      service<CloudClientService>()
+        .client
+        .isDeviceStreamingServiceEnabled(
+          cloudProject.name,
+          StudioFlags.DEVICE_STREAMING_ENDPOINT.get(),
+        )
+    } catch (_: Exception) {
+      thisLogger()
+        .info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT}")
+      false
+    }
+
   /** A pair of usage and limit numbers of quota in minutes. */
   val usageQuota: Pair<Long, Long>?
     get() {
@@ -73,7 +92,8 @@ class DirectAccessCloudProjectManager(
     DirectAccessReservationManager(
       cloudProject.name,
       scope.createChildScope(true),
-      service<DirectAccessServiceSetup>().channel,
+      isDefaultApiEnabled,
+      service<DirectAccessServiceSetup>().channel(isDefaultApiEnabled),
     ) {
       service<DirectAccessServiceSetup>().fetchAccessToken()
     }
@@ -82,8 +102,9 @@ class DirectAccessCloudProjectManager(
     DirectAccessConnectionManager(
       scope.createChildScope(true),
       service<AdbLibApplicationService>().session,
+      isDefaultApiEnabled,
       { service<DirectAccessServiceSetup>().fetchAccessToken() },
-      service<DirectAccessServiceSetup>().channel,
+      service<DirectAccessServiceSetup>().channel(isDefaultApiEnabled),
       reservationManager,
     )
 
@@ -107,7 +128,11 @@ class DirectAccessCloudProjectManager(
 
   val permissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
     RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(5)) {
-      checkDirectAccessPermission(cloudProject)
+      try {
+        checkDirectAccessPermission(cloudProject)
+      } catch (_: Exception) {
+        DirectAccessPermissionStatus.Unknown(FULL_PERMISSIONS_SET)
+      }
     }
 
   val isBillingEnabledFlow: RefreshableStateFlow<Boolean?> =

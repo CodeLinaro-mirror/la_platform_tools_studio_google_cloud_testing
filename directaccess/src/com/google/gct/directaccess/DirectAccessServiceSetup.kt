@@ -38,8 +38,11 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.SslProvider
  */
 @Service
 class DirectAccessServiceSetup {
-  val channel: ManagedChannel =
-    NettyChannelBuilder.forTarget("dns:///${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
+  private val defaultChannel = createChannel(StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
+  private val backupChannel = createChannel(StudioFlags.DIRECT_ACCESS_ENDPOINT.get())
+
+  private fun createChannel(endpoint: String): ManagedChannel =
+    NettyChannelBuilder.forTarget("dns:///$endpoint")
       .sslContext(
         GrpcSslContexts.configure(SslContextBuilder.forClient(), SslProvider.JDK)
           .trustManager(
@@ -52,6 +55,13 @@ class DirectAccessServiceSetup {
       )
       .withOption(ChannelOption.TCP_NODELAY, true)
       .build()
+
+  fun channel(isDefaultApiEnabled: Boolean): ManagedChannel =
+    if (isDefaultApiEnabled) defaultChannel else backupChannel
+
+  fun endPoint(isDefaultApiEnabled: Boolean): String =
+    if (isDefaultApiEnabled) StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
+    else StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
 
   fun fetchAccessToken(): String? =
     service<GoogleLoginService>().fetchOAuth2Token(LoginFeature.feature<FirebaseLoginFeature>())

@@ -33,8 +33,8 @@ import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresent
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gservices.DevServicesDeprecationData
 import com.android.tools.idea.gservices.DevServicesDeprecationStatus
+import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.annotations.VisibleForTesting
-import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
