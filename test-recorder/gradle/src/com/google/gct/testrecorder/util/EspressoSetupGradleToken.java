@@ -17,12 +17,12 @@ package com.google.gct.testrecorder.util;
 
 import static com.android.ide.common.repository.GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CONTRIB;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.ANDROIDX_ESPRESSO_CORE;
-import static com.android.ide.common.repository.GoogleMavenArtifactId.ANDROIDX_TEST_EXT_JUNIT;
+import static com.android.ide.common.repository.GoogleMavenArtifactId.ANDROIDX_JUNIT;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.ANDROIDX_TEST_RULES;
-import static com.android.ide.common.repository.GoogleMavenArtifactId.DESIGN;
+import static com.android.ide.common.repository.GoogleMavenArtifactId.SUPPORT_DESIGN;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.ESPRESSO_CONTRIB;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.ESPRESSO_CORE;
-import static com.android.ide.common.repository.GoogleMavenArtifactId.RECYCLERVIEW_V7;
+import static com.android.ide.common.repository.GoogleMavenArtifactId.SUPPORT_RECYCLERVIEW_V7;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.SUPPORT_ANNOTATIONS;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.SUPPORT_V4;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.TEST_RULES;
@@ -200,7 +200,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
     }
 
     private boolean hasUptodateRulesDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
-      return hasUptodateDependency(androidModuleSystem, TEST_RULES, ANDROIDX_TEST_EXT_JUNIT, myMinRulesVersion,
+      return hasUptodateDependency(androidModuleSystem, TEST_RULES, ANDROIDX_JUNIT, myMinRulesVersion,
                                    myMinAndroidxExtJunitVersion);
     }
 
@@ -420,7 +420,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
     }
 
     private GoogleMavenArtifactId getTestRulesArtifactId() {
-      return myUsesAndroidxDependency ? ANDROIDX_TEST_EXT_JUNIT : TEST_RULES;
+      return myUsesAndroidxDependency ? ANDROIDX_JUNIT : TEST_RULES;
     }
 
     private String getTestRulesArtifactUpdateVersion() {
@@ -457,7 +457,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
 
     private static String getAndroidxExtJunitVersion() {
       if (androidxExtJunitVersion == null) {
-        androidxExtJunitVersion = getLatestDependencyVersion(ANDROIDX_TEST_EXT_JUNIT, "1.1.5");
+        androidxExtJunitVersion = getLatestDependencyVersion(ANDROIDX_JUNIT, "1.1.5");
       }
       return androidxExtJunitVersion;
     }
@@ -478,8 +478,8 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
     public static final ImmutableList<ArtifactDependencySpec> ESPRESSO_CONTRIB_EXCLUDES =
       ImmutableList.of(createArtifactDependencySpec(SUPPORT_ANNOTATIONS, null),
                        createArtifactDependencySpec(SUPPORT_V4, null),
-                       createArtifactDependencySpec(DESIGN, null),
-                       createArtifactDependencySpec(RECYCLERVIEW_V7, null));
+                       createArtifactDependencySpec(SUPPORT_DESIGN, null),
+                       createArtifactDependencySpec(SUPPORT_RECYCLERVIEW_V7, null));
 
     @NotNull
     private static ArtifactDependencySpec createArtifactDependencySpec(@NotNull GoogleMavenArtifactId artifactId,
