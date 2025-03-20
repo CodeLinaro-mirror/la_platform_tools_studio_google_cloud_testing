@@ -213,12 +213,10 @@ class AddDirectAccessDeviceDialog(
   }
 }
 
-private fun <V : Comparable<V>> DirectAccessDeviceAttribute(
-  name: String,
-  value: (DirectAccessDeviceProfile) -> V,
-) = RowAttribute(name, Comparator.naturalOrder(), value)
-
-private val Lab = DirectAccessDeviceAttribute("Device Lab") { it.labIdDisplayName }
+private val Lab =
+  RowAttribute<DirectAccessDeviceProfile, String>("Device Lab", compareBy { it.lowercase() }) {
+    it.labIdDisplayName
+  }
 
 internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
   val labFilter = SetFilterState(Lab)
