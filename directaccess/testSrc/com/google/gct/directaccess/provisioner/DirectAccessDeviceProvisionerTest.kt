@@ -40,9 +40,9 @@ import com.android.tools.idea.streaming.core.DeviceId
 import com.android.tools.idea.streaming.core.StreamingDevicePanel
 import com.android.tools.idea.testing.DebugLoggerRule
 import com.android.tools.idea.testing.disposable
+import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
@@ -181,7 +181,12 @@ class DirectAccessDeviceProvisionerTest {
 
     isOAuthTokenAvailable = true
     directAccessReservationManager =
-      DirectAccessReservationManager("testProject", scope, grpcConnectionRule.channel) {
+      DirectAccessReservationManager(
+        "testProject",
+        scope,
+        isDefaultApiEnabled = true,
+        grpcConnectionRule.channel,
+      ) {
         if (!isOAuthTokenAvailable) throw RuntimeException()
         "testToken"
       }

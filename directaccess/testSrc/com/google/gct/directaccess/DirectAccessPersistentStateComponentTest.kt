@@ -116,7 +116,7 @@ class DirectAccessPersistentStateComponentTest {
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(any()))
       .thenReturn(listOf(deviceInfo))
-    whenever(mockDirectAccessServiceSetup.channel).thenReturn(grpcConnectionRule.channel)
+    whenever(mockDirectAccessServiceSetup.channel(any())).thenReturn(grpcConnectionRule.channel)
     whenever(mockDirectAccessServiceSetup.fetchAccessToken()).thenReturn("testToken")
     ApplicationManager.getApplication()
       .replaceService(

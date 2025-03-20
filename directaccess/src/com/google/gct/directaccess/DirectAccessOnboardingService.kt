@@ -61,13 +61,27 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
               val createdProject =
                 loginFeature.handler?.latestCreatedFirebaseProject?.value ?: return@collectLatest
               val cloudProject = CloudProjectEntry(user.email, createdProject)
+              service<CloudClientService>()
+                .client
+                .enableDeviceStreamingService(
+                  createdProject,
+                  StudioFlags.DEVICE_STREAMING_ENDPOINT.get(),
+                )
               value = Task(cloudProject, true)
               // Wait a minimum time before project ready.
               delay(TimeUnit.SECONDS.toMillis(INITIAL_WAIT_TIME_SECONDS))
               // Check permissions of the cloud project every [WAIT_TIME_INTERVAL_SECONDS].
               for (count in (1..10)) {
                 try {
-                  if (checkDirectAccessPermission(cloudProject).missingPermissions.isEmpty()) {
+                  if (
+                    checkDirectAccessPermission(cloudProject).missingPermissions.isEmpty() &&
+                      service<CloudClientService>()
+                        .client
+                        .isDeviceStreamingServiceEnabled(
+                          createdProject,
+                          StudioFlags.DEVICE_STREAMING_ENDPOINT.get(),
+                        )
+                  ) {
                     break
                   }
                 } catch (_: IOException) {

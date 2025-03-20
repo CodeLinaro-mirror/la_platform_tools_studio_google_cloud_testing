@@ -31,8 +31,9 @@ import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.testing.disposable
+import com.google.cloud.devicestreaming.v1.DeviceSession
 import com.google.common.truth.Truth.assertThat
-import com.google.devtools.testing.v1.DeviceSession
+import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
@@ -59,6 +60,7 @@ import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.FirebaseProjectClientRule
+import com.google.services.firebase.directaccess.client.CloudClient
 import com.google.services.firebase.directaccess.client.FakeDirectAccessReservationManager
 import com.intellij.icons.AllIcons
 import com.intellij.ide.HelpTooltip
@@ -102,6 +104,7 @@ import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -197,6 +200,12 @@ class SelectProjectActionTest {
         mockDirectAccessServiceSetup,
         projectRule.disposable,
       )
+    val mockClientService = mock<CloudClientService>()
+    val mockClient = mock<CloudClient>()
+    doReturn(mockClient).whenever(mockClientService).client
+    doReturn(true).whenever(mockClient).isDeviceStreamingServiceEnabled(any(), any())
+    ApplicationManager.getApplication()
+      .replaceService(CloudClientService::class.java, mockClientService, projectRule.disposable)
   }
 
   @After

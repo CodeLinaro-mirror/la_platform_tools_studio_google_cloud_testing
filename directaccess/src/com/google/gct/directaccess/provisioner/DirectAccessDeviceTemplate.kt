@@ -32,7 +32,7 @@ import com.android.sdklib.deviceprovisioner.TemplateState
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
-import com.google.devtools.testing.v1.DeviceSession as Reservation
+import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService

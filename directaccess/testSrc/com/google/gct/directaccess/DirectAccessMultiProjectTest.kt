@@ -20,10 +20,11 @@ import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.tools.idea.adblib.AdbLibApplicationService
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
+import com.google.cloud.devicestreaming.v1.DeviceSession.SessionState
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.devtools.testing.v1.DeviceSession.SessionState
 import com.google.gct.directaccess.TestUtils.refreshReservations
 import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.provisioner.DeviceSelection
@@ -33,6 +34,7 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.login2.LoginFeature
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.FirebaseLoginFeature
+import com.google.services.firebase.directaccess.client.CloudClient
 import com.google.services.firebase.directaccess.client.FakeDirectAccessGrpcService
 import com.google.services.firebase.directaccess.client.GrpcConnectionRule
 import com.intellij.openapi.application.ApplicationManager
@@ -55,6 +57,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -95,7 +99,7 @@ class DirectAccessMultiProjectTest {
     )
 
     val mockAdbLibApplicationService = mock<AdbLibApplicationService>()
-    whenever(mockAdbLibApplicationService.session).thenReturn(session)
+    doReturn(session).whenever(mockAdbLibApplicationService).session
     ApplicationManager.getApplication()
       .replaceService(
         AdbLibApplicationService::class.java,
@@ -104,10 +108,15 @@ class DirectAccessMultiProjectTest {
       )
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(any()))
-      .thenReturn(TestUtils.deviceInfoListProvider())
-    whenever(mockDirectAccessServiceSetup.channel).thenReturn(grpcConnectionRule.channel)
-    whenever(mockDirectAccessServiceSetup.fetchAccessToken()).thenReturn("testToken")
+    doReturn(TestUtils.deviceInfoListProvider())
+      .whenever(mockDirectAccessServiceSetup)
+      .getAccessibleDeviceInfoList(anyOrNull())
+    doReturn(grpcConnectionRule.channel).whenever(mockDirectAccessServiceSetup).channel(any())
+    doReturn("testToken").whenever(mockDirectAccessServiceSetup).fetchAccessToken()
+    doReturn(StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
+      .whenever(mockDirectAccessServiceSetup)
+      .endPoint(any())
+
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -115,12 +124,20 @@ class DirectAccessMultiProjectTest {
         projectRule1.disposable,
       )
 
+    val mockClientService = mock<CloudClientService>()
+    val mockClient = mock<CloudClient>()
+    doReturn(mockClient).whenever(mockClientService).client
+    doReturn(true).whenever(mockClient).isDeviceStreamingServiceEnabled(any(), any())
+    ApplicationManager.getApplication()
+      .replaceService(CloudClientService::class.java, mockClientService, projectRule1.disposable)
+
     val mockPersistentService = mock<DirectAccessPersistentStateComponent>()
     val fakePersistentState =
       DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
-    whenever(mockPersistentService.state).thenReturn(fakePersistentState)
-    whenever(mockPersistentService.compatibleSelectedCloudProject)
-      .thenReturn(fakePersistentState.selectedCloudProject)
+    doReturn(fakePersistentState).whenever(mockPersistentService).state
+    doReturn(fakePersistentState.selectedCloudProject)
+      .whenever(mockPersistentService)
+      .compatibleSelectedCloudProject
 
     project1.replaceService(
       DirectAccessPersistentStateComponent::class.java,
@@ -134,7 +151,9 @@ class DirectAccessMultiProjectTest {
     )
 
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
+    yieldUntil { project1.service<DirectAccessService>().cloudProjectManager.value != null }
     plugin2 = DirectAccessDeviceProvisionerPlugin(session.scope, project2)
+    yieldUntil { project2.service<DirectAccessService>().cloudProjectManager.value != null }
     provisioner1 = DeviceProvisioner.create(session.scope, session, listOf(plugin1))
     provisioner2 = DeviceProvisioner.create(session.scope, session, listOf(plugin2))
 

@@ -26,9 +26,9 @@ import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.disposable
+import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.devtools.testing.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
@@ -132,7 +132,12 @@ class DirectAccessUsageTrackerTest {
     loginUsersRule.setActiveUser("test@google.com")
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
-      DirectAccessReservationManager("test-project", scope, grpcConnectionRule.channel) {
+      DirectAccessReservationManager(
+        "test-project",
+        scope,
+        isDefaultApiEnabled = true,
+        grpcConnectionRule.channel,
+      ) {
         "testToken"
       }
     setupConnection { reservationName ->
