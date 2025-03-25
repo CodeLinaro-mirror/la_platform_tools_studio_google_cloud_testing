@@ -15,16 +15,15 @@
  */
 package com.google.gct.testing.results;
 
-import com.android.annotations.NonNull;
 import com.android.ddmlib.Log;
 import com.android.ddmlib.MultiLineReceiver;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Parses the 'raw output mode' results of an instrumentation test run from shell and informs a
@@ -239,7 +238,7 @@ public class GoogleCloudTestingResultParser extends MultiLineReceiver {
    * @see com.android.ddmlib.MultiLineReceiver#processNewLines
    */
   @Override
-  public void processNewLines(@NonNull String[] lines) {
+  public void processNewLines(@NotNull String[] lines) {
     for (String line : lines) {
       parse(line);
       // in verbose mode, dump all adb output to log
