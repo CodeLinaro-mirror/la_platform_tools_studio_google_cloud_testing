@@ -17,6 +17,7 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.adblib.ConnectedDevice
 import com.android.adblib.deviceProperties
+import com.android.adblib.scope
 import com.android.adblib.serialNumber
 import com.android.sdklib.deviceprovisioner.ActivationAction
 import com.android.sdklib.deviceprovisioner.DeactivationAction
@@ -465,7 +466,7 @@ class DirectAccessDeviceHandle(
       .syncPublisher(DeviceHeadsUpListener.TOPIC)
       .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
     project.messageBus
-      .connect(scope)
+      .connect(device.scope)
       .subscribe(
         ToolWindowManagerListener.TOPIC,
         object : ToolWindowManagerListener {
