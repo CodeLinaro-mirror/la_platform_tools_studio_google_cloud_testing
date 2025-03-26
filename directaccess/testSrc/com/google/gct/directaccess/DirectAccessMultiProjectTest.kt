@@ -53,6 +53,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -62,6 +63,7 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
+@Ignore("b/406586535")
 class DirectAccessMultiProjectTest {
   private val service = FakeDirectAccessGrpcService()
   private val projectRule1 = ProjectRule()

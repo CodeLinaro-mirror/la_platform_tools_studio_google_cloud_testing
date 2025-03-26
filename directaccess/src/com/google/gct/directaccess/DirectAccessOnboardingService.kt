@@ -74,7 +74,7 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
               for (count in (1..10)) {
                 try {
                   if (
-                    checkDirectAccessPermission(cloudProject).missingPermissions.isEmpty() &&
+                    checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty() &&
                       service<CloudClientService>()
                         .client
                         .isDeviceStreamingServiceEnabled(

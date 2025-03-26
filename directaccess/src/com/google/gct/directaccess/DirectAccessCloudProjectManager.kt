@@ -65,12 +65,13 @@ class DirectAccessCloudProjectManager(
    */
   val isDefaultApiEnabled =
     try {
-      service<CloudClientService>()
-        .client
-        .isDeviceStreamingServiceEnabled(
-          cloudProject.name,
-          StudioFlags.DEVICE_STREAMING_ENDPOINT.get(),
-        )
+      val endPoint = StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
+      endPoint.isNotEmpty() &&
+        service<CloudClientService>()
+          .client
+          .isDeviceStreamingServiceEnabled(cloudProject.name, endPoint) &&
+        // Fallback to old API if permissions are not full.
+        checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty()
     } catch (_: Exception) {
       thisLogger()
         .info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT}")
@@ -129,7 +130,7 @@ class DirectAccessCloudProjectManager(
   val permissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
     RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(5)) {
       try {
-        checkDirectAccessPermission(cloudProject)
+        checkDirectAccessPermission(cloudProject, isDefaultApiEnabled)
       } catch (_: Exception) {
         DirectAccessPermissionStatus.Unknown(FULL_PERMISSIONS_SET)
       }
