@@ -166,7 +166,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           object : AbstractAction("Login and enable Device Streaming") {
             override fun actionPerformed(e: ActionEvent) {
               LoginFeature.feature<FirebaseLoginFeature>()
-                .logInAsync(parentComponent = this@SelectProjectDialog.rootPane)
+                .logInBlocking(parentComponent = this@SelectProjectDialog.rootPane)
             }
           }
       }

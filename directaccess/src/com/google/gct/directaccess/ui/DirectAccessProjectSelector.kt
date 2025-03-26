@@ -105,7 +105,7 @@ class DirectAccessProjectSelectorImpl(
       object : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
           LoginFeature.feature<FirebaseLoginFeature>()
-            .logInAsync(parentComponent = this@DirectAccessProjectSelectorImpl)
+            .logInBlocking(parentComponent = this@DirectAccessProjectSelectorImpl)
         }
       },
     )
