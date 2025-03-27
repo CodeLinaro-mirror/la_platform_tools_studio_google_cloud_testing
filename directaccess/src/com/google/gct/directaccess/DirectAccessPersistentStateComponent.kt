@@ -25,7 +25,6 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.SimplePersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
-import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 
 @State(
@@ -41,29 +40,11 @@ class DirectAccessPersistentStateComponent(val project: Project) :
     var deviceSelectionList by list<PersistentDeviceSelectionData>()
   }
 
-  val compatibleSelectedCloudProject: String
-    get() =
-      state.selectedCloudProject.takeIf { it?.isNotEmpty() == true }
-        ?: project.service<DeprecatedDirectAccessPersistentStateComponent>().state.let {
-          stateFromDeprecatedFile ->
-          val result = stateFromDeprecatedFile.selectedCloudProject
-          if (result?.isNotEmpty() == true) {
-            stateFromDeprecatedFile.selectedCloudProject = ""
-            result
-          } else ""
-        }
+  val selectedCloudProject: String
+    get() = state.selectedCloudProject ?: ""
 
-  val compatibleDeviceSelectionList: MutableList<PersistentDeviceSelectionData>
-    get() =
-      state.deviceSelectionList.takeIf { it.isNotEmpty() }
-        ?: project.service<DeprecatedDirectAccessPersistentStateComponent>().state.let {
-          stateFromDeprecatedFile ->
-          val resultFromDeprecatedFile = stateFromDeprecatedFile.deviceSelectionList.toMutableList()
-          if (resultFromDeprecatedFile.isNotEmpty()) {
-            stateFromDeprecatedFile.deviceSelectionList = mutableListOf()
-            resultFromDeprecatedFile
-          } else mutableListOf()
-        }
+  val deviceSelectionList: MutableList<PersistentDeviceSelectionData>
+    get() = state.deviceSelectionList
 }
 
 enum class DeviceType {

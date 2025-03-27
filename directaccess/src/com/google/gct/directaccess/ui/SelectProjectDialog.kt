@@ -181,7 +181,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
     val preferredProject =
       project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
-        ?: project.service<DirectAccessPersistentStateComponent>().compatibleSelectedCloudProject
+        ?: project.service<DirectAccessPersistentStateComponent>().selectedCloudProject
     val chooseProjectPanel = JPanel(HorizontalLayout(5))
     val selector =
       DirectAccessProjectSelectorImpl(
