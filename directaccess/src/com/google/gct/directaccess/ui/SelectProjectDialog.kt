@@ -166,7 +166,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           object : AbstractAction("Login and enable Device Streaming") {
             override fun actionPerformed(e: ActionEvent) {
               LoginFeature.feature<FirebaseLoginFeature>()
-                .logInAsync(parentComponent = this@SelectProjectDialog.rootPane)
+                .logInBlocking(parentComponent = this@SelectProjectDialog.rootPane)
             }
           }
       }
@@ -267,11 +267,9 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     withContext(uiContext) {
       parent.revalidate()
       launch {
-        val permission =
-          cloudProjectManager?.permissionFlow?.value
-            ?: throw RuntimeException("Unable to retrieve permission")
+        val permission = cloudProjectManager?.permissionFlow?.value
         val reservationListException =
-          cloudProjectManager.reservationListFlowWithException.value.second
+          cloudProjectManager?.reservationListFlowWithException?.value?.second
         val errorMessage = getErrorMessage(cloudProject, permission, reservationListException)
         if (errorMessage != null) {
           val (linkText, link) =
@@ -303,10 +301,11 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
   private fun getErrorMessage(
     cloudProject: String,
-    permission: DirectAccessPermissionStatus,
+    permission: DirectAccessPermissionStatus?,
     exception: Exception?,
   ): String? {
-    return if (exception != null) {
+    return if (permission == null) "Unable to retrieve permission"
+    else if (exception != null) {
       getErrorMessageFromException(cloudProject, permission, exception)
     } else {
       when (permission) {

@@ -131,6 +131,7 @@ class SelectProjectActionTest {
   private val noQuotaProjectName = "noQuotaTestProject"
   private val blazeProjectName = "blazeTestProject"
   private val createdProject = "createdProject"
+  private val invalidProject = "invalidProject"
 
   private val projectRule = ProjectRule()
   private val popupRule = JBPopupRule()
@@ -232,7 +233,7 @@ class SelectProjectActionTest {
       doAnswer {
           val cloudProjectName = (it.arguments[0] as? CloudProjectEntry?)?.name
           cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
-          if (cloudProjectName == null) {
+          if (cloudProjectName == null || cloudProjectName == invalidProject) {
             cloudProjectManagerFlow.value = null
             return@doAnswer null
           }
@@ -308,6 +309,7 @@ class SelectProjectActionTest {
             unknownPermissionTestProject,
             supportedProjectName,
             noQuotaProjectName,
+            invalidProject,
           ),
       )
       val selectProjectAction = SelectProjectAction()
@@ -506,6 +508,12 @@ class SelectProjectActionTest {
           waitForCondition { !errorLabel.isVisible }
           assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
+
+          // Select an invalid project that fails to fetch permissions.
+          comboBox.model.selectedItem = invalidProject
+          waitForCondition {
+            errorLabel.getHelpToolTipText().contains("Unable to retrieve permission")
+          }
 
           // Select a blaze project that supports direct access.
           comboBox.model.selectedItem = blazeProjectName

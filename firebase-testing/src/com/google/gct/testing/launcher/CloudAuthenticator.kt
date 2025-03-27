@@ -220,7 +220,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   fun authorize(): Boolean {
     if (!firebaseFeature.isLoggedIn()) {
       val complete = CompletableFuture<Nothing>()
-      firebaseFeature.logInAsync { complete.complete(null) }
+      firebaseFeature.logInBlocking { complete.complete(null) }
       complete.get()
     }
     return firebaseFeature.isLoggedIn()

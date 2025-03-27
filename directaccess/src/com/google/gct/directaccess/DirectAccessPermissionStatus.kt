@@ -31,13 +31,32 @@ const val DEVICE_SESSION_UPDATE = "cloudtestservice.devicesession.update"
 const val DEVICE_SESSION_CANCEL = "cloudtestservice.devicesession.cancel"
 const val DEVICE_SESSION_USE = "cloudtestservice.devicesession.use"
 
+const val NEW_DEVICE_SESSION_CANCEL = "devicestreaming.googleapis.com/deviceSessions.cancel"
+const val NEW_DEVICE_SESSION_CREATE = "devicestreaming.googleapis.com/deviceSessions.create"
+const val NEW_DEVICE_SESSION_UPDATE = "devicestreaming.googleapis.com/deviceSessions.update"
+const val NEW_DEVICE_SESSION_USE = "devicestreaming.googleapis.com/deviceSessions.use"
+const val NEW_DEVICE_SESSION_GET = "devicestreaming.googleapis.com/deviceSessions.get"
+const val NEW_DEVICE_SESSION_LIST = "devicestreaming.googleapis.com/deviceSessions.list"
+
+val NEW_VIEWER_PERMISSIONS_SET =
+  setOf(ENV_CATALOG_GET, NEW_DEVICE_SESSION_GET, NEW_DEVICE_SESSION_LIST)
+val NEW_ADMIN_PERMISSIONS_SET =
+  NEW_VIEWER_PERMISSIONS_SET +
+    setOf(
+      NEW_DEVICE_SESSION_CREATE,
+      NEW_DEVICE_SESSION_UPDATE,
+      NEW_DEVICE_SESSION_CANCEL,
+      NEW_DEVICE_SESSION_USE,
+    )
+
 val VIEWER_PERMISSIONS_SET = setOf(ENV_CATALOG_GET, DEVICE_SESSION_GET, DEVICE_SESSION_LIST)
 
-val ADMIN_PERMISSION_SET =
+val ADMIN_PERMISSIONS_SET =
   VIEWER_PERMISSIONS_SET +
     setOf(DEVICE_SESSION_CREATE, DEVICE_SESSION_UPDATE, DEVICE_SESSION_CANCEL, DEVICE_SESSION_USE)
 
-val FULL_PERMISSIONS_SET = setOf(SERVICES_USE) + ADMIN_PERMISSION_SET
+val FULL_PERMISSIONS_SET = setOf(SERVICES_USE) + ADMIN_PERMISSIONS_SET
+val NEW_FULL_PERMISSIONS_SET = setOf(SERVICES_USE) + NEW_ADMIN_PERMISSIONS_SET
 
 /**
  * Permission of the user for accessing Direct Access.
@@ -64,33 +83,59 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
 
   companion object {
     @VisibleForTesting
-    internal fun parseFrom(permissions: Set<String>): DirectAccessPermissionStatus {
-      // None of the permissions requested exist on the user's IAM role
-      if (permissions.isEmpty()) return None(FULL_PERMISSIONS_SET)
+    internal fun parseFrom(
+      permissions: Set<String>,
+      isDefaultApiEnabled: Boolean = false,
+    ): DirectAccessPermissionStatus {
+      if (isDefaultApiEnabled) {
+        // None of the permissions requested exist on the user's IAM role
+        if (permissions.isEmpty()) return None(NEW_FULL_PERMISSIONS_SET)
 
-      val missingPermissions = FULL_PERMISSIONS_SET - permissions
-      return if (missingPermissions.isEmpty()) {
-        // All the required permissions exist for the user.
-        Full()
-      } else if (missingPermissions.contains(SERVICES_USE)) {
-        MissingServiceUse(missingPermissions)
-      } else if (missingPermissions.containsAll(ADMIN_PERMISSION_SET)) {
-        None(missingPermissions)
-      } else if (permissions.containsAll(VIEWER_PERMISSIONS_SET)) {
-        // User has viewer permissions
-        Viewer(missingPermissions)
+        val missingPermissions = NEW_FULL_PERMISSIONS_SET - permissions
+        return if (missingPermissions.isEmpty()) {
+          // All the required permissions exist for the user.
+          Full()
+        } else if (missingPermissions.contains(SERVICES_USE)) {
+          MissingServiceUse(missingPermissions)
+        } else if (missingPermissions.containsAll(NEW_ADMIN_PERMISSIONS_SET)) {
+          None(missingPermissions)
+        } else if (permissions.containsAll(NEW_VIEWER_PERMISSIONS_SET)) {
+          // User has viewer permissions
+          Viewer(missingPermissions)
+        } else {
+          // Possibly a custom role with a mix of permissions from VIEWER and ADMIN.
+          Unknown(missingPermissions)
+        }
       } else {
-        // Possibly a custom role with a mix of permissions from VIEWER and ADMIN.
-        Unknown(missingPermissions)
+        // None of the permissions requested exist on the user's IAM role
+        if (permissions.isEmpty()) return None(FULL_PERMISSIONS_SET)
+
+        val missingPermissions = FULL_PERMISSIONS_SET - permissions
+        return if (missingPermissions.isEmpty()) {
+          // All the required permissions exist for the user.
+          Full()
+        } else if (missingPermissions.contains(SERVICES_USE)) {
+          MissingServiceUse(missingPermissions)
+        } else if (missingPermissions.containsAll(ADMIN_PERMISSIONS_SET)) {
+          None(missingPermissions)
+        } else if (permissions.containsAll(VIEWER_PERMISSIONS_SET)) {
+          // User has viewer permissions
+          Viewer(missingPermissions)
+        } else {
+          // Possibly a custom role with a mix of permissions from VIEWER and ADMIN.
+          Unknown(missingPermissions)
+        }
       }
     }
 
     private fun getTestIamPermissionsResponse(
       cloudProject: CloudProjectEntry,
       applyUserProject: Boolean,
+      isDefaultApiEnabled: Boolean,
     ): TestIamPermissionsResponse {
-      val request =
-        TestIamPermissionsRequest().apply { permissions = FULL_PERMISSIONS_SET.toList() }
+      val fullPermissionsSet =
+        if (isDefaultApiEnabled) NEW_FULL_PERMISSIONS_SET else FULL_PERMISSIONS_SET
+      val request = TestIamPermissionsRequest().apply { permissions = fullPermissionsSet.toList() }
       return service<CloudClientService>()
         .client
         .cloudResourceManager
@@ -100,16 +145,19 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
         .execute()
     }
 
-    fun checkDirectAccessPermission(cloudProject: CloudProjectEntry): DirectAccessPermissionStatus {
+    fun checkDirectAccessPermission(
+      cloudProject: CloudProjectEntry,
+      isDefaultApiEnabled: Boolean,
+    ): DirectAccessPermissionStatus {
       val response =
         try {
-          getTestIamPermissionsResponse(cloudProject, true)
+          getTestIamPermissionsResponse(cloudProject, true, isDefaultApiEnabled)
         } catch (e: IOException) {
           thisLogger().warn("Cloud Resource Manager API may not be enabled.", e)
           null
         }
           ?: try {
-            getTestIamPermissionsResponse(cloudProject, false)
+            getTestIamPermissionsResponse(cloudProject, false, isDefaultApiEnabled)
           } catch (e: IOException) {
             thisLogger()
               .warn(
@@ -119,7 +167,7 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
           }
       // response.permission is null if the user does not have any permissions
       val permissions = response.permissions ?: emptyList()
-      return parseFrom(permissions.toSet())
+      return parseFrom(permissions.toSet(), isDefaultApiEnabled)
     }
   }
 }

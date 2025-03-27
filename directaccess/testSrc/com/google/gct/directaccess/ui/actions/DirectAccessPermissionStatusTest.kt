@@ -16,7 +16,7 @@
 package com.google.gct.directaccess.ui.actions
 
 import com.google.common.truth.Truth.assertThat
-import com.google.gct.directaccess.ADMIN_PERMISSION_SET
+import com.google.gct.directaccess.ADMIN_PERMISSIONS_SET
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.parseFrom
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Full
 import com.google.gct.directaccess.DirectAccessPermissionStatus.MissingServiceUse
@@ -32,36 +32,36 @@ class DirectAccessPermissionStatusTest {
 
   @Test
   fun testFullPermissions() {
-    val permissions = parseFrom(FULL_PERMISSIONS_SET)
+    val permissions = parseFrom(FULL_PERMISSIONS_SET, false)
     assertThat(permissions).isInstanceOf(Full::class.java)
     assertThat(permissions.missingPermissions).isEqualTo(emptySet<String>())
   }
 
   @Test
   fun testViewerPermissions() {
-    val permissions = parseFrom(VIEWER_PERMISSIONS_SET + SERVICES_USE)
+    val permissions = parseFrom(VIEWER_PERMISSIONS_SET + SERVICES_USE, false)
     assertThat(permissions).isInstanceOf(Viewer::class.java)
     assertThat(permissions.missingPermissions)
-      .isEqualTo(ADMIN_PERMISSION_SET - VIEWER_PERMISSIONS_SET)
+      .isEqualTo(ADMIN_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET)
   }
 
   @Test
   fun testMissingServiceUseWhenServiceUsageMissing() {
-    val permissions = parseFrom(ADMIN_PERMISSION_SET)
+    val permissions = parseFrom(ADMIN_PERMISSIONS_SET, false)
     assertThat(permissions).isInstanceOf(MissingServiceUse::class.java)
     assertThat(permissions.missingPermissions).isEqualTo(setOf(SERVICES_USE))
   }
 
   @Test
   fun testNoneWhenNoPermissionsExist() {
-    val permissions = parseFrom(emptySet())
+    val permissions = parseFrom(emptySet(), false)
     assertThat(permissions).isInstanceOf(None::class.java)
     assertThat(permissions.missingPermissions).isEqualTo(FULL_PERMISSIONS_SET)
   }
 
   @Test
   fun testUnknownPermissionWhenMixOfPermissions() {
-    val permissions = parseFrom(FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE)
+    val permissions = parseFrom(FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE, false)
     assertThat(permissions).isInstanceOf(Unknown::class.java)
     assertThat(permissions.missingPermissions).isEqualTo(VIEWER_PERMISSIONS_SET - SERVICES_USE)
   }
