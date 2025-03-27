@@ -32,6 +32,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -138,7 +139,10 @@ class ProjectInformationPanel(
       return
     }
     cloudProjectManager.isBillingEnabledFlow.stateFlow.collectLatest { isBillingEnabled ->
-      updatePlanInformation(cloudProjectManager.usageQuota, isBillingEnabled)
+      updatePlanInformation(
+        withContext(Dispatchers.IO) { cloudProjectManager.usageQuota },
+        isBillingEnabled,
+      )
     }
   }
 
