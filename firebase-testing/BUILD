@@ -6,6 +6,7 @@ iml_module(
     srcs = ["src"],
     iml_files = ["firebase-testing.iml"],
     lint_baseline = "lint_baseline.xml",
+    resources = ["resources"],
     test_class = "com.google.gct.testing.FirebaseTestingTestSuite",
     test_data = [
         "//prebuilts/studio/sdk:platforms/latest",
