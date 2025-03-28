@@ -96,7 +96,7 @@ iml_module(
         "//tools/adt/idea/render-resources:intellij.android.render-resources",
         "//tools/adt/idea/.idea/libraries:mockito-kotlin",
     ],
-    test_resources = ["testSrc/test-resources"],
+    test_resources = ["testResources"],
     test_srcs = ["testSrc"],
     test_timeout = "long",
     visibility = ["//visibility:public"],
