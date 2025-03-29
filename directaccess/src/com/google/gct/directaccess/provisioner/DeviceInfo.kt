@@ -34,6 +34,7 @@ data class DeviceInfo(
   val deviceAvailabilityEstimateSeconds: Long?,
   val isDefault: Boolean = false,
   val isInCatalog: Boolean = true,
+  val accessStatus: List<String> = listOf(),
 ) {
   /** A string key to distinguish itself from other [DeviceInfo]s. */
   val key = "$id/$api"
