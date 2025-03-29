@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
+import com.android.tools.adtui.compose.LingeringTooltip
 import com.android.tools.adtui.compose.LocalProject
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.idea.adddevicedialog.DeviceFilterState
@@ -54,6 +56,8 @@ import com.android.tools.idea.adddevicedialog.uniqueValuesOf
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
+import com.intellij.icons.AllIcons
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.util.ui.JBUI
@@ -62,14 +66,18 @@ import javax.swing.JComponent
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.foundation.ExperimentalJewelApi
 import org.jetbrains.jewel.foundation.enableNewSwingCompositing
 import org.jetbrains.jewel.ui.Orientation
 import org.jetbrains.jewel.ui.component.Checkbox
 import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.Divider
+import org.jetbrains.jewel.ui.component.ExternalLink
+import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
+import org.jetbrains.jewel.ui.icon.IntelliJIconKey
 
 class AddDirectAccessDeviceDialog(
   private val project: Project,
@@ -237,5 +245,29 @@ internal fun RemoteDeviceFilters(
 ) {
   SingleSelectionRadioButtons(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
   SetFilter(Manufacturer.uniqueValuesOf(profiles), filterState.manufacturerFilter)
-  SetFilter(Lab.uniqueValuesOf(profiles), filterState.labFilter)
+  SetFilter(Lab.uniqueValuesOf(profiles), filterState.labFilter) { name ->
+    Text(name.toString())
+    if (profiles.any { Lab.value(it) == name && it.accessStatus.isNotEmpty() }) {
+      @OptIn(ExperimentalFoundationApi::class)
+      LingeringTooltip({
+        Column {
+          Text(
+            "This Partner OEM device lab is currently not enabled\n" +
+              "for your Firebase project. An Owner or Editor of the\n" +
+              "project may have to take additional steps before you\n" +
+              "can use a device from this lab.",
+            Modifier.padding(bottom = 4.dp),
+          )
+          // TODO when the link target is available
+          // ExternalLink("Learn more", onClick = { BrowserUtil.browse("http://example.com") })
+        }
+      }) {
+        Icon(
+          IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
+          "Lab inaccessible",
+          Modifier.padding(horizontal = 4.dp),
+        )
+      }
+    }
+  }
 }
