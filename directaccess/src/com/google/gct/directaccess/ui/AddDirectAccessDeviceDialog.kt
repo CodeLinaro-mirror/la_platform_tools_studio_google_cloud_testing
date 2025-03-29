@@ -105,6 +105,14 @@ class AddDirectAccessDeviceDialog(
       maxLines = 2,
     )
 
+  private val labColumn =
+    TableTextColumn<DirectAccessDeviceProfile>(
+      "Lab",
+      TableColumnWidth.Weighted(2f),
+      attribute = { it.labIdDisplayName },
+      maxLines = 2,
+    )
+
   init {
     title = "Select Remote Devices"
     init()
@@ -174,17 +182,21 @@ class AddDirectAccessDeviceDialog(
       DeviceTable(
         rows,
         with(DeviceTableColumns) {
-          persistentListOf(
-            selectionColumn,
-            icon,
-            oem,
-            name,
-            modelColumn,
-            api,
-            width,
-            height,
-            density,
-          )
+          val columns =
+            listOfNotNull(
+                selectionColumn,
+                icon,
+                oem,
+                name,
+                modelColumn,
+                labColumn.takeIf { Lab.uniqueValuesOf(rows).size > 1 },
+                api,
+                width,
+                height,
+                density,
+              )
+              .toTypedArray()
+          persistentListOf(*columns)
         },
         filterContent = { RemoteDeviceFilters(rows, filterState) },
         filterState = filterState,
