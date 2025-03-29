@@ -82,6 +82,7 @@ import com.intellij.notification.NotificationDisplayType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
@@ -102,6 +103,7 @@ import javax.swing.Icon
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
@@ -1315,7 +1317,8 @@ class DirectAccessDeviceProvisionerTest {
         )
       Messages.YES
     }
-    service<GoogleLoginService>().logOutAllUsersAsync()
+
+    withContext(Dispatchers.EDT) { service<GoogleLoginService>().logOutAllUsersAsync() }
 
     yieldUntil { plugin.devices.value.isEmpty() }
   }
@@ -1342,7 +1345,8 @@ class DirectAccessDeviceProvisionerTest {
         )
       Messages.NO
     }
-    service<GoogleLoginService>().logOutAllUsersAsync()
+
+    withContext(Dispatchers.EDT) { service<GoogleLoginService>().logOutAllUsersAsync() }
 
     assertThat(plugin.devices.value.size).isEqualTo(plugin.templates.value.size)
     assertThat(service<GoogleLoginService>().isLoggedIn()).isTrue()
