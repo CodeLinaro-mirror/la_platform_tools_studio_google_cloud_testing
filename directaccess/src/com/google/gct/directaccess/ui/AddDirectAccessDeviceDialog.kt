@@ -168,20 +168,39 @@ class AddDirectAccessDeviceDialog(
       OutlinedButton(onClick = { close(CANCEL_EXIT_CODE) }) { Text("Cancel") }
       DefaultButton(
         onClick = {
-          deviceSelectionListFlow.update { devices ->
-            val selectedKeys: Map<String, Boolean> =
-              profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
-
-            devices.map { selection: DeviceSelection ->
-              selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
-            }
+          if (confirm()) {
+            close(OK_EXIT_CODE)
           }
-          close(OK_EXIT_CODE)
         }
       ) {
         Text("Confirm")
       }
     }
+  }
+
+  private fun confirm(): Boolean {
+    val selectedKeys: Map<String, Boolean> =
+      profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
+    val unacceptedDevices =
+      deviceSelectionListFlow.value.filter {
+        selectedKeys[it.deviceInfo.key] == true &&
+          it.deviceInfo.accessStatus.contains("EULA_NOT_ACCEPTED")
+      }
+    if (unacceptedDevices.isNotEmpty()) {
+      showEulaDialog(unacceptedDevices.map { it.deviceInfo.name }.distinct())
+      return false
+    } else {
+      deviceSelectionListFlow.update { devices ->
+        devices.map { selection: DeviceSelection ->
+          selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
+        }
+      }
+      return true
+    }
+  }
+
+  private fun showEulaDialog(unapprovedLabs: List<String>) {
+    OemEulaDialog(unapprovedLabs, project).show()
   }
 
   @Composable
