@@ -15,9 +15,11 @@
  */
 package com.google.gct.directaccess
 
+import com.android.annotations.concurrency.Slow
 import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsRequest
 import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsResponse
 import com.google.common.annotations.VisibleForTesting
+import com.google.services.firebase.directaccess.client.GOOGLE_USER_PROJECT_KEY
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import java.io.IOException
@@ -135,14 +137,8 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
     ): TestIamPermissionsResponse {
       val fullPermissionsSet =
         if (isDefaultApiEnabled) NEW_FULL_PERMISSIONS_SET else FULL_PERMISSIONS_SET
-      val request = TestIamPermissionsRequest().apply { permissions = fullPermissionsSet.toList() }
-      return service<CloudClientService>()
-        .client
-        .cloudResourceManager
-        .projects()
-        .testIamPermissions("projects/${cloudProject.name}", request)
-        .apply { if (applyUserProject) requestHeaders["X-Goog-User-Project"] = cloudProject.name }
-        .execute()
+      return checkPermissions(fullPermissionsSet, cloudProject, applyUserProject)
+        ?: throw IOException("Got null response")
     }
 
     fun checkDirectAccessPermission(
@@ -170,4 +166,20 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
       return parseFrom(permissions.toSet(), isDefaultApiEnabled)
     }
   }
+}
+
+@Slow
+internal fun checkPermissions(
+  permissions: Set<String>,
+  cloudProject: CloudProjectEntry,
+  applyUserProject: Boolean = true,
+): TestIamPermissionsResponse? {
+  val request = TestIamPermissionsRequest().apply { this.permissions = permissions.toList() }
+  return service<CloudClientService>()
+    .client
+    .cloudResourceManager
+    .projects()
+    .testIamPermissions("projects/${cloudProject.name}", request)
+    .apply { if (applyUserProject) requestHeaders[GOOGLE_USER_PROJECT_KEY] = cloudProject.name }
+    .execute()
 }

@@ -16,25 +16,44 @@
 package com.google.gct.directaccess.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.android.tools.adtui.compose.LocalProject
 import com.android.tools.adtui.compose.StudioComposePanel
+import com.android.tools.adtui.stdui.StandardColors
+import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.checkPermissions
+import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.util.ui.JBUI
 import java.net.URI
 import javax.swing.Action
+import javax.swing.JComponent
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
+import org.jetbrains.jewel.bridge.toComposeColor
+import org.jetbrains.jewel.ui.component.CircularProgressIndicator
 import org.jetbrains.jewel.ui.component.ExternalLink
+import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.Typography
+import org.jetbrains.jewel.ui.icon.IntelliJIconKey
 
 class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrapper(project, true) {
   init {
@@ -42,17 +61,28 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
     myOKAction.putValue(Action.NAME, "Done")
   }
 
-  override fun createCenterPanel() =
-    StudioComposePanel {
-        CompositionLocalProvider(LocalProject provides project) { ComposeContent() }
+  override fun createCenterPanel(): JComponent {
+    var hasPermission: Boolean? by mutableStateOf(null)
+    AndroidCoroutineScope(disposable).launch(Dispatchers.IO) {
+      val cloudProject =
+        project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
+          ?: return@launch
+      hasPermission =
+        !checkPermissions(setOf("resourcemanager.projects.update"), cloudProject)
+          ?.permissions
+          .isNullOrEmpty()
+    }
+    return StudioComposePanel {
+        CompositionLocalProvider(LocalProject provides project) { ComposeContent(hasPermission) }
       }
       .apply {
         preferredSize = JBUI.size(480, 260)
         minimumSize = JBUI.size(480, 260)
       }
+  }
 
   @Composable
-  fun ComposeContent() {
+  fun ComposeContent(hasPermission: Boolean?) {
     Column {
       val plural = if (labs.size > 1) "s" else ""
       Text(
@@ -82,20 +112,37 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
         Modifier.padding(2.dp),
       )
       Spacer(Modifier.size(20.dp))
-      // TODO: check permission before showing button
-      OutlinedButton(
-        onClick = {
-          // TODO: start listener for redirect back from pantheon and include port
-          BrowserUtil.browse(
-            URI(
-              "https://console.cloud.google.com/omnilab/partner-lab;dlAction=AndroidStudioPartnerLabEnablement" +
-                // TODO: remove experiment param
-                "?e=OmnilabLaunch::OmnilabEnabled"
+
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedButton(
+          enabled = hasPermission == true,
+          onClick = {
+            // TODO: start listener for redirect back from pantheon and include port
+            BrowserUtil.browse(
+              URI(
+                "https://console.cloud.google.com/omnilab/partner-lab;dlAction=AndroidStudioPartnerLabEnablement" +
+                  // TODO: remove experiment param
+                  "?e=OmnilabLaunch::OmnilabEnabled"
+              )
             )
-          )
+          },
+        ) {
+          Text("Go to Google Cloud Console")
         }
-      ) {
-        Text("Go to Google Cloud Console")
+        if (hasPermission == null) {
+          CircularProgressIndicator(modifier = Modifier.padding(horizontal = 5.dp))
+          Text(
+            "Checking permissions...",
+            color = StandardColors.DISABLED_TEXT_COLOR.toComposeColor(),
+          )
+        } else if (hasPermission == false) {
+          Icon(
+            IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
+            "Lab inaccessible",
+            Modifier.padding(horizontal = 4.dp),
+          )
+          Text("Contact project administrator for access.")
+        }
       }
     }
   }
