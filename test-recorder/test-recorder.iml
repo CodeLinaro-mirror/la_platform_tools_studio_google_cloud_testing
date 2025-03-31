@@ -44,5 +44,6 @@
     <orderEntry type="module" module-name="android.sdktools.deployer" />
     <orderEntry type="module" module-name="analytics" />
     <orderEntry type="library" name="studio-plugin-org.jetbrains.kotlin" level="project" />
+    <orderEntry type="module" module-name="intellij.android.testartifacts" />
   </component>
 </module>
