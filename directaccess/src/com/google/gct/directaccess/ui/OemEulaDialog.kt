@@ -34,17 +34,26 @@ import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.checkPermissions
+import com.google.gct.directaccess.provisioner.OemLabsAssetsRegistry
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.openapi.util.Disposer
+import com.intellij.platform.ide.progress.ModalTaskOwner
+import com.intellij.platform.ide.progress.TaskCancellation
+import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.util.ui.JBUI
+import java.net.Socket
 import java.net.URI
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 import javax.swing.Action
 import javax.swing.JComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.bridge.toComposeColor
 import org.jetbrains.jewel.ui.component.CircularProgressIndicator
@@ -54,8 +63,12 @@ import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.Typography
 import org.jetbrains.jewel.ui.icon.IntelliJIconKey
+import org.mortbay.jetty.Server
+import org.mortbay.jetty.handler.AbstractHandler
 
 class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrapper(project, true) {
+  private lateinit var centerPanel: JComponent
+
   init {
     init()
     myOKAction.putValue(Action.NAME, "Done")
@@ -73,16 +86,19 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
           .isNullOrEmpty()
     }
     return StudioComposePanel {
-        CompositionLocalProvider(LocalProject provides project) { ComposeContent(hasPermission) }
+        CompositionLocalProvider(LocalProject provides project) {
+          ComposeContent(hasPermission) { centerPanel }
+        }
       }
       .apply {
         preferredSize = JBUI.size(480, 260)
         minimumSize = JBUI.size(480, 260)
+        centerPanel = this
       }
   }
 
   @Composable
-  fun ComposeContent(hasPermission: Boolean?) {
+  fun ComposeContent(hasPermission: Boolean?, component: () -> JComponent) {
     Column {
       val plural = if (labs.size > 1) "s" else ""
       Text(
@@ -95,7 +111,8 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
           "your Firebase project needs to enable the partner device lab$plural in Google Cloud Console."
       )
       Spacer(Modifier.size(20.dp))
-      Text("Required partner lab$plural: ${labs.joinToString(", ")}")
+      val labNames = labs.map { OemLabsAssetsRegistry.getInstance().retrieveName(it) }.distinct()
+      Text("Required partner lab$plural: ${labNames.joinToString(", ")}")
       Spacer(Modifier.size(20.dp))
 
       Text(
@@ -117,14 +134,13 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
         OutlinedButton(
           enabled = hasPermission == true,
           onClick = {
-            // TODO: start listener for redirect back from pantheon and include port
-            BrowserUtil.browse(
-              URI(
-                "https://console.cloud.google.com/omnilab/partner-lab;dlAction=AndroidStudioPartnerLabEnablement" +
-                  // TODO: remove experiment param
-                  "?e=OmnilabLaunch::OmnilabEnabled"
-              )
-            )
+            runWithModalProgressBlocking(
+              ModalTaskOwner.component(component()),
+              "Continue in Cloud Console...",
+              TaskCancellation.cancellable(),
+            ) {
+              startServerAndAwaitFirstCallback()
+            }
           },
         ) {
           Text("Go to Google Cloud Console")
@@ -148,4 +164,58 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
   }
 
   override fun createActions() = arrayOf(myOKAction)
+
+  suspend fun startServerAndAwaitFirstCallback() {
+    var server: Server? = null
+    Disposer.register(disposable) { server?.stop() }
+    var lock: Mutex? = Mutex(true)
+
+    val port =
+      Socket().use { s ->
+        s.bind(null)
+        s.localPort
+      }
+
+    val handler =
+      object : AbstractHandler() {
+        override fun handle(
+          target: String?,
+          request: HttpServletRequest,
+          response: HttpServletResponse,
+          dispatch: Int,
+        ) {
+          if (target == "/CALLBACK_Cloud_PartnerLab") {
+            AndroidCoroutineScope(disposable).launch {
+              project
+                .service<DirectAccessService>()
+                .cloudProjectManager
+                .value
+                ?.accessibleDeviceInfoListFlow
+                ?.refresh()
+            }
+
+            lock?.unlock()
+            lock = null
+            response.status = 200
+          }
+        }
+      }
+
+    server =
+      Server(port).apply {
+        for (c in connectors) {
+          c.host = "localhost"
+        }
+        addHandler(handler)
+        start()
+      }
+    BrowserUtil.browse(
+      URI(
+        "https://console.cloud.google.com/omnilab/partner-lab;localPort=$port;dlAction=AndroidStudioPartnerLabEnablement" +
+          // TODO: remove experiment param
+          "?e=OmnilabLaunch::OmnilabEnabled"
+      )
+    )
+    lock?.lock()
+  }
 }

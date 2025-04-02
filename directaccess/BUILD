@@ -11,7 +11,6 @@ iml_module(
     test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
     # do not sort: must match IML order
     test_deps = [
-        "//tools/adt/idea/.idea/libraries:junit4",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
         "//tools/adt/idea/.idea/libraries:mockito",
         "//tools/base/testutils:studio.android.sdktools.testutils",
@@ -22,6 +21,7 @@ iml_module(
         "//tools/analytics-library/testing:android.sdktools.analytics-testing",
         "//tools/adt/idea/android-plugin:intellij.android.plugin",
         "//tools/adt/idea/.idea/libraries:mockito-kotlin",
+        "//tools/adt/idea/.idea/libraries:junit4",
     ],
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],
@@ -53,5 +53,6 @@ iml_module(
         "//tools/adt/idea/artwork-compose:intellij.android.artwork-compose",
         "@intellij//:intellij.libraries.grpc",
         "@intellij//:intellij.libraries.grpc.netty.shaded",
+        "//tools/adt/idea/.idea/libraries:jetty",
     ],
 )

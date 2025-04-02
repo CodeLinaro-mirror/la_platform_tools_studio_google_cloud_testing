@@ -86,19 +86,19 @@ class DirectAccessPersistentStateComponentTest {
 
   private val persistentDeviceSelectionData =
     PersistentDeviceSelectionData(
-      true,
-      "id1",
-      "Google",
-      "Pixel 5",
-      "google",
-      "Google",
-      "codename1",
-      31,
+      isSelected = true,
+      id = "id1",
+      brand = "Google",
+      name = "Pixel 5",
+      labId = "google",
+      manufacturer = "Google",
+      codename = "codename1",
+      api = 31,
       DeviceType.PHONE,
       FormFactors.PHONE,
-      100,
-      200,
-      300,
+      screenX = 100,
+      screenY = 200,
+      screenDensity = 300,
       isDefault = true,
     )
 

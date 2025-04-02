@@ -28,8 +28,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.toMutableStateMap
 import androidx.compose.ui.Modifier
@@ -53,6 +55,7 @@ import com.android.tools.idea.adddevicedialog.TableColumnWidth
 import com.android.tools.idea.adddevicedialog.TableTextColumn
 import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
+import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
@@ -66,6 +69,7 @@ import javax.swing.JComponent
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.foundation.ExperimentalJewelApi
 import org.jetbrains.jewel.foundation.enableNewSwingCompositing
@@ -83,12 +87,8 @@ class AddDirectAccessDeviceDialog(
   private val project: Project,
   private val deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>,
 ) : DialogWrapper(project) {
-  private val rows =
-    deviceSelectionListFlow.value.map { deviceSelection ->
-      DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
-    }
-  private val profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> =
-    rows.map { profile -> profile to profile.isAlreadyPresent }.toMutableStateMap()
+  private var rows: List<DirectAccessDeviceProfile> by mutableStateOf(listOf())
+  private var profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> = mutableStateMapOf()
 
   private val selectionColumn =
     TableColumn<DirectAccessDeviceProfile>("", TableColumnWidth.Fixed(24.dp)) { profile, selected ->
@@ -123,6 +123,15 @@ class AddDirectAccessDeviceDialog(
 
   init {
     title = "Select Remote Devices"
+    AndroidCoroutineScope(this.myDisposable).launch {
+      deviceSelectionListFlow.collect {
+        rows =
+          deviceSelectionListFlow.value.map { deviceSelection ->
+            DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
+          }
+        profiles = rows.map { profile -> profile to profile.isAlreadyPresent }.toMutableStateMap()
+      }
+    }
     init()
   }
 
@@ -187,7 +196,7 @@ class AddDirectAccessDeviceDialog(
           it.deviceInfo.accessStatus.contains("EULA_NOT_ACCEPTED")
       }
     if (unacceptedDevices.isNotEmpty()) {
-      showEulaDialog(unacceptedDevices.map { it.deviceInfo.name }.distinct())
+      showEulaDialog(unacceptedDevices.map { it.deviceInfo.labId }.distinct())
       return false
     } else {
       deviceSelectionListFlow.update { devices ->
