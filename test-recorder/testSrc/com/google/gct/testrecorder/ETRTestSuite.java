@@ -17,15 +17,12 @@ package com.google.gct.testrecorder;
 
 import com.android.testutils.JarTestSuiteRunner;
 import com.android.testutils.TestUtils;
-import com.android.tools.tests.GradleDaemonsRule;
 import com.android.tools.tests.IdeaTestSuiteBase;
-import org.junit.ClassRule;
 import org.junit.runner.RunWith;
 
 // This class is required to run the tests in bazel
 @RunWith(JarTestSuiteRunner.class)
 public class ETRTestSuite extends IdeaTestSuiteBase {
-  @ClassRule public static GradleDaemonsRule gradle = new GradleDaemonsRule();
 
   public static final String DATA_BINDING_RUNTIME_ZIP = "tools/data-binding/data_binding_runtime.zip";
 
