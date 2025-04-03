@@ -5,6 +5,7 @@ iml_module(
     name = "test-recorder.gradle",
     srcs = ["src"],
     iml_files = ["test-recorder.gradle.iml"],
+    resources = ["resources"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [

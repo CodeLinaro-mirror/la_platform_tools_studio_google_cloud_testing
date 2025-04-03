@@ -22,6 +22,8 @@ import com.android.tools.idea.run.AndroidRunConfigurationExecutor
 import com.android.tools.idea.run.DeviceFutures
 import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch
 import com.android.tools.idea.run.configuration.execution.getDevices
+import com.android.tools.idea.testartifacts.instrumented.AndroidRunConfigurationToken
+import com.android.tools.idea.testartifacts.instrumented.AndroidRunConfigurationToken.Companion.getModuleForAndroidRunConfiguration
 import com.android.tools.idea.util.androidFacet
 import com.google.gct.testrecorder.ui.TestRecorderAction
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -41,10 +43,9 @@ class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfiguration
     return configuration.run {
       val applicationIdProvider = applicationIdProvider ?: throw RuntimeException("Cannot get ApplicationIdProvider")
       val apkProvider = apkProvider ?: throw RuntimeException("Cannot get ApkProvider")
-      val applicationContext = FacetBasedApplicationProjectContext(
-        applicationIdProvider.packageName,
-        configuration.configurationModule.module?.androidFacet ?: throw RuntimeException("Cannot get AndroidFacet")
-      )
+      val facet = configuration.configurationModule.module?.let { getModuleForAndroidRunConfiguration(it) }?.androidFacet
+        ?: throw RuntimeException("Cannot get AndroidFacet")
+      val applicationContext = FacetBasedApplicationProjectContext(applicationIdProvider.packageName, facet)
       val baseExecutor = AndroidRunConfigurationExecutor(
         applicationContext,
         env,

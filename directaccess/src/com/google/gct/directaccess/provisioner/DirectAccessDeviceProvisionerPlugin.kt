@@ -50,7 +50,6 @@ import com.google.wireless.android.sdk.stats.DeviceManagerEvent
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
-import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -60,6 +59,7 @@ import com.intellij.ui.EditorNotificationPanel
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Component
+import java.io.IOException
 import java.time.Duration
 import javax.swing.SwingConstants
 import kotlinx.coroutines.CoroutineScope
@@ -250,11 +250,8 @@ class DirectAccessDeviceProvisionerPlugin(
                   // If no devices are accessible with the new project, use the public device
                   // list instead.
                   service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList(null)
-                } catch (e: Exception) {
-                  if (e is ControlFlowException) {
-                    throw e
-                  }
-                  thisLogger().error(e)
+                } catch (e: IOException) {
+                  thisLogger().warn(e)
                   listOf()
                 }
               }

@@ -139,7 +139,7 @@ class DirectAccessMultiProjectTest {
     doReturn(fakePersistentState).whenever(mockPersistentService).state
     doReturn(fakePersistentState.selectedCloudProject)
       .whenever(mockPersistentService)
-      .compatibleSelectedCloudProject
+      .selectedCloudProject
 
     project1.replaceService(
       DirectAccessPersistentStateComponent::class.java,
