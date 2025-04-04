@@ -31,6 +31,7 @@ iml_module(
         "//tools/base/deploy/deployer:studio.android.sdktools.deployer",
         "//tools/adt/idea/analytics",
         "@intellij//:org.jetbrains.kotlin",
+        "//tools/adt/idea/testartifacts:intellij.android.testartifacts",
     ],
 )
 
