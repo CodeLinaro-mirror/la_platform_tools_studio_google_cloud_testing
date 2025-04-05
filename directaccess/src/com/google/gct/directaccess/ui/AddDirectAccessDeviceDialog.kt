@@ -258,8 +258,14 @@ internal fun RemoteDeviceFilters(
               "can use a device from this lab.",
             Modifier.padding(bottom = 4.dp),
           )
-          // TODO when the link target is available
-          // ExternalLink("Learn more", onClick = { BrowserUtil.browse("http://example.com") })
+          ExternalLink(
+            "Learn more",
+            onClick = {
+              BrowserUtil.browse(
+                "http://developer.android.com/r/studio-ui/device-streaming/2P/enable"
+              )
+            },
+          )
         }
       }) {
         Icon(
