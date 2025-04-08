@@ -79,6 +79,8 @@ object CatalogClient {
       screenDensity,
       deviceAvailabilityEstimateSeconds,
       tags?.contains("dda-default") == true,
+      true,
+      accessDeniedReasons ?: listOf(),
     )
   }
 
