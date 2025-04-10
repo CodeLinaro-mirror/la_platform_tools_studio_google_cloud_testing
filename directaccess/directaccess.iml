@@ -56,7 +56,7 @@
     <orderEntry type="module" module-name="intellij.android.artwork-compose" />
     <orderEntry type="library" name="studio-plugin-intellij.libraries.grpc" level="project" />
     <orderEntry type="library" name="studio-plugin-intellij.libraries.grpc.netty.shaded" level="project" />
-    <orderEntry type="library" scope="TEST" name="junit4" level="project" />
+    <orderEntry type="library" name="jetty" level="project" />
     <orderEntry type="module" module-name="intellij.android.adt.testutils" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="mockito" level="project" />
     <orderEntry type="module" module-name="android.sdktools.testutils" scope="TEST" />
@@ -67,5 +67,6 @@
     <orderEntry type="module" module-name="android.sdktools.analytics-testing" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.plugin" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="mockito-kotlin" level="project" />
+    <orderEntry type="library" scope="TEST" name="junit4" level="project" />
   </component>
 </module>

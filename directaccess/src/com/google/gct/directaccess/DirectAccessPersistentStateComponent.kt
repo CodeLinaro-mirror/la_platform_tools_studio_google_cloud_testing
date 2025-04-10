@@ -87,6 +87,7 @@ data class PersistentDeviceSelectionData(
   var screenY: Int = 0,
   var screenDensity: Int = 0,
   var isDefault: Boolean = false,
+  var accessStatus: List<String> = listOf(),
 ) {
   fun createDeviceSelection() =
     DeviceSelection(
@@ -106,6 +107,8 @@ data class PersistentDeviceSelectionData(
         screenDensity,
         null,
         isDefault,
+        true,
+        accessStatus,
       ),
     )
 }
@@ -129,4 +132,5 @@ fun DeviceInfo.createPersistentDeviceSelectionData(isSelected: Boolean) =
     screenY,
     screenDensity,
     isDefault,
+    accessStatus,
   )
