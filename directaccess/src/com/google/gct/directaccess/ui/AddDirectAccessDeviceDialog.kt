@@ -55,7 +55,7 @@ import com.android.tools.idea.adddevicedialog.TableColumnWidth
 import com.android.tools.idea.adddevicedialog.TableTextColumn
 import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.adddevicedialog.uniqueValuesOf
-import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.concurrency.createCoroutineScope
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
@@ -123,16 +123,20 @@ class AddDirectAccessDeviceDialog(
 
   init {
     title = "Select Remote Devices"
-    AndroidCoroutineScope(this.myDisposable).launch {
-      deviceSelectionListFlow.collect {
-        rows =
-          deviceSelectionListFlow.value.map { deviceSelection ->
-            DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
-          }
-        profiles = rows.map { profile -> profile to profile.isAlreadyPresent }.toMutableStateMap()
-      }
-    }
+    collectDeviceSelection()
     init()
+  }
+
+  private fun collectDeviceSelection() {
+    val collectAction = {
+      rows =
+        deviceSelectionListFlow.value.map { deviceSelection ->
+          DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
+        }
+      profiles = rows.map { profile -> profile to profile.isAlreadyPresent }.toMutableStateMap()
+    }
+    collectAction()
+    disposable.createCoroutineScope().launch { deviceSelectionListFlow.collect { collectAction() } }
   }
 
   private val filterState by mutableStateOf(RemoteDeviceFilterState())
