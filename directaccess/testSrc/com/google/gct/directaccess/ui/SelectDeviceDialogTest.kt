@@ -36,6 +36,7 @@ import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.tools.adtui.compose.utils.StudioComposeTestRule.Companion.createStudioComposeTestRule
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.common.truth.Truth.assertThat
+import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.TestUtils.extendedDeviceInfoListProvider
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
@@ -48,9 +49,21 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
 
+@RunWith(Parameterized::class)
 @RunsInEdt
-class SelectDeviceDialogTest {
+class SelectDeviceDialogTest(private val deviceListProvider: () -> List<DeviceInfo>) {
+
+  companion object {
+    @JvmStatic
+    @Parameters(name = "{0}")
+    fun deviceLists() =
+      listOf(arrayOf(extendedDeviceInfoListProvider), arrayOf(deviceInfoListProvider))
+  }
+
   @get:Rule val edtRule = EdtRule()
   @get:Rule val projectRule = ProjectRule()
   @get:Rule val composeTestRule = createStudioComposeTestRule()
@@ -66,7 +79,7 @@ class SelectDeviceDialogTest {
   @Before
   fun setUp() {
     deviceSelectionListFlow =
-      MutableStateFlow(extendedDeviceInfoListProvider().map { DeviceSelection(false, it) })
+      MutableStateFlow(deviceListProvider().map { DeviceSelection(false, it) })
     phones =
       deviceSelectionListFlow.value
         .map { it.deviceInfo }
@@ -94,6 +107,12 @@ class SelectDeviceDialogTest {
     }
     for (device in watches) {
       composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
+    }
+    // In the extended device list, there are multiple labs and so the column is visible,
+    // otherwise not.
+    composeTestRule.onNodeWithText("Lab").apply {
+      if (deviceListProvider().distinctBy { it.labId }.size == 1) assertDoesNotExist()
+      else assertExists()
     }
   }
 
