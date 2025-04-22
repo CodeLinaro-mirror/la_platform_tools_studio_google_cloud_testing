@@ -22,6 +22,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsToggleable
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.filterToOne
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -29,21 +30,27 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onSiblings
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextReplacement
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.tools.adtui.compose.utils.StudioComposeTestRule.Companion.createStudioComposeTestRule
 import com.android.tools.idea.adddevicedialog.FormFactors
+import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
 import com.google.gct.directaccess.TestUtils.extendedDeviceInfoListProvider
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
+import com.google.gct.directaccess.provisioner.OemLabsAssetsRegistry
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RunsInEdt
+import com.intellij.testFramework.replaceService
+import java.text.Collator
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.After
 import org.junit.Before
@@ -52,6 +59,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @RunWith(Parameterized::class)
 @RunsInEdt
@@ -78,6 +88,13 @@ class SelectDeviceDialogTest(private val deviceListProvider: () -> List<DeviceIn
 
   @Before
   fun setUp() {
+    val mockAssets = mock<OemLabsAssetsRegistry>()
+    whenever(mockAssets.retrieveName(any())).thenAnswer { "${it.arguments[0]} Lab" }
+    whenever(mockAssets.retrieveIcon(any(), any())).thenReturn(mock())
+
+    ApplicationManager.getApplication()
+      .replaceService(OemLabsAssetsRegistry::class.java, mockAssets, projectRule.disposable)
+
     deviceSelectionListFlow =
       MutableStateFlow(deviceListProvider().map { DeviceSelection(false, it) })
     phones =
@@ -137,6 +154,28 @@ class SelectDeviceDialogTest(private val deviceListProvider: () -> List<DeviceIn
       } else {
         composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
       }
+    }
+  }
+
+  @Test
+  fun labFilter() {
+    val labIds: List<String> =
+      deviceListProvider().map { it.labId }.distinct().sortedWith(Collator.getInstance())
+
+    if (labIds.size > 1) {
+      val positions =
+        labIds.map {
+          composeTestRule
+            .onNodeWithText("Device Lab")
+            .onSiblings()
+            .filterToOne(hasText("$it Lab"))
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+        }
+      assertThat(positions).isStrictlyOrdered()
+    } else {
+      composeTestRule.onNodeWithText("Device Lab").assertDoesNotExist()
     }
   }
 

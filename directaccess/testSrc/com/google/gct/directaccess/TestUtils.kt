@@ -131,7 +131,22 @@ object TestUtils {
           400,
           500,
           10,
-        )
+        ),
+        DeviceInfo(
+          "id6",
+          "Boop",
+          "Foop",
+          "LabNameCapitalized",
+          "woop",
+          "codename6",
+          33,
+          DeviceType.HANDHELD,
+          FormFactors.PHONE,
+          300,
+          400,
+          500,
+          10,
+        ),
       )
   }
 

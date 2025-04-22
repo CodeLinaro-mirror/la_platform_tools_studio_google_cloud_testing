@@ -64,6 +64,7 @@ import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.util.ui.JBUI
+import java.text.Collator
 import javax.swing.Action
 import javax.swing.JComponent
 import kotlinx.collections.immutable.persistentListOf
@@ -245,8 +246,12 @@ class AddDirectAccessDeviceDialog(
   }
 }
 
+// Note Collator is by default case-insensitive
 private val Lab =
-  RowAttribute<DirectAccessDeviceProfile, String>("Device Lab", compareBy { it.lowercase() }) {
+  RowAttribute<DirectAccessDeviceProfile, String>(
+    "Device Lab",
+    Comparator(Collator.getInstance()::compare),
+  ) {
     it.labIdDisplayName
   }
 
