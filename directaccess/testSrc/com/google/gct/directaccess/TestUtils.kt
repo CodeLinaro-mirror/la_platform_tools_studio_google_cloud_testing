@@ -21,6 +21,7 @@ import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.DirectAccessVersionInfo
+import com.google.api.services.testing.model.LabInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.provisioner.DeviceInfo
@@ -236,7 +237,7 @@ object TestUtils {
       brand = "Google"
       codename = "phone-higher-as-version"
       id = codename
-      supportedVersionIds = listOf("25")
+      supportedVersionIds = listOf("30")
       form = "PHYSICAL"
       set("formFactor", "PHONE")
       screenX = 100
@@ -257,7 +258,7 @@ object TestUtils {
       brand = "Google"
       codename = "phone-with-no-capacity"
       id = codename
-      supportedVersionIds = listOf("25")
+      supportedVersionIds = listOf("30")
       form = "PHYSICAL"
       set("formFactor", "PHONE")
       screenX = 100
@@ -265,6 +266,42 @@ object TestUtils {
       screenDensity = 300
       perVersionInfo =
         listOf(generatePerVersionInfo().apply { deviceCapacity = "DEVICE_CAPACITY_NONE" })
+    }
+
+  private val phoneWithOemEulaNotAccepted =
+    AndroidModel().apply {
+      manufacturer = "Google"
+      name = "Phone with EULA not approved"
+      brand = "Bob"
+      codename = "phone-with-eula-not-approved"
+      id = codename
+      supportedVersionIds = listOf("30")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
+      perVersionInfo = listOf(generatePerVersionInfo())
+      accessDeniedReasons = listOf("EULA_NOT_ACCEPTED")
+      labInfo = LabInfo().apply { name = "myLab" }
+    }
+
+  private val phoneWithLabAccessDenied =
+    AndroidModel().apply {
+      manufacturer = "Google"
+      name = "Phone with access denied"
+      brand = "Exclusive Brand"
+      codename = "phone-with-access-denied"
+      id = codename
+      supportedVersionIds = listOf("30")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
+      perVersionInfo = listOf(generatePerVersionInfo())
+      accessDeniedReasons = listOf("INSUFFICIENTLY_AWESOME")
+      labInfo = LabInfo().apply { name = "myOtherLab" }
     }
 
   private fun generatePerVersionInfo(api: String = "32", isDirectAccessSupported: Boolean = true) =
@@ -284,6 +321,8 @@ object TestUtils {
       phoneLessThanApi26,
       phoneSupportedOnHigherASVersion,
       phoneWithNoCapacity,
+      phoneWithLabAccessDenied,
+      phoneWithOemEulaNotAccepted,
     )
 
   val androidDeviceCatalogWithMissingFields =
