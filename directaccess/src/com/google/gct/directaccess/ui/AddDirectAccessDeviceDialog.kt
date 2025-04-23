@@ -248,10 +248,7 @@ class AddDirectAccessDeviceDialog(
 
 // Note Collator is by default case-insensitive
 private val Lab =
-  RowAttribute<DirectAccessDeviceProfile, String>(
-    "Device Lab",
-    Comparator(Collator.getInstance()::compare),
-  ) {
+  RowAttribute<DirectAccessDeviceProfile, String>("Device Lab", Collator.getInstance()) {
     it.labIdDisplayName
   }
 
