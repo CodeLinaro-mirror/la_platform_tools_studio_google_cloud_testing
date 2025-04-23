@@ -28,6 +28,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChild
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onSiblings
@@ -163,17 +164,16 @@ class SelectDeviceDialogTest(private val deviceListProvider: () -> List<DeviceIn
       deviceListProvider().map { it.labId }.distinct().sortedWith(Collator.getInstance())
 
     if (labIds.size > 1) {
+      val filterNodes = composeTestRule.onNodeWithText("Device Lab").onSiblings()
       val positions =
         labIds.map {
-          composeTestRule
-            .onNodeWithText("Device Lab")
-            .onSiblings()
-            .filterToOne(hasText("$it Lab"))
-            .fetchSemanticsNode()
-            .boundsInRoot
-            .top
+          filterNodes.filterToOne(hasText("$it Lab")).fetchSemanticsNode().boundsInRoot.top
         }
       assertThat(positions).isStrictlyOrdered()
+      val inaccessibleIcon =
+        composeTestRule.onNodeWithContentDescription("Lab inaccessible").fetchSemanticsNode()
+      val labLabel = filterNodes.filterToOne(hasText("google Lab")).fetchSemanticsNode()
+      assertThat(inaccessibleIcon.boundsInRoot.top).isEqualTo(labLabel.boundsInRoot.top)
     } else {
       composeTestRule.onNodeWithText("Device Lab").assertDoesNotExist()
     }
