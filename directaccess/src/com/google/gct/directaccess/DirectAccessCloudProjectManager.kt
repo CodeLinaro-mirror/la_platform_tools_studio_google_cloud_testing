@@ -74,7 +74,9 @@ class DirectAccessCloudProjectManager(
         checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty()
     } catch (_: Exception) {
       thisLogger()
-        .info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT}")
+        .info(
+          "DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
+        )
       false
     }
 

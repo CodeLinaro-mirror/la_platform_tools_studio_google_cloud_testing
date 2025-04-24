@@ -21,6 +21,7 @@ import com.android.tools.idea.adddevicedialog.FormFactors
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.DirectAccessVersionInfo
+import com.google.api.services.testing.model.LabInfo
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.provisioner.DeviceInfo
@@ -37,79 +38,80 @@ object TestUtils {
   val deviceInfoListProvider = {
     listOf(
       DeviceInfo(
-        "id1",
-        "Google",
-        "Pixel 5",
-        "google",
-        "Google",
-        "codename1",
-        31,
-        DeviceType.HANDHELD,
-        FormFactors.PHONE,
-        100,
-        200,
-        300,
-        null,
+        id = "id1",
+        brand = "Google",
+        name = "Pixel 5",
+        labId = "google",
+        manufacturer = "Google",
+        codename = "codename1",
+        api = 31,
+        type = DeviceType.HANDHELD,
+        formFactor = FormFactors.PHONE,
+        screenX = 100,
+        screenY = 200,
+        screenDensity = 300,
+        deviceAvailabilityEstimateSeconds = null,
       ),
       DeviceInfo(
-        "id2",
-        "Google",
-        "Pixel 6",
-        "google",
-        "Google",
-        "codename2",
-        32,
-        DeviceType.HANDHELD,
-        FormFactors.PHONE,
-        200,
-        300,
-        400,
-        300,
+        id = "id2",
+        brand = "Google",
+        name = "Pixel 6",
+        labId = "google",
+        manufacturer = "Google",
+        codename = "codename2",
+        api = 32,
+        type = DeviceType.HANDHELD,
+        formFactor = FormFactors.PHONE,
+        screenX = 200,
+        screenY = 300,
+        screenDensity = 400,
+        deviceAvailabilityEstimateSeconds = 300,
       ),
       DeviceInfo(
-        "id3",
-        "Google",
-        "Pixel 6 Pro",
-        "google",
-        "Google",
-        "codename3",
-        33,
-        DeviceType.HANDHELD,
-        FormFactors.PHONE,
-        300,
-        400,
-        500,
-        3000,
+        id = "id3",
+        brand = "Google",
+        name = "Pixel 6 Pro",
+        labId = "google",
+        manufacturer = "Google",
+        codename = "codename3",
+        api = 33,
+        type = DeviceType.HANDHELD,
+        formFactor = FormFactors.PHONE,
+        screenX = 300,
+        screenY = 400,
+        screenDensity = 500,
+        deviceAvailabilityEstimateSeconds = 3000,
       ),
       DeviceInfo(
-        "id4",
-        "Google",
-        "Pixel Watch",
-        "google",
-        "Google",
-        "watch",
-        33,
-        DeviceType.WEAR,
-        FormFactors.WEAR,
-        50,
-        100,
-        150,
-        30,
+        id = "id4",
+        brand = "Google",
+        name = "Pixel Watch",
+        labId = "google",
+        manufacturer = "Google",
+        codename = "watch",
+        api = 33,
+        type = DeviceType.WEAR,
+        formFactor = FormFactors.WEAR,
+        screenX = 50,
+        screenY = 100,
+        screenDensity = 150,
+        deviceAvailabilityEstimateSeconds = 30,
       ),
       DeviceInfo(
-        "id4",
-        "Google",
-        "Pixel Watch",
-        "google",
-        "Google",
-        "watch",
-        34,
-        DeviceType.WEAR,
-        FormFactors.WEAR,
-        50,
-        100,
-        150,
-        null,
+        id = "id4",
+        brand = "Google",
+        name = "Pixel Watch",
+        labId = "google",
+        manufacturer = "Google",
+        codename = "watch",
+        api = 34,
+        type = DeviceType.WEAR,
+        formFactor = FormFactors.WEAR,
+        screenX = 50,
+        screenY = 100,
+        screenDensity = 150,
+        deviceAvailabilityEstimateSeconds = null,
+        accessStatus = listOf("EULA_NOT_ACCEPTED"),
       ),
     )
   }
@@ -131,7 +133,22 @@ object TestUtils {
           400,
           500,
           10,
-        )
+        ),
+        DeviceInfo(
+          "id6",
+          "Boop",
+          "Foop",
+          "LabNameCapitalized",
+          "woop",
+          "codename6",
+          33,
+          DeviceType.HANDHELD,
+          FormFactors.PHONE,
+          300,
+          400,
+          500,
+          10,
+        ),
       )
   }
 
@@ -221,7 +238,7 @@ object TestUtils {
       brand = "Google"
       codename = "phone-higher-as-version"
       id = codename
-      supportedVersionIds = listOf("25")
+      supportedVersionIds = listOf("30")
       form = "PHYSICAL"
       set("formFactor", "PHONE")
       screenX = 100
@@ -242,7 +259,7 @@ object TestUtils {
       brand = "Google"
       codename = "phone-with-no-capacity"
       id = codename
-      supportedVersionIds = listOf("25")
+      supportedVersionIds = listOf("30")
       form = "PHYSICAL"
       set("formFactor", "PHONE")
       screenX = 100
@@ -250,6 +267,42 @@ object TestUtils {
       screenDensity = 300
       perVersionInfo =
         listOf(generatePerVersionInfo().apply { deviceCapacity = "DEVICE_CAPACITY_NONE" })
+    }
+
+  private val phoneWithOemEulaNotAccepted =
+    AndroidModel().apply {
+      manufacturer = "Google"
+      name = "Phone with EULA not approved"
+      brand = "Bob"
+      codename = "phone-with-eula-not-approved"
+      id = codename
+      supportedVersionIds = listOf("30")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
+      perVersionInfo = listOf(generatePerVersionInfo())
+      accessDeniedReasons = listOf("EULA_NOT_ACCEPTED")
+      labInfo = LabInfo().apply { name = "myLab" }
+    }
+
+  private val phoneWithLabAccessDenied =
+    AndroidModel().apply {
+      manufacturer = "Google"
+      name = "Phone with access denied"
+      brand = "Exclusive Brand"
+      codename = "phone-with-access-denied"
+      id = codename
+      supportedVersionIds = listOf("30")
+      form = "PHYSICAL"
+      set("formFactor", "PHONE")
+      screenX = 100
+      screenY = 200
+      screenDensity = 300
+      perVersionInfo = listOf(generatePerVersionInfo())
+      accessDeniedReasons = listOf("INSUFFICIENTLY_AWESOME")
+      labInfo = LabInfo().apply { name = "myOtherLab" }
     }
 
   private fun generatePerVersionInfo(api: String = "32", isDirectAccessSupported: Boolean = true) =
@@ -269,6 +322,8 @@ object TestUtils {
       phoneLessThanApi26,
       phoneSupportedOnHigherASVersion,
       phoneWithNoCapacity,
+      phoneWithLabAccessDenied,
+      phoneWithOemEulaNotAccepted,
     )
 
   val androidDeviceCatalogWithMissingFields =

@@ -195,6 +195,7 @@ class SelectProjectActionTest {
     Mockito.doReturn(TestUtils.deviceInfoListProvider())
       .whenever(mockDirectAccessServiceSetup)
       .getAccessibleDeviceInfoList(null)
+    whenever(mockDirectAccessServiceSetup.channel(any())).thenReturn(mock())
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessServiceSetup::class.java,
@@ -261,10 +262,6 @@ class SelectProjectActionTest {
         .whenever(mockDirectAccessService)
         .cloudProjectManager
       Mockito.doReturn(scope).whenever(mockDirectAccessService).scope
-      val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
-      Mockito.doReturn(mockDeviceSelectionListFlow)
-        .whenever(mockDirectAccessService)
-        .deviceSelectionListFlow
 
       val selectedCloudProject = MutableStateFlow<String?>(null)
       Mockito.doAnswer {
@@ -410,7 +407,6 @@ class SelectProjectActionTest {
           dialog.clickDefaultButton()
         }
 
-        val extraDeviceInfoList = TestUtils.deviceInfoListProvider() + preselectedDeviceInfo
         createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) {
           dialogWrapper ->
           val dialog = dialogWrapper as SelectProjectDialog
@@ -584,7 +580,6 @@ class SelectProjectActionTest {
           waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
           waitForCondition { remainingMinutesLabel.text == "less than 15 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(60.0 / 70)
-          mockDeviceSelectionListFlow.value = extraDeviceInfoList.map { DeviceSelection(false, it) }
           dialog.clickDefaultButton()
         }
       }
@@ -643,6 +638,7 @@ class SelectProjectActionTest {
         )
 
       val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
+      whenever(mockDirectAccessServiceSetup.channel(any())).thenReturn(mock())
       Mockito.doReturn(TestUtils.deviceInfoListProvider() + preselectedDeviceInfo)
         .whenever(mockDirectAccessServiceSetup)
         .getAccessibleDeviceInfoList(null)
@@ -733,20 +729,18 @@ class SelectProjectActionTest {
 
       val plugin =
         DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
-      CoroutineTestUtils.yieldUntil {
-        mockDeviceSelectionListFlow.value.count { it.isSelected } > 0
-      }
+      yieldUntil { mockDeviceSelectionListFlow.value.count { it.isSelected } > 0 }
       assertThat(
           mockDeviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.key }
         )
         .isEqualTo(listOf("shiba/34"))
 
       // Verify the created template before cloud project gets ready.
-      CoroutineTestUtils.yieldUntil { plugin.templates.value.size == 1 }
+      yieldUntil { plugin.templates.value.size == 1 }
       val template = plugin.templates.value.first()
-      CoroutineTestUtils.yieldUntil { template.state.error?.severity == DeviceError.Severity.INFO }
+      yieldUntil { template.state.error?.severity == DeviceError.Severity.INFO }
       assertThat(template.state.error?.message).isEqualTo("Ready in a few minutes")
-      CoroutineTestUtils.yieldUntil {
+      yieldUntil {
         template.activationAction.presentation.value.detail ==
           "Android Device Streaming is setting up and will be ready in a few minutes."
       }
@@ -787,8 +781,8 @@ class SelectProjectActionTest {
       }
 
       // Verify the created template after cloud project gets ready.
-      CoroutineTestUtils.yieldUntil { template.state.error?.severity == null }
-      CoroutineTestUtils.yieldUntil { template.activationAction.presentation.value.detail == null }
+      yieldUntil { template.state.error?.severity == null }
+      yieldUntil { template.activationAction.presentation.value.detail == null }
     }
 
   @RunsInEdt

@@ -16,7 +16,7 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceType
-import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.concurrency.createCoroutineScope
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.common.truth.Truth.assertThat
@@ -49,7 +49,7 @@ class CatalogClientTest {
   private fun setupCloudClient(deviceCatalog: AndroidDeviceCatalog) {
     val client: CloudClient =
       spy(
-        CloudClient(MutableStateFlow(mock()), AndroidCoroutineScope(projectRule.testRootDisposable))
+        CloudClient(MutableStateFlow(mock()), projectRule.testRootDisposable.createCoroutineScope())
       )
     CloudClientService.instance().overrideClientForTest = client
     doCallRealMethod().whenever(client).getAvailableDevices(any(), any())
@@ -68,13 +68,14 @@ class CatalogClientTest {
 
     val devices = CatalogClient.getAvailableDevices("testEndpoint", "testProject")
 
-    assertThat(devices.size).isEqualTo(2)
+    assertThat(devices.size).isEqualTo(3)
     assertThat(devices[0].name).isEqualTo("Phone")
     assertThat(devices[0].type).isEqualTo(DeviceType.HANDHELD)
     assertThat(devices[0].api).isGreaterThan(25)
     assertThat(devices[1].name).isEqualTo("Watch")
     assertThat(devices[1].type).isEqualTo(DeviceType.WEAR)
     assertThat(devices[1].api).isGreaterThan(25)
+    assertThat(devices[2].name).isEqualTo("Phone with EULA not approved")
   }
 
   @Test
