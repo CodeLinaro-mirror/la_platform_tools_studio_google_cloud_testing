@@ -211,9 +211,7 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
       }
     BrowserUtil.browse(
       URI(
-        "https://console.cloud.google.com/omnilab/partner-lab;localPort=$port;dlAction=AndroidStudioPartnerLabEnablement" +
-          // TODO: remove experiment param
-          "?e=OmnilabLaunch::OmnilabEnabled"
+        "https://console.cloud.google.com/omnilab/partner-lab;localPort=$port;dlAction=AndroidStudioPartnerLabEnablement"
       )
     )
     lock?.lock()
