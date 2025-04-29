@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.android.tools.adtui.compose.LocalProject
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.adtui.stdui.StandardColors
-import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.concurrency.createCoroutineScope
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.checkPermissions
 import com.google.gct.directaccess.provisioner.OemLabsAssetsRegistry
@@ -76,7 +76,7 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
 
   override fun createCenterPanel(): JComponent {
     var hasPermission: Boolean? by mutableStateOf(null)
-    AndroidCoroutineScope(disposable).launch(Dispatchers.IO) {
+    disposable.createCoroutineScope().launch(Dispatchers.IO) {
       val cloudProject =
         project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
           ?: return@launch
@@ -151,7 +151,7 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
             "Checking permissions...",
             color = StandardColors.DISABLED_TEXT_COLOR.toComposeColor(),
           )
-        } else if (hasPermission == false) {
+        } else if (!hasPermission) {
           Icon(
             IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
             "Lab inaccessible",
@@ -185,7 +185,7 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
           dispatch: Int,
         ) {
           if (target == "/CALLBACK_Cloud_PartnerLab") {
-            AndroidCoroutineScope(disposable).launch {
+            disposable.createCoroutineScope().launch {
               project
                 .service<DirectAccessService>()
                 .cloudProjectManager
@@ -201,6 +201,8 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
         }
       }
 
+    // not sure why this is needed, it's obviously read by the disposable lambda above.
+    @Suppress("AssignedValueIsNeverRead")
     server =
       Server(port).apply {
         for (c in connectors) {
@@ -210,8 +212,11 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
         start()
       }
     BrowserUtil.browse(
+      // If we're getting here the project should always be set, since otherwise you won't be seeing
+      // unselected OEM lab devices.
       URI(
-        "https://console.cloud.google.com/omnilab/partner-lab;localPort=$port;dlAction=AndroidStudioPartnerLabEnablement"
+        "https://console.cloud.google.com/omnilab/partner-lab;localPort=$port;dlAction=AndroidStudioPartnerLabEnablement" +
+          "?project=${project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name}"
       )
     )
     lock?.lock()
