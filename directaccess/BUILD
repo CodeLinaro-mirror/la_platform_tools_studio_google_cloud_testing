@@ -22,6 +22,7 @@ iml_module(
         "//tools/adt/idea/android-plugin:intellij.android.plugin",
         "//tools/adt/idea/.idea/libraries:mockito-kotlin",
         "//tools/adt/idea/.idea/libraries:junit4",
+        "//tools/adt/idea/.idea/libraries:kotlin-test",
     ],
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],

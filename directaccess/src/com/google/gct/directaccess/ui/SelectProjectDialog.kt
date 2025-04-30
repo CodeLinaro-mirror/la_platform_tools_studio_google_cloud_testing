@@ -19,6 +19,7 @@ import com.android.adblib.utils.createChildScope
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
@@ -29,7 +30,10 @@ import com.google.gct.directaccess.FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
+import com.google.gct.login2.createHelpTooltip
+import com.google.gct.login2.toText
 import com.google.services.firebase.FirebaseLoginFeature
+import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.HelpTooltip
 import com.intellij.openapi.application.EDT
@@ -49,8 +53,10 @@ import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.dsl.builder.Align
 import com.intellij.ui.dsl.builder.EmptySpacingConfiguration
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.ui.dsl.builder.plus
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.NamedColorUtil
 import icons.StudioIcons
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -131,6 +137,39 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     }
     return panel
   }
+
+  override fun createSouthAdditionalPanel() =
+    if (StudioFlags.USE_1P_LOGIN_UI.get()) {
+      JPanel(HorizontalLayout(4)).apply {
+        name = "scope_panel"
+        val firebaseFeature = LoginFeature.feature<FirebaseLoginFeature>()
+
+        add(
+          JBLabel().apply {
+            scope.launch {
+              isDirectAccessEnabled.collect { enabled ->
+                text =
+                  if (enabled) {
+                    "${firebaseFeature.oAuthScopes.toText()} requested."
+                  } else {
+                    "${firebaseFeature.oAuthScopes.toText()} will be requested."
+                  }
+              }
+            }
+            foreground = NamedColorUtil.getInactiveTextColor()
+            border = JBUI.Borders.empty()
+          }
+        )
+        add(
+          JBLabel(AllIcons.General.ContextHelp).apply {
+            firebaseFeature.createHelpTooltip().installOn(this)
+            border = JBUI.Borders.empty()
+          }
+        )
+      }
+    } else {
+      null
+    }
 
   private fun createTitleLabel(text: String) =
     JBLabel(text, JBLabel.LEFT).apply { font = JBFont.h2() }
