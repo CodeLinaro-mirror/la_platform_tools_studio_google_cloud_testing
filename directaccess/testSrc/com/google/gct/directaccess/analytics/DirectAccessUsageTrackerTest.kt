@@ -177,6 +177,7 @@ class DirectAccessUsageTrackerTest {
     val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
     whenever(mockCloudProjectManager.cloudProject)
       .thenReturn(CloudProjectEntry("", cloudProjectName))
+    whenever(mockCloudProjectManager.isDefaultApiEnabled).thenReturn(true)
     val deviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
     var isProjectClosing = false
     whenever(mockDirectAccessService.deviceSelectionListFlow).thenReturn(deviceSelectionListFlow)
@@ -283,6 +284,7 @@ class DirectAccessUsageTrackerTest {
 
     val reserveDeviceDetails = directAccessEvent.reserveDeviceDetails
     assertThat(reserveDeviceDetails.success).isTrue()
+    assertThat(reserveDeviceDetails.devicestreamingApi).isTrue()
     assertThat(reserveDeviceDetails.reserveTimeMs).isNotNull()
     assertThat(reserveDeviceDetails.reserveTimeMs).isNotEqualTo(0)
   }

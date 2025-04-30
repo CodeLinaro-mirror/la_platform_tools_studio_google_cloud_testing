@@ -45,6 +45,7 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
     deviceSession: String?,
     deviceInfo: MetricsDeviceInfo,
     failReason: DirectAccessUsageEvent.FailureReason? = null,
+    deviceStreamingApi: Boolean = false,
   ) {
     val event =
       createDirectAccessUsageEvent(deviceSession, failReason) {
@@ -54,6 +55,7 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
             .apply {
               success = wasSuccessful
               timeToReserveMs?.let { reserveTimeMs = it.toInt() }
+              this.devicestreamingApi = deviceStreamingApi
             }
             .build()
       }
