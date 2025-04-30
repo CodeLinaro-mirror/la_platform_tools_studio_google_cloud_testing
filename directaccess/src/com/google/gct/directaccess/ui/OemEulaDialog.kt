@@ -74,16 +74,36 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
     myOKAction.putValue(Action.NAME, "Done")
   }
 
+  private enum class PermissionCheckResult {
+    LOADING,
+    ACCESS,
+    NO_ACCESS,
+    ERROR,
+  }
+
   override fun createCenterPanel(): JComponent {
-    var hasPermission: Boolean? by mutableStateOf(null)
+    var hasPermission: PermissionCheckResult by mutableStateOf(PermissionCheckResult.LOADING)
     disposable.createCoroutineScope().launch(Dispatchers.IO) {
       val cloudProject =
         project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
-          ?: return@launch
       hasPermission =
-        !checkPermissions(setOf("resourcemanager.projects.update"), cloudProject)
-          ?.permissions
-          .isNullOrEmpty()
+        if (cloudProject == null) {
+          PermissionCheckResult.ERROR
+        } else {
+          try {
+            if (
+              checkPermissions(setOf("resourcemanager.projects.update"), cloudProject)
+                ?.permissions
+                .isNullOrEmpty()
+            ) {
+              PermissionCheckResult.NO_ACCESS
+            } else {
+              PermissionCheckResult.ACCESS
+            }
+          } catch (_: Exception) {
+            PermissionCheckResult.ERROR
+          }
+        }
     }
     return StudioComposePanel {
         CompositionLocalProvider(LocalProject provides project) {
@@ -98,7 +118,7 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
   }
 
   @Composable
-  fun ComposeContent(hasPermission: Boolean?, component: () -> JComponent) {
+  private fun ComposeContent(hasPermission: PermissionCheckResult, component: () -> JComponent) {
     Column {
       val plural = if (labs.size > 1) "s" else ""
       Text(
@@ -132,7 +152,10 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
 
       Row(verticalAlignment = Alignment.CenterVertically) {
         OutlinedButton(
-          enabled = hasPermission == true,
+          // allow access if we failed to check permissions--maybe the redirect will still work?
+          enabled =
+            hasPermission == PermissionCheckResult.ACCESS ||
+              hasPermission == PermissionCheckResult.ERROR,
           onClick = {
             runWithModalProgressBlocking(
               ModalTaskOwner.component(component()),
@@ -145,19 +168,26 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
         ) {
           Text("Go to Google Cloud Console")
         }
-        if (hasPermission == null) {
+        if (hasPermission == PermissionCheckResult.LOADING) {
           CircularProgressIndicator(modifier = Modifier.padding(horizontal = 5.dp))
           Text(
             "Checking permissions...",
             color = StandardColors.DISABLED_TEXT_COLOR.toComposeColor(),
           )
-        } else if (!hasPermission) {
+        } else if (
+          hasPermission == PermissionCheckResult.NO_ACCESS ||
+            hasPermission == PermissionCheckResult.ERROR
+        ) {
           Icon(
             IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
             "Lab inaccessible",
             Modifier.padding(horizontal = 4.dp),
           )
-          Text("Contact project administrator for access.")
+          if (hasPermission == PermissionCheckResult.NO_ACCESS) {
+            Text("Contact project administrator for access.")
+          } else {
+            Text("Error checking status, access may be limited.")
+          }
         }
       }
     }
