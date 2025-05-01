@@ -1654,7 +1654,7 @@ class DirectAccessDeviceProvisionerTest {
   private fun setupMockContentForRunningDevicePanel(
     bannerNotificationHolder: MutableList<EditorNotificationPanel>
   ): Content {
-    val mockStreamingDevicePanel = mock<StreamingDevicePanel>()
+    val mockStreamingDevicePanel = mock<StreamingDevicePanel<*>>()
     whenever(mockStreamingDevicePanel.id)
       .thenReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
     doAnswer { bannerNotificationHolder.add(it.arguments[0] as EditorNotificationPanel) }
