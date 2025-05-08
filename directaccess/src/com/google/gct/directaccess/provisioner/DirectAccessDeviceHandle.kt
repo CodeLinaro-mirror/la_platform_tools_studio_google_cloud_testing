@@ -473,7 +473,7 @@ class DirectAccessDeviceHandle(
           override fun toolWindowShown(toolWindow: ToolWindow) {
             if (toolWindow.id == RUNNING_DEVICES_TOOL_WINDOW_ID) {
               val devicePanel =
-                toolWindow.contentManager.selectedContent?.component as? StreamingDevicePanel
+                toolWindow.contentManager.selectedContent?.component as? StreamingDevicePanel<*>
                   ?: return
               devicePanel.maybeShowBannerNotification()
             }
@@ -645,7 +645,7 @@ class DirectAccessDeviceHandle(
       ?.addContentManagerListener(
         object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
-              val devicePanel = event.content.component as? StreamingDevicePanel ?: return
+              val devicePanel = event.content.component as? StreamingDevicePanel<*> ?: return
               devicePanel.maybeShowBannerNotification()
             }
           }
@@ -653,7 +653,7 @@ class DirectAccessDeviceHandle(
       )
   }
 
-  private fun StreamingDevicePanel.maybeShowBannerNotification() {
+  private fun StreamingDevicePanel<*>.maybeShowBannerNotification() {
     if (id.serialNumber == connection.deviceAddress()?.address) {
       invokeLater { notificationManager.onDevicePanelVisibilityChanged() }
     }

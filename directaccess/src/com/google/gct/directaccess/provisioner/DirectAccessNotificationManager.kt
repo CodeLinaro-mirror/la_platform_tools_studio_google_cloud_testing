@@ -233,7 +233,7 @@ class DirectAccessNotificationManager(
   ) {
 
     /** Panel for this [DirectAccessDeviceHandle] */
-    private val devicePanel: StreamingDevicePanel?
+    private val devicePanel: StreamingDevicePanel<*>?
       get() = getRunningDeviceWindow(project)?.devicePanel
 
     /**
@@ -351,14 +351,14 @@ class DirectAccessNotificationManager(
       }
 
     /** Gets current visible panel in RDW */
-    private val ToolWindow.visibleDevicePanel: StreamingDevicePanel?
-      get() = contentManager.selectedContent?.component as? StreamingDevicePanel
+    private val ToolWindow.visibleDevicePanel: StreamingDevicePanel<*>?
+      get() = contentManager.selectedContent?.component as? StreamingDevicePanel<*>
 
     /** Gets the panel for this [DirectAccessDeviceHandle] from RDW */
-    private val ToolWindow.devicePanel: StreamingDevicePanel?
+    private val ToolWindow.devicePanel: StreamingDevicePanel<*>?
       get() =
         contentManager.contents
-          .mapNotNull { it.component as? StreamingDevicePanel }
+          .mapNotNull { it.component as? StreamingDevicePanel<*> }
           .firstOrNull { it.id.serialNumber == deviceHandle.connection.deviceAddress()?.address }
   }
 }

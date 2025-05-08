@@ -19,7 +19,6 @@ package com.google.gct.testrecorder.ui;
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.ui.screenshot.ScreenshotImage;
-import com.android.tools.idea.ui.screenshot.ScreenshotOptions;
 import com.android.tools.idea.ui.screenshot.ScreenshotTask;
 import com.android.tools.idea.ui.screenshot.ShellCommandScreenshotProvider;
 import com.android.uiautomator.UiAutomatorModel;
@@ -44,7 +43,7 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
   private boolean success = false;
 
   public TestRecorderScreenshotTask(Project project, IDevice device, String packageName, ScreenshotCallback callback) {
-    super(project, createScreenshotProvider(project, device));
+    super(project, new ShellCommandScreenshotProvider(project, device.getSerialNumber()));
     myProject = project;
     myDevice = device;
     myPackageName = packageName;
@@ -116,11 +115,5 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
       BufferedImage image = screenshotImage == null ? null : screenshotImage.getImage();
       myCallback.onSuccess(image, new UiAutomatorModel(myUiHierarchyLocalFile));
     }
-  }
-
-  @NotNull
-  private static ShellCommandScreenshotProvider createScreenshotProvider(@NotNull Project project, @NotNull IDevice device) {
-    String serialNumber = device.getSerialNumber();
-    return new ShellCommandScreenshotProvider(project, serialNumber, new ScreenshotOptions(serialNumber));
   }
 }
