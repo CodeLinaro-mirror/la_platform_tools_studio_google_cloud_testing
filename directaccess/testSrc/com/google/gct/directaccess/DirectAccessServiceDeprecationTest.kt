@@ -49,6 +49,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -85,7 +86,7 @@ class DirectAccessServiceDeprecationTest {
     val mockDevServicesDeprecationDataProvider = mock<DevServicesDeprecationDataProvider>()
     doReturn(deprecationProto)
       .whenever(mockDevServicesDeprecationDataProvider)
-      .getCurrentDeprecationData("directaccess/directaccess")
+      .getCurrentDeprecationData(eq("directaccess/directaccess"), any())
     ApplicationManager.getApplication()
       .replaceService(
         DevServicesDeprecationDataProvider::class.java,
