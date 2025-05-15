@@ -15,6 +15,7 @@
  */
 package com.google.gct.testing.android;
 
+import static com.android.tools.idea.flags.StudioFlags.USE_1P_LOGIN_UI;
 import static com.google.gct.testing.CloudTestingUtils.linkifyEditorPane;
 import static com.google.gct.testing.CloudTestingUtils.prepareCreateFirebaseProjectAnchor;
 import static com.google.gct.testing.CloudTestingUtils.preparePricingAnchor;
@@ -27,6 +28,8 @@ import com.android.tools.idea.run.editor.DeployTargetState;
 import com.google.common.collect.ImmutableSet;
 import com.google.gct.login2.GoogleLoginService;
 import com.google.gct.login2.LoginFeature;
+import com.google.gct.login2.LoginFeatureKt;
+import com.google.gct.login2.OAuthScopeKt;
 import com.google.gct.login2.PreferredUser;
 import com.google.services.firebase.FirebaseLoginFeature;
 import com.google.wireless.android.sdk.stats.GoogleLoginPluginEvent;
@@ -41,9 +44,11 @@ import com.intellij.openapi.actionSystem.impl.PresentationFactory;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.ui.components.panels.HorizontalLayout;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.ui.JBUI;
+import com.intellij.util.ui.NamedColorUtil;
 import com.intellij.util.ui.UIUtil;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -90,7 +95,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
     topPanel.setName("Cloud Testing");
     connectToCloudPanel = new JPanel();
-    connectToCloudPanel.setLayout(new GridLayoutManager(3, 1));
+    connectToCloudPanel.setLayout(new GridLayoutManager(USE_1P_LOGIN_UI.get() ? 4 : 3, 1));
     cloudDeviceMatrixPanel = new JPanel();
     cloudDeviceMatrixPanel.setLayout(new GridLayoutManager(4, 3));
     topPanel.add(connectToCloudPanel, preparePanelGridConstraints(0));
@@ -99,11 +104,14 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     connectToCloudPanel.add(createRunTestsInCloudPane(topPanel.getBackground(), 6, 4), prepareEditorPaneGridConstraints(0));
     JButton connectToCloudButton = new JButton(GoogleLoginService.getInstance().isLoggedIn() ? "Authorize Firebase" : "Sign in with Google");
     connectToCloudButton.addActionListener(e -> GoogleLoginService.getInstance().logInBlocking(
-      ImmutableSet.of(LoginFeature.Companion.getEP_NAME().findExtension(FirebaseLoginFeature.class)),
+      ImmutableSet.of(getFirebaseFeature()),
       GoogleLoginPluginEvent.LoginType.FEATURE_LOGIN,
       PreferredUser.ActiveUser.INSTANCE, true, () -> updateVisibility(), topPanel));
     connectToCloudPanel.add(connectToCloudButton, prepareElementGridConstraints(1, 0));
-    connectToCloudPanel.add(createSignupForCloudPane(topPanel.getBackground(), 6, 0), prepareEditorPaneGridConstraints(2));
+    if (USE_1P_LOGIN_UI.get()) {
+      connectToCloudPanel.add(createScopePanel(), prepareElementGridConstraints(2, 0));
+    }
+    connectToCloudPanel.add(createSignupForCloudPane(topPanel.getBackground(), 6, 0), prepareEditorPaneGridConstraints(USE_1P_LOGIN_UI.get() ? 3 : 2));
 
     cloudDeviceMatrixPanel.add(new JLabel("Matrix configuration:"), prepareElementGridConstraints(0, 0));
     myCloudConfigurationComboBox = new CloudConfigurationComboBox(MATRIX);
@@ -237,6 +245,20 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     return signupForCloudPane;
   }
 
+  private JPanel createScopePanel() {
+    JPanel panel = new JPanel(new HorizontalLayout(4));
+    JLabel text = new JLabel(OAuthScopeKt.toText(getFirebaseFeature().getOAuthScopes()) + " will be requested.");
+    text.setForeground(NamedColorUtil.getInactiveTextColor());
+
+    JLabel icon = new JLabel(AllIcons.General.ContextHelp);
+    LoginFeatureKt.createHelpTooltip(getFirebaseFeature()).installOn(icon);
+
+    panel.add(text);
+    panel.add(icon);
+    panel.setBorder(JBUI.Borders.empty());
+    return panel;
+  }
+
   private JEditorPane createLinkPane(@NotNull Color backgroundColor, String anchor) {
     JEditorPane linkPane = new JEditorPane(UIUtil.HTML_MIME, "<html>" + anchor + "</html>");
     linkPane.setMargin(new Insets(0, 1, 0, 0));
@@ -277,5 +299,9 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     public @NotNull ActionUpdateThread getActionUpdateThread() {
       return ActionUpdateThread.EDT;
     }
+  }
+
+  private static LoginFeature getFirebaseFeature() {
+    return LoginFeature.Companion.getEP_NAME().findExtension(FirebaseLoginFeature.class);
   }
 }

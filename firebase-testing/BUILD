@@ -52,5 +52,6 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:cloudresourcemanager",
         "//tools/adt/idea/analytics",
         "//tools/vendor/google/firebase",
+        "//tools/base/flags:studio.android.sdktools.flags",
     ],
 )

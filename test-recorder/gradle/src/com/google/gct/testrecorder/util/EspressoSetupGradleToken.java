@@ -31,9 +31,9 @@ import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRI
 import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_ESPRESSO_SETUP;
 
+import com.android.ide.common.gradle.Component;
 import com.android.ide.common.gradle.Version;
 import com.android.ide.common.repository.GoogleMavenArtifactId;
-import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.gradle.dependencies.DependenciesHelper;
@@ -46,11 +46,10 @@ import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyMode
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
-import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.DependencyScopeType;
 import com.android.tools.idea.projectsystem.GradleToken;
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager;
-import com.android.tools.idea.projectsystem.ProjectSystemUtil;
+import com.android.tools.idea.projectsystem.gradle.GradleModuleSystem;
 import com.android.tools.idea.projectsystem.gradle.GradleProjectSystem;
 import com.google.common.collect.ImmutableList;
 import com.google.gct.testrecorder.event.ElementAction;
@@ -137,11 +136,12 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
       ProjectBuildModel projectModel = ProjectBuildModel.get(project);
       GradleBuildModel gradleBuildModel = projectModel.getModuleBuildModel(testClassModule);
       if (gradleBuildModel != null) {
+        GradleModuleSystem gradleModuleSystem = projectSystem.getModuleSystem(testClassModule);
         AndroidModel androidModel = gradleBuildModel.android();
         // androidModel will be null when the Gradle experimental plugin is used and it's not possible to update the instrumentation runner.
         // TODO: Provide an appropriate error message or some alternative way to update instrumentation runner when the Gradle experimental
         // plugin is used.
-        if (!hasAllRequiredEspressoDependencies(androidModel, ProjectSystemUtil.getModuleSystem(testClassModule))) {
+        if (!hasAllRequiredEspressoDependencies(androidModel, gradleModuleSystem)) {
           UsageTracker.log(UsageTrackerUtils.withProjectId(
             AndroidStudioEvent.newBuilder()
               .setCategory(EventCategory.TEST_RECORDER)
@@ -153,7 +153,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
                                          "Would you like to automatically add/update Espresso dependencies for this app?\n" +
                                          "To complete the set up, Gradle might ask you to install the missing libraries.\n" +
                                          "Please click on the corresponding link(s) to install them.").icon(null).ask(rootPanel)) {
-            setupEspresso(projectModel, gradleBuildModel);
+            setupEspresso(projectModel, gradleBuildModel, gradleModuleSystem);
           }
         }
       }
@@ -161,13 +161,13 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
     }
 
     private boolean hasAllRequiredEspressoDependencies(@NotNull AndroidModel androidModel,
-                                                       @NotNull AndroidModuleSystem androidModuleSystem) {
+                                                       @NotNull GradleModuleSystem gradleModuleSystem) {
       initializeDependencyRequirements();
       // TODO: To improve performance, consider doing these checks in a single pass.
-      return hasUptodateEspressoCoreDependency(androidModuleSystem)
-             && hasUptodateRulesDependency(androidModuleSystem)
-             && (!myNeedsContribDependency || hasUptodateEspressoContribDependency(androidModuleSystem))
-             && (!myUsesAndroidxDependency || !myUsesGrantPermissionRule || hasUptodateAndroidxRulesDependency(androidModuleSystem))
+      return hasUptodateEspressoCoreDependency(gradleModuleSystem)
+             && hasUptodateRulesDependency(gradleModuleSystem)
+             && (!myNeedsContribDependency || hasUptodateEspressoContribDependency(gradleModuleSystem))
+             && (!myUsesAndroidxDependency || !myUsesGrantPermissionRule || hasUptodateAndroidxRulesDependency(gradleModuleSystem))
              && hasSetInstrumentationRunner(androidModel);
     }
 
@@ -194,23 +194,23 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
       }
     }
 
-    private boolean hasUptodateEspressoCoreDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
-      return hasUptodateDependency(androidModuleSystem, ESPRESSO_CORE, ANDROIDX_ESPRESSO_CORE, myMinEspressoCoreVersion,
+    private boolean hasUptodateEspressoCoreDependency(@NotNull GradleModuleSystem gradleModuleSystem) {
+      return hasUptodateDependency(gradleModuleSystem, ESPRESSO_CORE, ANDROIDX_ESPRESSO_CORE, myMinEspressoCoreVersion,
                                    myMinAndroidxEspressoCoreVersion);
     }
 
-    private boolean hasUptodateRulesDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
-      return hasUptodateDependency(androidModuleSystem, TEST_RULES, ANDROIDX_JUNIT, myMinRulesVersion,
+    private boolean hasUptodateRulesDependency(@NotNull GradleModuleSystem gradleModuleSystem) {
+      return hasUptodateDependency(gradleModuleSystem, TEST_RULES, ANDROIDX_JUNIT, myMinRulesVersion,
                                    myMinAndroidxExtJunitVersion);
     }
 
-    private boolean hasUptodateEspressoContribDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
-      return hasUptodateDependency(androidModuleSystem, ESPRESSO_CONTRIB, ANDROIDX_ESPRESSO_CONTRIB, myMinEspressoCoreVersion,
+    private boolean hasUptodateEspressoContribDependency(@NotNull GradleModuleSystem gradleModuleSystem) {
+      return hasUptodateDependency(gradleModuleSystem, ESPRESSO_CONTRIB, ANDROIDX_ESPRESSO_CONTRIB, myMinEspressoCoreVersion,
                                    myMinAndroidxEspressoCoreVersion);
     }
 
-    private boolean hasUptodateAndroidxRulesDependency(@NotNull AndroidModuleSystem androidModuleSystem) {
-      return hasUptodateDependency(androidModuleSystem, null, ANDROIDX_TEST_RULES, myMinRulesVersion, myMinAndroidxRulesVersion);
+    private boolean hasUptodateAndroidxRulesDependency(@NotNull GradleModuleSystem gradleModuleSystem) {
+      return hasUptodateDependency(gradleModuleSystem, null, ANDROIDX_TEST_RULES, myMinRulesVersion, myMinAndroidxRulesVersion);
     }
 
     private static boolean hasSetInstrumentationRunner(@NotNull AndroidModel androidModel) {
@@ -223,19 +223,19 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
      * Otherwise, it is an app build configuration error and Espresso Test Recorder dependency handling is undefined.
      */
     private boolean hasUptodateDependency(
-      @NotNull AndroidModuleSystem androidModuleSystem,
+      @NotNull GradleModuleSystem gradleModuleSystem,
       @Nullable GoogleMavenArtifactId artifact,
       @Nullable GoogleMavenArtifactId androidxArtifact,
       @NotNull Version minVersion,
       @NotNull Version androidxMinVersion
     ) {
-      Version dependencyVersion = getDependencyVersion(androidModuleSystem, artifact);
+      Version dependencyVersion = getDependencyVersion(gradleModuleSystem, artifact);
       if (dependencyVersion != null) {
         myUsesAnyEspressoDependency = true;
         return dependencyVersion.compareTo(minVersion) >= 0;
       }
 
-      Version androidxDependencyVersion = getDependencyVersion(androidModuleSystem, androidxArtifact);
+      Version androidxDependencyVersion = getDependencyVersion(gradleModuleSystem, androidxArtifact);
       if (androidxDependencyVersion != null) {
         myUsesAnyEspressoDependency = true;
         myUsesAndroidxDependency = true;
@@ -246,22 +246,23 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
     }
 
     @Nullable
-    private static Version getDependencyVersion(@NotNull AndroidModuleSystem androidModuleSystem,
+    private static Version getDependencyVersion(@NotNull GradleModuleSystem gradleModuleSystem,
                                                 @Nullable GoogleMavenArtifactId artifact) {
       if (artifact == null) return null;
-      GradleCoordinate resolvedDependency = androidModuleSystem.getResolvedDependency(artifact, DependencyScopeType.ANDROID_TEST);
+      Component resolvedDependency = gradleModuleSystem.getResolvedDependency(artifact.getModule(), DependencyScopeType.ANDROID_TEST);
       if (resolvedDependency == null) return null;
-      return resolvedDependency.getLowerBoundVersion();
+      return resolvedDependency.getVersion();
     }
 
-    private void setupEspresso(@NotNull ProjectBuildModel projectModel, @NotNull GradleBuildModel gradleBuildModel) {
+    private void setupEspresso(@NotNull ProjectBuildModel projectModel,
+                               @NotNull GradleBuildModel gradleBuildModel,
+                               @NotNull GradleModuleSystem gradleModuleSystem) {
       if (!myUsesAnyEspressoDependency) {
         // Establish whether to use androidx Espresso dependencies based on other present dependencies.
-        AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(facet.getModule());
         for (GoogleMavenArtifactId artifactId : GoogleMavenArtifactId.values()) {
           if (artifactId.getMavenGroupId().startsWith("androidx.") || artifactId.getMavenGroupId().equals("com.google.android.material")) {
-            GradleCoordinate coordinate = moduleSystem.getResolvedDependency(artifactId);
-            if (coordinate != null) {
+            Component component = gradleModuleSystem.getResolvedDependency(artifactId.getModule(), DependencyScopeType.MAIN);
+            if (component != null) {
               myUsesAndroidxDependency = true;
               break;
             }
@@ -377,8 +378,6 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
           }
           if (myUsesAndroidxDependency) {
             // No need to add excludes for more recent (e.g., androidx) dependency versions.
-            ArtifactDependencySpec spec = createArtifactDependencySpec(ANDROIDX_ESPRESSO_CONTRIB,
-                                                                       getAndroidxEspressoCoreVersion());
             addArtifact(createArtifactDependencySpec(ANDROIDX_ESPRESSO_CONTRIB, getAndroidxEspressoCoreVersion()),
                         ImmutableList.of());
           }
