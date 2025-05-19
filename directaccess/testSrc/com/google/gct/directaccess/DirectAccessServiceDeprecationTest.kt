@@ -19,11 +19,11 @@ import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.testutils.VirtualTimeScheduler
+import com.android.tools.adtui.swing.findDescendant
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.gservices.DevServicesDeprecationData
-import com.android.tools.idea.gservices.DevServicesDeprecationDataProvider
 import com.android.tools.idea.gservices.DevServicesDeprecationStatus
 import com.android.tools.idea.testing.disposable
 import com.google.api.services.testing.model.AndroidModel
@@ -40,16 +40,20 @@ import com.intellij.openapi.components.service
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
+import com.intellij.ui.InplaceButton
+import com.intellij.util.ui.JBUI.CurrentTheme.Banner
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
+import kotlin.test.fail
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -58,7 +62,7 @@ class DirectAccessServiceDeprecationTest {
   @get:Rule val projectRule = ProjectRule()
 
   private val session = FakeAdbSession()
-  private val deprecationProto =
+  private var deprecationProto: DevServicesDeprecationData =
     DevServicesDeprecationData(
       header = "",
       description = "my description",
@@ -80,24 +84,17 @@ class DirectAccessServiceDeprecationTest {
     }
 
   private lateinit var tracker: TestUsageTracker
+  private lateinit var mockDeprecationService: DirectAccessDeprecationState
 
   @Before
   fun setUp() {
-    val mockDevServicesDeprecationDataProvider = mock<DevServicesDeprecationDataProvider>()
-    doReturn(deprecationProto)
-      .whenever(mockDevServicesDeprecationDataProvider)
-      .getCurrentDeprecationData(eq("directaccess/directaccess"), any())
-    ApplicationManager.getApplication()
-      .replaceService(
-        DevServicesDeprecationDataProvider::class.java,
-        mockDevServicesDeprecationDataProvider,
-        projectRule.disposable,
-      )
-
+    mockDeprecationService = mock()
+    doAnswer { deprecationProto }.whenever(mockDeprecationService).serviceDeprecationData
+    doAnswer { !deprecationProto.isUnsupported() }.whenever(mockDeprecationService).isServiceEnabled
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessDeprecationState::class.java,
-        DirectAccessDeprecationState(),
+        mockDeprecationService,
         projectRule.disposable,
       )
 
@@ -136,9 +133,10 @@ class DirectAccessServiceDeprecationTest {
     // Show the banner when there are templates.
     templates.value = listOf(mock<DirectAccessDeviceTemplate>())
     val banners = plugin.extension(NotificationBannersExtension::class.java)!!.notificationBanners
-    yieldUntil { banners.value.size == 1 }
-    val banner = banners.value.first()
+    // Get the first non-empty value
+    val banner = banners.first { it.isNotEmpty() }.first()
     assertThat(banner.text).isEqualTo("<html>${deprecationProto.description}</html>")
+    assertThat(banner.background).isEqualTo(Banner.ERROR_BACKGROUND)
 
     findUsageEvent().let {
       assertThat(it.deprecationStatus)
@@ -188,7 +186,7 @@ class DirectAccessServiceDeprecationTest {
   }
 
   @Test
-  fun disableSelectProjectAction() {
+  fun disableSelectProjectActionWhenUnsupported() {
     val action = SelectProjectAction()
     // Click the device selection button.
     val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
@@ -205,6 +203,48 @@ class DirectAccessServiceDeprecationTest {
       )
     action.update(event)
     assertThat(event.presentation.isEnabled).isFalse()
+  }
+
+  @Test
+  fun testActionEnabledWhenDeprecated() {
+    deprecationProto = deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
+    val action = SelectProjectAction()
+    // Click the device selection button.
+    val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
+    val event =
+      TestActionEvent.createTestEvent(
+        action,
+        {
+          when (it) {
+            CommonDataKeys.PROJECT.name -> projectRule.project
+            else -> null
+          }
+        },
+        mouseEvent,
+      )
+    action.update(event)
+    assertThat(event.presentation.isEnabled).isTrue()
+  }
+
+  @Test
+  fun testDeprecationBannerCanBeDismissed() = runBlockingWithTimeout {
+    deprecationProto = deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
+    val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
+    val templates = plugin.templates as MutableStateFlow
+
+    // Show the banner when there are templates.
+    templates.value = listOf(mock<DirectAccessDeviceTemplate>())
+    val banners = plugin.extension(NotificationBannersExtension::class.java)!!.notificationBanners
+    // Get the first non-empty value
+    val banner = banners.first { it.isNotEmpty() }.first()
+
+    assertThat(banner.isVisible).isTrue()
+    assertThat(banner.background).isEqualTo(Banner.WARNING_BACKGROUND)
+
+    val closeButton = banner.findDescendant<InplaceButton>() ?: fail("Close button not found")
+    closeButton.doClick()
+
+    assertThat(banner.isVisible).isFalse()
   }
 
   private suspend fun findUsageEvent(): DevServiceDeprecationInfo {

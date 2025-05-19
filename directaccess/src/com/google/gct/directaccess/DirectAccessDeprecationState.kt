@@ -25,5 +25,6 @@ class DirectAccessDeprecationState {
     service<DevServicesDeprecationDataProvider>()
       .getCurrentDeprecationData("directaccess/directaccess", "Android Device Streaming")
 
-  val isServiceEnabled = serviceDeprecationData.isSupported()
+  // Service stays enabled for SUPPORTED and DEPRECATED
+  val isServiceEnabled = !serviceDeprecationData.isUnsupported()
 }

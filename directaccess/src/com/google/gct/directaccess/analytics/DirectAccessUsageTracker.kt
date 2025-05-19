@@ -170,6 +170,7 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
     userNotified: Boolean? = null,
     moreInfoClicked: Boolean? = null,
     updateClicked: Boolean? = null,
+    bannerDismissed: Boolean? = null,
   ) {
     UsageTracker.log(
       AndroidStudioEvent.newBuilder().apply {
@@ -182,6 +183,7 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
             userNotified?.let { this.userNotified = it }
             moreInfoClicked?.let { this.moreInfoClicked = it }
             updateClicked?.let { this.updateClicked = it }
+            bannerDismissed?.let { deliveryDismissed = it }
           }
         }
         productDetails = AndroidStudioUsageTracker.productDetails
