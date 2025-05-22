@@ -16,7 +16,6 @@
 package com.google.gct.directaccess
 
 import com.android.tools.idea.gservices.DevServicesDeprecationDataProvider
-import com.android.tools.idea.gservices.DevServicesDeprecationStatus
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 
@@ -24,7 +23,8 @@ import com.intellij.openapi.components.service
 class DirectAccessDeprecationState {
   val serviceDeprecationData =
     service<DevServicesDeprecationDataProvider>()
-      .getCurrentDeprecationData("directaccess/directaccess")
+      .getCurrentDeprecationData("directaccess/directaccess", "Android Device Streaming")
 
-  val isServiceEnabled = serviceDeprecationData.status == DevServicesDeprecationStatus.SUPPORTED
+  // Service stays enabled for SUPPORTED and DEPRECATED
+  val isServiceEnabled = !serviceDeprecationData.isUnsupported()
 }

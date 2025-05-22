@@ -32,7 +32,6 @@ import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gservices.DevServicesDeprecationData
-import com.android.tools.idea.gservices.DevServicesDeprecationStatus
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessDeprecationState
@@ -169,7 +168,7 @@ class DirectAccessDeviceProvisionerPlugin(
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
 
     val deprecationData = service<DirectAccessDeprecationState>().serviceDeprecationData
-    if (deprecationData.status == DevServicesDeprecationStatus.UNSUPPORTED) {
+    if (!deprecationData.isSupported()) {
       val banners = listOf(DeprecationBanner(deprecationData))
       scope.launch {
         templates.collect { list ->
@@ -422,7 +421,13 @@ class DirectAccessDeviceProvisionerPlugin(
   }
 
   private inner class DeprecationBanner(deprecationData: DevServicesDeprecationData) :
-    EditorNotificationPanel(Status.Warning) {
+    EditorNotificationPanel(
+      if (deprecationData.isDeprecated()) {
+        Status.Warning
+      } else {
+        Status.Error
+      }
+    ) {
     init {
       text = "<html>${deprecationData.description}</html>"
       var hasAction = false
@@ -442,6 +447,13 @@ class DirectAccessDeviceProvisionerPlugin(
       }
       if (hasAction) {
         moveActionLabels()
+      }
+
+      if (deprecationData.isDeprecated()) {
+        setCloseAction {
+          isVisible = false
+          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(bannerDismissed = true)
+        }
       }
     }
 
