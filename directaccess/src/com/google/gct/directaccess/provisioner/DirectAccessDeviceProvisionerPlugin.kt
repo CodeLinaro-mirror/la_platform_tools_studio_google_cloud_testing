@@ -449,11 +449,9 @@ class DirectAccessDeviceProvisionerPlugin(
         moveActionLabels()
       }
 
-      if (deprecationData.isDeprecated()) {
-        setCloseAction {
-          isVisible = false
-          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(bannerDismissed = true)
-        }
+      setCloseAction {
+        isVisible = false
+        DirectAccessUsageTracker.getInstance().trackServiceDeprecation(bannerDismissed = true)
       }
     }
 
