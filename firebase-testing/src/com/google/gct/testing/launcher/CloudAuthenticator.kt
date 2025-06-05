@@ -219,9 +219,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   /** Authorizes the installed application to access user's protected data. */
   fun authorize(): Boolean {
     if (!firebaseFeature.isLoggedIn()) {
-      val complete = CompletableFuture<Nothing>()
-      firebaseFeature.logInBlocking { complete.complete(null) }
-      complete.get()
+      firebaseFeature.logInBlocking()
     }
     return firebaseFeature.isLoggedIn()
   }

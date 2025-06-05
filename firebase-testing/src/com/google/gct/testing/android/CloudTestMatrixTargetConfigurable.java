@@ -92,21 +92,24 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
       }
     });
 
-    topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    topPanel = new JPanel();
+    topPanel.setLayout(new GridLayoutManager(3, 1));
     topPanel.setName("Cloud Testing");
     connectToCloudPanel = new JPanel();
     connectToCloudPanel.setLayout(new GridLayoutManager(USE_1P_LOGIN_UI.get() ? 4 : 3, 1));
     cloudDeviceMatrixPanel = new JPanel();
     cloudDeviceMatrixPanel.setLayout(new GridLayoutManager(4, 3));
-    topPanel.add(connectToCloudPanel, preparePanelGridConstraints(0));
-    topPanel.add(cloudDeviceMatrixPanel, preparePanelGridConstraints(1));
+
+    topPanel.add(new DeprecationBanner(), preparePanelGridConstraints(0));
+    topPanel.add(connectToCloudPanel, preparePanelGridConstraints(1));
+    topPanel.add(cloudDeviceMatrixPanel, preparePanelGridConstraints(2));
 
     connectToCloudPanel.add(createRunTestsInCloudPane(topPanel.getBackground(), 6, 4), prepareEditorPaneGridConstraints(0));
     JButton connectToCloudButton = new JButton(GoogleLoginService.getInstance().isLoggedIn() ? "Authorize Firebase" : "Sign in with Google");
     connectToCloudButton.addActionListener(e -> GoogleLoginService.getInstance().logInBlocking(
       ImmutableSet.of(getFirebaseFeature()),
       GoogleLoginPluginEvent.LoginType.FEATURE_LOGIN,
-      PreferredUser.ActiveUser.INSTANCE, true, () -> updateVisibility(), topPanel));
+      PreferredUser.ActiveUser.INSTANCE, true, (user, loginType) -> updateVisibility(), topPanel));
     connectToCloudPanel.add(connectToCloudButton, prepareElementGridConstraints(1, 0));
     if (USE_1P_LOGIN_UI.get()) {
       connectToCloudPanel.add(createScopePanel(), prepareElementGridConstraints(2, 0));
@@ -200,7 +203,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
   private GridConstraints preparePanelGridConstraints(int row) {
     return new GridConstraints(row, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
                                GridConstraints.SIZEPOLICY_CAN_GROW | GridConstraints.SIZEPOLICY_WANT_GROW | GridConstraints.SIZEPOLICY_CAN_SHRINK,
-                               GridConstraints.SIZEPOLICY_CAN_GROW | GridConstraints.SIZEPOLICY_WANT_GROW | GridConstraints.SIZEPOLICY_CAN_SHRINK,
+                               GridConstraints.SIZEPOLICY_CAN_GROW | GridConstraints.SIZEPOLICY_CAN_SHRINK,
                                new Dimension(-1, -1), new Dimension(-1, -1), new Dimension(-1, -1));
   }
 
