@@ -147,7 +147,7 @@ class DirectAccessServiceDeprecationTest {
       assertThat(it.hasUpdateClicked()).isFalse()
     }
 
-    val updateLink = banner.findLabelByName("Update")
+    val updateLink = banner.findLabelByName("Update Android Studio")
     updateLink?.doClick()
     findUsageEvent().let {
       assertThat(it.deprecationStatus)

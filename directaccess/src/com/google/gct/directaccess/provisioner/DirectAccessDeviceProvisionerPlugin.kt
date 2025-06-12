@@ -433,7 +433,7 @@ class DirectAccessDeviceProvisionerPlugin(
       var hasAction = false
       if (deprecationData.showUpdateAction) {
         hasAction = true
-        createActionLabel("Update") {
+        createActionLabel("Update Android Studio") {
           UpdateChecker.updateAndShowResult(project)
           DirectAccessUsageTracker.getInstance().trackServiceDeprecation(updateClicked = true)
         }
