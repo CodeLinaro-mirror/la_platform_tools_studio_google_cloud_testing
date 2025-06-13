@@ -55,11 +55,17 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.updateSettings.impl.UpdateChecker
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.util.preferredHeight
+import com.intellij.ui.util.preferredWidth
+import com.intellij.util.ui.JBDimension
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.io.IOException
 import java.time.Duration
+import javax.swing.JComponent
 import javax.swing.SwingConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -453,7 +459,26 @@ class DirectAccessDeviceProvisionerPlugin(
         isVisible = false
         DirectAccessUsageTracker.getInstance().trackServiceDeprecation(bannerDismissed = true)
       }
+
+      addComponentListener(
+        object : ComponentAdapter() {
+          override fun componentResized(e: ComponentEvent) {
+            this@DeprecationBanner.preferredSize =
+              JBDimension(this@DeprecationBanner.preferredWidth, getCorrectedPreferredHeight())
+          }
+        }
+      )
     }
+
+    /**
+     * Calculates the height of text label, links panel and their respective insets. Adds an extra
+     * buffer to the height for spacing.
+     */
+    private fun getCorrectedPreferredHeight() =
+      myLabel.getPreferredFullHeight() + myLinksPanel.getPreferredFullHeight() + JBUI.scale(20)
+
+    private fun JComponent.getPreferredFullHeight(): Int =
+      preferredHeight + insets.top + insets.bottom
 
     /**
      * Move the action labels to the south of the banner.
