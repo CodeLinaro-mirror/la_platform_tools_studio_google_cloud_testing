@@ -181,7 +181,8 @@ class DirectAccessDeviceProvisionerPlugin(
           notificationBanners.value = if (list.isEmpty()) listOf() else banners
         }
       }
-      DirectAccessUsageTracker.getInstance().trackServiceDeprecation(userNotified = true)
+      DirectAccessUsageTracker.getInstance()
+        .trackServiceDeprecation(deprecationData.status, userNotified = true)
     }
 
     // Select project from login onboarding tasks.
@@ -441,14 +442,16 @@ class DirectAccessDeviceProvisionerPlugin(
         hasAction = true
         createActionLabel("Update Android Studio") {
           UpdateChecker.updateAndShowResult(project)
-          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(updateClicked = true)
+          DirectAccessUsageTracker.getInstance()
+            .trackServiceDeprecation(deprecationData.status, updateClicked = true)
         }
       }
       if (deprecationData.moreInfoUrl.isNotEmpty()) {
         hasAction = true
         createActionLabel("More info") {
           BrowserUtil.browse(deprecationData.moreInfoUrl)
-          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(moreInfoClicked = true)
+          DirectAccessUsageTracker.getInstance()
+            .trackServiceDeprecation(deprecationData.status, moreInfoClicked = true)
         }
       }
       if (hasAction) {
@@ -457,7 +460,8 @@ class DirectAccessDeviceProvisionerPlugin(
 
       setCloseAction {
         isVisible = false
-        DirectAccessUsageTracker.getInstance().trackServiceDeprecation(bannerDismissed = true)
+        DirectAccessUsageTracker.getInstance()
+          .trackServiceDeprecation(deprecationData.status, bannerDismissed = true)
       }
 
       addComponentListener(
