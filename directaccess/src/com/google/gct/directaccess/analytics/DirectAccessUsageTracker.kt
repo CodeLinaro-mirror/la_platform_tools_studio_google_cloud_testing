@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.analytics
 
 import com.android.tools.analytics.UsageTracker
+import com.android.tools.idea.gservices.DevServicesDeprecationStatus
 import com.android.tools.idea.stats.AndroidStudioUsageTracker
 import com.android.tools.idea.stats.AnonymizerUtil
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionMetrics
@@ -167,6 +168,7 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
   }
 
   fun trackServiceDeprecation(
+    deprecationStatus: DevServicesDeprecationStatus,
     userNotified: Boolean? = null,
     moreInfoClicked: Boolean? = null,
     updateClicked: Boolean? = null,
@@ -178,7 +180,12 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
         directAccessUsageEventBuilder.apply {
           type = DirectAccessUsageEvent.DirectAccessUsageEventType.SERVICE_DEPRECATION
           devServiceDeprecationInfoBuilder.apply {
-            deprecationStatus = DeprecationStatus.UNSUPPORTED
+            this.deprecationStatus =
+              when (deprecationStatus) {
+                DevServicesDeprecationStatus.DEPRECATED -> DeprecationStatus.DEPRECATED
+                DevServicesDeprecationStatus.UNSUPPORTED -> DeprecationStatus.UNSUPPORTED
+                else -> throw IllegalArgumentException("SUPPORTED should not be logged")
+              }
             deliveryType = DeliveryType.BANNER
             userNotified?.let { this.userNotified = it }
             moreInfoClicked?.let { this.moreInfoClicked = it }

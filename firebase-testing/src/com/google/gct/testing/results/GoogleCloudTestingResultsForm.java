@@ -136,7 +136,7 @@ public class GoogleCloudTestingResultsForm extends TestResultsPanel
 
     final GoogleCloudTestTreeStructure structure = new GoogleCloudTestTreeStructure(myProject, myTestsRootNode);
     myTreeBuilder = new GoogleCloudTestTreeBuilder(myTreeView, structure);
-    StructureTreeModel structureTreeModel = new StructureTreeModel<>(structure, IndexComparator.INSTANCE, myProject);
+    StructureTreeModel structureTreeModel = new StructureTreeModel<>(structure, IndexComparator.getInstance(), myProject);
     AsyncTreeModel asyncTreeModel = new AsyncTreeModel(structureTreeModel, true, myProject);
     myTreeView.setModel(asyncTreeModel);
     myTreeBuilder.setModel(structureTreeModel);

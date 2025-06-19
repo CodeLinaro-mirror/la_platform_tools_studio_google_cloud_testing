@@ -55,11 +55,17 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.updateSettings.impl.UpdateChecker
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.util.preferredHeight
+import com.intellij.ui.util.preferredWidth
+import com.intellij.util.ui.JBDimension
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.io.IOException
 import java.time.Duration
+import javax.swing.JComponent
 import javax.swing.SwingConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -175,7 +181,8 @@ class DirectAccessDeviceProvisionerPlugin(
           notificationBanners.value = if (list.isEmpty()) listOf() else banners
         }
       }
-      DirectAccessUsageTracker.getInstance().trackServiceDeprecation(userNotified = true)
+      DirectAccessUsageTracker.getInstance()
+        .trackServiceDeprecation(deprecationData.status, userNotified = true)
     }
 
     // Select project from login onboarding tasks.
@@ -433,16 +440,18 @@ class DirectAccessDeviceProvisionerPlugin(
       var hasAction = false
       if (deprecationData.showUpdateAction) {
         hasAction = true
-        createActionLabel("Update") {
+        createActionLabel("Update Android Studio") {
           UpdateChecker.updateAndShowResult(project)
-          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(updateClicked = true)
+          DirectAccessUsageTracker.getInstance()
+            .trackServiceDeprecation(deprecationData.status, updateClicked = true)
         }
       }
       if (deprecationData.moreInfoUrl.isNotEmpty()) {
         hasAction = true
         createActionLabel("More info") {
           BrowserUtil.browse(deprecationData.moreInfoUrl)
-          DirectAccessUsageTracker.getInstance().trackServiceDeprecation(moreInfoClicked = true)
+          DirectAccessUsageTracker.getInstance()
+            .trackServiceDeprecation(deprecationData.status, moreInfoClicked = true)
         }
       }
       if (hasAction) {
@@ -451,9 +460,29 @@ class DirectAccessDeviceProvisionerPlugin(
 
       setCloseAction {
         isVisible = false
-        DirectAccessUsageTracker.getInstance().trackServiceDeprecation(bannerDismissed = true)
+        DirectAccessUsageTracker.getInstance()
+          .trackServiceDeprecation(deprecationData.status, bannerDismissed = true)
       }
+
+      addComponentListener(
+        object : ComponentAdapter() {
+          override fun componentResized(e: ComponentEvent) {
+            this@DeprecationBanner.preferredSize =
+              JBDimension(this@DeprecationBanner.preferredWidth, getCorrectedPreferredHeight())
+          }
+        }
+      )
     }
+
+    /**
+     * Calculates the height of text label, links panel and their respective insets. Adds an extra
+     * buffer to the height for spacing.
+     */
+    private fun getCorrectedPreferredHeight() =
+      myLabel.getPreferredFullHeight() + myLinksPanel.getPreferredFullHeight() + JBUI.scale(20)
+
+    private fun JComponent.getPreferredFullHeight(): Int =
+      preferredHeight + insets.top + insets.bottom
 
     /**
      * Move the action labels to the south of the banner.
