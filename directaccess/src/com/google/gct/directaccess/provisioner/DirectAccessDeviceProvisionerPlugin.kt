@@ -59,8 +59,12 @@ import com.intellij.ui.util.preferredHeight
 import com.intellij.ui.util.preferredWidth
 import com.intellij.util.ui.JBDimension
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.JBUI.CurrentTheme.Banner
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.RenderingHints
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.io.IOException
@@ -427,7 +431,7 @@ class DirectAccessDeviceProvisionerPlugin(
     service<GoogleLoginService>().removeVetoableLogoutListener(vetoableLogOutListener)
   }
 
-  private inner class DeprecationBanner(deprecationData: DevServicesDeprecationData) :
+  private inner class DeprecationBanner(private val deprecationData: DevServicesDeprecationData) :
     EditorNotificationPanel(
       if (deprecationData.isDeprecated()) {
         Status.Warning
@@ -497,6 +501,22 @@ class DirectAccessDeviceProvisionerPlugin(
         // Align firstActionLabel vertically with myLabel.
         myLinksPanel.border =
           JBUI.Borders.empty(2, myLabel.icon.iconWidth + myLabel.iconTextGap - 2, 0, 0)
+      }
+    }
+
+    override fun paintBorder(g: Graphics) {
+      super.paintBorder(g)
+      with(g as Graphics2D) {
+        val color =
+          if (deprecationData.isDeprecated()) {
+            Banner.WARNING_BORDER_COLOR
+          } else {
+            Banner.ERROR_BORDER_COLOR
+          }
+        setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+        g.color = color
+        g.drawRoundRect(0, 0, width - 1, height - 1, 12, 12)
       }
     }
   }
