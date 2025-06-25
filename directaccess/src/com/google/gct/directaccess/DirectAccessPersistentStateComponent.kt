@@ -69,7 +69,8 @@ fun ProvisionerDeviceType.toSerializationDeviceType(): DeviceType =
     ProvisionerDeviceType.TV -> DeviceType.TV
     ProvisionerDeviceType.AUTOMOTIVE -> DeviceType.AUTOMOTIVE
     ProvisionerDeviceType.DESKTOP -> DeviceType.PHONE
-    ProvisionerDeviceType.XR -> DeviceType.PHONE
+    ProvisionerDeviceType.XR_HEADSET -> DeviceType.PHONE
+    ProvisionerDeviceType.XR_GLASSES -> DeviceType.PHONE
   }
 
 data class PersistentDeviceSelectionData(

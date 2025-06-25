@@ -45,7 +45,7 @@ object CatalogClient {
         "PHONE",
         "TABLET" -> DeviceType.HANDHELD
         "WEARABLE" -> DeviceType.WEAR
-        "XR" -> DeviceType.XR
+        "XR" -> DeviceType.XR_HEADSET
         else -> DeviceType.HANDHELD
       }
     val provisionerFormFactor =
