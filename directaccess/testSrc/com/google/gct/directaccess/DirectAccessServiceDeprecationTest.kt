@@ -36,7 +36,9 @@ import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
+import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.replaceService
@@ -45,8 +47,10 @@ import com.intellij.util.ui.JBUI.CurrentTheme.Banner
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
 import kotlin.test.fail
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -135,6 +139,7 @@ class DirectAccessServiceDeprecationTest {
     val banners = plugin.extension(NotificationBannersExtension::class.java)!!.notificationBanners
     // Get the first non-empty value
     val banner = banners.first { it.isNotEmpty() }.first()
+    withContext(Dispatchers.EDT) { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
     assertThat(banner.text).isEqualTo("<html>${deprecationProto.description}</html>")
     assertThat(banner.background).isEqualTo(Banner.ERROR_BACKGROUND)
 
