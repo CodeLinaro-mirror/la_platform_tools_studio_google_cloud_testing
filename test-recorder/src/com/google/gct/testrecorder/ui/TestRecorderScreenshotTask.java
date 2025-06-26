@@ -19,7 +19,6 @@ package com.google.gct.testrecorder.ui;
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.ui.screenshot.ScreenshotImage;
-import com.android.tools.idea.ui.screenshot.ScreenshotTask;
 import com.android.tools.idea.ui.screenshot.ShellCommandScreenshotProvider;
 import com.android.uiautomator.UiAutomatorModel;
 import com.intellij.openapi.progress.ProgressIndicator;
