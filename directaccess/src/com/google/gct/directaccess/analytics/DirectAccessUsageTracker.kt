@@ -16,13 +16,11 @@
 package com.google.gct.directaccess.analytics
 
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.gservices.DevServicesDeprecationStatus
 import com.android.tools.idea.stats.AndroidStudioUsageTracker
 import com.android.tools.idea.stats.AnonymizerUtil
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionMetrics
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
-import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo.DeliveryType
-import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo.DeprecationStatus
+import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo
 import com.google.wireless.android.sdk.stats.DeviceInfo as MetricsDeviceInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.CONNECT_DEVICE
@@ -167,31 +165,13 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
     track(deviceInfo, event)
   }
 
-  fun trackServiceDeprecation(
-    deprecationStatus: DevServicesDeprecationStatus,
-    userNotified: Boolean? = null,
-    moreInfoClicked: Boolean? = null,
-    updateClicked: Boolean? = null,
-    bannerDismissed: Boolean? = null,
-  ) {
+  fun trackServiceDeprecation(deprecationInfo: DevServiceDeprecationInfo) {
     UsageTracker.log(
       AndroidStudioEvent.newBuilder().apply {
         kind = AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT
         directAccessUsageEventBuilder.apply {
           type = DirectAccessUsageEvent.DirectAccessUsageEventType.SERVICE_DEPRECATION
-          devServiceDeprecationInfoBuilder.apply {
-            this.deprecationStatus =
-              when (deprecationStatus) {
-                DevServicesDeprecationStatus.DEPRECATED -> DeprecationStatus.DEPRECATED
-                DevServicesDeprecationStatus.UNSUPPORTED -> DeprecationStatus.UNSUPPORTED
-                else -> throw IllegalArgumentException("SUPPORTED should not be logged")
-              }
-            deliveryType = DeliveryType.BANNER
-            userNotified?.let { this.userNotified = it }
-            moreInfoClicked?.let { this.moreInfoClicked = it }
-            updateClicked?.let { this.updateClicked = it }
-            bannerDismissed?.let { deliveryDismissed = it }
-          }
+          devServiceDeprecationInfo = deprecationInfo
         }
         productDetails = AndroidStudioUsageTracker.productDetails
       }

@@ -31,6 +31,8 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.gservices.DeprecationBanner
+import com.android.tools.idea.gservices.DevServiceDeprecationInfoBuilder
 import com.android.tools.idea.gservices.DevServicesDeprecationData
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.annotations.VisibleForTesting
@@ -45,32 +47,18 @@ import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo.DeliveryType.BANNER
 import com.google.wireless.android.sdk.stats.DeviceManagerEvent
-import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import com.intellij.openapi.updateSettings.impl.UpdateChecker
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.EditorNotificationPanel
-import com.intellij.ui.util.preferredHeight
-import com.intellij.ui.util.preferredWidth
-import com.intellij.util.ui.JBDimension
-import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.JBUI.CurrentTheme.Banner
-import java.awt.BorderLayout
 import java.awt.Component
-import java.awt.Graphics
-import java.awt.Graphics2D
-import java.awt.RenderingHints
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import java.io.IOException
 import java.time.Duration
-import javax.swing.JComponent
-import javax.swing.SwingConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -179,14 +167,12 @@ class DirectAccessDeviceProvisionerPlugin(
 
     val deprecationData = service<DirectAccessDeprecationState>().serviceDeprecationData
     if (!deprecationData.isSupported()) {
-      val banners = listOf(DeprecationBanner(deprecationData))
+      val banners = listOf(DirectAccessDeprecationBanner(deprecationData))
       scope.launch {
         templates.collect { list ->
           notificationBanners.value = if (list.isEmpty()) listOf() else banners
         }
       }
-      DirectAccessUsageTracker.getInstance()
-        .trackServiceDeprecation(deprecationData.status, userNotified = true)
     }
 
     // Select project from login onboarding tasks.
@@ -431,93 +417,41 @@ class DirectAccessDeviceProvisionerPlugin(
     service<GoogleLoginService>().removeVetoableLogoutListener(vetoableLogOutListener)
   }
 
-  private inner class DeprecationBanner(private val deprecationData: DevServicesDeprecationData) :
-    EditorNotificationPanel(
-      if (deprecationData.isDeprecated()) {
-        Status.Warning
-      } else {
-        Status.Error
-      }
-    ) {
-    init {
-      text = "<html>${deprecationData.description}</html>"
-      var hasAction = false
-      if (deprecationData.showUpdateAction) {
-        hasAction = true
-        createActionLabel("Update Android Studio") {
-          UpdateChecker.updateAndShowResult(project)
-          DirectAccessUsageTracker.getInstance()
-            .trackServiceDeprecation(deprecationData.status, updateClicked = true)
-        }
-      }
-      if (deprecationData.moreInfoUrl.isNotEmpty()) {
-        hasAction = true
-        createActionLabel("More info") {
-          BrowserUtil.browse(deprecationData.moreInfoUrl)
-          DirectAccessUsageTracker.getInstance()
-            .trackServiceDeprecation(deprecationData.status, moreInfoClicked = true)
-        }
-      }
-      if (hasAction) {
-        moveActionLabels()
-      }
-
-      setCloseAction {
-        isVisible = false
-        DirectAccessUsageTracker.getInstance()
-          .trackServiceDeprecation(deprecationData.status, bannerDismissed = true)
-      }
-
-      addComponentListener(
-        object : ComponentAdapter() {
-          override fun componentResized(e: ComponentEvent) {
-            this@DeprecationBanner.preferredSize =
-              JBDimension(this@DeprecationBanner.preferredWidth, getCorrectedPreferredHeight())
-          }
-        }
-      )
+  private inner class DirectAccessDeprecationBanner(
+    private val deprecationData: DevServicesDeprecationData
+  ) : DeprecationBanner(project, deprecationData, true) {
+    override fun trackUserNotified() {
+      logEvent(userNotified = true)
     }
 
-    /**
-     * Calculates the height of text label, links panel and their respective insets. Adds an extra
-     * buffer to the height for spacing.
-     */
-    private fun getCorrectedPreferredHeight() =
-      myLabel.getPreferredFullHeight() + myLinksPanel.getPreferredFullHeight() + JBUI.scale(20)
-
-    private fun JComponent.getPreferredFullHeight(): Int =
-      preferredHeight + insets.top + insets.bottom
-
-    /**
-     * Move the action labels to the south of the banner.
-     *
-     * TODO (b/394364819) layout action labels with stable APIs
-     */
-    private fun moveActionLabels() {
-      val parent = myLinksPanel.parent
-      if (parent.layout is BorderLayout) {
-        myLabel.verticalTextPosition = SwingConstants.TOP
-        parent.add(myLinksPanel, BorderLayout.SOUTH)
-        // Align firstActionLabel vertically with myLabel.
-        myLinksPanel.border =
-          JBUI.Borders.empty(2, myLabel.icon.iconWidth + myLabel.iconTextGap - 2, 0, 0)
-      }
+    override fun trackUpdateClicked() {
+      logEvent(userClickedUpdate = true)
     }
 
-    override fun paintBorder(g: Graphics) {
-      super.paintBorder(g)
-      with(g as Graphics2D) {
-        val color =
-          if (deprecationData.isDeprecated()) {
-            Banner.WARNING_BORDER_COLOR
-          } else {
-            Banner.ERROR_BORDER_COLOR
-          }
-        setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-        g.color = color
-        g.drawRoundRect(0, 0, width - 1, height - 1, 12, 12)
-      }
+    override fun trackMoreInfoClicked() {
+      logEvent(userClickedMoreInfo = true)
     }
+
+    override fun trackBannerDismissed() {
+      logEvent(bannerDismissed = true)
+    }
+
+    private fun logEvent(
+      userNotified: Boolean? = null,
+      userClickedMoreInfo: Boolean? = null,
+      userClickedUpdate: Boolean? = null,
+      bannerDismissed: Boolean? = null,
+    ) =
+      DirectAccessUsageTracker.getInstance()
+        .trackServiceDeprecation(
+          DevServiceDeprecationInfoBuilder(
+            deprecationData.status,
+            BANNER,
+            userNotified,
+            userClickedMoreInfo,
+            userClickedUpdate,
+            bannerDismissed,
+          )
+        )
   }
 }
