@@ -15,16 +15,33 @@
  */
 package com.google.gct.directaccess
 
+import com.android.tools.idea.gservices.DevServicesDeprecationData
 import com.android.tools.idea.gservices.DevServicesDeprecationDataProvider
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 @Service
-class DirectAccessDeprecationState {
-  val serviceDeprecationData =
+class DirectAccessDeprecationState(scope: CoroutineScope) : Disposable {
+
+  val serviceDeprecationData: StateFlow<DevServicesDeprecationData> =
     service<DevServicesDeprecationDataProvider>()
-      .getCurrentDeprecationData("directaccess/directaccess", "Android Device Streaming")
+      .registerServiceForChange(
+        "directaccess/directaccess",
+        "Android Device Streaming",
+        this@DirectAccessDeprecationState,
+      )
 
   // Service stays enabled for SUPPORTED and DEPRECATED
-  val isServiceEnabled = !serviceDeprecationData.isUnsupported()
+  val isServiceEnabledFlow =
+    serviceDeprecationData
+      .map { data -> !data.isUnsupported() }
+      .stateIn(scope, SharingStarted.Eagerly, true)
+
+  override fun dispose() = Unit
 }

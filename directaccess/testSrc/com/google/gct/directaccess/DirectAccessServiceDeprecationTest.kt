@@ -18,10 +18,15 @@ package com.google.gct.directaccess
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
+import com.android.sdklib.deviceprovisioner.DeviceId
+import com.android.sdklib.deviceprovisioner.DeviceProperties
+import com.android.sdklib.deviceprovisioner.DeviceTemplate
+import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.adtui.swing.findDescendant
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
+import com.android.tools.idea.concurrency.createCoroutineScope
 import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.gservices.DevServicesDeprecationData
 import com.android.tools.idea.gservices.DevServicesDeprecationStatus
@@ -30,10 +35,10 @@ import com.google.api.services.testing.model.AndroidModel
 import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
-import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.ui.actions.SelectProjectAction
 import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
@@ -47,9 +52,16 @@ import com.intellij.util.ui.JBUI.CurrentTheme.Banner
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
 import kotlin.test.fail
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
@@ -87,15 +99,33 @@ class DirectAccessServiceDeprecationTest {
       screenY = 100
       screenDensity = 1000
     }
+  private val fakeTemplate =
+    object : DeviceTemplate {
+      override val id = DeviceId("", true, "")
+      override val properties = DeviceProperties.buildForTest { icon = AllIcons.General.Warning }
+      override val activationAction = mock<TemplateActivationAction>()
+      override val editAction = null
+    }
 
   private lateinit var tracker: TestUsageTracker
   private lateinit var mockDeprecationService: DirectAccessDeprecationState
+  private lateinit var deprecationDataFlow: MutableStateFlow<DevServicesDeprecationData>
+  private lateinit var serviceEnabledFlow: StateFlow<Boolean>
+  private lateinit var scope: CoroutineScope
 
   @Before
   fun setUp() {
+    scope = projectRule.disposable.createCoroutineScope()
     mockDeprecationService = mock()
-    doAnswer { deprecationProto }.whenever(mockDeprecationService).serviceDeprecationData
-    doAnswer { !deprecationProto.isUnsupported() }.whenever(mockDeprecationService).isServiceEnabled
+    deprecationDataFlow = MutableStateFlow(DevServicesDeprecationData.EMPTY)
+    serviceEnabledFlow =
+      deprecationDataFlow
+        .map { data -> !data.isUnsupported() }
+        .stateIn(scope, SharingStarted.Eagerly, true)
+    doAnswer { deprecationDataFlow.asStateFlow() }
+      .whenever(mockDeprecationService)
+      .serviceDeprecationData
+    doAnswer { serviceEnabledFlow }.whenever(mockDeprecationService).isServiceEnabledFlow
     ApplicationManager.getApplication()
       .replaceService(
         DirectAccessDeprecationState::class.java,
@@ -137,8 +167,12 @@ class DirectAccessServiceDeprecationTest {
     val templates = plugin.templates as MutableStateFlow
 
     // Show the banner when there are templates.
-    templates.value = listOf(mock<DirectAccessDeviceTemplate>())
-    val banners = plugin.extension(NotificationBannersExtension::class.java)!!.notificationBanners
+    templates.value = listOf(fakeTemplate)
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
+    }
+    val banners = plugin.getNotificationBanners()
+
     // Get the first non-empty value
     val banner = banners.first { it.isNotEmpty() }.first()
     withContext(Dispatchers.EDT) { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
@@ -182,18 +216,54 @@ class DirectAccessServiceDeprecationTest {
   }
 
   @Test
+  fun testBannerChangesFromWarningToErrorOnDataChange() = runBlockingWithTimeout {
+    deprecationDataFlow.update { DevServicesDeprecationData.EMPTY }
+    val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
+    val templates = plugin.templates as MutableStateFlow
+
+    // Show the banner when there are templates.
+    templates.value = listOf(fakeTemplate)
+
+    var banners = plugin.getNotificationBanners()
+
+    assertThat(banners.value).isEmpty()
+    withContext(Dispatchers.EDT) { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
+
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
+    }
+    yieldUntil { banners.value.isNotEmpty() }
+    val banner = banners.first { it.isNotEmpty() }.first()
+    assertThat(banner.background).isEqualTo(Banner.WARNING_BACKGROUND)
+
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
+    }
+    yieldUntil { banners.first { it.isNotEmpty() }.first().background == Banner.ERROR_BACKGROUND }
+  }
+
+  @Test
   fun testDeviceList() {
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
+    }
     assertThat(service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList("any")).isEmpty()
   }
 
   @Test
   fun disableAddDeviceAction() {
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
+    }
     val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     assertThat(plugin.createDeviceTemplateAction.presentation.value.enabled).isFalse()
   }
 
   @Test
   fun disableSelectProjectActionWhenUnsupported() {
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
+    }
     val action = SelectProjectAction()
     // Click the device selection button.
     val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
@@ -235,13 +305,15 @@ class DirectAccessServiceDeprecationTest {
 
   @Test
   fun testDeprecationBannerCanBeDismissed() = runBlockingWithTimeout {
-    deprecationProto = deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
+    }
     val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     val templates = plugin.templates as MutableStateFlow
 
     // Show the banner when there are templates.
-    templates.value = listOf(mock<DirectAccessDeviceTemplate>())
-    val banners = plugin.extension(NotificationBannersExtension::class.java)!!.notificationBanners
+    templates.value = listOf(fakeTemplate)
+    val banners = plugin.getNotificationBanners()
     // Get the first non-empty value
     val banner = banners.first { it.isNotEmpty() }.first()
 
@@ -252,6 +324,30 @@ class DirectAccessServiceDeprecationTest {
     closeButton.doClick()
 
     assertThat(banner.isVisible).isFalse()
+  }
+
+  @Test
+  fun testDeprecationBannerRemovedWhenDataChangesToSupported() = runBlockingWithTimeout {
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
+    }
+    val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
+    val templates = plugin.templates as MutableStateFlow
+
+    // Show the banner when there are templates.
+    templates.value = listOf(fakeTemplate)
+    val banners = plugin.getNotificationBanners()
+    // Get the first non-empty value
+    val banner = banners.first { it.isNotEmpty() }.first()
+
+    assertThat(banner.isVisible).isTrue()
+    assertThat(banner.background).isEqualTo(Banner.WARNING_BACKGROUND)
+
+    deprecationDataFlow.update {
+      deprecationProto.copy(status = DevServicesDeprecationStatus.SUPPORTED)
+    }
+
+    yieldUntil { plugin.getNotificationBanners().value.isEmpty() }
   }
 
   private suspend fun findUsageEvent(): DevServiceDeprecationInfo {
@@ -267,4 +363,7 @@ class DirectAccessServiceDeprecationTest {
     }
     return info!!
   }
+
+  private fun DirectAccessDeviceProvisionerPlugin.getNotificationBanners() =
+    extension(NotificationBannersExtension::class.java)!!.notificationBanners
 }
