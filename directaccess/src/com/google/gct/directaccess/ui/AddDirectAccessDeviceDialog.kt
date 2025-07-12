@@ -132,7 +132,11 @@ class AddDirectAccessDeviceDialog(
     val collectAction = {
       rows =
         deviceSelectionListFlow.value.map { deviceSelection ->
-          DirectAccessDeviceProfile(deviceSelection.deviceInfo, deviceSelection.isSelected)
+          val isEnabled =
+            profiles.entries
+              .find { (profile, _) -> profile.isSameDevice(deviceSelection.deviceInfo) }
+              ?.value ?: deviceSelection.isSelected
+          DirectAccessDeviceProfile(deviceSelection.deviceInfo, isEnabled)
         }
       profiles = rows.map { profile -> profile to profile.isAlreadyPresent }.toMutableStateMap()
     }

@@ -214,6 +214,33 @@ class SelectDeviceDialogTest(private val deviceListProvider: () -> List<DeviceIn
   }
 
   @Test
+  fun refreshKeepsSelection(): Unit = runBlockingWithTimeout {
+    val deviceToSelect = phones[2]
+    composeTestRule
+      .onNodeWithText(deviceToSelect.codename)
+      .onChild()
+      .assertIsToggleable()
+      .performClick()
+    composeTestRule.waitForIdle()
+    val newList =
+      deviceSelectionListFlow.value.map {
+        if (it.deviceInfo == deviceToSelect) {
+          DeviceSelection(false, deviceToSelect.copy(deviceAvailabilityEstimateSeconds = 10L))
+        } else it
+      }
+    deviceSelectionListFlow.value = newList
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("Confirm").performClick()
+    composeTestRule.waitForIdle()
+
+    assertThat(
+        deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename ==
+          deviceToSelect.codename
+      )
+      .isTrue()
+  }
+
+  @Test
   fun cancelSelection() {
     val deviceToSelect = phones[2]
     composeTestRule

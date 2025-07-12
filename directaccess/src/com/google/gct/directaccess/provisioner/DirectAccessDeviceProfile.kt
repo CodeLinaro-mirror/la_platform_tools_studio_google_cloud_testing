@@ -67,6 +67,17 @@ internal data class DirectAccessDeviceProfile(
   override val isRemote: Boolean
     get() = true
 
+  fun isSameDevice(other: DeviceInfo): Boolean =
+    apiRange == Range.singleton(other.api) &&
+      manufacturer == other.manufacturer &&
+      name == other.name &&
+      resolution == Resolution(other.screenX, other.screenY) &&
+      displayDensity == other.screenDensity &&
+      formFactor == other.formFactor &&
+      key == other.key &&
+      codename == other.codename &&
+      labId == other.labId
+
   @Composable
   override fun Icon(modifier: Modifier) {
     val iconType =
