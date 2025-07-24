@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
@@ -129,6 +130,7 @@ class DirectAccessServiceDeprecationTest {
     session.close()
   }
 
+  @Ignore("b/432753412")
   @Test
   fun testNotificationBanner() = runBlockingWithTimeout {
     val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)

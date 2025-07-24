@@ -45,6 +45,10 @@ object CatalogClient {
         "PHONE",
         "TABLET" -> DeviceType.HANDHELD
         "WEARABLE" -> DeviceType.WEAR
+        "TV" -> DeviceType.TV
+        "AUTOMOTIVE" -> DeviceType.AUTOMOTIVE
+        "DESKTOP" -> DeviceType.DESKTOP
+        // TODO(b/433571712) provide more accurate device type for XR devices
         "XR" -> DeviceType.XR_HEADSET
         else -> DeviceType.HANDHELD
       }
@@ -54,6 +58,8 @@ object CatalogClient {
         "TABLET" -> FormFactors.TABLET
         "WEARABLE" -> FormFactors.WEAR
         "TV" -> FormFactors.TV
+        "AUTOMOTIVE" -> FormFactors.AUTO
+        "DESKTOP" -> FormFactors.DESKTOP
         "XR" -> FormFactors.XR
         else -> FormFactors.PHONE
       }
