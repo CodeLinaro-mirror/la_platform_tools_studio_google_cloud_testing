@@ -30,6 +30,9 @@ import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccess
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType.RESERVE_DEVICE
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.EndReservationDetails.EndReservationType
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.ExtendReservationDetails.ExtendReservationDuration
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEventKt.oemLabDialogDetails
+import com.google.wireless.android.sdk.stats.androidStudioEvent
+import com.google.wireless.android.sdk.stats.directAccessUsageEvent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import java.time.Duration
@@ -167,13 +170,33 @@ class DirectAccessUsageTracker(val scope: CoroutineScope) {
 
   fun trackServiceDeprecation(deprecationInfo: DevServiceDeprecationInfo) {
     UsageTracker.log(
-      AndroidStudioEvent.newBuilder().apply {
+      androidStudioEvent {
         kind = AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT
-        directAccessUsageEventBuilder.apply {
+        directAccessUsageEvent = directAccessUsageEvent {
           type = DirectAccessUsageEvent.DirectAccessUsageEventType.SERVICE_DEPRECATION
           devServiceDeprecationInfo = deprecationInfo
         }
         productDetails = AndroidStudioUsageTracker.productDetails
+      }
+    )
+  }
+
+  fun trackOemEulaDialog(
+    callbackReceived: Boolean,
+    clickedConsoleButton: Boolean,
+    access: DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult,
+  ) {
+    UsageTracker.log(
+      androidStudioEvent {
+        kind = AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT
+        directAccessUsageEvent = directAccessUsageEvent {
+          type = DirectAccessUsageEvent.DirectAccessUsageEventType.OEM_LAB_DIALOG
+          oemLabDialogDetails = oemLabDialogDetails {
+            receivedCallback = callbackReceived
+            accessCheckResult = access
+            clickedCloudConsoleButton = clickedConsoleButton
+          }
+        }
       }
     )
   }

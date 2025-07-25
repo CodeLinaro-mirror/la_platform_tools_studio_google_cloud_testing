@@ -34,8 +34,10 @@ import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.createCoroutineScope
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.checkPermissions
 import com.google.gct.directaccess.provisioner.OemLabsAssetsRegistry
+import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
@@ -110,9 +112,29 @@ class OemEulaContent(
     ERROR,
   }
 
+  private var metricsReceivedCallback = false
+  private var metricsClickedConsoleButton = false
+
   private var hasPermission: PermissionCheckResult by mutableStateOf(PermissionCheckResult.LOADING)
 
   init {
+    Disposer.register(disposable) {
+      DirectAccessUsageTracker.getInstance()
+        .trackOemEulaDialog(
+          metricsReceivedCallback,
+          metricsClickedConsoleButton,
+          when (hasPermission) {
+            PermissionCheckResult.LOADING ->
+              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.UNKNOWN
+            PermissionCheckResult.ACCESS ->
+              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
+            PermissionCheckResult.NO_ACCESS ->
+              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS
+            PermissionCheckResult.ERROR ->
+              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.CHECK_FAILED
+          },
+        )
+    }
     disposable.createCoroutineScope().launch(Dispatchers.IO) {
       val cloudProject =
         project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
@@ -174,6 +196,7 @@ class OemEulaContent(
             hasPermission == PermissionCheckResult.ACCESS ||
               hasPermission == PermissionCheckResult.ERROR,
           onClick = {
+            metricsClickedConsoleButton = true
             runWithModalProgressBlocking(
               owner,
               "Continue in Cloud Console...",
@@ -205,8 +228,18 @@ class OemEulaContent(
 
   suspend fun startServerAndAwaitFirstCallback() {
     var server: Server? = null
-    Disposer.register(disposable) { server?.stop() }
+
+    var disposed = false
+    val serverDisposeLock = Any()
     var lock: Mutex? = Mutex(true)
+    Disposer.register(disposable) {
+      synchronized(serverDisposeLock) {
+        disposed = true
+        server?.stop()
+        lock?.unlock()
+        lock = null
+      }
+    }
 
     val port =
       Socket().use { s ->
@@ -235,20 +268,25 @@ class OemEulaContent(
             lock?.unlock()
             lock = null
             response.status = 200
+            response.flushBuffer()
+            metricsReceivedCallback = true
           }
         }
       }
 
-    // not sure why this is needed, it's obviously read by the disposable lambda above.
-    @Suppress("AssignedValueIsNeverRead")
-    server =
-      Server(port).apply {
-        for (c in connectors) {
-          c.host = "localhost"
+    synchronized(serverDisposeLock) {
+      if (disposed) return // should probably only happen in tests
+      // not sure why this is needed, it's obviously read by the disposable lambda above.
+      @Suppress("AssignedValueIsNeverRead")
+      server =
+        Server(port).apply {
+          for (c in connectors) {
+            c.host = "localhost"
+          }
+          addHandler(handler)
+          start()
         }
-        addHandler(handler)
-        start()
-      }
+    }
     BrowserUtil.browse(
       // If we're getting here the project should always be set, since otherwise you won't be seeing
       // unselected OEM lab devices.
