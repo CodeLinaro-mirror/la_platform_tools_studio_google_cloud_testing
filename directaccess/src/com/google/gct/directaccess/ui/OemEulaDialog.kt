@@ -44,6 +44,7 @@ import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.adtui.compose.rememberColor
 import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.createCoroutineScope
+import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
@@ -117,7 +118,8 @@ class OemEulaContent(
   private val labs: List<String>,
   private val disposable: Disposable,
   private val project: Project,
-  private val permissionChecker: suspend (CloudProjectEntry) -> Boolean =
+  @get:VisibleForTesting
+  internal val permissionChecker: suspend (CloudProjectEntry) -> Boolean =
     ::permissionCheck, // test only
 ) {
 
