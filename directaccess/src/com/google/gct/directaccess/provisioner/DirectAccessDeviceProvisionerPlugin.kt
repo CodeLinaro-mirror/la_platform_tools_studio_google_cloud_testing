@@ -66,6 +66,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -165,14 +166,20 @@ class DirectAccessDeviceProvisionerPlugin(
     // Clean up remaining templates when scope is cancelled.
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
 
-    val deprecationData = service<DirectAccessDeprecationState>().serviceDeprecationData
-    if (!deprecationData.isSupported()) {
-      val banners = listOf(DirectAccessDeprecationBanner(deprecationData))
-      scope.launch {
-        templates.collect { list ->
-          notificationBanners.value = if (list.isEmpty()) listOf() else banners
+    scope.launch {
+      combine(service<DirectAccessDeprecationState>().serviceDeprecationData, templates) {
+          data,
+          list ->
+          notificationBanners.value =
+            // Clear all banners for SUPPORTED state.
+            // In future if there are more types of banner, remove only deprecation related banners,
+            if (list.isEmpty() || data.isSupported()) {
+              emptyList<EditorNotificationPanel>()
+            } else {
+              listOf(DirectAccessDeprecationBanner(data))
+            }
         }
-      }
+        .collect()
     }
 
     // Select project from login onboarding tasks.
@@ -407,7 +414,7 @@ class DirectAccessDeviceProvisionerPlugin(
             StudioDefaultDeviceActionPresentation.fromContext()
               .copy(
                 label = "Select Remote Devices",
-                enabled = service<DirectAccessDeprecationState>().isServiceEnabled,
+                enabled = service<DirectAccessDeprecationState>().isServiceEnabledFlow.value,
               )
           )
           .asStateFlow()

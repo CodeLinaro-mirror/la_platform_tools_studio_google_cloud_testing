@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(ExperimentalJewelApi::class)
+
 package com.google.gct.directaccess.ui
 
 import androidx.compose.foundation.layout.Column
@@ -21,22 +23,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.android.tools.adtui.compose.LocalProject
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.createCoroutineScope
+import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.checkPermissions
 import com.google.gct.directaccess.provisioner.OemLabsAssetsRegistry
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
@@ -54,8 +56,10 @@ import javax.swing.JComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import org.jetbrains.jewel.bridge.LocalComponent
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.bridge.toComposeColor
+import org.jetbrains.jewel.foundation.ExperimentalJewelApi
 import org.jetbrains.jewel.ui.component.CircularProgressIndicator
 import org.jetbrains.jewel.ui.component.ExternalLink
 import org.jetbrains.jewel.ui.component.Icon
@@ -66,13 +70,38 @@ import org.jetbrains.jewel.ui.icon.IntelliJIconKey
 import org.mortbay.jetty.Server
 import org.mortbay.jetty.handler.AbstractHandler
 
-class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrapper(project, true) {
-  private lateinit var centerPanel: JComponent
+@Suppress("FunctionName")
+fun OemEulaDialog(labs: List<String>, project: Project): DialogWrapper =
+  object : DialogWrapper(project, true) {
+    init {
+      init()
+      myOKAction.putValue(Action.NAME, "Done")
+    }
 
-  init {
-    init()
-    myOKAction.putValue(Action.NAME, "Done")
+    override fun createActions() = arrayOf(myOKAction)
+
+    override fun createCenterPanel(): JComponent? {
+      return StudioComposePanel {
+          val content = OemEulaContent(labs, disposable, project)
+          content.ComposeContent()
+        }
+        .apply {
+          preferredSize = JBUI.size(480, 260)
+          minimumSize = JBUI.size(480, 260)
+        }
+    }
   }
+
+@Suppress("RedundantSuspendModifier") // "suspend" is needed in tests
+private suspend fun permissionCheck(project: CloudProjectEntry) =
+  !checkPermissions(setOf("resourcemanager.projects.update"), project)?.permissions.isNullOrEmpty()
+
+class OemEulaContent(
+  private val labs: List<String>,
+  private val disposable: Disposable,
+  private val project: Project,
+  permissionChecker: suspend (CloudProjectEntry) -> Boolean = ::permissionCheck, // test only
+) {
 
   private enum class PermissionCheckResult {
     LOADING,
@@ -81,8 +110,9 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
     ERROR,
   }
 
-  override fun createCenterPanel(): JComponent {
-    var hasPermission: PermissionCheckResult by mutableStateOf(PermissionCheckResult.LOADING)
+  private var hasPermission: PermissionCheckResult by mutableStateOf(PermissionCheckResult.LOADING)
+
+  init {
     disposable.createCoroutineScope().launch(Dispatchers.IO) {
       val cloudProject =
         project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
@@ -91,34 +121,20 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
           PermissionCheckResult.ERROR
         } else {
           try {
-            if (
-              checkPermissions(setOf("resourcemanager.projects.update"), cloudProject)
-                ?.permissions
-                .isNullOrEmpty()
-            ) {
-              PermissionCheckResult.NO_ACCESS
-            } else {
+            if (permissionChecker(cloudProject)) {
               PermissionCheckResult.ACCESS
+            } else {
+              PermissionCheckResult.NO_ACCESS
             }
           } catch (_: Exception) {
             PermissionCheckResult.ERROR
           }
         }
     }
-    return StudioComposePanel {
-        CompositionLocalProvider(LocalProject provides project) {
-          ComposeContent(hasPermission) { centerPanel }
-        }
-      }
-      .apply {
-        preferredSize = JBUI.size(480, 260)
-        minimumSize = JBUI.size(480, 260)
-        centerPanel = this
-      }
   }
 
   @Composable
-  private fun ComposeContent(hasPermission: PermissionCheckResult, component: () -> JComponent) {
+  internal fun ComposeContent() {
     Column {
       val plural = if (labs.size > 1) "s" else ""
       Text(
@@ -151,6 +167,7 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
       Spacer(Modifier.size(20.dp))
 
       Row(verticalAlignment = Alignment.CenterVertically) {
+        val owner = ModalTaskOwner.component(LocalComponent.current)
         OutlinedButton(
           // allow access if we failed to check permissions--maybe the redirect will still work?
           enabled =
@@ -158,7 +175,7 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
               hasPermission == PermissionCheckResult.ERROR,
           onClick = {
             runWithModalProgressBlocking(
-              ModalTaskOwner.component(component()),
+              owner,
               "Continue in Cloud Console...",
               TaskCancellation.cancellable(),
             ) {
@@ -174,26 +191,17 @@ class OemEulaDialog(val labs: List<String>, val project: Project) : DialogWrappe
             "Checking permissions...",
             color = StandardColors.DISABLED_TEXT_COLOR.toComposeColor(),
           )
-        } else if (
-          hasPermission == PermissionCheckResult.NO_ACCESS ||
-            hasPermission == PermissionCheckResult.ERROR
-        ) {
+        } else if (hasPermission == PermissionCheckResult.NO_ACCESS) {
           Icon(
             IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
             "Lab inaccessible",
             Modifier.padding(horizontal = 4.dp),
           )
-          if (hasPermission == PermissionCheckResult.NO_ACCESS) {
-            Text("Contact project administrator for access.")
-          } else {
-            Text("Error checking status, access may be limited.")
-          }
+          Text("Contact project administrator for access.")
         }
       }
     }
   }
-
-  override fun createActions() = arrayOf(myOKAction)
 
   suspend fun startServerAndAwaitFirstCallback() {
     var server: Server? = null

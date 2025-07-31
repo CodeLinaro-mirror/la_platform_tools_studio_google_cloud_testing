@@ -66,7 +66,7 @@ import org.mockito.kotlin.whenever
 
 @RunWith(Parameterized::class)
 @RunsInEdt
-class SelectDeviceDialogTest(private val deviceListProvider: () -> List<DeviceInfo>) {
+class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List<DeviceInfo>) {
 
   companion object {
     @JvmStatic

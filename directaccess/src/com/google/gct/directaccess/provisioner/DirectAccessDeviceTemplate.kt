@@ -131,47 +131,41 @@ class DirectAccessDeviceTemplate(
 
   /** Update state of the template from multiple sources. */
   override val stateFlow =
-    if (service<DirectAccessDeprecationState>().isServiceEnabled) {
-      combine(
-          isActivationStarted,
-          isReservable,
-          deviceInfoFlow,
-          service<DirectAccessOnboardingService>().taskFlow,
-        ) { isStarted, reservationAvailable, deviceInfo, task ->
-          val waitTimeText =
-            deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
+    combine(
+        isActivationStarted,
+        isReservable,
+        deviceInfoFlow,
+        service<DirectAccessOnboardingService>().taskFlow,
+        service<DirectAccessDeprecationState>().isServiceEnabledFlow,
+      ) { isStarted, reservationAvailable, deviceInfo, task, isServiceEnabled ->
+        val waitTimeText =
+          deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
 
-          if (reservationAvailable) {
-            isCloudProjectBeingCreatedFlow.value = false
-          } else {
-            if (task?.isPending == true) {
-              isCloudProjectBeingCreatedFlow.value = true
-            }
+        if (reservationAvailable) {
+          isCloudProjectBeingCreatedFlow.value = false
+        } else {
+          if (task?.isPending == true) {
+            isCloudProjectBeingCreatedFlow.value = true
           }
-
-          TemplateState(
-            isActivating = isStarted,
-            error =
-              when {
-                reservationAvailable && deviceInfo.isInCatalog && waitTimeText != null ->
-                  DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
-                reservationAvailable && !deviceInfo.isInCatalog ->
-                  DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
-                isCloudProjectBeingCreatedFlow.value ->
-                  DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
-                else -> null
-              },
-          )
         }
-        .stateIn(scope, SharingStarted.Eagerly, TemplateState())
-    } else {
-      MutableStateFlow(
+
         TemplateState(
-          false,
-          DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available"),
+          isActivating = isStarted,
+          error =
+            when {
+              !isServiceEnabled ->
+                DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
+              reservationAvailable && deviceInfo.isInCatalog && waitTimeText != null ->
+                DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
+              reservationAvailable && !deviceInfo.isInCatalog ->
+                DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
+              isCloudProjectBeingCreatedFlow.value ->
+                DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
+              else -> null
+            },
         )
-      )
-    }
+      }
+      .stateIn(scope, SharingStarted.Eagerly, TemplateState())
 
   /** Icon to show for the template and handle */
   val icon: Icon
@@ -464,8 +458,15 @@ class DirectAccessDeviceTemplate(
             isReservable,
             deviceInfoFlow,
             isCloudProjectBeingCreatedFlow,
-          ) { started, reservationAvailable, deviceInfo, isCloudProjectBeingCreated ->
-            val enabled = !started && reservationAvailable && deviceInfo.isInCatalog
+            service<DirectAccessDeprecationState>().isServiceEnabledFlow,
+          ) {
+            started,
+            reservationAvailable,
+            deviceInfo,
+            isCloudProjectBeingCreated,
+            isServiceEnabled ->
+            val enabled =
+              !started && reservationAvailable && deviceInfo.isInCatalog && isServiceEnabled
             // TODO(b/314857500): Improve user experience with null
             // deviceAvailabilityEstimateSeconds.
             val icon =
@@ -483,6 +484,7 @@ class DirectAccessDeviceTemplate(
                 when {
                   enabled -> null
                   started -> "Activation already in progress."
+                  !isServiceEnabled -> "Unsupported version: update required"
                   isCloudProjectBeingCreated ->
                     "Android Device Streaming is setting up and will be ready in a few minutes."
                   !reservationAvailable ->

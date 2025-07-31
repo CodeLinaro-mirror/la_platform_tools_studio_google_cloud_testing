@@ -48,7 +48,7 @@ class SelectProjectAction :
       e.presentation.isVisible = false
       return
     }
-    if (!service<DirectAccessDeprecationState>().isServiceEnabled) {
+    if (!service<DirectAccessDeprecationState>().isServiceEnabledFlow.value) {
       e.presentation.isEnabled = false
       e.presentation.text = "Unsupported version: update required"
       return
