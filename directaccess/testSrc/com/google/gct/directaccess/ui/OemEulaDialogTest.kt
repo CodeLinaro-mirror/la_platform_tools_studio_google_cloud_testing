@@ -134,12 +134,17 @@ class OemEulaDialogTest {
       .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
     val tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
+    val mutex = Mutex(true)
     val content =
-      OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) { true }
+      OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
+        mutex.unlock()
+        true
+      }
+    // Wait for the permission check to complete
+    mutex.lock()
     composeRule.setContent {
       CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
     }
-    composeRule.waitForIdle()
     // click the link
     composeRule.onNodeWithText("Go to Google Cloud Console").performClick()
     waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
@@ -177,8 +182,14 @@ class OemEulaDialogTest {
       .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
     val tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
+    val mutex = Mutex(true)
     val content =
-      OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) { true }
+      OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
+        mutex.unlock()
+        true
+      }
+    // Wait for the permission check to complete
+    mutex.lock()
     composeRule.setContent {
       CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
     }
