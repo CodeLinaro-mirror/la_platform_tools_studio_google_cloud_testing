@@ -23,6 +23,7 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:mockito-kotlin",
         "//tools/adt/idea/.idea/libraries:junit4",
         "//tools/adt/idea/.idea/libraries:kotlin-test",
+        "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose.tests",
     ],
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],

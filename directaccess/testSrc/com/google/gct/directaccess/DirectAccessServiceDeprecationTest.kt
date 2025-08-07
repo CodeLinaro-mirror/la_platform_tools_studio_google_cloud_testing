@@ -50,6 +50,7 @@ import com.intellij.testFramework.replaceService
 import com.intellij.ui.InplaceButton
 import com.intellij.util.ui.JBUI.CurrentTheme.Banner
 import java.awt.event.MouseEvent
+import java.time.Duration
 import javax.swing.JPanel
 import kotlin.test.fail
 import kotlinx.coroutines.CoroutineScope
@@ -62,10 +63,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
@@ -160,7 +161,6 @@ class DirectAccessServiceDeprecationTest {
     session.close()
   }
 
-  @Ignore("b/432753412")
   @Test
   fun testNotificationBanner() = runBlockingWithTimeout {
     val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
@@ -243,27 +243,24 @@ class DirectAccessServiceDeprecationTest {
   }
 
   @Test
-  fun testDeviceList() {
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
-    }
+  fun testDeviceList() = runBlockingWithTimeout {
+    configureDevServicesDeprecationStatus(DevServicesDeprecationStatus.UNSUPPORTED)
     assertThat(service<DirectAccessServiceSetup>().getAccessibleDeviceInfoList("any")).isEmpty()
   }
 
   @Test
-  fun disableAddDeviceAction() {
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
-    }
+  fun disableAddDeviceAction() = runBlockingWithTimeout {
+    configureDevServicesDeprecationStatus(DevServicesDeprecationStatus.UNSUPPORTED)
     val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     assertThat(plugin.createDeviceTemplateAction.presentation.value.enabled).isFalse()
   }
 
   @Test
-  fun disableSelectProjectActionWhenUnsupported() {
+  fun disableSelectProjectActionWhenUnsupported() = runBlocking {
     deprecationDataFlow.update {
       deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
     }
+    yieldUntil { !service<DirectAccessDeprecationState>().isServiceEnabledFlow.value }
     val action = SelectProjectAction()
     // Click the device selection button.
     val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
@@ -305,9 +302,7 @@ class DirectAccessServiceDeprecationTest {
 
   @Test
   fun testDeprecationBannerCanBeDismissed() = runBlockingWithTimeout {
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
-    }
+    configureDevServicesDeprecationStatus(DevServicesDeprecationStatus.DEPRECATED)
     val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     val templates = plugin.templates as MutableStateFlow
 
@@ -328,9 +323,7 @@ class DirectAccessServiceDeprecationTest {
 
   @Test
   fun testDeprecationBannerRemovedWhenDataChangesToSupported() = runBlockingWithTimeout {
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
-    }
+    configureDevServicesDeprecationStatus(DevServicesDeprecationStatus.DEPRECATED)
     val plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     val templates = plugin.templates as MutableStateFlow
 
@@ -362,6 +355,15 @@ class DirectAccessServiceDeprecationTest {
       info != null
     }
     return info!!
+  }
+
+  private suspend fun configureDevServicesDeprecationStatus(status: DevServicesDeprecationStatus) {
+    deprecationDataFlow.update { deprecationProto.copy(status = status) }
+    if (status == DevServicesDeprecationStatus.UNSUPPORTED) {
+      yieldUntil(Duration.ofSeconds(2)) {
+        !service<DirectAccessDeprecationState>().isServiceEnabledFlow.value
+      }
+    }
   }
 
   private fun DirectAccessDeviceProvisionerPlugin.getNotificationBanners() =

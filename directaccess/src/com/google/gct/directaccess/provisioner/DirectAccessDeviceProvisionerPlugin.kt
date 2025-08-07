@@ -424,9 +424,8 @@ class DirectAccessDeviceProvisionerPlugin(
     service<GoogleLoginService>().removeVetoableLogoutListener(vetoableLogOutListener)
   }
 
-  private inner class DirectAccessDeprecationBanner(
-    private val deprecationData: DevServicesDeprecationData
-  ) : DeprecationBanner(project, deprecationData, true) {
+  private inner class DirectAccessDeprecationBanner(deprecationData: DevServicesDeprecationData) :
+    DeprecationBanner(project, deprecationData, true) {
     override fun trackUserNotified() {
       logEvent(userNotified = true)
     }
