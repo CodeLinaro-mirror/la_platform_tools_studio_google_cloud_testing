@@ -40,7 +40,7 @@ iml_module(
         "@intellij//:org.intellij.groovy",
         "//tools/adt/idea/android-common:intellij.android.common",
         "//tools/adt/idea/android:intellij.android.core",
-        "//tools/studio/google/cloud/tools/google-login-plugin:google-login-as",
+        "//tools/vendor/google/login:google-login",
         "//tools/analytics-library/tracker:analytics-tracker",
         "//tools/adt/idea/artwork:intellij.android.artwork",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
