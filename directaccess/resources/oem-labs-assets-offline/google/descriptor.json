@@ -20,6 +20,16 @@
       "formFactor": "wear",
       "pathLight": "wear.svg",
       "pathDark": "wear_dark.svg"
+    },
+    {
+      "formFactor": "xr_headset",
+      "pathLight": "xr_headset.svg",
+      "pathDark": "xr_headset_dark.svg"
+    },
+    {
+      "formFactor": "xr_glasses",
+      "pathLight": "xr_glasses.svg",
+      "pathDark": "xr_glasses_dark.svg"
     }
   ]
 }

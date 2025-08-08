@@ -51,7 +51,9 @@ enum class DeviceType {
   PHONE,
   TV,
   WEAR_OS,
-  AUTOMOTIVE;
+  AUTOMOTIVE,
+  XR_HEADSET,
+  XR_GLASSES;
 
   fun toProvisionerDeviceType() =
     when (this) {
@@ -59,6 +61,8 @@ enum class DeviceType {
       TV -> ProvisionerDeviceType.TV
       WEAR_OS -> ProvisionerDeviceType.WEAR
       AUTOMOTIVE -> ProvisionerDeviceType.AUTOMOTIVE
+      XR_HEADSET -> ProvisionerDeviceType.XR_HEADSET
+      XR_GLASSES -> ProvisionerDeviceType.XR_GLASSES
     }
 }
 
@@ -69,8 +73,8 @@ fun ProvisionerDeviceType.toSerializationDeviceType(): DeviceType =
     ProvisionerDeviceType.TV -> DeviceType.TV
     ProvisionerDeviceType.AUTOMOTIVE -> DeviceType.AUTOMOTIVE
     ProvisionerDeviceType.DESKTOP -> DeviceType.PHONE
-    ProvisionerDeviceType.XR_HEADSET -> DeviceType.PHONE
-    ProvisionerDeviceType.XR_GLASSES -> DeviceType.PHONE
+    ProvisionerDeviceType.XR_HEADSET -> DeviceType.XR_HEADSET
+    ProvisionerDeviceType.XR_GLASSES -> DeviceType.XR_GLASSES
   }
 
 data class PersistentDeviceSelectionData(
