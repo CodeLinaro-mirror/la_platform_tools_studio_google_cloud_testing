@@ -109,17 +109,15 @@ class AddDirectAccessDeviceDialog(
   private val modelColumn =
     TableTextColumn<DirectAccessDeviceProfile>(
       "Model",
-      TableColumnWidth.Weighted(2f),
+      TableColumnWidth.Weighted(1f),
       attribute = { it.codename },
-      maxLines = 2,
     )
 
   private val labColumn =
     TableTextColumn<DirectAccessDeviceProfile>(
       "Lab",
-      TableColumnWidth.Weighted(2f),
+      TableColumnWidth.Weighted(1f),
       attribute = { it.labIdDisplayName },
-      maxLines = 2,
     )
 
   init {
