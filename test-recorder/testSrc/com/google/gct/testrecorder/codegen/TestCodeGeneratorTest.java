@@ -17,9 +17,11 @@ package com.google.gct.testrecorder.codegen;
 
 import static com.android.tools.idea.testing.TestProjectPaths.ETR_WITHOUT_ANDROIDX;
 import static com.android.tools.idea.testing.TestProjectPaths.ETR_WITH_ANDROIDX;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import com.android.tools.idea.gradle.project.build.invoker.GradleInvocationResult;
-import com.android.tools.idea.testing.AndroidGradleTestCase;
+import com.android.tools.idea.testing.AndroidGradleProjectRule;
 import com.google.gct.testrecorder.util.ActionsCreator;
 import com.intellij.ide.fileTemplates.JavaTemplateUtil;
 import com.intellij.openapi.application.ApplicationManager;
@@ -34,31 +36,44 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiManager;
+import com.intellij.testFramework.EdtRule;
+import com.intellij.testFramework.RunsInEdt;
 import java.io.File;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.RuleChain;
 
-public class TestCodeGeneratorTest extends AndroidGradleTestCase {
+@RunsInEdt
+public class TestCodeGeneratorTest {
+  public AndroidGradleProjectRule projectRule = new AndroidGradleProjectRule();
+  @Rule
+  public RuleChain rule = RuleChain.outerRule(projectRule).around(new EdtRule());
 
   private String ANDROIDX_PROJECT_NAME = "etrwithandroidx";
   private String WITHOUT_ANDROIDX_PROJECT_NAME = "etrtestproject";
 
-  @Override
-  protected boolean shouldRunTest() {
-    // Do not run tests on Windows (see http://b.android.com/222904)
-    return !SystemInfo.isWindows && super.shouldRunTest();
+  @Before
+  public void ignoreWindows() {
+    assumeTrue(!SystemInfo.isWindows);
   }
 
+  @Test
   public void testJavaCodeGeneration() {
     performCodeGenerationTest(false, false);
   }
 
+  @Test
   public void testJavaAndroidxCodeGeneration() {
     performCodeGenerationTest(true, false);
   }
 
+  @Test
   public void testKotlinCodeGeneration() {
     performCodeGenerationTest(false, true);
   }
 
+  @Test
   public void testKotlinAndroidxCodeGeneration() {
     performCodeGenerationTest(true, true);
   }
@@ -74,14 +89,14 @@ public class TestCodeGeneratorTest extends AndroidGradleTestCase {
     VirtualFile testVirtualFile = LocalFileSystem.getInstance().findFileByPath(testFilePath);
 
     ApplicationManager.getApplication().runWriteAction(() -> testCodeGenerator.writeCode(testVirtualFile));
-    Project project = getProject();
+    Project project = projectRule.getProject();
 
     testVirtualFile.refresh(false, true, () -> {
       // Do not apply import optimizer and code reformatter as they do not handle Kotlin code in test mode.
       PsiDocumentManager.getInstance(project).commitAllDocuments();
     });
     try {
-      GradleInvocationResult result = invokeGradleTasks(getProject(), "assembleAndroidTest");
+      GradleInvocationResult result = projectRule.invokeTasks("assembleAndroidTest");
       if (result.isBuildSuccessful() != true) {
         fail("Test failed to build");
       }
@@ -92,7 +107,7 @@ public class TestCodeGeneratorTest extends AndroidGradleTestCase {
   }
 
   private PsiClass createTestClass(boolean isAndroidx, boolean isKotlinTestClass) {
-    String androidTestFolderName = getProject().getBasePath() + "/app/src/androidTest/java/com/example/";
+    String androidTestFolderName = projectRule.getProject().getBasePath() + "/app/src/androidTest/java/com/example/";
     if (isAndroidx) {
       androidTestFolderName += "etrwithandroidx";
     }
@@ -104,7 +119,7 @@ public class TestCodeGeneratorTest extends AndroidGradleTestCase {
     if (androidTestFolder == null) {
       throw new RuntimeException("Failed to find androidTest folder, please check if the folder exists in test environment.");
     }
-    PsiDirectory containingDirectory = PsiManager.getInstance(getProject()).findDirectory(androidTestFolder);
+    PsiDirectory containingDirectory = PsiManager.getInstance(projectRule.getProject()).findDirectory(androidTestFolder);
 
     PsiClass testClass = ApplicationManager.getApplication().runWriteAction(new Computable<>() {
       @Override
@@ -117,7 +132,7 @@ public class TestCodeGeneratorTest extends AndroidGradleTestCase {
         }
 
         // To avoid concurrent modification warning which will break the test with a NullPointerException.
-        PsiManager.getInstance(getProject()).reloadFromDisk(testClass.getContainingFile());
+        PsiManager.getInstance(projectRule.getProject()).reloadFromDisk(testClass.getContainingFile());
 
         return testClass;
       }
@@ -144,7 +159,7 @@ public class TestCodeGeneratorTest extends AndroidGradleTestCase {
       launchedActivityName += WITHOUT_ANDROIDX_PROJECT_NAME;
     }
     launchedActivityName += ".MainActivity";
-    return new TestCodeGenerator(resourcePackageName, applicationId, getModule("app"), testClass,
+    return new TestCodeGenerator(resourcePackageName, applicationId, projectRule.findGradleModule(":app"), testClass,
                                  ActionsCreator.createActions(System.currentTimeMillis()),
                                  launchedActivityName, false, isKotlin, isAndroidx);
   }
@@ -152,10 +167,10 @@ public class TestCodeGeneratorTest extends AndroidGradleTestCase {
   private void loadProjectHelper(boolean isAndroidx) {
     try {
       if (isAndroidx) {
-        loadProject(ETR_WITH_ANDROIDX);
+        projectRule.loadProject(ETR_WITH_ANDROIDX);
       }
       else {
-        loadProject(ETR_WITHOUT_ANDROIDX);
+        projectRule.loadProject(ETR_WITHOUT_ANDROIDX);
       }
     }
     catch (Exception e) {
