@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -97,7 +98,7 @@ class AddDirectAccessDeviceDialog(
       Checkbox(
         profiles[profile] == true,
         onCheckedChange = { profiles[profile] = it },
-        modifier = Modifier.focusRequester(focusRequester),
+        modifier = Modifier.focusRequester(focusRequester).size(20.dp),
       )
       LaunchedEffect(selected, profile) {
         if (selected) {
