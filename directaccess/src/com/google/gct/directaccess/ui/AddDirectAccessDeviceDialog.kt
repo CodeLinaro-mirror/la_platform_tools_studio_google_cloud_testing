@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -97,7 +98,7 @@ class AddDirectAccessDeviceDialog(
       Checkbox(
         profiles[profile] == true,
         onCheckedChange = { profiles[profile] = it },
-        modifier = Modifier.focusRequester(focusRequester),
+        modifier = Modifier.focusRequester(focusRequester).size(20.dp),
       )
       LaunchedEffect(selected, profile) {
         if (selected) {
@@ -109,17 +110,15 @@ class AddDirectAccessDeviceDialog(
   private val modelColumn =
     TableTextColumn<DirectAccessDeviceProfile>(
       "Model",
-      TableColumnWidth.Weighted(2f),
+      TableColumnWidth.Weighted(1f),
       attribute = { it.codename },
-      maxLines = 2,
     )
 
   private val labColumn =
     TableTextColumn<DirectAccessDeviceProfile>(
       "Lab",
-      TableColumnWidth.Weighted(2f),
+      TableColumnWidth.Weighted(1f),
       attribute = { it.labIdDisplayName },
-      maxLines = 2,
     )
 
   init {
