@@ -30,6 +30,7 @@ import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigura
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
 import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_ESPRESSO_SETUP;
+import static com.android.tools.idea.gradle.dsl.model.android.AndroidModelUtilsKt.android;
 
 import com.android.ide.common.gradle.Component;
 import com.android.ide.common.gradle.Version;
@@ -95,7 +96,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
   public boolean isNativeProject(@NotNull GradleProjectSystem projectSystem, @NotNull Module module) {
     // TODO(b/294274926): Do not use DSL models to detect Gradle native projects.
     return GradleBuildModel.get(module) != null
-           && GradleBuildModel.get(module).android().externalNativeBuild().cmake().version().getValueType()
+           && android(GradleBuildModel.get(module)).externalNativeBuild().cmake().version().getValueType()
               != GradlePropertyModel.ValueType.NONE;
   }
 
@@ -137,7 +138,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
       GradleBuildModel gradleBuildModel = projectModel.getModuleBuildModel(testClassModule);
       if (gradleBuildModel != null) {
         GradleModuleSystem gradleModuleSystem = projectSystem.getModuleSystem(testClassModule);
-        AndroidModel androidModel = gradleBuildModel.android();
+        AndroidModel androidModel = android(gradleBuildModel);
         // androidModel will be null when the Gradle experimental plugin is used and it's not possible to update the instrumentation runner.
         // TODO: Provide an appropriate error message or some alternative way to update instrumentation runner when the Gradle experimental
         // plugin is used.
@@ -295,7 +296,7 @@ public class EspressoSetupGradleToken implements EspressoSetupToken<GradleProjec
               addOrUpdateAndroidxRulesDependency();
             }
 
-            AndroidModel androidModel = gradleBuildModel.android();
+            AndroidModel androidModel = android(gradleBuildModel);
             if (androidModel != null && !hasSetInstrumentationRunner(androidModel)) {
               androidModel.defaultConfig().testInstrumentationRunner()
                 .setValue(myUsesAndroidxDependency ? ANDROIDX_TEST_INSTRUMENTATION_RUNNER : TEST_INSTRUMENTATION_RUNNER);
