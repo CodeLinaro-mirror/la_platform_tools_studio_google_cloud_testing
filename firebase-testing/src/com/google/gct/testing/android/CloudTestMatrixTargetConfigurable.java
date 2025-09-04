@@ -106,10 +106,14 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
 
     connectToCloudPanel.add(createRunTestsInCloudPane(topPanel.getBackground(), 6, 4), prepareEditorPaneGridConstraints(0));
     JButton connectToCloudButton = new JButton(GoogleLoginService.getInstance().isLoggedIn() ? "Authorize Firebase" : "Sign in with Google");
-    connectToCloudButton.addActionListener(e -> GoogleLoginService.getInstance().logInBlocking(
-      ImmutableSet.of(getFirebaseFeature()),
-      GoogleLoginPluginEvent.LoginType.FEATURE_LOGIN,
-      PreferredUser.ActiveUser.INSTANCE, true, (user, loginType) -> updateVisibility(), topPanel));
+    connectToCloudButton.addActionListener(e -> {
+      GoogleLoginService.getInstance().logInBlocking(
+        ImmutableSet.of(getFirebaseFeature()),
+        GoogleLoginPluginEvent.LoginType.FEATURE_LOGIN,
+        PreferredUser.ActiveUser.INSTANCE, true, topPanel);
+      ApplicationManager.getApplication().invokeLater(this::updateVisibility);
+    }
+    );
     connectToCloudPanel.add(connectToCloudButton, prepareElementGridConstraints(1, 0));
     if (USE_1P_LOGIN_UI.get()) {
       connectToCloudPanel.add(createScopePanel(), prepareElementGridConstraints(2, 0));
