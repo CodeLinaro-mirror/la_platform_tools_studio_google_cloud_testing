@@ -145,13 +145,14 @@ class SelectProjectActionTest {
   // Simulate the fake properties component using a map
   private val fakePropertiesComponent = mutableMapOf<Project, String>()
   @get:Rule
-  val ruleChain: RuleChain =
+  val ruleChain =
     RuleChain.outerRule(projectRule)
       .around(HeadlessDialogRule())
       .around(popupRule)
       .around(loginUsersRule)
       .around(FlagRule(StudioFlags.USE_1P_LOGIN_UI, true))
-      .around(firebaseProjectClientRule)
+      .around(FlagRule(StudioFlags.SHOW_MARKETING_DIALOG, false))
+      .around(firebaseProjectClientRule)!!
 
   private val scope = CoroutineScope(Dispatchers.IO)
   private val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
