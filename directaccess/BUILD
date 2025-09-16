@@ -19,7 +19,7 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:jetbrains.kotlinx.coroutines.test",
         "//tools/base/fakeadbserver:studio.android.sdktools.fakeadbserver",
         "//tools/analytics-library/testing:android.sdktools.analytics-testing",
-        "//tools/adt/idea/android-plugin:intellij.android.plugin",
+        "//tools/adt/idea/device-manager-v2:intellij.android.device-manager-v2",
         "//tools/adt/idea/.idea/libraries:mockito-kotlin",
         "//tools/adt/idea/.idea/libraries:junit4",
         "//tools/adt/idea/.idea/libraries:kotlin-test",
