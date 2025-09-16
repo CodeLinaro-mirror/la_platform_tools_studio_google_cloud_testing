@@ -31,23 +31,18 @@ import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.gservices.DeprecationBanner
-import com.android.tools.idea.gservices.DevServiceDeprecationInfoBuilder
-import com.android.tools.idea.gservices.DevServicesDeprecationData
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
-import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.ui.AddDirectAccessDeviceDialog
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.VetoableLogoutListener
 import com.google.services.firebase.directaccess.client.isClosed
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
-import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo.DeliveryType.BANNER
 import com.google.wireless.android.sdk.stats.DeviceManagerEvent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
@@ -55,7 +50,6 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
-import com.intellij.ui.EditorNotificationPanel
 import java.awt.Component
 import java.io.IOException
 import java.time.Duration
@@ -66,7 +60,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -97,11 +90,9 @@ class DirectAccessDeviceProvisionerPlugin(
   // TODO: find a proper priority
   override val priority: Int = 120
 
-  private val notificationBanners = MutableStateFlow<List<EditorNotificationPanel>>(listOf())
-
   override fun <T : Extension> extension(extensionClass: Class<T>): T? {
     if (extensionClass == NotificationBannersExtension::class.java) {
-      @Suppress("UNCHECKED_CAST") return NotificationBannersExtension(notificationBanners) as T
+      @Suppress("UNCHECKED_CAST") return NotificationBannersExtension(bannerManager.banners) as T
     }
     return null
   }
@@ -117,6 +108,8 @@ class DirectAccessDeviceProvisionerPlugin(
   // The mapping is from a string of device id to its full device information.
   private val accessibleDeviceInfoMapFlow = MutableStateFlow(mapOf<String, DeviceInfo>())
   private val cachedTemplatesMap = mutableMapOf<String, DirectAccessDeviceTemplate>()
+  private val bannerManager =
+    DirectAccessBannersManager(project, scope, templates.map { it.isNotEmpty() })
 
   private val vetoableLogOutListener =
     object : VetoableLogoutListener {
@@ -165,22 +158,6 @@ class DirectAccessDeviceProvisionerPlugin(
     Disposer.register(project.service<DeviceProvisionerService>(), this)
     // Clean up remaining templates when scope is cancelled.
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
-
-    scope.launch {
-      combine(service<DirectAccessDeprecationState>().serviceDeprecationData, templates) {
-          data,
-          list ->
-          notificationBanners.value =
-            // Clear all banners for SUPPORTED state.
-            // In future if there are more types of banner, remove only deprecation related banners,
-            if (list.isEmpty() || data.isSupported()) {
-              emptyList<EditorNotificationPanel>()
-            } else {
-              listOf(DirectAccessDeprecationBanner(data))
-            }
-        }
-        .collect()
-    }
 
     // Select project from login onboarding tasks.
     if (StudioFlags.DIRECT_ACCESS_CREATE_PROJECT.get()) {
@@ -422,42 +399,5 @@ class DirectAccessDeviceProvisionerPlugin(
 
   override fun dispose() {
     service<GoogleLoginService>().removeVetoableLogoutListener(vetoableLogOutListener)
-  }
-
-  private inner class DirectAccessDeprecationBanner(deprecationData: DevServicesDeprecationData) :
-    DeprecationBanner(project, deprecationData, true) {
-    override fun trackUserNotified() {
-      logEvent(userNotified = true)
-    }
-
-    override fun trackUpdateClicked() {
-      logEvent(userClickedUpdate = true)
-    }
-
-    override fun trackMoreInfoClicked() {
-      logEvent(userClickedMoreInfo = true)
-    }
-
-    override fun trackBannerDismissed() {
-      logEvent(bannerDismissed = true)
-    }
-
-    private fun logEvent(
-      userNotified: Boolean? = null,
-      userClickedMoreInfo: Boolean? = null,
-      userClickedUpdate: Boolean? = null,
-      bannerDismissed: Boolean? = null,
-    ) =
-      DirectAccessUsageTracker.getInstance()
-        .trackServiceDeprecation(
-          DevServiceDeprecationInfoBuilder(
-            deprecationData.status,
-            BANNER,
-            userNotified,
-            userClickedMoreInfo,
-            userClickedUpdate,
-            bannerDismissed,
-          )
-        )
   }
 }
