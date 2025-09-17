@@ -20,5 +20,6 @@ iml_module(
         "//tools/base/sdk-common:studio.android.sdktools.sdk-common",
         "//tools/adt/idea/android:intellij.android.core",
         "//tools/adt/idea/android-common:intellij.android.common",
+        "//tools/adt/idea/gradle-dsl-android:intellij.android.gradle.dsl.android",
     ],
 )

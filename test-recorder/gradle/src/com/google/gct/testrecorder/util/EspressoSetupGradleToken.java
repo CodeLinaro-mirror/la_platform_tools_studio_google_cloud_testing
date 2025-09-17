@@ -30,7 +30,7 @@ import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigura
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
 import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_ESPRESSO_SETUP;
-import static com.android.tools.idea.gradle.dsl.model.android.AndroidModelUtilsKt.android;
+import static com.android.tools.idea.gradle.dsl.android.model.android.AndroidModelUtilsKt.android;
 
 import com.android.ide.common.gradle.Component;
 import com.android.ide.common.gradle.Version;
@@ -42,7 +42,7 @@ import com.android.tools.idea.gradle.dependencies.ExactDependencyMatcher;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.PluginModel;
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel;
-import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
+import com.android.tools.idea.gradle.dsl.android.api.android.AndroidModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
