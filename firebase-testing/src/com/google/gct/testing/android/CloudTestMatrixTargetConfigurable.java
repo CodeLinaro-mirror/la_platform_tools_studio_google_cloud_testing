@@ -28,8 +28,6 @@ import com.android.tools.idea.run.editor.DeployTargetState;
 import com.google.common.collect.ImmutableSet;
 import com.google.gct.login2.GoogleLoginService;
 import com.google.gct.login2.LoginFeature;
-import com.google.gct.login2.LoginFeatureKt;
-import com.google.gct.login2.OAuthScopeKt;
 import com.google.gct.login2.PreferredUser;
 import com.google.services.firebase.FirebaseLoginFeature;
 import com.google.wireless.android.sdk.stats.GoogleLoginPluginEvent;
@@ -96,7 +94,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     topPanel.setLayout(new GridLayoutManager(3, 1));
     topPanel.setName("Cloud Testing");
     connectToCloudPanel = new JPanel();
-    connectToCloudPanel.setLayout(new GridLayoutManager(USE_1P_LOGIN_UI.get() ? 4 : 3, 1));
+    connectToCloudPanel.setLayout(new GridLayoutManager(3, 1));
     cloudDeviceMatrixPanel = new JPanel();
     cloudDeviceMatrixPanel.setLayout(new GridLayoutManager(4, 3));
 
@@ -111,10 +109,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
       GoogleLoginPluginEvent.LoginType.FEATURE_LOGIN,
       PreferredUser.ActiveUser.INSTANCE, true, (user, loginType) -> updateVisibility(), topPanel));
     connectToCloudPanel.add(connectToCloudButton, prepareElementGridConstraints(1, 0));
-    if (USE_1P_LOGIN_UI.get()) {
-      connectToCloudPanel.add(createScopePanel(), prepareElementGridConstraints(2, 0));
-    }
-    connectToCloudPanel.add(createSignupForCloudPane(topPanel.getBackground(), 6, 0), prepareEditorPaneGridConstraints(USE_1P_LOGIN_UI.get() ? 3 : 2));
+    connectToCloudPanel.add(createSignupForCloudPane(topPanel.getBackground(), 6, 0), prepareEditorPaneGridConstraints(2));
 
     cloudDeviceMatrixPanel.add(new JLabel("Matrix configuration:"), prepareElementGridConstraints(0, 0));
     myCloudConfigurationComboBox = new CloudConfigurationComboBox(MATRIX);
@@ -246,20 +241,6 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
                       + "<a href='https://console.firebase.google.com'>Sign up</a> for one now.</p></html>");
     linkifyEditorPane(signupForCloudPane, backgroundColor);
     return signupForCloudPane;
-  }
-
-  private JPanel createScopePanel() {
-    JPanel panel = new JPanel(new HorizontalLayout(4));
-    JLabel text = new JLabel(OAuthScopeKt.toText(getFirebaseFeature().getOAuthScopes()) + " will be requested.");
-    text.setForeground(NamedColorUtil.getInactiveTextColor());
-
-    JLabel icon = new JLabel(AllIcons.General.ContextHelp);
-    LoginFeatureKt.createHelpTooltip(getFirebaseFeature()).installOn(icon);
-
-    panel.add(text);
-    panel.add(icon);
-    panel.setBorder(JBUI.Borders.empty());
-    return panel;
   }
 
   private JEditorPane createLinkPane(@NotNull Color backgroundColor, String anchor) {

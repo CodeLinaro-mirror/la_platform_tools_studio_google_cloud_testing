@@ -27,7 +27,6 @@ import com.android.testutils.waitForCondition
 import com.android.tools.adtui.swing.HeadlessDialogRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.findAllDescendants
-import com.android.tools.adtui.swing.findDescendant
 import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.concurrency.createChildScope
@@ -88,7 +87,6 @@ import java.awt.event.MouseEvent
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
-import kotlin.test.fail
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -150,7 +148,6 @@ class SelectProjectActionTest {
       .around(HeadlessDialogRule())
       .around(popupRule)
       .around(loginUsersRule)
-      .around(FlagRule(StudioFlags.USE_1P_LOGIN_UI, true))
       .around(FlagRule(StudioFlags.SHOW_MARKETING_DIALOG, false))
       .around(firebaseProjectClientRule)!!
 
@@ -826,15 +823,6 @@ class SelectProjectActionTest {
       withContext(Dispatchers.EDT) {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
           val dialog = it as SelectProjectDialog
-
-          val loggedOutScopePanel =
-            dialog.rootPane.findDescendant<JPanel> { it.name == "scope_panel" }
-              ?: fail("Scope panel not found")
-          val (loggedOutText, loggedOutIcon) =
-            loggedOutScopePanel.components.filterIsInstance<JBLabel>()
-
-          assertThat(loggedOutText.text).isEqualTo("2 scopes will be requested.")
-          assertThat(HelpTooltip.getTooltipFor(loggedOutIcon)).isNotNull()
           val action = dialog.rootPane.findAllDescendants<JButton>().first()
           assertThat(action.text).isEqualTo("Login and enable Device Streaming")
           action.doClick()
@@ -845,15 +833,6 @@ class SelectProjectActionTest {
             val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().firstOrNull()
             comboBox?.model?.selectedItem == supportedProjectName
           }
-
-          val loggedInScopePanel =
-            dialog.rootPane.findDescendant<JPanel> { it.name == "scope_panel" }
-              ?: fail("Scope panel not found")
-          val (loggedInText, loggedInIcon) =
-            loggedInScopePanel.components.filterIsInstance<JBLabel>()
-
-          assertThat(loggedInText.text).isEqualTo("2 scopes requested.")
-          assertThat(HelpTooltip.getTooltipFor(loggedInIcon)).isNotNull()
         }
       }
 
