@@ -15,6 +15,8 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.google.gct.directaccess.provisioner.outageUrl
+import com.google.gct.directaccess.provisioner.serviceKey
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.intellij.ide.BrowserUtil
@@ -33,9 +35,6 @@ import java.awt.event.ComponentEvent
 import javax.swing.JComponent
 import javax.swing.SwingConstants
 
-const val TEST_LAB_SUMMARY_URL =
-  "https://status.firebase.google.com/products/XAmF3juu1qZ8jNAVhv29/history"
-
 /** Banner for showing the deprecated state. */
 class DirectAccessIncidentBanner(incidents: List<JsonElement>) :
   EditorNotificationPanel(Status.Warning) {
@@ -50,9 +49,9 @@ class DirectAccessIncidentBanner(incidents: List<JsonElement>) :
     isOpaque = true
 
     createActionLabel("More info") {
-      var url = TEST_LAB_SUMMARY_URL
+      var url = "$outageUrl/products/$serviceKey/history"
       if (!multiIncidents && incident.has("uri")) {
-        url = "https://status.firebase.google.com/${incident.get("uri").asString}"
+        url = "$outageUrl/${incident.get("uri").asString}"
       }
       BrowserUtil.browse(url)
     }

@@ -21,6 +21,7 @@ import com.android.tools.idea.flags.StudioFlags
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.provisioner.DirectAccessBannersManager
 import com.google.gct.directaccess.provisioner.FETCH_INTERVAL_MILLIS
+import com.google.gct.directaccess.provisioner.serviceKey
 import com.intellij.testFramework.ProjectRule
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +61,7 @@ class DirectAccessBannersManagerTest {
         "created" : "2025-09-08T21:02:51+00:00",
         "external_desc" : "Firebase Test Lab is experiencing elevated retry rate and error rate.",
         "severity" : "medium",
-        "service_key" : "XAmF3juu1qZ8jNAVhv29",
+        "service_key" : "$serviceKey",
         "service_name" : "Test Lab",
         "uri" : "incidents/uri1"
       }
@@ -75,7 +76,7 @@ class DirectAccessBannersManagerTest {
         "created" : "2025-09-08T21:02:51+00:00",
         "external_desc" : "Firebase test lab is experiencing service disruptions due to issues in downstream services.",
         "severity" : "severe",
-        "service_key" : "XAmF3juu1qZ8jNAVhv29",
+        "service_key" : "$serviceKey",
         "service_name" : "Test Lab",
         "uri" : "incidents/uri2"
       }
