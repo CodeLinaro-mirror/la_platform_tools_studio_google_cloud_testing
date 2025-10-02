@@ -41,15 +41,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-private const val INCIDENT_URL = "https://status.firebase.google.com/incidents.json"
-private const val SERVICE_KEY = "XAmF3juu1qZ8jNAVhv29"
+val outageUrl = "https://${StudioFlags.DIRECT_ACCESS_SHOW_OUTAGE_NOTIFICATIONS_URL.get()}"
+val serviceKey = StudioFlags.DIRECT_ACCESS_SHOW_OUTAGE_NOTIFICATIONS_SERVICE_KEY.get() ?: ""
+private val incidentUrl = "$outageUrl/incidents.json"
 @VisibleForTesting val FETCH_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(20)
 
 class DirectAccessBannersManager(
   project: Project,
   scope: CoroutineScope,
   enableBanner: Flow<Boolean>,
-  outageJsonText: () -> String = { URL(INCIDENT_URL).readText() },
+  outageJsonText: () -> String = { URL(incidentUrl).readText() },
 ) {
 
   val banners = MutableStateFlow(listOf<EditorNotificationPanel>())
@@ -80,7 +81,7 @@ class DirectAccessBannersManager(
                   val incidents =
                     Gson().fromJson(outageJsonText(), JsonArray::class.java).filter { json ->
                       json is JsonObject &&
-                        json["service_key"]?.asString == SERVICE_KEY &&
+                        json["service_key"]?.asString == serviceKey &&
                         !json.has("end")
                     }
                   mutex.withLock {
