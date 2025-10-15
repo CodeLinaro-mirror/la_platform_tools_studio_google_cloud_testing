@@ -18,11 +18,9 @@ package com.google.gct.directaccess
 import com.android.adblib.testing.FakeAdbSession
 import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
-import com.android.flags.junit.FlagRule
 import com.android.sdklib.deviceprovisioner.DeviceType as ProvisionerDeviceType
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.adddevicedialog.FormFactors
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.provisioner.DeviceInfo
@@ -55,15 +53,7 @@ class DirectAccessPersistentStateComponentTest {
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
   private val loginUsersRule = LoginUsersRule()
 
-  @get:Rule
-  val ruleChain =
-    RuleChain(
-      projectRule,
-      loginUsersRule,
-      EdtRule(),
-      grpcConnectionRule,
-      FlagRule(StudioFlags.DIRECT_ACCESS_SETTINGS_PAGE, true),
-    )
+  @get:Rule val ruleChain = RuleChain(projectRule, loginUsersRule, EdtRule(), grpcConnectionRule)
 
   private val session = FakeAdbSession()
   private val deviceInfo =
