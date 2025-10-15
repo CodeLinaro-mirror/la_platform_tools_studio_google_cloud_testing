@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -58,6 +59,7 @@ import javax.swing.JComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import org.jetbrains.jewel.bridge.LocalComponent
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.bridge.toComposeColor
@@ -102,13 +104,15 @@ class OemEulaContent(
   private val labs: List<String>,
   private val disposable: Disposable,
   private val project: Project,
-  permissionChecker: suspend (CloudProjectEntry) -> Boolean = ::permissionCheck, // test only
+  private val permissionChecker: suspend (CloudProjectEntry) -> Boolean =
+    ::permissionCheck, // test only
 ) {
 
   private enum class PermissionCheckResult {
     LOADING,
     ACCESS,
     NO_ACCESS,
+    NO_PROJECT,
     ERROR,
   }
 
@@ -124,39 +128,42 @@ class OemEulaContent(
           metricsReceivedCallback,
           metricsClickedConsoleButton,
           when (hasPermission) {
-            PermissionCheckResult.LOADING ->
-              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.UNKNOWN
             PermissionCheckResult.ACCESS ->
               DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
             PermissionCheckResult.NO_ACCESS ->
               DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS
             PermissionCheckResult.ERROR ->
               DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.CHECK_FAILED
+            else -> DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.UNKNOWN
           },
         )
     }
-    disposable.createCoroutineScope().launch(Dispatchers.IO) {
-      val cloudProject =
-        project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
-      hasPermission =
-        if (cloudProject == null) {
-          PermissionCheckResult.ERROR
-        } else {
-          try {
-            if (permissionChecker(cloudProject)) {
-              PermissionCheckResult.ACCESS
-            } else {
-              PermissionCheckResult.NO_ACCESS
-            }
-          } catch (_: Exception) {
-            PermissionCheckResult.ERROR
-          }
-        }
-    }
   }
+
+  val key = Any()
 
   @Composable
   internal fun ComposeContent() {
+    LaunchedEffect(key) {
+      withContext(Dispatchers.IO) {
+        val cloudProject =
+          project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
+        hasPermission =
+          if (cloudProject == null) {
+            PermissionCheckResult.NO_PROJECT
+          } else {
+            try {
+              if (permissionChecker(cloudProject)) {
+                PermissionCheckResult.ACCESS
+              } else {
+                PermissionCheckResult.NO_ACCESS
+              }
+            } catch (_: Exception) {
+              PermissionCheckResult.ERROR
+            }
+          }
+      }
+    }
     Column {
       val plural = if (labs.size > 1) "s" else ""
       Text(
@@ -221,6 +228,13 @@ class OemEulaContent(
             Modifier.padding(horizontal = 4.dp),
           )
           Text("Contact project administrator for access.")
+        } else if (hasPermission == PermissionCheckResult.NO_PROJECT) {
+          Icon(
+            IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
+            "Lab inaccessible",
+            Modifier.padding(horizontal = 4.dp),
+          )
+          Text("Select a project before adding OEM Lab devices.")
         }
       }
     }

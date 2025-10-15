@@ -17,6 +17,7 @@ package com.google.gct.directaccess.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -26,7 +27,6 @@ import com.android.testutils.waitForCondition
 import com.android.tools.adtui.compose.utils.StudioComposeTestRule.Companion.createStudioComposeTestRule
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.concurrency.createCoroutineScope
 import com.android.tools.idea.testing.HeadlessTaskSupportRule
 import com.android.tools.idea.testing.disposable
 import com.google.api.client.http.GenericUrl
@@ -48,9 +48,7 @@ import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.jewel.bridge.LocalComponent
@@ -67,6 +65,7 @@ class OemEulaDialogTest {
 
   val projectRule = ProjectRule()
   val composeRule = createStudioComposeTestRule()
+  val projectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
 
   @get:Rule val chain = RuleChain(projectRule, HeadlessTaskSupportRule(), composeRule)
 
@@ -74,12 +73,8 @@ class OemEulaDialogTest {
   fun setUp() {
     val mockService: DirectAccessService = mock()
     val mockProjectManager: DirectAccessCloudProjectManager = mock()
-    runBlocking {
-      whenever(mockService.cloudProjectManager)
-        .thenReturn(
-          flowOf(mockProjectManager).stateIn(projectRule.disposable.createCoroutineScope())
-        )
-    }
+    whenever(mockService.cloudProjectManager).thenReturn(projectManagerFlow)
+    projectManagerFlow.value = mockProjectManager
     whenever(mockProjectManager.cloudProject).thenReturn(CloudProjectEntry("myUser", "myProject"))
     projectRule.project.replaceService(
       DirectAccessService::class.java,
@@ -89,188 +84,209 @@ class OemEulaDialogTest {
   }
 
   @Test
-  fun testCheckResultMetrics() = runTest {
-    for ((result, metric) in
-      listOf(
-        CompletableFuture.completedFuture(true) to
-          DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS,
-        CompletableFuture.completedFuture(false) to
-          DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS,
-        CompletableFuture.failedFuture<Boolean>(Exception("expected")) to
-          DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.CHECK_FAILED,
-      )) {
+  fun testCheckResultMetrics() =
+    runTest(timeout = 10.seconds) {
+      for ((result, metric) in
+        listOf(
+          CompletableFuture.completedFuture(true) to
+            DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS,
+          CompletableFuture.completedFuture(false) to
+            DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS,
+          CompletableFuture.failedFuture<Boolean>(Exception("expected")) to
+            DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.CHECK_FAILED,
+        )) {
+        val tracker = TestUsageTracker(VirtualTimeScheduler())
+        UsageTracker.setWriterForTest(tracker)
+        val disposable = Disposer.newDisposable()
+        val content =
+          OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
+            result.get()
+          }
+        composeRule.setContent {
+          CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
+        }
+        Disposer.dispose(disposable)
+        waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
+        assertThat(tracker.usages.first().studioEvent.directAccessUsageEvent)
+          .isEqualTo(
+            directAccessUsageEvent {
+              type = DirectAccessUsageEvent.DirectAccessUsageEventType.OEM_LAB_DIALOG
+              oemLabDialogDetails = oemLabDialogDetails {
+                receivedCallback = false
+                clickedCloudConsoleButton = false
+                accessCheckResult = metric
+              }
+            }
+          )
+      }
+    }
+
+  @Test
+  fun testConsoleButtonClickMetric() =
+    runTest(timeout = 10.seconds) {
+      val browserLauncher: BrowserLauncher = mock()
+      val disposable = Disposer.newDisposable()
+
+      // Wait for the link to be clicked, then close the dialog
+      whenever(browserLauncher.browse(any<URI>())).thenAnswer { Disposer.dispose(disposable) }
+      ApplicationManager.getApplication()
+        .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
       val tracker = TestUsageTracker(VirtualTimeScheduler())
       UsageTracker.setWriterForTest(tracker)
-      val disposable = Disposer.newDisposable()
+      val mutex = Mutex(true)
       val content =
-        OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) { result.get() }
+        OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
+          mutex.unlock()
+          true
+        }
       composeRule.setContent {
         CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
       }
-      Disposer.dispose(disposable)
+      // Wait for the permission check to complete
+      mutex.lock()
+      // click the link
+      composeRule.onNodeWithText("Go to Google Cloud Console").performClick()
       waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
-      assertThat(tracker.usages.first().studioEvent.directAccessUsageEvent)
-        .isEqualTo(
-          directAccessUsageEvent {
-            type = DirectAccessUsageEvent.DirectAccessUsageEventType.OEM_LAB_DIALOG
-            oemLabDialogDetails = oemLabDialogDetails {
-              receivedCallback = false
-              clickedCloudConsoleButton = false
-              accessCheckResult = metric
-            }
-          }
-        )
+
+      val actual = tracker.usages.first().studioEvent.directAccessUsageEvent
+      val expected = directAccessUsageEvent {
+        type = DirectAccessUsageEvent.DirectAccessUsageEventType.OEM_LAB_DIALOG
+        oemLabDialogDetails = oemLabDialogDetails {
+          receivedCallback = false
+          clickedCloudConsoleButton = true
+          accessCheckResult = DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
+        }
+      }
+      assertThat(actual).isEqualTo(expected)
     }
-  }
 
   @Test
-  fun testConsoleButtonClickMetric() = runTest {
-    val browserLauncher: BrowserLauncher = mock()
-    val disposable = Disposer.newDisposable()
+  fun testReceivedCallbackMetric() =
+    runTest(timeout = 10.seconds) {
+      val browserLauncher: BrowserLauncher = mock()
+      val disposable = Disposer.newDisposable()
 
-    // Wait for the link to be clicked, then close the dialog
-    whenever(browserLauncher.browse(any<URI>())).thenAnswer { Disposer.dispose(disposable) }
-    ApplicationManager.getApplication()
-      .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
-    val tracker = TestUsageTracker(VirtualTimeScheduler())
-    UsageTracker.setWriterForTest(tracker)
-    val mutex = Mutex(true)
-    val content =
-      OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
-        mutex.unlock()
-        true
+      // Wait for the link to be clicked, then generate the callback
+      whenever(browserLauncher.browse(any<URI>())).thenAnswer { invocation ->
+        val port =
+          invocation.getArgument<URI>(0).path.substringAfter("localPort=").substringBefore(";")
+        NetHttpTransport()
+          .createRequestFactory()
+          .buildGetRequest(GenericUrl("http://localhost:$port/CALLBACK_Cloud_PartnerLab"))
+          .setReadTimeout(100_000)
+          .setThrowExceptionOnExecuteError(true)
+          .execute()
+        Disposer.dispose(disposable)
       }
-    // Wait for the permission check to complete
-    mutex.lock()
-    composeRule.setContent {
-      CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
-    }
-    // click the link
-    composeRule.onNodeWithText("Go to Google Cloud Console").performClick()
-    waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
+      ApplicationManager.getApplication()
+        .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
+      val tracker = TestUsageTracker(VirtualTimeScheduler())
+      UsageTracker.setWriterForTest(tracker)
+      val mutex = Mutex(true)
+      val content =
+        OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
+          mutex.unlock()
+          true
+        }
+      composeRule.setContent {
+        CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
+      }
+      // Wait for the permission check to complete
+      mutex.lock()
+      composeRule.waitForIdle()
+      // click the link
+      composeRule.onNodeWithText("Go to Google Cloud Console").performClick()
+      waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
 
-    val actual = tracker.usages.first().studioEvent.directAccessUsageEvent
-    val expected = directAccessUsageEvent {
-      type = DirectAccessUsageEvent.DirectAccessUsageEventType.OEM_LAB_DIALOG
-      oemLabDialogDetails = oemLabDialogDetails {
-        receivedCallback = false
-        clickedCloudConsoleButton = true
-        accessCheckResult = DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
+      val actual = tracker.usages.first().studioEvent.directAccessUsageEvent
+      val expected = directAccessUsageEvent {
+        type = DirectAccessUsageEvent.DirectAccessUsageEventType.OEM_LAB_DIALOG
+        oemLabDialogDetails = oemLabDialogDetails {
+          receivedCallback = true
+          clickedCloudConsoleButton = true
+          accessCheckResult = DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
+        }
       }
+      assertThat(actual).isEqualTo(expected)
     }
-    assertThat(actual).isEqualTo(expected)
-  }
 
   @Test
-  fun testReceivedCallbackMetric() = runTest {
-    val browserLauncher: BrowserLauncher = mock()
-    val disposable = Disposer.newDisposable()
+  fun testPermissionCheck() =
+    runTest(timeout = 10.seconds) {
+      val checkLatch = Mutex(true)
+      val inCheckLatch = Mutex(true)
 
-    // Wait for the link to be clicked, then generate the callback
-    whenever(browserLauncher.browse(any<URI>())).thenAnswer { invocation ->
-      val port =
-        invocation.getArgument<URI>(0).path.substringAfter("localPort=").substringBefore(";")
-      NetHttpTransport()
-        .createRequestFactory()
-        .buildGetRequest(GenericUrl("http://localhost:$port/CALLBACK_Cloud_PartnerLab"))
-        .setReadTimeout(100_000)
-        .setThrowExceptionOnExecuteError(true)
-        .execute()
-      Disposer.dispose(disposable)
-    }
-    ApplicationManager.getApplication()
-      .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
-    val tracker = TestUsageTracker(VirtualTimeScheduler())
-    UsageTracker.setWriterForTest(tracker)
-    val mutex = Mutex(true)
-    val content =
-      OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
-        mutex.unlock()
-        true
+      fun createDialog(result: Future<Boolean>) =
+        OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project) {
+          inCheckLatch.unlock()
+          checkLatch.lock()
+          result.get()
+        }
+
+      // Check case with access
+      composeRule.setContent {
+        CompositionLocalProvider(LocalComponent provides mock()) {
+          createDialog(CompletableFuture.completedFuture(true)).ComposeContent()
+        }
       }
-    // Wait for the permission check to complete
-    mutex.lock()
-    composeRule.setContent {
-      CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
-    }
-    composeRule.waitForIdle()
-    // click the link
-    composeRule.onNodeWithText("Go to Google Cloud Console").performClick()
-    waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
+      composeRule.waitForIdle()
+      inCheckLatch.lock()
 
-    val actual = tracker.usages.first().studioEvent.directAccessUsageEvent
-    val expected = directAccessUsageEvent {
-      type = DirectAccessUsageEvent.DirectAccessUsageEventType.OEM_LAB_DIALOG
-      oemLabDialogDetails = oemLabDialogDetails {
-        receivedCallback = true
-        clickedCloudConsoleButton = true
-        accessCheckResult = DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
+      composeRule.waitUntilExactlyOneExists(hasText("Checking permissions..."))
+      composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
+      composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
+      checkLatch.unlock()
+      composeRule.waitUntilDoesNotExist(hasText("Checking permissions..."))
+      composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
+      composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
+
+      // Check case without access
+      composeRule.setContent {
+        CompositionLocalProvider(LocalComponent provides mock()) {
+          createDialog(CompletableFuture.completedFuture(false)).ComposeContent()
+        }
       }
-    }
-    assertThat(actual).isEqualTo(expected)
-  }
+      composeRule.waitForIdle()
+      inCheckLatch.lock()
 
-  @Test
-  fun testPermissionCheck() = runTest {
-    val checkLatch = Mutex(true)
-    val inCheckLatch = Mutex(true)
+      composeRule.waitUntilExactlyOneExists(hasText("Checking permissions..."))
+      composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
+      composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
+      checkLatch.unlock()
+      composeRule.waitUntilDoesNotExist(hasText("Checking permissions..."))
+      composeRule.onNodeWithContentDescription("Lab inaccessible").assertExists()
+      composeRule.onNodeWithText("Contact project administrator for access.").assertExists()
 
-    fun createDialog(result: Future<Boolean>) =
-      OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project) {
-        inCheckLatch.unlock()
-        checkLatch.lock()
-        result.get()
+      // Check error case
+      composeRule.setContent {
+        CompositionLocalProvider(LocalComponent provides mock()) {
+          createDialog(CompletableFuture.failedFuture(RuntimeException("failed"))).ComposeContent()
+        }
       }
+      composeRule.waitForIdle()
+      inCheckLatch.lock()
+      // same as "with access" case
+      composeRule.waitUntilExactlyOneExists(hasText("Checking permissions..."))
+      composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
+      composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
+      checkLatch.unlock()
+      composeRule.waitUntilDoesNotExist(hasText("Checking permissions..."))
+      composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
+      composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
 
-    // Check case with access
-    composeRule.setContent {
-      CompositionLocalProvider(LocalComponent provides mock()) {
-        createDialog(CompletableFuture.completedFuture(true)).ComposeContent()
+      projectManagerFlow.value = null
+
+      // Check no project selected case
+      composeRule.setContent {
+        CompositionLocalProvider(LocalComponent provides mock()) {
+          createDialog(CompletableFuture.failedFuture(RuntimeException("failed"))).ComposeContent()
+        }
       }
+      composeRule.waitForIdle()
+
+      composeRule.waitUntilExactlyOneExists(hasContentDescription("Lab inaccessible"))
+      composeRule.waitUntilExactlyOneExists(
+        hasText("Select a project before adding OEM Lab devices.")
+      )
     }
-    composeRule.waitForIdle()
-    inCheckLatch.lock()
-
-    composeRule.waitUntilExactlyOneExists(hasText("Checking permissions..."))
-    composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
-    composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
-    checkLatch.unlock()
-    composeRule.waitUntilDoesNotExist(hasText("Checking permissions..."))
-    composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
-    composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
-
-    // Check case without access
-    composeRule.setContent {
-      CompositionLocalProvider(LocalComponent provides mock()) {
-        createDialog(CompletableFuture.completedFuture(false)).ComposeContent()
-      }
-    }
-    composeRule.waitForIdle()
-    inCheckLatch.lock()
-
-    composeRule.waitUntilExactlyOneExists(hasText("Checking permissions..."))
-    composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
-    composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
-    checkLatch.unlock()
-    composeRule.waitUntilDoesNotExist(hasText("Checking permissions..."))
-    composeRule.onNodeWithContentDescription("Lab inaccessible").assertExists()
-    composeRule.onNodeWithText("Contact project administrator for access.").assertExists()
-
-    // Check error case
-    composeRule.setContent {
-      CompositionLocalProvider(LocalComponent provides mock()) {
-        createDialog(CompletableFuture.failedFuture(RuntimeException("failed"))).ComposeContent()
-      }
-    }
-    composeRule.waitForIdle()
-    inCheckLatch.lock()
-    // same as "with access" case
-    composeRule.waitUntilExactlyOneExists(hasText("Checking permissions..."))
-    composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
-    composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
-    checkLatch.unlock()
-    composeRule.waitUntilDoesNotExist(hasText("Checking permissions..."))
-    composeRule.onNodeWithContentDescription("Lab inaccessible").assertDoesNotExist()
-    composeRule.onNodeWithText("Contact project administrator for access.").assertDoesNotExist()
-  }
 }
