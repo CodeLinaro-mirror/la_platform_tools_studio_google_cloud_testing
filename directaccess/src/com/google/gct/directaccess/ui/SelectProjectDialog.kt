@@ -125,6 +125,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     scope.launch {
       isDirectAccessEnabled.collect { isEnabled ->
         if (isNowEnabled != isEnabled) {
+          @Suppress("AssignedValueIsNeverRead")
           isNowEnabled = isEnabled
           updateActivePanel(isEnabled)
         }
@@ -161,13 +162,17 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     val panel = JPanel(VerticalLayout(5))
     panel.add(topPanel)
     val bottomPanel = JPanel(HorizontalLayout(0))
+    val feature = LoginFeature.feature<FirebaseLoginFeature>()
     val button =
       JButton().apply {
         action =
-          object : AbstractAction("Login and enable Device Streaming") {
+          object :
+            AbstractAction(
+              if (GoogleLoginService.instance.isLoggedIn()) "Authorize Device Streaming"
+              else "Login and enable Device Streaming"
+            ) {
             override fun actionPerformed(e: ActionEvent) {
-              LoginFeature.feature<FirebaseLoginFeature>()
-                .logInBlocking(parentComponent = this@SelectProjectDialog.rootPane)
+              feature.logInBlocking(parentComponent = this@SelectProjectDialog.rootPane)
             }
           }
       }

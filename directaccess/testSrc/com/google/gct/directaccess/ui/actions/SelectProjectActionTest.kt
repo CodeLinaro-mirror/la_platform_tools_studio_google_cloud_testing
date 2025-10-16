@@ -792,6 +792,58 @@ class SelectProjectActionTest {
   @Test
   fun testLoginPanel() =
     CoroutineTestUtils.runBlockingWithTimeout {
+      val selectDeviceAction = SelectProjectAction()
+      projectRule.project
+        .service<DirectAccessPersistentStateComponent>()
+        .state
+        .selectedCloudProject = supportedProjectName
+
+      firebaseProjectClientRule.setupFirebaseClient(
+        throwErrorOnExecute = false,
+        returnMalformedJson = false,
+        projectList = listOf(apiDisabledProject, supportedProjectName),
+      )
+
+      // Click the device selection button.
+      val mouseEvent = MouseEvent(JPanel(), MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, 1, true, 0)
+      val event =
+        TestActionEvent.createTestEvent(
+          selectDeviceAction,
+          {
+            when (it) {
+              CommonDataKeys.PROJECT.name -> projectRule.project
+              else -> null
+            }
+          },
+          mouseEvent,
+        )
+
+      withContext(Dispatchers.EDT) {
+        createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
+          val dialog = it as SelectProjectDialog
+          val action = dialog.rootPane.findAllDescendants<JButton>().first()
+          assertThat(action.text).isEqualTo("Login and enable Device Streaming")
+          action.doClick()
+
+          waitForCondition { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
+
+          waitForCondition {
+            val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().firstOrNull()
+            comboBox?.model?.selectedItem == supportedProjectName
+          }
+        }
+      }
+
+      projectRule.project
+        .service<DirectAccessPersistentStateComponent>()
+        .state
+        .selectedCloudProject = null
+    }
+
+  @RunsInEdt
+  @Test
+  fun testLoginPanel_authorize() =
+    CoroutineTestUtils.runBlockingWithTimeout {
       // Log in as a user without the firebase feature
       loginUsersRule.setActiveUser("test@google.com", features = setOf())
       val selectDeviceAction = SelectProjectAction()
@@ -824,7 +876,7 @@ class SelectProjectActionTest {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
           val dialog = it as SelectProjectDialog
           val action = dialog.rootPane.findAllDescendants<JButton>().first()
-          assertThat(action.text).isEqualTo("Login and enable Device Streaming")
+          assertThat(action.text).isEqualTo("Authorize Device Streaming")
           action.doClick()
 
           waitForCondition { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
