@@ -145,7 +145,7 @@ class OemEulaDialogTest {
       // Wait for the permission check to complete
       mutex.lock()
       // click the link
-      composeRule.onNodeWithText("Go to Google Cloud Console").performClick()
+      composeRule.onNodeWithText("Enable in Google Cloud Console...").performClick()
       waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
 
       val actual = tracker.usages.first().studioEvent.directAccessUsageEvent
@@ -195,7 +195,7 @@ class OemEulaDialogTest {
       mutex.lock()
       composeRule.waitForIdle()
       // click the link
-      composeRule.onNodeWithText("Go to Google Cloud Console").performClick()
+      composeRule.onNodeWithText("Enable in Google Cloud Console...").performClick()
       waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
 
       val actual = tracker.usages.first().studioEvent.directAccessUsageEvent

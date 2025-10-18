@@ -17,11 +17,15 @@
 
 package com.google.gct.directaccess.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,7 +33,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import com.android.tools.adtui.compose.StudioComposePanel
 import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.createCoroutineScope
@@ -64,13 +72,16 @@ import org.jetbrains.jewel.bridge.LocalComponent
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.bridge.toComposeColor
 import org.jetbrains.jewel.foundation.ExperimentalJewelApi
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.CircularProgressIndicator
 import org.jetbrains.jewel.ui.component.ExternalLink
 import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
-import org.jetbrains.jewel.ui.component.Typography
 import org.jetbrains.jewel.ui.icon.IntelliJIconKey
+import org.jetbrains.jewel.ui.theme.colorPalette
+import org.jetbrains.jewel.ui.theme.defaultButtonStyle
+import org.jetbrains.jewel.ui.typography
 import org.mortbay.jetty.Server
 import org.mortbay.jetty.handler.AbstractHandler
 
@@ -79,12 +90,12 @@ fun OemEulaDialog(labs: List<String>, project: Project): DialogWrapper =
   object : DialogWrapper(project, true) {
     init {
       init()
-      myOKAction.putValue(Action.NAME, "Done")
+      myCancelAction.putValue(Action.NAME, "Close")
     }
 
-    override fun createActions() = arrayOf(myOKAction)
+    override fun createActions() = arrayOf(myCancelAction)
 
-    override fun createCenterPanel(): JComponent? {
+    override fun createCenterPanel(): JComponent {
       return StudioComposePanel {
           val content = OemEulaContent(labs, disposable, project)
           content.ComposeContent()
@@ -168,30 +179,12 @@ class OemEulaContent(
       val plural = if (labs.size > 1) "s" else ""
       Text(
         "Enable Partner OEM Device Labs",
-        style = Typography.h1TextStyle(),
+        style = JewelTheme.typography.h2TextStyle,
         modifier = Modifier.padding(vertical = 10.dp),
       )
       Text(
         "One or more of the selected devices is hosted by a Partner OEM Device Lab. An Owner or Editor of " +
           "your Firebase project needs to enable the partner device lab$plural in Google Cloud Console."
-      )
-      Spacer(Modifier.size(20.dp))
-      val labNames = labs.map { OemLabsAssetsRegistry.getInstance().retrieveName(it) }.distinct()
-      Text("Required partner lab$plural: ${labNames.joinToString(", ")}")
-      Spacer(Modifier.size(20.dp))
-
-      Text(
-        "Standard quota and pricing for Android Device Streaming also apply when using devices from a partner device lab.",
-        Modifier.padding(bottom = 4.dp),
-      )
-      ExternalLink(
-        "Learn more",
-        onClick = {
-          BrowserUtil.browse(
-            "https://firebase.google.com/docs/test-lab/usage-quotas-pricing#device-streaming"
-          )
-        },
-        Modifier.padding(2.dp),
       )
       Spacer(Modifier.size(20.dp))
 
@@ -202,6 +195,7 @@ class OemEulaContent(
           enabled =
             hasPermission == PermissionCheckResult.ACCESS ||
               hasPermission == PermissionCheckResult.ERROR,
+          style = JewelTheme.defaultButtonStyle,
           onClick = {
             metricsClickedConsoleButton = true
             runWithModalProgressBlocking(
@@ -213,7 +207,7 @@ class OemEulaContent(
             }
           },
         ) {
-          Text("Go to Google Cloud Console")
+          Text("Enable in Google Cloud Console...")
         }
         if (hasPermission == PermissionCheckResult.LOADING) {
           CircularProgressIndicator(modifier = Modifier.padding(horizontal = 5.dp))
@@ -236,6 +230,46 @@ class OemEulaContent(
           )
           Text("Select a project before adding OEM Lab devices.")
         }
+      }
+      Spacer(Modifier.size(15.dp))
+      val labNames = labs.map { OemLabsAssetsRegistry.getInstance().retrieveName(it) }.distinct()
+      Text("Required partner lab$plural: ${labNames.joinToString(", ")}")
+      Spacer(Modifier.size(10.dp))
+
+      Column(
+        modifier =
+          Modifier.background(JewelTheme.colorPalette.gray(12))
+            .border(width = 1.dp, color = JewelTheme.colorPalette.gray(11))
+            .padding(12.dp, 18.dp)
+      ) {
+        val contentId = "contentId"
+        val inlineContent =
+          mapOf(
+            contentId to
+              InlineTextContent(
+                Placeholder(
+                  width = 12.em,
+                  height = 1.2.em,
+                  placeholderVerticalAlign = PlaceholderVerticalAlign.TextTop,
+                )
+              ) {
+                ExternalLink(
+                  "Learn more",
+                  uri =
+                    "https://firebase.google.com/docs/test-lab/usage-quotas-pricing#device-streaming",
+                )
+              }
+          )
+
+        Text(
+          buildAnnotatedString {
+            append(
+              "Standard quota and pricing for Android Device Streaming also apply when using devices from a partner device lab. "
+            )
+            appendInlineContent(contentId, "Learn more")
+          },
+          inlineContent = inlineContent,
+        )
       }
     }
   }
@@ -290,8 +324,6 @@ class OemEulaContent(
 
     synchronized(serverDisposeLock) {
       if (disposed) return // should probably only happen in tests
-      // not sure why this is needed, it's obviously read by the disposable lambda above.
-      @Suppress("AssignedValueIsNeverRead")
       server =
         Server(port).apply {
           for (c in connectors) {
