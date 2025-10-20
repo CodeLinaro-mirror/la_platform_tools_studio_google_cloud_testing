@@ -232,7 +232,7 @@ class OemLabsAssetsRegistry(
     TV("tv"),
     WEAR("wear"),
     XR_HEADSET(type = "xr_headset"),
-    XR_GLASSES(type = "xr_glasses");
+    AI_GLASSES(type = "ai_glasses");
 
     companion object {
       fun fromFormFactorString(formFactor: String): IconType {
@@ -242,7 +242,7 @@ class OemLabsAssetsRegistry(
           TV.type -> TV
           WEAR.type -> WEAR
           XR_HEADSET.type -> XR_HEADSET
-          XR_GLASSES.type -> XR_GLASSES
+          AI_GLASSES.type -> AI_GLASSES
           else -> PHONE
         }
       }

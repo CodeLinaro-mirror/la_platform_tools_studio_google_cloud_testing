@@ -27,9 +27,9 @@
       "pathDark": "xr_headset_dark.svg"
     },
     {
-      "formFactor": "xr_glasses",
-      "pathLight": "xr_glasses.svg",
-      "pathDark": "xr_glasses_dark.svg"
+      "formFactor": "ai_glasses",
+      "pathLight": "ai_glasses.svg",
+      "pathDark": "ai_glasses_dark.svg"
     }
   ]
 }
