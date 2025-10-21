@@ -16,6 +16,7 @@
 package com.google.gct.directaccess.ui
 
 import com.android.adblib.utils.createChildScope
+import com.android.annotations.concurrency.Slow
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
@@ -226,17 +227,28 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     return panel
   }
 
-  private fun updateTemporarySelectedCloudProject(cloudProject: String?) {
+  private fun clearTemporarySelectedCloudProject() {
+    temporarySelectedCloudProjectName = null
+    okAction.isEnabled = false
+    val service = service<DirectAccessApplicationService>()
+    service.removeUnusedCloudProjectManager(
+      temporarySelectedCloudProjectManager.value?.cloudProject
+    )
+    temporarySelectedCloudProjectManager.value = null
+  }
+
+  @Slow
+  private fun updateTemporarySelectedCloudProject(cloudProject: String) {
     // Update [selectedCloudProjectName] immediately to avoid delays of creating its cloud project
     // manager.
     temporarySelectedCloudProjectName = cloudProject
-    okAction.isEnabled = (cloudProject != null)
+    okAction.isEnabled = true
     val service = service<DirectAccessApplicationService>()
     service.removeUnusedCloudProjectManager(
       temporarySelectedCloudProjectManager.value?.cloudProject
     )
     val user = service<GoogleLoginService>().getEmail() ?: return
-    val cloudProjectEntry = cloudProject?.let { CloudProjectEntry(user, it) }
+    val cloudProjectEntry = CloudProjectEntry(user, cloudProject)
     temporarySelectedCloudProjectManager.value = service.getCloudProjectManager(cloudProjectEntry)
   }
 
@@ -244,7 +256,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   private fun handleInvalidProject(cloudProject: String): Boolean {
     if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) return true
     if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
-      updateTemporarySelectedCloudProject(null)
+      clearTemporarySelectedCloudProject()
       return true
     }
     return false
@@ -405,7 +417,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     super.dispose()
     // Dispose the temporary selected project manager when its selection is not performed.
     // This usually happens when user cancels or closes the dialog.
-    updateTemporarySelectedCloudProject(null)
+    clearTemporarySelectedCloudProject()
   }
 
   /** This dialog only shows the OK action that does nothing. */

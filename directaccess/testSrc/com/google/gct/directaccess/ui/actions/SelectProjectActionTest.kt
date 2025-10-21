@@ -108,6 +108,7 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.mockingDetails
 import org.mockito.kotlin.whenever
 
 private const val SELECT_PROJECT_ID = "SelectProjectAction"
@@ -503,7 +504,6 @@ class SelectProjectActionTest {
             .isEqualTo(unknownPermissionTestProject)
 
           comboBox.model.selectedItem = NO_PROJECTS_AVAILABLE
-          waitForCondition { cloudProjectManagerFlow.value == null }
           waitForCondition { !errorLabel.isVisible }
           assertThat(fakePropertiesComponent[projectRule.project])
             .isEqualTo(unknownPermissionTestProject)
@@ -625,6 +625,22 @@ class SelectProjectActionTest {
 
       selectProjectAction.update(event)
       assertThat(selectProjectAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+
+      // Do not trigger project creation when closing the dialog.
+      var invocationCountBeforeClosing = 0
+      val invocationCount: () -> Int = {
+        mockingDetails(mockDirectAccessApplicationService).invocations.count {
+          it.method.name == "getCloudProjectManager"
+        }
+      }
+      withContext(Dispatchers.EDT) {
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog
+          ->
+          invocationCountBeforeClosing = invocationCount()
+          dialog.clickDefaultButton()
+        }
+      }
+      assertThat(invocationCountBeforeClosing).isEqualTo(invocationCount())
     }
 
   @RunsInEdt
