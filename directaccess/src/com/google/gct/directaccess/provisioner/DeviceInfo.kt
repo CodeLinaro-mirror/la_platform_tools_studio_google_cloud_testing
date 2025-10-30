@@ -51,7 +51,7 @@ internal val DeviceInfo.icon: Icon
         DeviceType.WEAR -> OemLabsAssetsRegistry.IconType.WEAR
         DeviceType.AUTOMOTIVE -> OemLabsAssetsRegistry.IconType.CAR
         DeviceType.XR_HEADSET -> OemLabsAssetsRegistry.IconType.XR_HEADSET
-        DeviceType.XR_GLASSES -> OemLabsAssetsRegistry.IconType.XR_GLASSES
+        DeviceType.AI_GLASSES -> OemLabsAssetsRegistry.IconType.AI_GLASSES
         else -> OemLabsAssetsRegistry.IconType.PHONE
       }
 

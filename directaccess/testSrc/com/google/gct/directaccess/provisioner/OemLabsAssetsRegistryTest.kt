@@ -48,7 +48,7 @@ class OemLabsAssetsRegistryTest {
             OemLabsAssetsRegistry.IconType.TV,
             OemLabsAssetsRegistry.IconType.WEAR,
             OemLabsAssetsRegistry.IconType.XR_HEADSET,
-            OemLabsAssetsRegistry.IconType.XR_GLASSES,
+            OemLabsAssetsRegistry.IconType.AI_GLASSES,
           )
         )
     }
