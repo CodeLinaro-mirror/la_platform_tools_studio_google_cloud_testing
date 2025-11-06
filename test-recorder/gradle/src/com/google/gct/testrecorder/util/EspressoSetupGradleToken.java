@@ -26,7 +26,7 @@ import static com.android.ide.common.repository.GoogleMavenArtifactId.SUPPORT_RE
 import static com.android.ide.common.repository.GoogleMavenArtifactId.SUPPORT_ANNOTATIONS;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.SUPPORT_V4;
 import static com.android.ide.common.repository.GoogleMavenArtifactId.TEST_RULES;
-import static com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.ANDROID_TEST_IMPLEMENTATION;
+import static com.android.tools.idea.gradle.dsl.api.dependencies.AndroidCommonConfigurationNames.ANDROID_TEST_IMPLEMENTATION;
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
 import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_ESPRESSO_SETUP;
