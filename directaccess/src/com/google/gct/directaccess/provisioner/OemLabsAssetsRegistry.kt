@@ -187,6 +187,8 @@ class OemLabsAssetsRegistry(
             val scale = scaleContext.getScale(DerivedScaleType.PIX_SCALE).toFloat()
             return renderSvgToImage(data, scale, parameters, scaleContext)
           }
+
+          override fun getCoords(): Pair<String, ClassLoader>? = null
         }
     ) {
 
