@@ -27,14 +27,22 @@ import com.android.testutils.waitForCondition
 import com.android.tools.adtui.compose.utils.StudioComposeTestRule.Companion.createStudioComposeTestRule
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
+import com.android.tools.idea.concurrency.createCoroutineScope
 import com.android.tools.idea.testing.HeadlessTaskSupportRule
 import com.android.tools.idea.testing.disposable
 import com.google.api.client.http.GenericUrl
 import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.testing.http.MockHttpTransport
+import com.google.api.client.testing.http.MockLowLevelHttpResponse
+import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsRequest
+import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsResponse
 import com.google.common.truth.Truth.assertThat
+import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
+import com.google.gson.Gson
+import com.google.services.firebase.directaccess.client.CloudClient
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEventKt.oemLabDialogDetails
 import com.google.wireless.android.sdk.stats.directAccessUsageEvent
@@ -43,6 +51,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RuleChain
+import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import java.net.URI
 import java.util.concurrent.CompletableFuture
@@ -51,8 +60,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
-import org.jetbrains.jewel.bridge.LocalComponent
 import org.jetbrains.jewel.foundation.ExperimentalJewelApi
+import org.jetbrains.jewel.foundation.LocalComponent
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -60,6 +69,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
+@Suppress("UnstableApiUsage")
 @OptIn(ExperimentalJewelApi::class, ExperimentalTestApi::class)
 class OemEulaDialogTest {
 
@@ -211,7 +221,97 @@ class OemEulaDialogTest {
     }
 
   @Test
-  fun testPermissionCheck() =
+  fun testPermissionCheckCall_hasPermission() =
+    runTest(timeout = 10.seconds) {
+      val transport =
+        MockHttpTransport.Builder()
+          .apply {
+            setLowLevelHttpResponse(
+              MockLowLevelHttpResponse().apply {
+                setContent(
+                  Gson()
+                    .toJson(
+                      TestIamPermissionsResponse().apply {
+                        permissions = listOf("resourcemanager.projects.update")
+                      }
+                    )
+                )
+              }
+            )
+          }
+          .build()
+
+      Disposer.register(projectRule.disposable) {
+        CloudClientService.instance().overrideClientForTest = null
+      }
+      CloudClientService.instance().overrideClientForTest =
+        CloudClient(
+          MutableStateFlow(null),
+          projectRule.disposable.createCoroutineScope(),
+          overrideHttpTransport = transport,
+        )
+
+      val content =
+        OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
+      assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isTrue()
+      val request =
+        Gson()
+          .fromJson(
+            transport.lowLevelHttpRequest.contentAsString,
+            TestIamPermissionsRequest::class.java,
+          )
+      assertThat(request.permissions).isEqualTo(listOf("resourcemanager.projects.update"))
+      assertThat(transport.lowLevelHttpRequest.url)
+        .isEqualTo(
+          "https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions"
+        )
+    }
+
+  @Test
+  fun testPermissionCheckCall_noPermission() =
+    runTest(timeout = 10.seconds) {
+      val transport =
+        MockHttpTransport.Builder()
+          .apply {
+            setLowLevelHttpResponse(
+              MockLowLevelHttpResponse().apply {
+                setContent(
+                  Gson().toJson(TestIamPermissionsResponse().apply { permissions = listOf() })
+                )
+              }
+            )
+          }
+          .build()
+
+      Disposer.register(projectRule.disposable) {
+        CloudClientService.instance().overrideClientForTest = null
+      }
+      CloudClientService.instance().overrideClientForTest =
+        CloudClient(
+          MutableStateFlow(null),
+          projectRule.disposable.createCoroutineScope(),
+          overrideHttpTransport = transport,
+        )
+
+      val content =
+        OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
+      assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isFalse()
+      val request =
+        Gson()
+          .fromJson(
+            transport.lowLevelHttpRequest.contentAsString,
+            TestIamPermissionsRequest::class.java,
+          )
+      assertThat(request.permissions).isEqualTo(listOf("resourcemanager.projects.update"))
+      assertThat(transport.lowLevelHttpRequest.url)
+        .isEqualTo(
+          "https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions"
+        )
+    }
+
+  @Test
+  @RunsInEdt
+  fun testPermissionCheckUi() =
     runTest(timeout = 10.seconds) {
       val checkLatch = Mutex(true)
       val inCheckLatch = Mutex(true)

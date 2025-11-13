@@ -33,14 +33,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import com.android.tools.adtui.compose.IntUiPaletteDefaults
 import com.android.tools.adtui.compose.StudioComposePanel
+import com.android.tools.adtui.compose.rememberColor
 import com.android.tools.adtui.stdui.StandardColors
 import com.android.tools.idea.concurrency.createCoroutineScope
+import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
@@ -79,7 +83,6 @@ import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.icon.IntelliJIconKey
-import org.jetbrains.jewel.ui.theme.colorPalette
 import org.jetbrains.jewel.ui.theme.defaultButtonStyle
 import org.jetbrains.jewel.ui.typography
 import org.mortbay.jetty.Server
@@ -101,8 +104,8 @@ fun OemEulaDialog(labs: List<String>, project: Project): DialogWrapper =
           content.ComposeContent()
         }
         .apply {
-          preferredSize = JBUI.size(480, 260)
-          minimumSize = JBUI.size(480, 260)
+          preferredSize = JBUI.size(510, 280)
+          minimumSize = JBUI.size(510, 280)
         }
     }
   }
@@ -115,7 +118,8 @@ class OemEulaContent(
   private val labs: List<String>,
   private val disposable: Disposable,
   private val project: Project,
-  private val permissionChecker: suspend (CloudProjectEntry) -> Boolean =
+  @get:VisibleForTesting
+  internal val permissionChecker: suspend (CloudProjectEntry) -> Boolean =
     ::permissionCheck, // test only
 ) {
 
@@ -175,7 +179,7 @@ class OemEulaContent(
           }
       }
     }
-    Column {
+    Column(modifier = Modifier.padding(start = 3.dp)) {
       val plural = if (labs.size > 1) "s" else ""
       Text(
         "Enable Partner OEM Device Labs",
@@ -238,8 +242,26 @@ class OemEulaContent(
 
       Column(
         modifier =
-          Modifier.background(JewelTheme.colorPalette.gray(12))
-            .border(width = 1.dp, color = JewelTheme.colorPalette.gray(11))
+          Modifier.background(
+              rememberColor(
+                key = "DeviceStreaming.OemLabsEula.quota.background",
+                darkFallbackKey = "ColorPalette.Gray3",
+                darkDefault = Color(IntUiPaletteDefaults.Dark.Gray3),
+                lightFallbackKey = "ColorPalette.Gray12",
+                lightDefault = Color(IntUiPaletteDefaults.Light.Gray12),
+              )
+            )
+            .border(
+              width = 1.dp,
+              color =
+                rememberColor(
+                  key = "DeviceStreaming.OemLabsEula.quota.border",
+                  darkFallbackKey = "ColorPalette.Gray4",
+                  darkDefault = Color(IntUiPaletteDefaults.Dark.Gray4),
+                  lightFallbackKey = "ColorPalette.Gray11",
+                  lightDefault = Color(IntUiPaletteDefaults.Light.Gray11),
+                ),
+            )
             .padding(12.dp, 18.dp)
       ) {
         val contentId = "contentId"
