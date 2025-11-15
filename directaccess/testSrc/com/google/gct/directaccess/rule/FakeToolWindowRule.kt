@@ -28,6 +28,7 @@ import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentManager
 import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
+import com.intellij.util.containers.ContainerUtil.createLockFreeCopyOnWriteList
 import org.junit.rules.ExternalResource
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
@@ -52,10 +53,10 @@ class FakeToolWindowRule(private val projectRule: ProjectRule) : ExternalResourc
 
 private class FakeToolWindowManager(
   project: Project,
-  private val fakeRunningDeviceWindow: ToolWindow,
+  private val fakeRunningDevicesWindow: ToolWindow,
 ) : ToolWindowHeadlessManagerImpl(project) {
   override fun getToolWindow(id: String?): ToolWindow? {
-    return if (id == RUNNING_DEVICES_TOOL_WINDOW_ID) fakeRunningDeviceWindow
+    return if (id == RUNNING_DEVICES_TOOL_WINDOW_ID) fakeRunningDevicesWindow
     else super.getToolWindow(id)
   }
 }
@@ -63,7 +64,7 @@ private class FakeToolWindowManager(
 class FakeToolWindow(project: Project) : ToolWindowHeadlessManagerImpl.MockToolWindow(project) {
   private val contentManager = mock<ContentManager>()
   private val contents = mutableListOf<Content>()
-  private val listeners = mutableListOf<ContentManagerListener>()
+  private val listeners = createLockFreeCopyOnWriteList<ContentManagerListener>()
   private var selectedContent: Content? = null
     set(newValue) {
       val oldValue = field
