@@ -39,6 +39,7 @@ internal data class DirectAccessDeviceProfile(
   val codename: String,
   val labId: String,
   val accessStatus: List<String>,
+  val tags: List<String>,
 ) : DeviceProfile {
   constructor(
     deviceInfo: DeviceInfo,
@@ -57,6 +58,7 @@ internal data class DirectAccessDeviceProfile(
     codename = deviceInfo.codename,
     labId = deviceInfo.labId,
     accessStatus = deviceInfo.accessStatus,
+    tags = deviceInfo.tags,
   )
 
   val labIdDisplayName = OemLabsAssetsRegistry.getInstance().retrieveName(labId)
@@ -99,6 +101,7 @@ internal data class DirectAccessDeviceProfile(
     lateinit var codename: String
     lateinit var labId: String
     var accessStatus: List<String> = listOf()
+    var tags: List<String> = listOf()
 
     fun copyFrom(profile: DirectAccessDeviceProfile) {
       super.copyFrom(profile)
@@ -108,6 +111,7 @@ internal data class DirectAccessDeviceProfile(
       availabilityEstimate = profile.availabilityEstimate
       isAlreadyPresent = profile.isAlreadyPresent
       accessStatus = profile.accessStatus
+      tags = profile.tags
     }
 
     override fun build(): DeviceProfile =
@@ -125,6 +129,7 @@ internal data class DirectAccessDeviceProfile(
         codename = codename,
         labId = labId,
         accessStatus = accessStatus,
+        tags = tags,
       )
   }
 }

@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.KeyInjectionScope
+import androidx.compose.ui.test.assertAny
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsToggleable
@@ -28,6 +29,8 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChild
+import androidx.compose.ui.test.onChildAt
+import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -122,6 +125,12 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
       node.assertExists()
       node.assertTextContains(device.name)
       node.assertTextContains(device.api.toString())
+      if (device.tags.contains("preview=33")) {
+        node.onChildren().assertAny(hasText("Preview"))
+      }
+      if (device.tags.contains("deprecated=33")) {
+        node.onChildren().assertAny(hasText("Deprecated"))
+      }
     }
     for (device in watches) {
       composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()
@@ -312,7 +321,7 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
       composeTestRule.waitForIdle()
       composeTestRule
         .onNodeWithText(phones[index].codename)
-        .onChild()
+        .onChildAt(0)
         .assertIsToggleable()
         .assertIsFocused()
     }

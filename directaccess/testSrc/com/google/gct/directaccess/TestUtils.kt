@@ -133,6 +133,7 @@ object TestUtils {
           400,
           500,
           10,
+          tags = listOf("preview=33"),
         ),
         DeviceInfo(
           "id6",
@@ -148,6 +149,7 @@ object TestUtils {
           400,
           500,
           10,
+          tags = listOf("deprecated=33"),
         ),
       )
   }

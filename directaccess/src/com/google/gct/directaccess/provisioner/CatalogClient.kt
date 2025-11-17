@@ -87,6 +87,7 @@ object CatalogClient {
       tags?.contains("dda-default") == true,
       true,
       accessDeniedReasons ?: listOf(),
+      tags ?: listOf(),
     )
   }
 
