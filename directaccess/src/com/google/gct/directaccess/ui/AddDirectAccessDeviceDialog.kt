@@ -16,10 +16,13 @@
 package com.google.gct.directaccess.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.interaction.Interaction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,9 +38,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.toMutableStateMap
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.android.tools.adtui.compose.LingeringTooltip
 import com.android.tools.adtui.compose.LocalProject
@@ -60,6 +67,7 @@ import com.android.tools.idea.concurrency.createCoroutineScope
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
+import com.google.services.firebase.insights.config.capitalize
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.project.Project
@@ -69,26 +77,37 @@ import java.text.Collator
 import javax.swing.Action
 import javax.swing.JComponent
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.foundation.ExperimentalJewelApi
 import org.jetbrains.jewel.foundation.enableNewSwingCompositing
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.Orientation
 import org.jetbrains.jewel.ui.component.Checkbox
+import org.jetbrains.jewel.ui.component.Chip
 import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.Divider
 import org.jetbrains.jewel.ui.component.ExternalLink
 import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
+import org.jetbrains.jewel.ui.component.styling.ChipMetrics
+import org.jetbrains.jewel.ui.component.styling.ChipStyle
 import org.jetbrains.jewel.ui.icon.IntelliJIconKey
+import org.jetbrains.jewel.ui.theme.chipStyle
+
+/** Tags with format "$prefix=$api" e.g. "preview=35" */
+private val tagPrefixList = listOf("preview", "deprecated")
 
 class AddDirectAccessDeviceDialog(
   private val project: Project,
   private val deviceSelectionListFlow: MutableStateFlow<List<DeviceSelection>>,
 ) : DialogWrapper(project) {
+
   private var rows: List<DirectAccessDeviceProfile> by mutableStateOf(listOf())
   private var profiles: SnapshotStateMap<DirectAccessDeviceProfile, Boolean> = mutableStateMapOf()
 
@@ -120,6 +139,36 @@ class AddDirectAccessDeviceDialog(
       TableColumnWidth.Weighted(1f),
       attribute = { it.labIdDisplayName },
     )
+
+  /**
+   * A table column that displays the device name and any associated tags. The tags are displayed as
+   * chips next to the device name.
+   */
+  private val nameWithTag =
+    TableTextColumnWithTags<DirectAccessDeviceProfile>(
+      "Name",
+      attribute = { it.name },
+      tags = { device ->
+        device.tags.mapNotNull { tag ->
+          tagPrefixList
+            .firstOrNull { target ->
+              // Match device api with its tag.
+              tag.startsWith("$target=") &&
+                tag.substringAfter("=").toIntOrNull() == device.apiRange.lowerEndpoint()
+            }
+            ?.capitalize()
+        }
+      },
+    )
+
+  /** An interaction source that does nothing. Used to disable interactions on the chips. */
+  object EmptyInteractionSource : MutableInteractionSource {
+    override suspend fun emit(interaction: Interaction) = Unit
+
+    override fun tryEmit(interaction: Interaction): Boolean = true
+
+    override val interactions: Flow<Interaction> = flow {}
+  }
 
   init {
     title = "Select Remote Devices"
@@ -220,6 +269,50 @@ class AddDirectAccessDeviceDialog(
     OemEulaDialog(unapprovedLabs, project).show()
   }
 
+  /** A table text column with additional tags in chips. */
+  private fun <T> TableTextColumnWithTags(
+    name: String,
+    width: TableColumnWidth = TableColumnWidth.Weighted(3f),
+    attribute: (T) -> String,
+    tags: (T) -> List<String>,
+    comparator: Comparator<T>? = compareBy(attribute),
+    overflow: TextOverflow = TextOverflow.Ellipsis,
+    maxLines: Int = 2,
+  ) =
+    TableColumn(name, width, comparator) { value, _ ->
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+      ) {
+        Text(attribute(value), overflow = overflow, maxLines = maxLines)
+        tags(value).forEach { tag ->
+          Chip(
+            Modifier.focusProperties { canFocus = false },
+            style = JewelTheme.chipStyle.fitText(),
+            interactionSource = remember { EmptyInteractionSource },
+          ) {
+            Text(text = tag, softWrap = false, overflow = TextOverflow.Ellipsis, maxLines = 1)
+          }
+        }
+      }
+    }
+
+  /**
+   * Adjusts the padding of the chip to fit the text. This is used to make the chips in the table
+   * more compact.
+   */
+  private fun ChipStyle.fitText() =
+    ChipStyle(
+      colors,
+      ChipMetrics(
+        metrics.cornerSize,
+        PaddingValues(start = 6.dp, top = 0.dp, bottom = 0.dp, end = 6.dp),
+        metrics.borderWidth,
+        metrics.borderWidth,
+        DpSize.Zero,
+      ),
+    )
+
   @Composable
   private fun ColumnScope.Content() {
     Box(Modifier.weight(1f)) {
@@ -231,7 +324,7 @@ class AddDirectAccessDeviceDialog(
                 selectionColumn,
                 icon,
                 oem,
-                name,
+                nameWithTag,
                 modelColumn,
                 labColumn.takeIf { Lab.uniqueValuesOf(rows).size > 1 },
                 api,
@@ -281,7 +374,7 @@ internal fun RemoteDeviceFilters(
   SingleSelectionRadioButtons(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
   SetFilter(Manufacturer.uniqueValuesOf(profiles), filterState.manufacturerFilter)
   SetFilter(Lab.uniqueValuesOf(profiles), filterState.labFilter) { name ->
-    Text(name.toString())
+    Text(name)
     if (profiles.any { Lab.value(it) == name && it.accessStatus.isNotEmpty() }) {
       @OptIn(ExperimentalFoundationApi::class)
       LingeringTooltip({
