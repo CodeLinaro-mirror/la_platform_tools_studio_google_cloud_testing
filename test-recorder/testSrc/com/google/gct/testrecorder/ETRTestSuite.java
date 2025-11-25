@@ -30,6 +30,7 @@ public class ETRTestSuite extends IdeaTestSuiteBase {
     try {
       unzipIntoOfflineMavenRepo("tools/base/build-system/android_gradle_plugin.zip");
       linkIntoOfflineMavenRepo("tools/base/build-system/android_gradle_plugin_runtime_dependencies.manifest");
+      linkIntoOfflineMavenRepo("tools/base/build-system/gradle-runtime-maven.manifest");
       linkIntoOfflineMavenRepo("tools/studio/google/cloud/testing/test-recorder/test_deps.manifest");
       linkIntoOfflineMavenRepo("tools/base/build-system/integration-test/kotlin_gradle_plugin_prebuilts.manifest");
       // When using iml_module's split_test_target attribute, not all bazel targets will include this dependency.
