@@ -48,12 +48,6 @@ class SelectProjectAction :
       e.presentation.isVisible = false
       return
     }
-    if (!service<DirectAccessDeprecationState>().isServiceEnabledFlow.value) {
-      e.presentation.isEnabled = false
-      e.presentation.text = "Unsupported version: update required"
-      return
-    }
-    // An exception will be caught only when all selected templates are not disabled.
     val templates =
       e.project
         ?.service<DeviceProvisionerService>()
@@ -61,6 +55,15 @@ class SelectProjectAction :
         ?.templates
         ?.value
         ?.filterIsInstance<DirectAccessDeviceTemplate>() ?: listOf()
+    if (!service<DirectAccessDeprecationState>().isServiceEnabledFlow.value) {
+      e.presentation.isEnabled = false
+      e.presentation.text =
+        if (templates.isEmpty())
+          "Firebase Device Streaming is no longer compatible with this version of Android Studio."
+        else "Unsupported version: update required"
+      return
+    }
+    // An exception will be caught only when all selected templates are not disabled.
     val accessibleDevices =
       e.project
         ?.service<DirectAccessService>()

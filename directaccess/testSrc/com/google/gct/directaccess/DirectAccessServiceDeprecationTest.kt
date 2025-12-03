@@ -277,6 +277,10 @@ class DirectAccessServiceDeprecationTest {
       )
     action.update(event)
     assertThat(event.presentation.isEnabled).isFalse()
+    assertThat(event.presentation.text)
+      .isEqualTo(
+        "Firebase Device Streaming is no longer compatible with this version of Android Studio."
+      )
   }
 
   @Test
