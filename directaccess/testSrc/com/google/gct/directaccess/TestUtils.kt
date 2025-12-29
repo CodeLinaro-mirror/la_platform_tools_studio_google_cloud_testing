@@ -149,7 +149,7 @@ object TestUtils {
           400,
           500,
           10,
-          tags = listOf("deprecated=33"),
+          tags = listOf("deprecated=33", "private"),
         ),
       )
   }
