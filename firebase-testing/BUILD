@@ -5,6 +5,8 @@ iml_module(
     name = "firebase-testing",
     srcs = ["src"],
     iml_files = ["firebase-testing.iml"],
+    # b/477311599 - Fix BoxedPrimitiveEquality error.
+    javacopts = ["-Xep:BoxedPrimitiveEquality:OFF"],
     lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
     test_class = "com.google.gct.testing.FirebaseTestingTestSuite",
