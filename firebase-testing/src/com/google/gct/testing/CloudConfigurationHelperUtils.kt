@@ -26,28 +26,33 @@ import java.io.File
 /**
  * Retrieve the location of generated APK or APK from Bundle for the given run configuration.
  *
- * If the generated file is a bundle file, this method returns the location of the single APK extracted from the bundle.
- * If the generated file is a single APK, this method returns the location of the apk.
- * If the generated files are multiple APKs, this method returns the folder that contains the APKs.
+ * If the generated file is a bundle file, this method returns the location of the single APK
+ * extracted from the bundle. If the generated file is a single APK, this method returns the
+ * location of the apk. If the generated files are multiple APKs, this method returns the folder
+ * that contains the APKs.
  */
-@Deprecated("This method supports the case of one app and one test APks only. Use ApkProviders instead.")
+@Deprecated(
+  "This method supports the case of one app and one test APks only. Use ApkProviders instead."
+)
 fun getSingleApkOrParentFolderForRunConfiguration(
   module: Module,
   configuration: AndroidRunConfigurationBase,
   isTest: Boolean,
-  device: IDevice
+  device: IDevice,
 ): File? {
   val projectSystem = module.project.getProjectSystem()
   val apkProvider = projectSystem.getApkProvider(configuration) ?: return null
   val applicationIdProvider = projectSystem.getApplicationIdProvider(configuration) ?: return null
-  val applicationId = if (isTest) applicationIdProvider.testPackageName else applicationIdProvider.packageName
+  val applicationId =
+    if (isTest) applicationIdProvider.testPackageName else applicationIdProvider.packageName
   val apks =
-    apkProvider.getApks(device).asSequence()
+    apkProvider
+      .getApks(device)
+      .asSequence()
       .filter { info -> info.applicationId == applicationId }
       .flatMap { it.files.asSequence() }
       .map { it.apkFile }
       .distinct()
       .toList()
-  return if (apks.size == 1) apks[0]
-  else apks.map { it.parentFile }.singleOrNull()
+  return if (apks.size == 1) apks[0] else apks.map { it.parentFile }.singleOrNull()
 }

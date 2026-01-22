@@ -36,7 +36,8 @@ internal object SelectDeviceTableColumns {
 
   object Selected : Column<SelectDeviceRowData, Boolean, JBCheckBox> {
     override val name = ""
-    override val widthConstraint = Column.SizeConstraint(min = JBUIScale.scale(20), preferred = JBUIScale.scale(20))
+    override val widthConstraint =
+      Column.SizeConstraint(min = JBUIScale.scale(20), preferred = JBUIScale.scale(20))
     override val attribute =
       object : Attribute<SelectDeviceRowData, Boolean> {
         override val sorter = Comparator.naturalOrder<Boolean>()
@@ -57,12 +58,15 @@ internal object SelectDeviceTableColumns {
 
   object DeviceIcon : Column<SelectDeviceRowData, String, JBLabel> {
     override val name = ""
-    override val widthConstraint = Column.SizeConstraint(min = JBUIScale.scale(20), preferred = JBUIScale.scale(20))
+    override val widthConstraint =
+      Column.SizeConstraint(min = JBUIScale.scale(20), preferred = JBUIScale.scale(20))
     override val attribute = stringAttribute<SelectDeviceRowData> { it.deviceInfo.type.toString() }
 
     override fun createUi(rowValue: SelectDeviceRowData): JBLabel {
       val baseIcon = rowValue.deviceInfo.icon
-      val icon = if (!rowValue.isEnabled) ColoredIconGenerator.generateDeEmphasizedIcon(baseIcon) else baseIcon
+      val icon =
+        if (!rowValue.isEnabled) ColoredIconGenerator.generateDeEmphasizedIcon(baseIcon)
+        else baseIcon
       return JBLabel(icon)
     }
 

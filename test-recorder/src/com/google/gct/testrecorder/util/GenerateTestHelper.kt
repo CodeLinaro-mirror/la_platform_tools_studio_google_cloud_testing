@@ -39,6 +39,11 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.util.endOffset
 import com.intellij.util.IncorrectOperationException
+import java.util.Properties
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import javax.swing.JPanel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,16 +51,12 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.android.dom.manifest.Manifest
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.kotlin.psi.KtFile
-import java.util.Properties
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import javax.swing.JPanel
 
 const val KOTLIN_LANGUAGE_NAME = "Kotlin"
 const val NOTIFICATION_TITLE = "Espresso test recorder"
 
-// Timeout in minutes for waiting for indexing and generating ETR tests. This value is chosen based on heuristics.
+// Timeout in minutes for waiting for indexing and generating ETR tests. This value is chosen based
+// on heuristics.
 private const val DEFAULT_GENERATE_TEST_TIMEOUT_MINUTES = 5L
 
 @Throws(Exception::class)
@@ -75,25 +76,25 @@ fun generateTest(
   val isKotlinClass = (KOTLIN_LANGUAGE_NAME == selectedLanguage)
   val latch = CountDownLatch(1)
   CoroutineScope(Dispatchers.EDT).launch {
-    withContext(Dispatchers.IO) {
-      DumbService.getInstance(project).waitForSmartMode()
-    }
+    withContext(Dispatchers.IO) { DumbService.getInstance(project).waitForSmartMode() }
     progressIndicator.checkCanceled()
-    val testClass = withContext(Dispatchers.EDT) {
-      createClassFromTemplate(project, testClassName, testClassParent, isKotlinClass)
-    }
+    val testClass =
+      withContext(Dispatchers.EDT) {
+        createClassFromTemplate(project, testClassName, testClassParent, isKotlinClass)
+      }
 
     // Compute resource package name and application id before the potential Gradle confusion.
     val testClassModule = facet.module
-    var resourcePackageName = withContext(Dispatchers.IO) {
-      application.runReadAction<String?> {
-        AndroidFacet.getInstance(testClassModule)?.let { testClassFacet ->
-          Manifest.getMainManifest(testClassFacet)?.let { manifest ->
-            manifest.getPackage().stringValue
+    var resourcePackageName =
+      withContext(Dispatchers.IO) {
+        application.runReadAction<String?> {
+          AndroidFacet.getInstance(testClassModule)?.let { testClassFacet ->
+            Manifest.getMainManifest(testClassFacet)?.let { manifest ->
+              manifest.getPackage().stringValue
+            }
           }
         }
-      }
-    } ?: ""
+      } ?: ""
 
     val applicationId = getApplicationId(facet, resourcePackageName)
 
@@ -107,27 +108,38 @@ fun generateTest(
 
     val projectSystem = project.getProjectSystem()
     val usesAndroidxDependency =
-      EspressoSetupToken.EP_NAME.extensionList.firstOrNull { it.isApplicable(projectSystem) }
-        ?.ensureSetup(projectSystem, testClassModule, facet, rootPanel, allModelActions.toMutableList())
-        ?: false
+      EspressoSetupToken.EP_NAME.extensionList
+        .firstOrNull { it.isApplicable(projectSystem) }
+        ?.ensureSetup(
+          projectSystem,
+          testClassModule,
+          facet,
+          rootPanel,
+          allModelActions.toMutableList(),
+        ) ?: false
     application.invokeAndWait {
       TestCodeGenerator(
-        resourcePackageName, applicationId, testClassModule, testClass, allModelActions, launchedActivityName,
-        wasEverPaused, isKotlinClass, usesAndroidxDependency
-      ).generate()
+          resourcePackageName,
+          applicationId,
+          testClassModule,
+          testClass,
+          allModelActions,
+          launchedActivityName,
+          wasEverPaused,
+          isKotlinClass,
+          usesAndroidxDependency,
+        )
+        .generate()
     }
 
     progressIndicator.checkCanceled()
     // Show created test file in editor
     withContext(Dispatchers.EDT) {
-      FileEditorManager.getInstance(project).openTextEditor(
-        OpenFileDescriptor(
-          project,
-          testClass.containingFile.virtualFile,
-          testClass.endOffset
-        ),
-        true
-      )
+      FileEditorManager.getInstance(project)
+        .openTextEditor(
+          OpenFileDescriptor(project, testClass.containingFile.virtualFile, testClass.endOffset),
+          true,
+        )
     }
     latch.countDown()
   }
@@ -145,19 +157,13 @@ private suspend fun createClassFromTemplate(
   project: Project,
   testClassName: String,
   testClassParent: PsiDirectory,
-  isKotlinClass: Boolean
+  isKotlinClass: Boolean,
 ): PsiClass {
   val (className, templateName) =
     if (isKotlinClass) {
-      Pair(
-        testClassName + SdkConstants.DOT_KT,
-        "Kotlin Class"
-      )
+      Pair(testClassName + SdkConstants.DOT_KT, "Kotlin Class")
     } else {
-      Pair(
-        testClassName + SdkConstants.DOT_JAVA,
-        JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME
-      )
+      Pair(testClassName + SdkConstants.DOT_JAVA, JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME)
     }
   val fileTemplate = FileTemplateManager.getInstance(project).getInternalTemplate(templateName)
   fileTemplate.isReformatCode = false
@@ -166,19 +172,21 @@ private suspend fun createClassFromTemplate(
   val properties = Properties(defaultProperties)
   properties.setProperty(FileTemplate.ATTRIBUTE_NAME, testClassName)
 
-  val element = ApplicationManager.getApplication().runWriteAction<PsiElement> {
-    FileTemplateUtil.createFromTemplate(fileTemplate, className, properties, testClassParent)
-  }
-  val file = element.containingFile
-  val testClass = withContext(Dispatchers.IO) {
-    ApplicationManager.getApplication().runReadAction<PsiClass> {
-      if (isKotlinClass) {
-        (file as KtFile).classes.firstOrNull()
-      } else {
-        (file as PsiJavaFile).classes.firstOrNull()
-      } ?: throw IncorrectOperationException("Failed to create a test class from a template")
+  val element =
+    ApplicationManager.getApplication().runWriteAction<PsiElement> {
+      FileTemplateUtil.createFromTemplate(fileTemplate, className, properties, testClassParent)
     }
-  }
+  val file = element.containingFile
+  val testClass =
+    withContext(Dispatchers.IO) {
+      ApplicationManager.getApplication().runReadAction<PsiClass> {
+        if (isKotlinClass) {
+          (file as KtFile).classes.firstOrNull()
+        } else {
+          (file as PsiJavaFile).classes.firstOrNull()
+        } ?: throw IncorrectOperationException("Failed to create a test class from a template")
+      }
+    }
 
   if (fileTemplate.isLiveTemplateEnabled && file.viewProvider.document != null) {
     ApplicationManager.getApplication().invokeAndWait {
