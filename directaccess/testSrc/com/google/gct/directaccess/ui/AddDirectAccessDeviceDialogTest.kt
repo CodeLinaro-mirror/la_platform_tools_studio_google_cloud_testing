@@ -131,6 +131,9 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
       if (device.tags.contains("deprecated=33")) {
         node.onChildren().assertAny(hasText("Deprecated"))
       }
+      if (device.tags.contains("private")) {
+        node.onChildren().assertAny(hasText("Private"))
+      }
     }
     for (device in watches) {
       composeTestRule.onNodeWithText(device.codename).assertDoesNotExist()

@@ -43,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -72,6 +74,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import java.text.Collator
 import javax.swing.Action
@@ -95,6 +98,7 @@ import org.jetbrains.jewel.ui.component.ExternalLink
 import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
+import org.jetbrains.jewel.ui.component.styling.ChipColors
 import org.jetbrains.jewel.ui.component.styling.ChipMetrics
 import org.jetbrains.jewel.ui.component.styling.ChipStyle
 import org.jetbrains.jewel.ui.icon.IntelliJIconKey
@@ -102,6 +106,7 @@ import org.jetbrains.jewel.ui.theme.chipStyle
 
 /** Tags with format "$prefix=$api" e.g. "preview=35" */
 private val tagPrefixList = listOf("preview", "deprecated")
+private val allowedTags = listOf("private")
 
 class AddDirectAccessDeviceDialog(
   private val project: Project,
@@ -150,13 +155,14 @@ class AddDirectAccessDeviceDialog(
       attribute = { it.name },
       tags = { device ->
         device.tags.mapNotNull { tag ->
-          tagPrefixList
-            .firstOrNull { target ->
-              // Match device api with its tag.
-              tag.startsWith("$target=") &&
-                tag.substringAfter("=").toIntOrNull() == device.apiRange.lowerEndpoint()
-            }
-            ?.capitalize()
+          tag.takeIf { allowedTags.contains(it) }?.capitalize()
+            ?: tagPrefixList
+              .firstOrNull { target ->
+                // Match device api with its tag.
+                tag.startsWith("$target=") &&
+                  tag.substringAfter("=").toIntOrNull() == device.apiRange.lowerEndpoint()
+              }
+              ?.capitalize()
         }
       },
     )
@@ -288,7 +294,7 @@ class AddDirectAccessDeviceDialog(
         tags(value).forEach { tag ->
           Chip(
             Modifier.focusProperties { canFocus = false },
-            style = JewelTheme.chipStyle.fitText(),
+            style = JewelTheme.chipStyle.update(tag),
             interactionSource = remember { EmptyInteractionSource },
           ) {
             Text(text = tag, softWrap = false, overflow = TextOverflow.Ellipsis, maxLines = 1)
@@ -301,17 +307,63 @@ class AddDirectAccessDeviceDialog(
    * Adjusts the padding of the chip to fit the text. This is used to make the chips in the table
    * more compact.
    */
-  private fun ChipStyle.fitText() =
+  private fun ChipStyle.update(tag: String) =
     ChipStyle(
-      colors,
+      colors.withBackground(tag),
       ChipMetrics(
         metrics.cornerSize,
-        PaddingValues(start = 6.dp, top = 0.dp, bottom = 0.dp, end = 6.dp),
-        metrics.borderWidth,
-        metrics.borderWidth,
+        PaddingValues(start = 6.dp, top = 2.dp, bottom = 2.dp, end = 6.dp),
+        0.dp,
+        0.dp,
         DpSize.Zero,
       ),
     )
+
+  private fun getBackgroundColor(tag: String): Color? {
+    val isLightTheme = JBColor.isBright()
+    return when (tag) {
+      "Preview" -> if (isLightTheme) Color(0xFFDCCBFB) else Color(0xFFA571E6)
+      "Deprecated" -> if (isLightTheme) Color(0xFFFEE6B1) else Color(0xFFC27D04)
+      "Private" -> if (isLightTheme) Color(0xFFDFE1E5) else Color(0xFF383A42)
+      else -> null
+    }
+  }
+
+  private fun ChipColors.withBackground(tag: String): ChipColors {
+    val color = getBackgroundColor(tag) ?: return this
+    return ChipColors(
+      content = content,
+      background = SolidColor(color),
+      backgroundDisabled = SolidColor(color),
+      backgroundFocused = SolidColor(color),
+      backgroundPressed = SolidColor(color),
+      backgroundHovered = SolidColor(color),
+      backgroundSelected = SolidColor(color),
+      backgroundSelectedDisabled = SolidColor(color),
+      backgroundSelectedPressed = SolidColor(color),
+      backgroundSelectedFocused = SolidColor(color),
+      backgroundSelectedHovered = SolidColor(color),
+      contentDisabled = contentDisabled,
+      contentFocused = contentFocused,
+      contentPressed = contentPressed,
+      contentHovered = contentHovered,
+      contentSelected = contentSelected,
+      contentSelectedDisabled = contentSelectedDisabled,
+      contentSelectedPressed = contentSelectedPressed,
+      contentSelectedFocused = contentSelectedFocused,
+      contentSelectedHovered = contentSelectedHovered,
+      border = color,
+      borderDisabled = color,
+      borderFocused = color,
+      borderPressed = color,
+      borderHovered = color,
+      borderSelected = color,
+      borderSelectedDisabled = color,
+      borderSelectedPressed = color,
+      borderSelectedFocused = color,
+      borderSelectedHovered = color,
+    )
+  }
 
   @Composable
   private fun ColumnScope.Content() {
