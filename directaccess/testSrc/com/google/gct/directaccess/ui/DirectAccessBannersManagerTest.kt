@@ -39,17 +39,17 @@ class DirectAccessBannersManagerTest {
 
   private val ignoredIncident =
     """
-      {
-        "id" : "myId1",
-        "begin" : "2025-09-08T20:00:00+00:00",
-        "end" : "2025-07-20T17:50:00+00:00",
-        "created" : "2025-09-08T21:02:51+00:00",
-        "external_desc" : "Firebase Test Lab is experiencing elevated retry rate and error rate.",
-        "severity" : "medium",
-        "service_key" : "XAmF3juu1qZ8jNAVhv29",
-        "service_name" : "Test Lab",
-        "uri" : "incidents/N98oujPhm8JBUfeKyGi8"
-      }
+    {
+      "id" : "myId1",
+      "begin" : "2025-09-08T20:00:00+00:00",
+      "end" : "2025-07-20T17:50:00+00:00",
+      "created" : "2025-09-08T21:02:51+00:00",
+      "external_desc" : "Firebase Test Lab is experiencing elevated retry rate and error rate.",
+      "severity" : "medium",
+      "service_key" : "XAmF3juu1qZ8jNAVhv29",
+      "service_name" : "Test Lab",
+      "uri" : "incidents/N98oujPhm8JBUfeKyGi8"
+    }
     """
       .trimIndent()
 
