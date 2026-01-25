@@ -35,24 +35,16 @@ internal data class ClassNameFileTuple(
   val fileLocation: String,
 )
 
-internal class FakePsiShortNamesCache(
-  project: Project,
-  exceptionClasses: List<ClassNameFileTuple>,
-) : PsiShortNamesCache() {
-  private val projectClasses: Map<String, Array<PsiClass>> =
-    exceptionClasses
-      .map { klass ->
-        val fakePsiClass: PsiClass = mock {
-          on { qualifiedName } doReturn klass.fullClassName
-          on { containingFile } doReturn FakePsiFile(project, klass.fileLocation)
-        }
-        (klass.shortClassName to fakePsiClass)
-      }
-      .groupBy({ it.first }, { it.second })
-      .mapValues { (_, values) -> values.toTypedArray() }
+internal class FakePsiShortNamesCache(project: Project, exceptionClasses: List<ClassNameFileTuple>) : PsiShortNamesCache() {
+  private val projectClasses: Map<String, Array<PsiClass>> = exceptionClasses.map { klass ->
+    val fakePsiClass: PsiClass = mock {
+      on { qualifiedName } doReturn klass.fullClassName
+      on { containingFile } doReturn FakePsiFile(project, klass.fileLocation)
+    }
+    (klass.shortClassName to fakePsiClass)
+  }.groupBy({ it.first }, {it.second}).mapValues { (_, values) -> values.toTypedArray() }
 
-  override fun getClassesByName(name: String, scope: GlobalSearchScope): Array<PsiClass> =
-    projectClasses[name] ?: emptyArray()
+  override fun getClassesByName(name: String, scope: GlobalSearchScope): Array<PsiClass> = projectClasses[name] ?: emptyArray()
 
   override fun getAllClassNames(): Array<String> {
     TODO("Not yet implemented")
@@ -62,27 +54,15 @@ internal class FakePsiShortNamesCache(
     TODO("Not yet implemented")
   }
 
-  override fun getMethodsByNameIfNotMoreThan(
-    name: String,
-    scope: GlobalSearchScope,
-    maxCount: Int,
-  ): Array<PsiMethod> {
+  override fun getMethodsByNameIfNotMoreThan(name: String, scope: GlobalSearchScope, maxCount: Int): Array<PsiMethod> {
     TODO("Not yet implemented")
   }
 
-  override fun getFieldsByNameIfNotMoreThan(
-    name: String,
-    scope: GlobalSearchScope,
-    maxCount: Int,
-  ): Array<PsiField> {
+  override fun getFieldsByNameIfNotMoreThan(name: String, scope: GlobalSearchScope, maxCount: Int): Array<PsiField> {
     TODO("Not yet implemented")
   }
 
-  override fun processMethodsWithName(
-    name: String,
-    scope: GlobalSearchScope,
-    processor: Processor<in PsiMethod>,
-  ): Boolean {
+  override fun processMethodsWithName(name: String, scope: GlobalSearchScope, processor: Processor<in PsiMethod>): Boolean {
     TODO("Not yet implemented")
   }
 
@@ -99,8 +79,8 @@ internal class FakePsiShortNamesCache(
   }
 }
 
-private class FakePsiFile(project: Project, private val filename: String) :
-  MockPsiFile(LightVirtualFile(filename), MockPsiManager(project)) {
+private class FakePsiFile(project: Project, private val filename: String)
+  : MockPsiFile(LightVirtualFile(filename), MockPsiManager(project)) {
   override fun getName(): String = filename
 
   override fun getContainingFile(): PsiFile = this

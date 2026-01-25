@@ -66,17 +66,17 @@ class OemLabsAssetsRegistryIntegrationTest {
       path = "/some_lab/descriptor.json",
       content =
         """
-        {
-          "name": "SomeLab",
-          "icons": [
-            {
-              "formFactor": "tv",
-              "pathLight": "tv.svg",
-              "pathDark": "tv_dark.svg"
-            }
-          ]
-        }
-        """
+          {
+            "name": "SomeLab",
+            "icons": [
+              {
+                "formFactor": "tv",
+                "pathLight": "tv.svg",
+                "pathDark": "tv_dark.svg"
+              }
+            ]
+          }
+      """
           .trimIndent(),
       rCode = HttpURLConnection.HTTP_OK,
     )
@@ -108,17 +108,17 @@ class OemLabsAssetsRegistryIntegrationTest {
       .resolve("descriptor.json")
       .checkContents(
         """
-        {
-          "name": "SomeLab",
-          "icons": [
-            {
-              "formFactor": "tv",
-              "pathLight": "tv.svg",
-              "pathDark": "tv_dark.svg"
-            }
-          ]
-        }
-        """
+          {
+            "name": "SomeLab",
+            "icons": [
+              {
+                "formFactor": "tv",
+                "pathLight": "tv.svg",
+                "pathDark": "tv_dark.svg"
+              }
+            ]
+          }
+    """
           .trimIndent()
       )
 
@@ -126,8 +126,8 @@ class OemLabsAssetsRegistryIntegrationTest {
       .resolve("tv.svg")
       .checkContents(
         """
-        <svg>tv</svg>
-        """
+      <svg>tv</svg>
+    """
           .trimIndent()
       )
 
@@ -135,8 +135,8 @@ class OemLabsAssetsRegistryIntegrationTest {
       .resolve("tv_dark.svg")
       .checkContents(
         """
-        <svg>tv_dark</svg>
-        """
+      <svg>tv_dark</svg>
+    """
           .trimIndent()
       )
   }
@@ -147,19 +147,19 @@ class OemLabsAssetsRegistryIntegrationTest {
       path = "/some_lab/descriptor.json",
       content =
         """
-        {
-          "name": "SomeLab",
-          "foo": "bar",
-          "icons": [
-            {
-              "formFactor": "phone",
-              "pathLight": "phone.svg",
-              "pathDark": "phone_dark.svg",
-              "foo": "bar"
-            }
-          ]
-        }
-        """
+          {
+            "name": "SomeLab",
+            "foo": "bar",
+            "icons": [
+              {
+                "formFactor": "phone",
+                "pathLight": "phone.svg",
+                "pathDark": "phone_dark.svg",
+                "foo": "bar"
+              }
+            ]
+          }
+      """
           .trimIndent(),
       rCode = HttpURLConnection.HTTP_OK,
     )

@@ -22,49 +22,39 @@ import com.android.tools.idea.run.AndroidRunConfigurationExecutor
 import com.android.tools.idea.run.DeviceFutures
 import com.android.tools.idea.run.activity.launch.SpecificActivityLaunch
 import com.android.tools.idea.run.configuration.execution.getDevices
+import com.android.tools.idea.testartifacts.instrumented.AndroidRunConfigurationToken
 import com.android.tools.idea.testartifacts.instrumented.AndroidRunConfigurationToken.Companion.getModuleForAndroidRunConfiguration
 import com.android.tools.idea.util.androidFacet
 import com.google.gct.testrecorder.ui.TestRecorderAction
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.progress.runBlockingCancellable
 
-// TODO: move to core module where AndroidRunConfiguration lives, when test-recorder module detached
-// from core
+
+// TODO: move to core module where AndroidRunConfiguration lives, when test-recorder module detached from core
 class AndroidRunConfigurationTestRecorderExecutorProvider : AndroidConfigurationExecutor.Provider {
-  override fun createAndroidConfigurationExecutor(
-    env: ExecutionEnvironment
-  ): AndroidConfigurationExecutor? {
+  override fun createAndroidConfigurationExecutor(env: ExecutionEnvironment): AndroidConfigurationExecutor? {
     val configuration = env.runProfile
     if (configuration !is AndroidRunConfiguration) return null
 
-    val isRecordingTest =
-      env.getCopyableUserData(TestRecorderAction.KEY)?.isRecordingTest ?: return null
+    val isRecordingTest = env.getCopyableUserData(TestRecorderAction.KEY)?.isRecordingTest ?: return null
 
     val deviceFutures = env.getCopyableUserData(DeviceFutures.KEY)
 
     return configuration.run {
-      val applicationIdProvider =
-        applicationIdProvider ?: throw RuntimeException("Cannot get ApplicationIdProvider")
+      val applicationIdProvider = applicationIdProvider ?: throw RuntimeException("Cannot get ApplicationIdProvider")
       val apkProvider = apkProvider ?: throw RuntimeException("Cannot get ApkProvider")
-      val facet =
-        configuration.configurationModule.module
-          ?.let { getModuleForAndroidRunConfiguration(it) }
-          ?.androidFacet ?: throw RuntimeException("Cannot get AndroidFacet")
-      val applicationContext =
-        FacetBasedApplicationProjectContext(applicationIdProvider.packageName, facet)
-      val baseExecutor =
-        AndroidRunConfigurationExecutor(applicationContext, env, deviceFutures, apkProvider)
-      val activityName =
-        (configuration.getLaunchOptionState(configuration.MODE) as? SpecificActivityLaunch.State)
-          ?.ACTIVITY_CLASS ?: ""
-
-      return TestRecorderExecutor(
+      val facet = configuration.configurationModule.module?.let { getModuleForAndroidRunConfiguration(it) }?.androidFacet
+        ?: throw RuntimeException("Cannot get AndroidFacet")
+      val applicationContext = FacetBasedApplicationProjectContext(applicationIdProvider.packageName, facet)
+      val baseExecutor = AndroidRunConfigurationExecutor(
+        applicationContext,
         env,
-        baseExecutor,
-        activityName,
-        baseExecutor.facet,
-        isRecordingTest,
-      ) { indicator ->
+        deviceFutures,
+        apkProvider
+      )
+      val activityName = (configuration.getLaunchOptionState(configuration.MODE) as? SpecificActivityLaunch.State)?.ACTIVITY_CLASS ?: ""
+
+      return TestRecorderExecutor(env, baseExecutor, activityName, baseExecutor.facet, isRecordingTest) { indicator ->
         runBlockingCancellable {
           applicationContext.applicationId to getDevices(env, deviceFutures, indicator)
         }

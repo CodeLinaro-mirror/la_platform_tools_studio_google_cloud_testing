@@ -25,8 +25,8 @@ import com.android.ddmlib.IShellOutputReceiver
 import com.android.ddmlib.InstallReceiver
 import com.android.ddmlib.RawImage
 import com.android.ddmlib.ScreenRecorderOptions
-import com.android.ddmlib.ServiceInfo
 import com.android.ddmlib.SyncService
+import com.android.ddmlib.ServiceInfo
 import com.android.ddmlib.log.LogReceiver
 import com.android.sdklib.AndroidVersion
 import com.google.common.util.concurrent.Futures
@@ -41,7 +41,7 @@ data class GhostCloudDevice(
   val androidModelId: String,
   val androidVersion: AndroidVersion,
   val locale: String,
-  val orientation: String,
+  val orientation: String
 ) : IDevice {
 
   override fun getSerialNumber(): String = "N/A"
@@ -105,14 +105,10 @@ data class GhostCloudDevice(
   override fun startScreenRecorder(
     remoteFilePath: String,
     options: ScreenRecorderOptions,
-    receiver: IShellOutputReceiver,
+    receiver: IShellOutputReceiver
   ) = Unit
 
-  override fun executeShellCommand(
-    command: String,
-    receiver: IShellOutputReceiver,
-    maxTimeToOutputResponse: Int,
-  ) = Unit
+  override fun executeShellCommand(command: String, receiver: IShellOutputReceiver, maxTimeToOutputResponse: Int) = Unit
 
   override fun executeShellCommand(command: String, receiver: IShellOutputReceiver) = Unit
 
@@ -122,11 +118,7 @@ data class GhostCloudDevice(
 
   override fun createForward(localPort: Int, remotePort: Int) = Unit
 
-  override fun createForward(
-    localPort: Int,
-    remoteSocketName: String,
-    namespace: DeviceUnixSocketNamespace,
-  ) = Unit
+  override fun createForward(localPort: Int, remoteSocketName: String, namespace: DeviceUnixSocketNamespace) = Unit
 
   override fun removeForward(localPort: Int) = Unit
 
@@ -137,32 +129,17 @@ data class GhostCloudDevice(
   override fun getClientName(pid: Int): String? = null
 
   override fun push(local: Array<String>, remote: String) = Unit
-
   override fun pushFile(local: String, remote: String) = Unit
 
   override fun pullFile(remote: String, local: String) = Unit
 
-  override fun installPackage(
-    packageFilePath: String,
-    reinstall: Boolean,
-    vararg extraArgs: String,
-  ) = Unit
+  override fun installPackage(packageFilePath: String, reinstall: Boolean, vararg extraArgs: String) = Unit
+
+  override fun installPackage(packageFilePath: String, reinstall: Boolean, receiver: InstallReceiver, vararg extraArgs: String) = Unit
 
   override fun installPackage(
-    packageFilePath: String,
-    reinstall: Boolean,
-    receiver: InstallReceiver,
-    vararg extraArgs: String,
-  ) = Unit
-
-  override fun installPackage(
-    packageFilePath: String,
-    reinstall: Boolean,
-    receiver: InstallReceiver,
-    maxTimeout: Long,
-    maxTimeToOutputResponse: Long,
-    maxTimeUnits: TimeUnit,
-    vararg extraArgs: String,
+    packageFilePath: String, reinstall: Boolean, receiver: InstallReceiver, maxTimeout: Long,
+    maxTimeToOutputResponse: Long, maxTimeUnits: TimeUnit, vararg extraArgs: String
   ) = Unit
 
   override fun installPackages(
@@ -170,32 +147,18 @@ data class GhostCloudDevice(
     reinstall: Boolean,
     installOptions: List<String>,
     timeout: Long,
-    timeoutUnit: TimeUnit,
+    timeoutUnit: TimeUnit
   ) = Unit
 
   override fun syncPackageToDevice(localFilePath: String): String? = null
 
-  override fun installRemotePackage(
-    remoteFilePath: String,
-    reinstall: Boolean,
-    vararg extraArgs: String,
-  ) = Unit
+  override fun installRemotePackage(remoteFilePath: String, reinstall: Boolean, vararg extraArgs: String) = Unit
+
+  override fun installRemotePackage(remoteFilePath: String, reinstall: Boolean, receiver: InstallReceiver, vararg extraArgs: String) = Unit
 
   override fun installRemotePackage(
-    remoteFilePath: String,
-    reinstall: Boolean,
-    receiver: InstallReceiver,
-    vararg extraArgs: String,
-  ) = Unit
-
-  override fun installRemotePackage(
-    remoteFilePath: String,
-    reinstall: Boolean,
-    receiver: InstallReceiver,
-    maxTimeout: Long,
-    maxTimeToOutputResponse: Long,
-    maxTimeUnits: TimeUnit,
-    vararg extraArgs: String,
+    remoteFilePath: String, reinstall: Boolean, receiver: InstallReceiver, maxTimeout: Long,
+    maxTimeToOutputResponse: Long, maxTimeUnits: TimeUnit, vararg extraArgs: String
   ) = Unit
 
   override fun removeRemotePackage(remoteFilePath: String) = Unit
@@ -216,8 +179,7 @@ data class GhostCloudDevice(
 
   override fun getBattery(): Future<Int?> = Futures.immediateFuture(null)
 
-  override fun getBattery(freshnessTime: Long, timeUnit: TimeUnit): Future<Int?> =
-    Futures.immediateFuture(null)
+  override fun getBattery(freshnessTime: Long, timeUnit: TimeUnit): Future<Int?> = Futures.immediateFuture(null)
 
   override fun getAbis(): List<String> = emptyList()
 
@@ -234,14 +196,14 @@ data class GhostCloudDevice(
     rcvr: IShellOutputReceiver,
     maxTimeout: Long,
     maxTimeToOutputResponse: Long,
-    maxTimeUnits: TimeUnit,
+    maxTimeUnits: TimeUnit
   ) = Unit
 
   override fun executeRemoteCommand(
     command: String,
     rcvr: IShellOutputReceiver,
     maxTimeToOutputResponse: Long,
-    maxTimeUnits: TimeUnit,
+    maxTimeUnits: TimeUnit
   ) = Unit
 
   override fun executeRemoteCommand(
@@ -250,7 +212,7 @@ data class GhostCloudDevice(
     rcvr: IShellOutputReceiver,
     maxTimeToOutputResponse: Long,
     maxTimeUnits: TimeUnit,
-    `is`: InputStream?,
+    `is`: InputStream?
   ) = Unit
 
   override fun executeRemoteCommand(
@@ -260,26 +222,20 @@ data class GhostCloudDevice(
     maxTimeout: Long,
     maxTimeToOutputResponse: Long,
     maxTimeUnits: TimeUnit,
-    `is`: InputStream?,
+    `is`: InputStream?
   ) = Unit
 
   override fun getName(): String = "Firebase device: $deviceId"
 
-  override fun executeShellCommand(
-    command: String,
-    receiver: IShellOutputReceiver,
-    maxTimeToOutputResponse: Long,
-    maxTimeUnits: TimeUnit,
-  ) = Unit
-
+  override fun executeShellCommand(command: String, receiver: IShellOutputReceiver, maxTimeToOutputResponse: Long, maxTimeUnits: TimeUnit) =
+    Unit
   override fun executeShellCommand(
     command: String,
     receiver: IShellOutputReceiver,
     maxTimeout: Long,
     maxTimeToOutputResponse: Long,
-    maxTimeUnits: TimeUnit,
+    maxTimeUnits: TimeUnit
   ) = Unit
 
-  override fun getSystemProperty(name: String): ListenableFuture<String?> =
-    Futures.immediateFuture(null)
+  override fun getSystemProperty(name: String): ListenableFuture<String?> = Futures.immediateFuture(null)
 }

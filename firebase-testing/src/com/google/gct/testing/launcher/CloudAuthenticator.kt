@@ -29,9 +29,10 @@ import com.google.gct.testing.CloudTestingUtils
 import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
-import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.io.IOException
+import java.util.concurrent.CompletableFuture
 
 private const val APPLICATION_NAME = "GCTL"
 

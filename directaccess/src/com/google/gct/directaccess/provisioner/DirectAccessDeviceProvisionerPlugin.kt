@@ -91,8 +91,7 @@ class DirectAccessDeviceProvisionerPlugin(
 
   override fun <T : Extension> extension(extensionClass: Class<T>): T? {
     if (extensionClass == NotificationBannersExtension::class.java) {
-      @Suppress("UNCHECKED_CAST")
-      return NotificationBannersExtension(bannerManager.banners) as T
+      @Suppress("UNCHECKED_CAST") return NotificationBannersExtension(bannerManager.banners) as T
     }
     return null
   }
