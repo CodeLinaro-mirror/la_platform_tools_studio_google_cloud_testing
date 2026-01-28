@@ -28,20 +28,15 @@ class TestRecorderExecutorTest {
 
   @Test
   fun runDebugAndCleanStorage() {
-    val settings =
-      RunManager.getInstance(projectRule.project)
-        .createConfiguration("app", AndroidRunConfigurationType.getInstance().factory)
+    val settings = RunManager.getInstance(projectRule.project).createConfiguration("app", AndroidRunConfigurationType.getInstance().factory)
 
-    val env =
-      ExecutionEnvironmentBuilder.create(DefaultRunExecutor.getRunExecutorInstance(), settings)
-        .build()
+    val env = ExecutionEnvironmentBuilder.create(DefaultRunExecutor.getRunExecutorInstance(), settings).build()
     env.putCopyableUserData(TestRecorderAction.KEY, TestRecorderInfo(true))
 
     val runStats = RunStats(projectRule.project)
     env.putUserData(RunStats.KEY, runStats)
 
-    val startingDebuggerType =
-      (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType
+    val startingDebuggerType = (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType
 
     var debugInvoked = false
 
@@ -69,10 +64,7 @@ class TestRecorderExecutorTest {
 
     val device = mock<IDevice>()
 
-    val executor =
-      TestRecorderExecutor(env, baseExecutor, "", projectRule.module.androidFacet!!, true) {
-        Pair("appId", listOf(device))
-      }
+    val executor = TestRecorderExecutor(env, baseExecutor, "", projectRule.module.androidFacet!!, true) { Pair("appId", listOf(device)) }
 
     executor.debug(EmptyProgressIndicator())
     runStats.success()
@@ -80,7 +72,6 @@ class TestRecorderExecutorTest {
     assertThat(debugInvoked).isTrue()
     assertTaskPresentedInStats(usageTrackerRule.usages, "CLEAR_APP_STORAGE_TASK")
 
-    assertThat((env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType)
-      .isEqualTo(startingDebuggerType)
+    assertThat((env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType).isEqualTo(startingDebuggerType)
   }
 }

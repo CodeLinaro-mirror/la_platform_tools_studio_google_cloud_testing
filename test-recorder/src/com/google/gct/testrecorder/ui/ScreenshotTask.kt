@@ -39,8 +39,7 @@ open class ScreenshotTask(project: Project, private val screenshotProvider: Scre
     try {
       screenshot = runBlocking { screenshotProvider.captureScreenshot() }
     } catch (e: Exception) {
-      error =
-        ExceptionUtil.getMessage(e) ?: "Unexpected error while obtaining screenshot: ${e.javaClass}"
+      error = ExceptionUtil.getMessage(e) ?: "Unexpected error while obtaining screenshot: ${e.javaClass}"
     }
     indicator.checkCanceled()
   }

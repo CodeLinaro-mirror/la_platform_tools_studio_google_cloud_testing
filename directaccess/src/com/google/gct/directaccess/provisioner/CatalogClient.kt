@@ -31,8 +31,7 @@ object CatalogClient {
 
   /** Returns devices available for streaming, filtered based on Studio version. */
   fun getAvailableDevices(endpoint: String, cloudProject: String?): List<DeviceInfo> =
-    service<CloudClientService>().getAvailableDevices(endpoint, cloudProject).mapNotNull {
-      (model, perVersionInfo) ->
+    service<CloudClientService>().getAvailableDevices(endpoint, cloudProject).mapNotNull { (model, perVersionInfo) ->
       model.createDeviceInfo(perVersionInfo)
     }
 
@@ -63,13 +62,11 @@ object CatalogClient {
         "XR" -> FormFactors.XR
         else -> FormFactors.PHONE
       }
-    val deviceAvailabilityEstimateSeconds =
-      perVersionInfo.interactiveDeviceAvailabilityEstimate?.substringBefore("s")?.toLong()
+    val deviceAvailabilityEstimateSeconds = perVersionInfo.interactiveDeviceAvailabilityEstimate?.substringBefore("s")?.toLong()
     return DeviceInfo(
       id,
       brand,
-      if (name.startsWith("$manufacturer ", true)) name.substring(manufacturer.length + 1)
-      else name,
+      if (name.startsWith("$manufacturer ", true)) name.substring(manufacturer.length + 1) else name,
       labId =
         labInfo.getFormattedLabId().also {
           // We pre-populate here for the following usages
@@ -92,8 +89,7 @@ object CatalogClient {
   }
 
   private fun LabInfo?.getFormattedLabId(): String {
-    return (this?.name?.nullize(true)
-        ?: "Google") // Fallback here means google owned labs (i.e. Direct Access).
+    return (this?.name?.nullize(true) ?: "Google") // Fallback here means google owned labs (i.e. Direct Access).
       .lowercase()
       .replace(Regex("[ -]"), "_")
   }

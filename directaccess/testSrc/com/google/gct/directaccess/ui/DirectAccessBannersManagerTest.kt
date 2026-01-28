@@ -87,41 +87,29 @@ class DirectAccessBannersManagerTest {
   fun enablesSingleBanner() = runTest {
     outageJson.value = "[$ignoredIncident, $incident1]"
     enableBanner.value = true
-    bannersManager =
-      DirectAccessBannersManager(projectRule.project, backgroundScope, enableBanner) {
-        outageJson.value
-      }
+    bannersManager = DirectAccessBannersManager(projectRule.project, backgroundScope, enableBanner) { outageJson.value }
     yieldUntil { bannersManager.banners.value.size == 1 }
-    assertThat(bannersManager.banners.value.first().text)
-      .contains("Firebase Test Lab is experiencing elevated retry rate and error rate.")
+    assertThat(bannersManager.banners.value.first().text).contains("Firebase Test Lab is experiencing elevated retry rate and error rate.")
   }
 
   @Test
   fun enablesBanners() = runTest {
     outageJson.value = "[$incident1, $incident2]"
     enableBanner.value = true
-    bannersManager =
-      DirectAccessBannersManager(projectRule.project, backgroundScope, enableBanner) {
-        outageJson.value
-      }
+    bannersManager = DirectAccessBannersManager(projectRule.project, backgroundScope, enableBanner) { outageJson.value }
     yieldUntil { bannersManager.banners.value.size == 1 }
-    assertThat(bannersManager.banners.value.first().text)
-      .contains("There are 2 incidents affecting Device Streaming.")
+    assertThat(bannersManager.banners.value.first().text).contains("There are 2 incidents affecting Device Streaming.")
   }
 
   @Test
   fun outageInformationUpdated() = runTest {
     outageJson.value = "[$ignoredIncident, $incident1]"
     enableBanner.value = true
-    bannersManager =
-      DirectAccessBannersManager(projectRule.project, backgroundScope, enableBanner) {
-        outageJson.value
-      }
+    bannersManager = DirectAccessBannersManager(projectRule.project, backgroundScope, enableBanner) { outageJson.value }
     // Yield to the jobs launched from scope while creating DirectAccessBannersManager.
     delay(1000)
     yieldUntil { bannersManager.banners.value.size == 1 }
-    assertThat(bannersManager.banners.value.first().text)
-      .contains("Firebase Test Lab is experiencing elevated retry rate and error rate.")
+    assertThat(bannersManager.banners.value.first().text).contains("Firebase Test Lab is experiencing elevated retry rate and error rate.")
 
     outageJson.value = "[$ignoredIncident, $incident2]"
     delay(FETCH_INTERVAL_MILLIS)
@@ -129,9 +117,7 @@ class DirectAccessBannersManagerTest {
       bannersManager.banners.value
         .firstOrNull()
         ?.text
-        ?.contains(
-          "Firebase test lab is experiencing service disruptions due to issues in downstream services."
-        ) == true
+        ?.contains("Firebase test lab is experiencing service disruptions due to issues in downstream services.") == true
     }
   }
 }

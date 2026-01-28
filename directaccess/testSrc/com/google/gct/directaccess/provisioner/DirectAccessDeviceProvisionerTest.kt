@@ -169,35 +169,21 @@ class DirectAccessDeviceProvisionerTest {
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     val usageTracker = mock<DirectAccessUsageTracker>()
     whenever(usageTracker.scope).thenReturn(scope)
-    ApplicationManager.getApplication()
-      .replaceService(DirectAccessUsageTracker::class.java, usageTracker, projectRule.disposable)
+    ApplicationManager.getApplication().replaceService(DirectAccessUsageTracker::class.java, usageTracker, projectRule.disposable)
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null)).thenReturn(listOf())
     ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessServiceSetup::class.java,
-        mockDirectAccessServiceSetup,
-        projectRule.disposable,
-      )
+      .replaceService(DirectAccessServiceSetup::class.java, mockDirectAccessServiceSetup, projectRule.disposable)
 
     isOAuthTokenAvailable = true
     directAccessReservationManager =
-      DirectAccessReservationManager(
-        "testProject",
-        scope,
-        isDefaultApiEnabled = true,
-        grpcConnectionRule.channel,
-      ) {
+      DirectAccessReservationManager("testProject", scope, isDefaultApiEnabled = true, grpcConnectionRule.channel) {
         if (!isOAuthTokenAvailable) throw RuntimeException()
         "testToken"
       }
     setupConnection { reservationName ->
-      FakeDirectAccessConnection(
-        directAccessReservationManager,
-        reservationName,
-        scope.createChildScope(true),
-      )
+      FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true))
     }
     plugin = DirectAccessDeviceProvisionerPlugin(session.scope, projectRule.project)
     provisioner = DeviceProvisioner.create(session.scope, session, listOf(plugin))
@@ -222,20 +208,13 @@ class DirectAccessDeviceProvisionerTest {
     val cloudProjectName = "test-project"
     val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
     val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
-    whenever(mockCloudProjectManager.cloudProject)
-      .thenReturn(CloudProjectEntry("", cloudProjectName))
+    whenever(mockCloudProjectManager.cloudProject).thenReturn(CloudProjectEntry("", cloudProjectName))
     val deviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
     whenever(mockDirectAccessService.deviceSelectionListFlow).thenReturn(deviceSelectionListFlow)
     whenever(mockDirectAccessService.cloudProjectManager).thenReturn(cloudProjectManagerFlow)
     whenever(mockDirectAccessService.scope).thenReturn(scope)
-    doAnswer { runBlocking { fakeConnection.endReservation(true) } }
-      .whenever(mockDirectAccessService)
-      .selectCloudProject(eq(null))
-    projectRule.project.replaceService(
-      DirectAccessService::class.java,
-      mockDirectAccessService,
-      projectRule.disposable,
-    )
+    doAnswer { runBlocking { fakeConnection.endReservation(true) } }.whenever(mockDirectAccessService).selectCloudProject(eq(null))
+    projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
 
     // Sets up deviceSelectionListFlow.
     scope.launch {
@@ -247,22 +226,17 @@ class DirectAccessDeviceProvisionerTest {
     // Sets up APIs im cloudProjectManager
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (loginUsersRule.loginService.isLoggedIn() && isOAuthTokenAvailable)
-          Pair(directAccessReservationManager.listReservations(), null)
+        if (loginUsersRule.loginService.isLoggedIn() && isOAuthTokenAvailable) Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
-    whenever(mockCloudProjectManager.reservationListFlowWithException)
-      .thenReturn(reservationListFlow)
+    whenever(mockCloudProjectManager.reservationListFlowWithException).thenReturn(reservationListFlow)
 
-    val accessibleDeviceInfoListFlow =
-      RefreshableStateFlow(scope, Long.MAX_VALUE) { deviceInfoListProvider() }
-    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow)
-      .thenReturn(accessibleDeviceInfoListFlow)
+    val accessibleDeviceInfoListFlow = RefreshableStateFlow(scope, Long.MAX_VALUE) { deviceInfoListProvider() }
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow).thenReturn(accessibleDeviceInfoListFlow)
     whenever(mockCloudProjectManager.reservationManager).thenReturn(directAccessReservationManager)
 
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
-    whenever(mockCloudProjectManager.connectionManager)
-      .thenReturn(mockDirectAccessConnectionManager)
+    whenever(mockCloudProjectManager.connectionManager).thenReturn(mockDirectAccessConnectionManager)
 
     // Sets up connectionManager.
     doAnswer {
@@ -290,9 +264,7 @@ class DirectAccessDeviceProvisionerTest {
     // getAvailableDevices() is called in the init block of FirebaseDeviceProvisioner
     // Wait for setup to complete
     yieldUntil { provisioner.templates.value.isNotEmpty() }
-    yieldUntil {
-      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
-    }
+    yieldUntil { provisioner.templates.value.all { it.activationAction.presentation.value.enabled } }
 
     // Assert
     provisioner.templates.value[0].id.apply {
@@ -303,22 +275,13 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[0].properties.title).isEqualTo("Google Pixel 5")
     assertThat(provisioner.templates.value[0].properties.resolution).isEqualTo(Resolution(100, 200))
     assertThat(provisioner.templates.value[0].properties.density).isEqualTo(300)
-    assertThat(
-        (provisioner.templates.value[0].properties.icon as OemLabsAssetsRegistry.OemLabIcon)
-          .description
-      )
-      .isEqualTo("google_phone")
+    assertThat((provisioner.templates.value[0].properties.icon as OemLabsAssetsRegistry.OemLabIcon).description).isEqualTo("google_phone")
     assertThat(provisioner.templates.value[0].properties.isRemote).isTrue()
     assertThat(provisioner.templates.value[1].properties.title).isEqualTo("Google Pixel 6")
     assertThat(provisioner.templates.value[1].properties.resolution).isEqualTo(Resolution(200, 300))
     assertThat(provisioner.templates.value[1].properties.density).isEqualTo(400)
     assertThat(provisioner.templates.value[1].properties.isRemote).isTrue()
-    assertThat(
-        (provisioner.templates.value[1] as DirectAccessDeviceTemplate)
-          .deviceInfo
-          .deviceAvailabilityEstimateSeconds
-      )
-      .isEqualTo(300)
+    assertThat((provisioner.templates.value[1] as DirectAccessDeviceTemplate).deviceInfo.deviceAvailabilityEstimateSeconds).isEqualTo(300)
     yieldUntil {
       provisioner.templates.value[1].state.error?.severity == DeviceError.Severity.WARNING &&
         provisioner.templates.value[1].state.error?.message == "less than 15 min"
@@ -327,12 +290,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
     assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
     assertThat(provisioner.templates.value[2].properties.isRemote).isTrue()
-    assertThat(
-        (provisioner.templates.value[2] as DirectAccessDeviceTemplate)
-          .deviceInfo
-          .deviceAvailabilityEstimateSeconds
-      )
-      .isEqualTo(3000)
+    assertThat((provisioner.templates.value[2] as DirectAccessDeviceTemplate).deviceInfo.deviceAvailabilityEstimateSeconds).isEqualTo(3000)
     yieldUntil {
       provisioner.templates.value[2].state.error?.severity == DeviceError.Severity.WARNING &&
         provisioner.templates.value[2].state.error?.message == "more than 15 min"
@@ -348,45 +306,31 @@ class DirectAccessDeviceProvisionerTest {
 
     // Log out
     loginUsersRule.logOut("test@google.com")
-    yieldUntil {
-      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
-    }
+    yieldUntil { provisioner.templates.value.all { !it.activationAction.presentation.value.enabled } }
 
     // Login without access.
     isOAuthTokenAvailable = false
     loginUsersRule.setActiveUser("test@google.com")
     projectRule.project.refreshReservations()
-    yieldUntil {
-      provisioner.templates.value.all { !it.activationAction.presentation.value.enabled }
-    }
+    yieldUntil { provisioner.templates.value.all { !it.activationAction.presentation.value.enabled } }
     // Login with access.
     isOAuthTokenAvailable = true
     loginUsersRule.setActiveUser("test2@google.com")
     projectRule.project.refreshReservations()
-    yieldUntil {
-      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
-    }
+    yieldUntil { provisioner.templates.value.all { it.activationAction.presentation.value.enabled } }
   }
 
   @Test
   fun testRemovedTemplates() = runBlockingWithTimeout {
     yieldUntil { provisioner.templates.value.isNotEmpty() }
-    yieldUntil {
-      provisioner.templates.value.all { it.activationAction.presentation.value.enabled }
-    }
+    yieldUntil { provisioner.templates.value.all { it.activationAction.presentation.value.enabled } }
     val accessibleDevicesFlow =
-      projectRule.project
-        .service<DirectAccessService>()
-        .cloudProjectManager
-        .value
-        ?.accessibleDeviceInfoListFlow
-        ?.stateFlow
+      projectRule.project.service<DirectAccessService>().cloudProjectManager.value?.accessibleDeviceInfoListFlow?.stateFlow
     (accessibleDevicesFlow as MutableStateFlow).value = listOf()
     yieldUntil {
       provisioner.templates.value.all {
         !it.activationAction.presentation.value.enabled &&
-          it.activationAction.presentation.value.detail ==
-            "${it.properties.title} removed from the Firebase Test Lab catalog." &&
+          it.activationAction.presentation.value.detail == "${it.properties.title} removed from the Firebase Test Lab catalog." &&
           it.state.error?.severity == DeviceError.Severity.WARNING
         it.state.error?.message == "No longer available"
       }
@@ -431,8 +375,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name + suffix,
       ),
     )
-    session.hostServices.devices =
-      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    session.hostServices.devices = DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
     yieldUntil { state.value.connectedDevice != null }
     assertThat(state.value).isInstanceOf(Connected::class.java)
     assertThat(state.value.reservation!!.stateMessage).isEmpty()
@@ -472,12 +415,9 @@ class DirectAccessDeviceProvisionerTest {
 
   @Test
   fun waitUntilTemplatesBecomeAvailable() = runBlockingWithTimeout {
-    val index =
-      deviceInfoListProvider().indexOfFirst { it.deviceAvailabilityEstimateSeconds == 300L }
+    val index = deviceInfoListProvider().indexOfFirst { it.deviceAvailabilityEstimateSeconds == 300L }
     val template = plugin.templates.value[index] as DirectAccessDeviceTemplate
-    yieldUntil {
-      template.activationAction.presentation.value.icon == StudioIcons.Avd.START_RESERVATION
-    }
+    yieldUntil { template.activationAction.presentation.value.icon == StudioIcons.Avd.START_RESERVATION }
 
     // Reserve a device and cancel it from the waiting dialog.
     TestDialogManager.setTestDialog(TestDialog.NO)
@@ -497,8 +437,7 @@ class DirectAccessDeviceProvisionerTest {
 
   @Test
   fun waitingTimeNotAvailable() = runBlockingWithTimeout {
-    val index =
-      deviceInfoListProvider().indexOfFirst { it.deviceAvailabilityEstimateSeconds == null }
+    val index = deviceInfoListProvider().indexOfFirst { it.deviceAvailabilityEstimateSeconds == null }
     val template = plugin.templates.value[index] as DirectAccessDeviceTemplate
     assertThat(template.activationAction.presentation.value.icon).isEqualTo(StudioIcons.Avd.RUN)
 
@@ -518,26 +457,17 @@ class DirectAccessDeviceProvisionerTest {
     val templates = plugin.templates.first()
     val template = templates.first() as DirectAccessDeviceTemplate
     // Create a finished reservation that will be fetched but not processed.
-    val reservation =
-      directAccessReservationManager.createReservation(
-        template.deviceInfo.codename,
-        template.deviceInfo.api.toString(),
-      )
+    val reservation = directAccessReservationManager.createReservation(template.deviceInfo.codename, template.deviceInfo.api.toString())
     directAccessReservationManager.cancelReservation(reservation.name)
     templates.first().deleteAction?.delete()
     yieldUntil {
-      projectRule.project.directAccessCloudProjectManager!!
-        .reservationListFlowWithException
-        .value
-        .first
-        ?.firstOrNull()
-        ?.name == reservation.name
+      projectRule.project.directAccessCloudProjectManager!!.reservationListFlowWithException.value.first?.firstOrNull()?.name ==
+        reservation.name
     }
 
     yieldUntil { plugin.templates.value.size == 4 }
 
-    assertThat(plugin.templates.value)
-      .containsExactlyElementsIn(templates.subList(1, templates.size))
+    assertThat(plugin.templates.value).containsExactlyElementsIn(templates.subList(1, templates.size))
   }
 
   @Test
@@ -564,15 +494,8 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   fun connectionFailed() = runBlockingWithTimeout {
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
-        override suspend fun connect(
-          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
+        override suspend fun connect(progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit) {
           throw RuntimeException("Failed connection.")
         }
       }
@@ -591,12 +514,7 @@ class DirectAccessDeviceProvisionerTest {
     // After an error, there shouldn't be a handle, and the reservation (if present) should be
     // FINISHED.
     yieldUntil { provisioner.devices.value.isEmpty() }
-    assertThat(
-        directAccessReservationManager.listReservations().all {
-          it.state == Reservation.SessionState.FINISHED
-        }
-      )
-      .isTrue()
+    assertThat(directAccessReservationManager.listReservations().all { it.state == Reservation.SessionState.FINISHED }).isTrue()
   }
 
   @Test
@@ -604,17 +522,10 @@ class DirectAccessDeviceProvisionerTest {
     val latch = CompletableDeferred<Unit>()
 
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
         private val connectionScope = scope.createChildScope(isSupervisor = true)
 
-        override suspend fun connect(
-          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
-        ) {
+        override suspend fun connect(progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit) {
           withContext(connectionScope.coroutineContext) { latch.await() }
         }
 
@@ -698,20 +609,14 @@ class DirectAccessDeviceProvisionerTest {
 
     // Device removed after logout.
     loginUsersRule.logOut("test@google.com")
-    yieldUntil {
-      provisioner.templates.value.all { (it as DirectAccessDeviceTemplate).activeDevice == null }
-    }
+    yieldUntil { provisioner.templates.value.all { (it as DirectAccessDeviceTemplate).activeDevice == null } }
     yieldUntil { provisioner.devices.value.isEmpty() }
 
     // Login again to re-discover the device.
     loginUsersRule.setActiveUser("test@google.com")
-    yieldUntil {
-      projectRule.project.service<DirectAccessService>().cloudProjectManager.value != null
-    }
+    yieldUntil { projectRule.project.service<DirectAccessService>().cloudProjectManager.value != null }
     projectRule.project.refreshReservations()
-    yieldUntil {
-      provisioner.templates.value.any { (it as DirectAccessDeviceTemplate).activeDevice != null }
-    }
+    yieldUntil { provisioner.templates.value.any { (it as DirectAccessDeviceTemplate).activeDevice != null } }
   }
 
   @Test
@@ -728,8 +633,7 @@ class DirectAccessDeviceProvisionerTest {
     val oldEndTime = handle.state.reservation?.endTime
     val newEndTime = handle.reservationAction?.reserve(Duration.ofSeconds(100))
     assertThat(newEndTime?.epochSecond).isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
-    assertThat(handle.state.reservation?.endTime?.epochSecond)
-      .isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
+    assertThat(handle.state.reservation?.endTime?.epochSecond).isEqualTo(oldEndTime?.plusSeconds(100)?.epochSecond)
   }
 
   @Test
@@ -753,9 +657,7 @@ class DirectAccessDeviceProvisionerTest {
       dialogCountDown.countDown()
       MessageDialog.OK_EXIT_CODE
     }
-    handle.launchCatchingDeviceActionException {
-      handle.reservationAction?.reserve(Duration.ofMinutes(1))
-    }
+    handle.launchCatchingDeviceActionException { handle.reservationAction?.reserve(Duration.ofMinutes(1)) }
     dialogCountDown.await()
   }
 
@@ -819,8 +721,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
       ),
     )
-    session.hostServices.devices =
-      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    session.hostServices.devices = DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
 
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
@@ -837,10 +738,7 @@ class DirectAccessDeviceProvisionerTest {
     firstNotificationsList[0].assertReservationExpiringNotification(handle, true) {
       val extendAction = it.actions[0] as NotificationAction
       extendAction.actionPerformed(mock(), it)
-      yieldUntil {
-        handle.reservation.expireTime.seconds ==
-          handle.reservation.createTime.seconds + TimeUnit.MINUTES.toSeconds(20) + 10
-      }
+      yieldUntil { handle.reservation.expireTime.seconds == handle.reservation.createTime.seconds + TimeUnit.MINUTES.toSeconds(20) + 10 }
     }
 
     // Expiring a notification does not guarantee it is no longer visible. Wait for the notification
@@ -883,18 +781,13 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
       ),
     )
-    session.hostServices.devices =
-      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    session.hostServices.devices = DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
 
-    val stateFlow =
-      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
-        as MutableStateFlow
+    val stateFlow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name) as MutableStateFlow
     stateFlow.waitUntilActive()
 
     service.config = FakeDirectAccessGrpcService.Config(authenticatedToGetReservation = false)
-    stateFlow.update {
-      it.toBuilder().setState(Reservation.SessionState.SESSION_STATE_UNSPECIFIED).build()
-    }
+    stateFlow.update { it.toBuilder().setState(Reservation.SessionState.SESSION_STATE_UNSPECIFIED).build() }
 
     yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
     val firstNotificationsList = getNotifications(projectRule.project)
@@ -903,8 +796,7 @@ class DirectAccessDeviceProvisionerTest {
     firstNotificationsList[0].assertDeviceNotification(
       "Direct Access Sticky",
       "${handle.deviceName} session lost",
-      "Android Studio can not access session status right now. " +
-        "Please check your network connection and login again.",
+      "Android Studio can not access session status right now. " + "Please check your network connection and login again.",
       handle.icon,
       listOf(),
       true,
@@ -1013,9 +905,7 @@ class DirectAccessDeviceProvisionerTest {
     val handle = (template as DirectAccessDeviceTemplate).activeDevice
     assertThat(handle).isNotNull()
 
-    handle?.reservation?.let {
-      directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive()
-    }
+    handle?.reservation?.let { directAccessReservationManager.fetchReservationFlow(it.name).waitUntilActive() }
     session.hostServices.connect(handle!!.connection.deviceAddress()!!)
     yieldUntil { handle.state is Connected }
 
@@ -1058,11 +948,7 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   fun testActionPresentationsWithReconnection() = runBlockingWithTimeout {
     val deviceInfo = deviceInfoListProvider()[0]
-    val reservation =
-      directAccessReservationManager.createReservation(
-        deviceInfo.codename,
-        deviceInfo.api.toString(),
-      )
+    val reservation = directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
     directAccessReservationManager.fetchReservationFlow(reservation.name).waitUntilActive()
     projectRule.project.refreshReservations()
     yieldUntil { provisioner.devices.value.isNotEmpty() }
@@ -1100,8 +986,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
       ),
     )
-    session.hostServices.devices =
-      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    session.hostServices.devices = DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
     yieldUntil { handle.state is Connected }
     assertThat(activationPresentation.value.enabled).isFalse()
     assertThat(deactivationPresentation.value.enabled).isTrue()
@@ -1135,9 +1020,7 @@ class DirectAccessDeviceProvisionerTest {
     val flow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
     flow.waitUntilActive()
 
-    (flow as MutableStateFlow).update {
-      it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build()
-    }
+    (flow as MutableStateFlow).update { it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build() }
     yieldUntil { flow.value.state == Reservation.SessionState.EXPIRED }
 
     yieldUntil { handle.stateFlow.value.reservation?.state == ReservationState.COMPLETE }
@@ -1173,12 +1056,7 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   fun testNoNotificationOnForceCheckInWhenReservationEndDelayed() = runBlockingWithTimeout {
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
         override suspend fun endReservation(withGracePeriod: Boolean) {
           closeConnection(DirectAccessConnection.StateReason.USER_INITIATED)
           // Do not end reservation to simulate delayed/failed end reservation
@@ -1219,12 +1097,7 @@ class DirectAccessDeviceProvisionerTest {
   @Test
   fun testStickyNotificationOnReservationExpiry() = runBlockingWithTimeout {
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
         override suspend fun closeConnection(stateReason: DirectAccessConnection.StateReason) {
           session.hostServices.disconnect(deviceAddress()!!)
           super.closeConnection(stateReason)
@@ -1250,8 +1123,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_PRODUCT_MODEL to deviceInfo.name,
       ),
     )
-    session.hostServices.devices =
-      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    session.hostServices.devices = DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
     yieldUntil { handle.state is Connected }
     yieldUntil { provisioner.devices.value.isNotEmpty() }
 
@@ -1268,8 +1140,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(notification.title).isEqualTo("${template.properties.title} session ended")
     assertThat(notification.icon).isEqualTo(handle.icon)
     assertThat(notification.groupId).isEqualTo("Direct Access Sticky")
-    val notificationGroup =
-      service<NotificationGroupManager>().getNotificationGroup(notification.groupId)
+    val notificationGroup = service<NotificationGroupManager>().getNotificationGroup(notification.groupId)
     assertThat(notificationGroup.displayType).isEqualTo(NotificationDisplayType.STICKY_BALLOON)
 
     val actions = notification.actions
@@ -1300,9 +1171,7 @@ class DirectAccessDeviceProvisionerTest {
     service<GoogleLoginService>().logIn()
     var port = 12345
     plugin.templates.value.forEach {
-      setupConnection { reservationName ->
-        FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++)
-      }
+      setupConnection { reservationName -> FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++) }
       val handle = it.activationAction.activate() as DirectAccessDeviceHandle
       session.hostServices.connect(handle.connection.deviceAddress()!!)
       yieldUntil { handle.state is Connected }
@@ -1312,9 +1181,7 @@ class DirectAccessDeviceProvisionerTest {
     // Setup dialog such that user agrees to return devices while signing out
     TestDialogManager.setTestDialog { message ->
       assertThat(message)
-        .isEqualTo(
-          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-        )
+        .isEqualTo("Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed.")
       Messages.YES
     }
 
@@ -1328,9 +1195,7 @@ class DirectAccessDeviceProvisionerTest {
     var port = 12345
     service<GoogleLoginService>().logIn()
     plugin.templates.value.forEach {
-      setupConnection { reservationName ->
-        FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++)
-      }
+      setupConnection { reservationName -> FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope, port++) }
       val handle = it.activationAction.activate() as DirectAccessDeviceHandle
       session.hostServices.connect(handle.connection.deviceAddress()!!)
       yieldUntil { handle.state is Connected }
@@ -1340,9 +1205,7 @@ class DirectAccessDeviceProvisionerTest {
     // Setup dialog such that user declines to return devices while signing out
     TestDialogManager.setTestDialog { message ->
       assertThat(message)
-        .isEqualTo(
-          "Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed."
-        )
+        .isEqualTo("Return and erase the devices to end the session?\nActive sessions consume quota after Android Studio is closed.")
       Messages.NO
     }
 
@@ -1367,8 +1230,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_PRODUCT_MODEL to template.deviceInfo.name,
       ),
     )
-    session.hostServices.devices =
-      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    session.hostServices.devices = DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
 
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
@@ -1378,9 +1240,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(notifications.size).isEqualTo(1)
     val notification = notifications[0]
     val formattedReservationExpireTime =
-      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-        .withZone(ZoneId.systemDefault())
-        .format(handle.state.reservation?.endTime)
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault()).format(handle.state.reservation?.endTime)
     notification.assertDeviceNotification(
       "Direct Access Sticky",
       "${handle.sourceTemplate.properties.title} session ended",
@@ -1435,8 +1295,7 @@ class DirectAccessDeviceProvisionerTest {
         DevicePropertyNames.RO_PRODUCT_MODEL to template.deviceInfo.name,
       ),
     )
-    session.hostServices.devices =
-      DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
+    session.hostServices.devices = DeviceList(listOf(com.android.adblib.DeviceInfo(serialNumber, DeviceState.ONLINE)), listOf())
 
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
@@ -1446,9 +1305,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(notifications.size).isEqualTo(1)
     val notification = notifications[0]
     val formattedReservationExpireTime =
-      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-        .withZone(ZoneId.systemDefault())
-        .format(handle.state.reservation?.endTime)
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault()).format(handle.state.reservation?.endTime)
     notification.assertDeviceNotification(
       "Direct Access Sticky",
       "${handle.sourceTemplate.properties.title} session ended",
@@ -1560,20 +1417,14 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(countDownLatch.count).isEqualTo(0)
   }
 
-  private suspend fun testCorrectIcon(
-    template: DirectAccessDeviceTemplate,
-    iconDescription: String,
-  ) {
+  private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, iconDescription: String) {
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     session.hostServices.connect(handle.connection.deviceAddress()!!)
     yieldUntil { handle.state is Connected }
 
-    assertThat((template.icon as OemLabsAssetsRegistry.OemLabIcon).description)
-      .isEqualTo(iconDescription)
-    assertThat((handle.icon as OemLabsAssetsRegistry.OemLabIcon).description)
-      .isEqualTo(iconDescription)
-    assertThat((handle.state.properties.icon as OemLabsAssetsRegistry.OemLabIcon).description)
-      .isEqualTo(iconDescription)
+    assertThat((template.icon as OemLabsAssetsRegistry.OemLabIcon).description).isEqualTo(iconDescription)
+    assertThat((handle.icon as OemLabsAssetsRegistry.OemLabIcon).description).isEqualTo(iconDescription)
+    assertThat((handle.state.properties.icon as OemLabsAssetsRegistry.OemLabIcon).description).isEqualTo(iconDescription)
   }
 
   private suspend fun Notification.assertReservationExpiringNotification(
@@ -1621,9 +1472,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(icon).isEqualTo(deviceIcon)
     assertThat(actions.size).isEqualTo(actionTitles.size)
     assertThat(isExpired).isFalse()
-    actionTitles.indices.forEach { index ->
-      assertThat(actions[index].templateText).isEqualTo(actionTitles[index])
-    }
+    actionTitles.indices.forEach { index -> assertThat(actions[index].templateText).isEqualTo(actionTitles[index]) }
     actionAssertBlock(this)
     // Make sure the notification expires as both actions expire it.
     if (waitForNotificationExpiry) yieldUntil { isExpired }
@@ -1651,12 +1500,9 @@ class DirectAccessDeviceProvisionerTest {
     return handle
   }
 
-  private fun setupMockContentForRunningDevicePanel(
-    bannerNotificationHolder: MutableList<EditorNotificationPanel>
-  ): Content {
+  private fun setupMockContentForRunningDevicePanel(bannerNotificationHolder: MutableList<EditorNotificationPanel>): Content {
     val mockStreamingDevicePanel = mock<StreamingDevicePanel<*>>()
-    whenever(mockStreamingDevicePanel.id)
-      .thenReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
+    whenever(mockStreamingDevicePanel.id).thenReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
     doAnswer { bannerNotificationHolder.add(it.arguments[0] as EditorNotificationPanel) }
       .whenever(mockStreamingDevicePanel)
       .addNotification(any())

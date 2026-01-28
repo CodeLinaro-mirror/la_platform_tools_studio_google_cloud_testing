@@ -74,8 +74,7 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
   companion object {
     @JvmStatic
     @Parameters(name = "{0}")
-    fun deviceLists() =
-      listOf(arrayOf(extendedDeviceInfoListProvider), arrayOf(deviceInfoListProvider))
+    fun deviceLists() = listOf(arrayOf(extendedDeviceInfoListProvider), arrayOf(deviceInfoListProvider))
   }
 
   @get:Rule val edtRule = EdtRule()
@@ -96,19 +95,11 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
     whenever(mockAssets.retrieveName(any())).thenAnswer { "${it.arguments[0]} Lab" }
     whenever(mockAssets.retrieveIcon(any(), any())).thenReturn(mock())
 
-    ApplicationManager.getApplication()
-      .replaceService(OemLabsAssetsRegistry::class.java, mockAssets, projectRule.disposable)
+    ApplicationManager.getApplication().replaceService(OemLabsAssetsRegistry::class.java, mockAssets, projectRule.disposable)
 
-    deviceSelectionListFlow =
-      MutableStateFlow(deviceListProvider().map { DeviceSelection(false, it) })
-    phones =
-      deviceSelectionListFlow.value
-        .map { it.deviceInfo }
-        .filter { it.formFactor == FormFactors.PHONE }
-    watches =
-      deviceSelectionListFlow.value
-        .map { it.deviceInfo }
-        .filter { it.formFactor == FormFactors.WEAR }
+    deviceSelectionListFlow = MutableStateFlow(deviceListProvider().map { DeviceSelection(false, it) })
+    phones = deviceSelectionListFlow.value.map { it.deviceInfo }.filter { it.formFactor == FormFactors.PHONE }
+    watches = deviceSelectionListFlow.value.map { it.deviceInfo }.filter { it.formFactor == FormFactors.WEAR }
     dialog = AddDirectAccessDeviceDialog(project, deviceSelectionListFlow)
     composeTestRule.setContent { dialog.ComposeContent() }
   }
@@ -141,8 +132,7 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
     // In the extended device list, there are multiple labs and so the column is visible,
     // otherwise not.
     composeTestRule.onNodeWithText("Lab").apply {
-      if (deviceListProvider().distinctBy { it.labId }.size == 1) assertDoesNotExist()
-      else assertExists()
+      if (deviceListProvider().distinctBy { it.labId }.size == 1) assertDoesNotExist() else assertExists()
     }
   }
 
@@ -172,18 +162,13 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
 
   @Test
   fun labFilter() {
-    val labIds: List<String> =
-      deviceListProvider().map { it.labId }.distinct().sortedWith(Collator.getInstance())
+    val labIds: List<String> = deviceListProvider().map { it.labId }.distinct().sortedWith(Collator.getInstance())
 
     if (labIds.size > 1) {
       val filterNodes = composeTestRule.onNodeWithText("Device Lab").onSiblings()
-      val positions =
-        labIds.map {
-          filterNodes.filterToOne(hasText("$it Lab")).fetchSemanticsNode().boundsInRoot.top
-        }
+      val positions = labIds.map { filterNodes.filterToOne(hasText("$it Lab")).fetchSemanticsNode().boundsInRoot.top }
       assertThat(positions).isStrictlyOrdered()
-      val inaccessibleIcon =
-        composeTestRule.onNodeWithContentDescription("Lab inaccessible").fetchSemanticsNode()
+      val inaccessibleIcon = composeTestRule.onNodeWithContentDescription("Lab inaccessible").fetchSemanticsNode()
       val labLabel = filterNodes.filterToOne(hasText("google Lab")).fetchSemanticsNode()
       assertThat(inaccessibleIcon.boundsInRoot.top).isEqualTo(labLabel.boundsInRoot.top)
     } else {
@@ -193,9 +178,7 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
 
   @Test
   fun formFactor() {
-    composeTestRule
-      .onNode(hasText("Phone") and hasAnySibling(hasText("Form Factor")))
-      .performClick()
+    composeTestRule.onNode(hasText("Phone") and hasAnySibling(hasText("Form Factor"))).performClick()
     composeTestRule.onNodeWithText("Wear OS").performClick()
     composeTestRule.waitForIdle()
     for (device in watches) {
@@ -211,28 +194,16 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
   @Test
   fun confirmSelection(): Unit = runBlockingWithTimeout {
     val deviceToSelect = phones[2]
-    composeTestRule
-      .onNodeWithText(deviceToSelect.codename)
-      .onChild()
-      .assertIsToggleable()
-      .performClick()
+    composeTestRule.onNodeWithText(deviceToSelect.codename).onChild().assertIsToggleable().performClick()
     composeTestRule.onNodeWithText("Confirm").performClick()
     composeTestRule.waitForIdle()
-    assertThat(
-        deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename ==
-          deviceToSelect.codename
-      )
-      .isTrue()
+    assertThat(deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename == deviceToSelect.codename).isTrue()
   }
 
   @Test
   fun refreshKeepsSelection(): Unit = runBlockingWithTimeout {
     val deviceToSelect = phones[2]
-    composeTestRule
-      .onNodeWithText(deviceToSelect.codename)
-      .onChild()
-      .assertIsToggleable()
-      .performClick()
+    composeTestRule.onNodeWithText(deviceToSelect.codename).onChild().assertIsToggleable().performClick()
     composeTestRule.waitForIdle()
     val newList =
       deviceSelectionListFlow.value.map {
@@ -245,21 +216,13 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
     composeTestRule.onNodeWithText("Confirm").performClick()
     composeTestRule.waitForIdle()
 
-    assertThat(
-        deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename ==
-          deviceToSelect.codename
-      )
-      .isTrue()
+    assertThat(deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename == deviceToSelect.codename).isTrue()
   }
 
   @Test
   fun cancelSelection() {
     val deviceToSelect = phones[2]
-    composeTestRule
-      .onNodeWithText(deviceToSelect.codename)
-      .onChild()
-      .assertIsToggleable()
-      .performClick()
+    composeTestRule.onNodeWithText(deviceToSelect.codename).onChild().assertIsToggleable().performClick()
     composeTestRule.onNodeWithText("Cancel").performClick()
     composeTestRule.waitForIdle()
     assertThat(deviceSelectionListFlow.value.none { it.isSelected }).isTrue()
@@ -270,39 +233,23 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
   fun keyboard() {
     // Click to select phones[0].
     composeTestRule.onNodeWithText(phones[0].codename).performClick()
-    composeTestRule
-      .onNodeWithText(phones[0].codename)
-      .onChild()
-      .assertIsToggleable()
-      .assertIsFocused()
+    composeTestRule.onNodeWithText(phones[0].codename).onChild().assertIsToggleable().assertIsFocused()
 
     // Arrow down to phone[1].
     composeTestRule.onRoot().performKeyInput { keyPress(Key.DirectionDown) }
     composeTestRule.waitForIdle()
-    composeTestRule
-      .onNodeWithText(phones[1].codename)
-      .onChild()
-      .assertIsToggleable()
-      .assertIsFocused()
+    composeTestRule.onNodeWithText(phones[1].codename).onChild().assertIsToggleable().assertIsFocused()
 
     // Tab to phone[2] and press space to select.
     composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
     composeTestRule.waitForIdle()
-    composeTestRule
-      .onNodeWithText(phones[2].codename)
-      .onChild()
-      .assertIsToggleable()
-      .assertIsFocused()
+    composeTestRule.onNodeWithText(phones[2].codename).onChild().assertIsToggleable().assertIsFocused()
     composeTestRule.onRoot().performKeyInput { keyPress(Key.Spacebar) }
 
     // Up to phone[1].
     composeTestRule.onRoot().performKeyInput { keyPress(Key.DirectionUp) }
     composeTestRule.waitForIdle()
-    composeTestRule
-      .onNodeWithText(phones[1].codename)
-      .onChild()
-      .assertIsToggleable()
-      .assertIsFocused()
+    composeTestRule.onNodeWithText(phones[1].codename).onChild().assertIsToggleable().assertIsFocused()
 
     // Shift tab to phone[0].
     composeTestRule.onRoot().performKeyInput {
@@ -312,21 +259,13 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
       keyUp(Key.ShiftLeft)
     }
     composeTestRule.waitForIdle()
-    composeTestRule
-      .onNodeWithText(phones[0].codename)
-      .onChild()
-      .assertIsToggleable()
-      .assertIsFocused()
+    composeTestRule.onNodeWithText(phones[0].codename).onChild().assertIsToggleable().assertIsFocused()
 
     // Tab to actions.
     for (index in 1 until phones.size) {
       composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
       composeTestRule.waitForIdle()
-      composeTestRule
-        .onNodeWithText(phones[index].codename)
-        .onChildAt(0)
-        .assertIsToggleable()
-        .assertIsFocused()
+      composeTestRule.onNodeWithText(phones[index].codename).onChildAt(0).assertIsToggleable().assertIsFocused()
     }
 
     composeTestRule.onRoot().performKeyInput { keyPress(Key.Tab) }
@@ -338,11 +277,7 @@ class AddDirectAccessDeviceDialogTest(private val deviceListProvider: () -> List
     composeTestRule.onNodeWithText("Confirm").assertIsFocused().performClick()
 
     // Verify selected device.
-    assertThat(
-        deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename ==
-          phones[2].codename
-      )
-      .isTrue()
+    assertThat(deviceSelectionListFlow.value.firstOrNull { it.isSelected }?.deviceInfo?.codename == phones[2].codename).isTrue()
   }
 }
 

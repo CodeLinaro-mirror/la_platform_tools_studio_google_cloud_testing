@@ -47,16 +47,12 @@ data class CloudProjectEntry(val user: String, val name: String)
 /**
  * Manages and shares common information of the same cloud project.
  *
- * Each cloud project has its own access to device catalog and reservations. Different user projects
- * may use the same cloud project. Connecting to a reservation adds a connected device to the adb
- * device list. To avoid adding duplicate devices for the same reservation, we need to make
- * [DirectAccessReservationManager] and [DirectAccessConnectionManager] cloud project scoped and
- * shared across different user projects.
+ * Each cloud project has its own access to device catalog and reservations. Different user projects may use the same cloud project.
+ * Connecting to a reservation adds a connected device to the adb device list. To avoid adding duplicate devices for the same reservation,
+ * we need to make [DirectAccessReservationManager] and [DirectAccessConnectionManager] cloud project scoped and shared across different
+ * user projects.
  */
-class DirectAccessCloudProjectManager(
-  val cloudProject: CloudProjectEntry,
-  private val scope: CoroutineScope,
-) : AutoCloseable {
+class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, private val scope: CoroutineScope) : AutoCloseable {
 
   /**
    * True if the new device streaming API is enabled for [cloudProject].
@@ -67,16 +63,11 @@ class DirectAccessCloudProjectManager(
     try {
       val endPoint = StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
       endPoint.isNotEmpty() &&
-        service<CloudClientService>()
-          .client
-          .isDeviceStreamingServiceEnabled(cloudProject.name, endPoint) &&
+        service<CloudClientService>().client.isDeviceStreamingServiceEnabled(cloudProject.name, endPoint) &&
         // Fallback to old API if permissions are not full.
         checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty()
     } catch (_: Exception) {
-      thisLogger()
-        .info(
-          "DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}"
-        )
+      thisLogger().info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
       false
     }
 
@@ -86,9 +77,7 @@ class DirectAccessCloudProjectManager(
       val endpoint = "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}"
       val serviceFilter = StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
       val project = "projects/${cloudProject.name}"
-      return service<CloudClientService>()
-        .client
-        .getQuotaUsageAndLimit(endpoint, serviceFilter, project)
+      return service<CloudClientService>().client.getQuotaUsageAndLimit(endpoint, serviceFilter, project)
     }
 
   val reservationManager: DirectAccessReservationManager =

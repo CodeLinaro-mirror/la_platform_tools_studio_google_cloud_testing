@@ -81,17 +81,9 @@ class OemLabsAssetsRegistryIntegrationTest {
       rCode = HttpURLConnection.HTTP_OK,
     )
 
-    createContext(
-      path = "/some_lab/tv.svg",
-      content = "<svg>tv</svg>",
-      rCode = HttpURLConnection.HTTP_OK,
-    )
+    createContext(path = "/some_lab/tv.svg", content = "<svg>tv</svg>", rCode = HttpURLConnection.HTTP_OK)
 
-    createContext(
-      path = "/some_lab/tv_dark.svg",
-      content = "<svg>tv_dark</svg>",
-      rCode = HttpURLConnection.HTTP_OK,
-    )
+    createContext(path = "/some_lab/tv_dark.svg", content = "<svg>tv_dark</svg>", rCode = HttpURLConnection.HTTP_OK)
 
     // Check fetched assets
     val assets: OemLabsAssetsRegistry.OemLabAsset = registry.getAssetById("some_lab")!!
@@ -164,17 +156,9 @@ class OemLabsAssetsRegistryIntegrationTest {
       rCode = HttpURLConnection.HTTP_OK,
     )
 
-    createContext(
-      path = "/some_lab/phone.svg",
-      content = "<svg>phone</svg>",
-      rCode = HttpURLConnection.HTTP_OK,
-    )
+    createContext(path = "/some_lab/phone.svg", content = "<svg>phone</svg>", rCode = HttpURLConnection.HTTP_OK)
 
-    createContext(
-      path = "/some_lab/phone_dark.svg",
-      content = "<svg>phone_dark</svg>",
-      rCode = HttpURLConnection.HTTP_OK,
-    )
+    createContext(path = "/some_lab/phone_dark.svg", content = "<svg>phone_dark</svg>", rCode = HttpURLConnection.HTTP_OK)
 
     val assets = registry.getAssetById("some_lab")!!
     with(assets) {

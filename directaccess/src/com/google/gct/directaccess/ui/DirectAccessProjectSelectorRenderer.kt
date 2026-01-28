@@ -22,13 +22,7 @@ import javax.swing.JList
 object DirectAccessProjectSelectorRenderer : ColoredListCellRenderer<String>() {
   private fun readResolve(): Any = DirectAccessProjectSelectorRenderer
 
-  override fun customizeCellRenderer(
-    list: JList<out String>,
-    value: String?,
-    index: Int,
-    selected: Boolean,
-    hasFocus: Boolean,
-  ) {
+  override fun customizeCellRenderer(list: JList<out String>, value: String?, index: Int, selected: Boolean, hasFocus: Boolean) {
     if (value == null) {
       append("[none]", SimpleTextAttributes.ERROR_ATTRIBUTES)
     } else {

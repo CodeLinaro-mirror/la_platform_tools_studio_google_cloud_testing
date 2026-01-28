@@ -31,11 +31,7 @@ class DeprecationBanner : EditorNotificationPanel(Status.Warning) {
 
     createActionLabel(
       "More info",
-      {
-        BrowserUtil.browse(
-          "https://developer.android.com/studio/services/deprecated#narwhal-feature-drop"
-        )
-      },
+      { BrowserUtil.browse("https://developer.android.com/studio/services/deprecated#narwhal-feature-drop") },
       false,
     )
 
@@ -44,8 +40,7 @@ class DeprecationBanner : EditorNotificationPanel(Status.Warning) {
       myLabel.verticalTextPosition = SwingConstants.TOP
       myLinksPanel.parent.add(myLinksPanel, BorderLayout.SOUTH)
       // Align firstActionLabel vertically with myLabel.
-      myLinksPanel.border =
-        JBUI.Borders.empty(2, myLabel.icon.iconWidth + myLabel.iconTextGap - 2, 0, 0)
+      myLinksPanel.border = JBUI.Borders.empty(2, myLabel.icon.iconWidth + myLabel.iconTextGap - 2, 0, 0)
     }
   }
 }

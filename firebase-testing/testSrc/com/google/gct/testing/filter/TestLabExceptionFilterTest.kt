@@ -43,20 +43,14 @@ class TestLabExceptionFilterTest {
       ClassNameFileTuple("TestClass2", "com.test.package.TestClass2", "TestClass2.kt"),
       ClassNameFileTuple("TestClass2", "com.test.package2.TestClass2", "TestClass2.kt"),
       ClassNameFileTuple("TestClass3", "com.test.TestClass3", "TestClass3.kt"),
-      ClassNameFileTuple(
-        "TestClass4",
-        "com.test.additional.package.string.TestClass4",
-        "TestClass4.kt",
-      ),
+      ClassNameFileTuple("TestClass4", "com.test.additional.package.string.TestClass4", "TestClass4.kt"),
     )
 
   @get:Rule
   val myRule =
     RuleChain(
       myProjectRule,
-      ProjectServiceRule(myProjectRule, PsiShortNamesCache::class.java) {
-        FakePsiShortNamesCache(myProject, myExceptionFiles)
-      },
+      ProjectServiceRule(myProjectRule, PsiShortNamesCache::class.java) { FakePsiShortNamesCache(myProject, myExceptionFiles) },
     )
 
   private lateinit var myTestLabFilter: TestLabExceptionFilter
@@ -68,43 +62,37 @@ class TestLabExceptionFilterTest {
 
   @Test
   fun applyFilter_basic() {
-    val line =
-      "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.TestClass2.fail(TestClass2.kt:34)"
+    val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.TestClass2.fail(TestClass2.kt:34)"
     assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!)
   }
 
   @Test
   fun applyFilter_shortPackageName() {
-    val line =
-      "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.TestClass3.fail(TestClass3.kt:23)"
+    val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.TestClass3.fail(TestClass3.kt:23)"
     assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!)
   }
 
   @Test
   fun applyFilter_nativeMethod() {
-    val line =
-      "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.TestClass1.failsAgain(Native Method)"
+    val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.TestClass1.failsAgain(Native Method)"
     assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!, "Native Method")
   }
 
   @Test
   fun applyFilter_unknownSource() {
-    val line =
-      "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.TestClass1.anotherFail(Unknown Source)"
+    val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.TestClass1.anotherFail(Unknown Source)"
     assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!, "Unknown Source")
   }
 
   @Test
   fun applyFilter_noMatch() {
-    val line =
-      "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.NoMatchClass.fail(Unknown Source)"
+    val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package.NoMatchClass.fail(Unknown Source)"
     assert(myTestLabFilter.applyFilter(line, line.length) == null)
   }
 
   @Test
   fun applyFilter_multipleMatch() {
-    val line =
-      "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package2.TestClass2.fail(TestClass2.kt:34)"
+    val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package2.TestClass2.fail(TestClass2.kt:34)"
     assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!)
   }
 
@@ -117,8 +105,7 @@ class TestLabExceptionFilterTest {
 
   @Test
   fun applyFilter_generatedClass() {
-    val line =
-      "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package2.TestClass2$1.fail(TestClass2.kt:34)"
+    val line = "08-07 16:44:16.268: E/TestRunner(9723): \tat com.test.package2.TestClass2$1.fail(TestClass2.kt:34)"
     assertFilteredResult(line, myTestLabFilter.applyFilter(line, line.length)!!)
   }
 
@@ -147,17 +134,11 @@ class TestLabExceptionFilterTest {
     assert(myTestLabFilter.applyFilter(line, line.length) == null)
   }
 
-  private fun assertFilteredResult(
-    line: String,
-    result: Filter.Result,
-    highLightText: String? = null,
-  ) {
+  private fun assertFilteredResult(line: String, result: Filter.Result, highLightText: String? = null) {
     result.resultItems.forEach {
       val highlight = line.substring(it.highlightStartOffset, it.highlightEndOffset)
-      val descriptor: OpenFileDescriptor =
-        (it.hyperlinkInfo as? MultipleFilesHyperlinkInfo)?.descriptor!!
-      val link =
-        highLightText ?: "${descriptor.file.name.substringAfterLast("/")}:${descriptor.line + 1}"
+      val descriptor: OpenFileDescriptor = (it.hyperlinkInfo as? MultipleFilesHyperlinkInfo)?.descriptor!!
+      val link = highLightText ?: "${descriptor.file.name.substringAfterLast("/")}:${descriptor.line + 1}"
       assertThat(highlight).isEqualTo(link)
     }
   }

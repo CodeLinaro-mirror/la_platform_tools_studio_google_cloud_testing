@@ -71,12 +71,7 @@ class DirectAccessMultiProjectTest {
   private val grpcConnectionRule = GrpcConnectionRule(listOf(service))
   private val loginUsersRule = LoginUsersRule()
 
-  @get:Rule
-  val chain =
-    RuleChain.outerRule(projectRule1)
-      .around(projectRule2)
-      .around(loginUsersRule)
-      .around(grpcConnectionRule)
+  @get:Rule val chain = RuleChain.outerRule(projectRule1).around(projectRule2).around(loginUsersRule).around(grpcConnectionRule)
 
   private val project1: Project
     get() = projectRule1.project
@@ -95,62 +90,35 @@ class DirectAccessMultiProjectTest {
   fun setUp() = runBlockingWithTimeout {
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
 
-    loginUsersRule.setActiveUser(
-      "test@google.com",
-      features = setOf(LoginFeature.feature<FirebaseLoginFeature>()),
-    )
+    loginUsersRule.setActiveUser("test@google.com", features = setOf(LoginFeature.feature<FirebaseLoginFeature>()))
 
     val mockAdbLibApplicationService = mock<AdbLibApplicationService>()
     doReturn(session).whenever(mockAdbLibApplicationService).session
     ApplicationManager.getApplication()
-      .replaceService(
-        AdbLibApplicationService::class.java,
-        mockAdbLibApplicationService,
-        projectRule1.disposable,
-      )
+      .replaceService(AdbLibApplicationService::class.java, mockAdbLibApplicationService, projectRule1.disposable)
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    doReturn(TestUtils.deviceInfoListProvider())
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(anyOrNull())
+    doReturn(TestUtils.deviceInfoListProvider()).whenever(mockDirectAccessServiceSetup).getAccessibleDeviceInfoList(anyOrNull())
     doReturn(grpcConnectionRule.channel).whenever(mockDirectAccessServiceSetup).channel(any())
     doReturn("testToken").whenever(mockDirectAccessServiceSetup).fetchAccessToken()
-    doReturn(StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
-      .whenever(mockDirectAccessServiceSetup)
-      .endPoint(any())
+    doReturn(StudioFlags.DEVICE_STREAMING_ENDPOINT.get()).whenever(mockDirectAccessServiceSetup).endPoint(any())
 
     ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessServiceSetup::class.java,
-        mockDirectAccessServiceSetup,
-        projectRule1.disposable,
-      )
+      .replaceService(DirectAccessServiceSetup::class.java, mockDirectAccessServiceSetup, projectRule1.disposable)
 
     val mockClientService = mock<CloudClientService>()
     val mockClient = mock<CloudClient>()
     doReturn(mockClient).whenever(mockClientService).client
     doReturn(true).whenever(mockClient).isDeviceStreamingServiceEnabled(any(), any())
-    ApplicationManager.getApplication()
-      .replaceService(CloudClientService::class.java, mockClientService, projectRule1.disposable)
+    ApplicationManager.getApplication().replaceService(CloudClientService::class.java, mockClientService, projectRule1.disposable)
 
     val mockPersistentService = mock<DirectAccessPersistentStateComponent>()
-    val fakePersistentState =
-      DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
+    val fakePersistentState = DirectAccessPersistentStateComponent.State().apply { selectedCloudProject = "testProject" }
     doReturn(fakePersistentState).whenever(mockPersistentService).state
-    doReturn(fakePersistentState.selectedCloudProject)
-      .whenever(mockPersistentService)
-      .selectedCloudProject
+    doReturn(fakePersistentState.selectedCloudProject).whenever(mockPersistentService).selectedCloudProject
 
-    project1.replaceService(
-      DirectAccessPersistentStateComponent::class.java,
-      mockPersistentService,
-      projectRule1.disposable,
-    )
-    project2.replaceService(
-      DirectAccessPersistentStateComponent::class.java,
-      mockPersistentService,
-      projectRule2.disposable,
-    )
+    project1.replaceService(DirectAccessPersistentStateComponent::class.java, mockPersistentService, projectRule1.disposable)
+    project2.replaceService(DirectAccessPersistentStateComponent::class.java, mockPersistentService, projectRule2.disposable)
 
     plugin1 = DirectAccessDeviceProvisionerPlugin(session.scope, project1)
     yieldUntil { project1.service<DirectAccessService>().cloudProjectManager.value != null }
@@ -178,19 +146,13 @@ class DirectAccessMultiProjectTest {
     val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
     assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
     // Create a reservation from project1.
-    val reservationManager =
-      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
-    reservationManager.createReservation(
-      template1.deviceInfo.codename,
-      template1.deviceInfo.api.toString(),
-    )
+    val reservationManager = project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(template1.deviceInfo.codename, template1.deviceInfo.api.toString())
     project1.refreshReservations()
     plugin1.devices.takeWhile { it.isEmpty() }.collect()
     val device1 = plugin1.devices.value[0] as DirectAccessDeviceHandle
     // Project2 creates a handle with the same device info immediately.
-    withTimeout(TimeUnit.SECONDS.toMillis(2)) {
-      plugin2.devices.takeWhile { it.isEmpty() }.collect()
-    }
+    withTimeout(TimeUnit.SECONDS.toMillis(2)) { plugin2.devices.takeWhile { it.isEmpty() }.collect() }
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
     assertThat(device1.connection).isEqualTo(device2.connection)
   }
@@ -204,19 +166,13 @@ class DirectAccessMultiProjectTest {
     }
     yieldUntil { provisioner2.templates.value.isEmpty() }
     // Create a reservation from project1.
-    val reservationManager =
-      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
-    reservationManager.createReservation(
-      template1.deviceInfo.codename,
-      template1.deviceInfo.api.toString(),
-    )
+    val reservationManager = project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(template1.deviceInfo.codename, template1.deviceInfo.api.toString())
     project1.refreshReservations()
     plugin1.devices.takeWhile { it.isEmpty() }.collect()
     val device1 = plugin1.devices.value[0] as DirectAccessDeviceHandle
     // Project2 creates a handle with the same device info immediately.
-    withTimeout(TimeUnit.SECONDS.toMillis(10)) {
-      plugin2.devices.takeWhile { it.isEmpty() }.collect()
-    }
+    withTimeout(TimeUnit.SECONDS.toMillis(10)) { plugin2.devices.takeWhile { it.isEmpty() }.collect() }
     val template2 = plugin2.templates.value[0] as DirectAccessDeviceTemplate
     assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
     val device2 = plugin2.devices.value[0] as DirectAccessDeviceHandle
@@ -229,12 +185,8 @@ class DirectAccessMultiProjectTest {
     val template2 = provisioner2.templates.value[0] as DirectAccessDeviceTemplate
     assertThat(template1.deviceInfo).isEqualTo(template2.deviceInfo)
     // Create a reservation from project1.
-    val reservationManager =
-      project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
-    reservationManager.createReservation(
-      template1.deviceInfo.codename,
-      template1.deviceInfo.api.toString(),
-    )
+    val reservationManager = project1.service<DirectAccessService>().cloudProjectManager.value!!.reservationManager
+    reservationManager.createReservation(template1.deviceInfo.codename, template1.deviceInfo.api.toString())
 
     project1.refreshReservations()
     assertThat(reservationManager.listReservations().size).isEqualTo(1)

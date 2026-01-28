@@ -52,10 +52,7 @@ class DirectAccessProjectSelectorTest {
     firebaseProjectClientRule.setupFirebaseClient(false, false, 0, 200).toMutableList()
     selector = DirectAccessProjectSelectorImpl(projectRule.project, "", true, scope)
     yieldUntil {
-      selector
-        .findAllDescendants<AnActionLink> { it.text == "Create a Spark Plan Project..." }
-        .firstOrNull()
-        ?.isVisible == true
+      selector.findAllDescendants<AnActionLink> { it.text == "Create a Spark Plan Project..." }.firstOrNull()?.isVisible == true
     }
   }
 
@@ -85,8 +82,7 @@ class DirectAccessProjectSelectorTest {
 
   @Test
   fun testSelectedItemDefaultWhenPreferredProjectNotInList() = runBlockingWithTimeout {
-    selector =
-      DirectAccessProjectSelectorImpl(projectRule.project, "nonExistentProject", true, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, "nonExistentProject", true, scope)
 
     yieldUntil { selector.comboBox.model.size != 1 }
 
@@ -111,8 +107,7 @@ class DirectAccessProjectSelectorTest {
 
   @Test
   fun testSelectorDisabledIfShouldEnableIsFalse() = runBlockingWithTimeout {
-    selector =
-      DirectAccessProjectSelectorImpl(projectRule.project, projectList.last(), false, scope)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, projectList.last(), false, scope)
 
     yieldUntil { selector.comboBox.model.size != 1 }
 

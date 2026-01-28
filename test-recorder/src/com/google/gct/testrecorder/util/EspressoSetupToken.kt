@@ -27,8 +27,7 @@ interface EspressoSetupToken<P : AndroidProjectSystem> : Token {
   /**
    * Return true if we should generate androidx test code, false otherwise.
    *
-   * TODO(xof): extract androidxness from the module system instead, and stop returning a value from
-   *   this.
+   * TODO(xof): extract androidxness from the module system instead, and stop returning a value from this.
    */
   fun ensureSetup(
     projectSystem: P,
@@ -46,9 +45,6 @@ interface EspressoSetupToken<P : AndroidProjectSystem> : Token {
 
   companion object {
     @JvmField
-    val EP_NAME =
-      ExtensionPointName<EspressoSetupToken<AndroidProjectSystem>>(
-        "com.google.gct.testrecorder.util.espressoSetupToken"
-      )
+    val EP_NAME = ExtensionPointName<EspressoSetupToken<AndroidProjectSystem>>("com.google.gct.testrecorder.util.espressoSetupToken")
   }
 }

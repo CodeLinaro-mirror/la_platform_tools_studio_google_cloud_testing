@@ -78,10 +78,7 @@ fun generateTest(
   CoroutineScope(Dispatchers.EDT).launch {
     withContext(Dispatchers.IO) { DumbService.getInstance(project).waitForSmartMode() }
     progressIndicator.checkCanceled()
-    val testClass =
-      withContext(Dispatchers.EDT) {
-        createClassFromTemplate(project, testClassName, testClassParent, isKotlinClass)
-      }
+    val testClass = withContext(Dispatchers.EDT) { createClassFromTemplate(project, testClassName, testClassParent, isKotlinClass) }
 
     // Compute resource package name and application id before the potential Gradle confusion.
     val testClassModule = facet.module
@@ -89,9 +86,7 @@ fun generateTest(
       withContext(Dispatchers.IO) {
         application.runReadAction<String?> {
           AndroidFacet.getInstance(testClassModule)?.let { testClassFacet ->
-            Manifest.getMainManifest(testClassFacet)?.let { manifest ->
-              manifest.getPackage().stringValue
-            }
+            Manifest.getMainManifest(testClassFacet)?.let { manifest -> manifest.getPackage().stringValue }
           }
         }
       } ?: ""
@@ -110,13 +105,7 @@ fun generateTest(
     val usesAndroidxDependency =
       EspressoSetupToken.EP_NAME.extensionList
         .firstOrNull { it.isApplicable(projectSystem) }
-        ?.ensureSetup(
-          projectSystem,
-          testClassModule,
-          facet,
-          rootPanel,
-          allModelActions.toMutableList(),
-        ) ?: false
+        ?.ensureSetup(projectSystem, testClassModule, facet, rootPanel, allModelActions.toMutableList()) ?: false
     application.invokeAndWait {
       TestCodeGenerator(
           resourcePackageName,
@@ -136,10 +125,7 @@ fun generateTest(
     // Show created test file in editor
     withContext(Dispatchers.EDT) {
       FileEditorManager.getInstance(project)
-        .openTextEditor(
-          OpenFileDescriptor(project, testClass.containingFile.virtualFile, testClass.endOffset),
-          true,
-        )
+        .openTextEditor(OpenFileDescriptor(project, testClass.containingFile.virtualFile, testClass.endOffset), true)
     }
     latch.countDown()
   }
@@ -189,9 +175,7 @@ private suspend fun createClassFromTemplate(
     }
 
   if (fileTemplate.isLiveTemplateEnabled && file.viewProvider.document != null) {
-    ApplicationManager.getApplication().invokeAndWait {
-      CreateFromTemplateActionBase.startLiveTemplate(file)
-    }
+    ApplicationManager.getApplication().invokeAndWait { CreateFromTemplateActionBase.startLiveTemplate(file) }
   }
   return testClass
 }

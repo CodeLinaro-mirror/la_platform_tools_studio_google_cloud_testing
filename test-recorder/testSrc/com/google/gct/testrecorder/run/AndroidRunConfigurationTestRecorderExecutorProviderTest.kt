@@ -29,52 +29,35 @@ import org.mockito.kotlin.mock
 
 class AndroidRunConfigurationTestRecorderExecutorProviderTest {
 
-  @get:Rule
-  val projectRule = AndroidProjectRule.testProject(AndroidCoreTestProject.SIMPLE_APPLICATION)
+  @get:Rule val projectRule = AndroidProjectRule.testProject(AndroidCoreTestProject.SIMPLE_APPLICATION)
 
   @Test
   fun produceCorrectExecutor() {
     val config =
-      object :
-        AndroidRunConfiguration(
-          projectRule.project,
-          AndroidRunConfigurationType.getInstance().factory,
-        ) {
+      object : AndroidRunConfiguration(projectRule.project, AndroidRunConfigurationType.getInstance().factory) {
         override fun getDeployTarget(): DeployTarget {
           return object : DeployTarget {
             override fun hasCustomRunProfileState(executor: Executor) = false
 
-            override fun getRunProfileState(
-              executor: Executor,
-              env: ExecutionEnvironment,
-              state: DeployTargetState,
-            ) = null
+            override fun getRunProfileState(executor: Executor, env: ExecutionEnvironment, state: DeployTargetState) = null
 
-            override fun launchDevices(project: Project) =
-              FakeAndroidDevice.forDevices(listOf(mock<IDevice>()))
+            override fun launchDevices(project: Project) = FakeAndroidDevice.forDevices(listOf(mock<IDevice>()))
 
-            override fun getAndroidDevices(project: Project): List<AndroidDevice> =
-              listOf(FakeAndroidDevice(mock<IDevice>()))
+            override fun getAndroidDevices(project: Project): List<AndroidDevice> = listOf(FakeAndroidDevice(mock<IDevice>()))
           }
         }
       }
     val settings =
-      RunManager.getInstance(projectRule.project)
-        .createConfiguration(config, AndroidRunConfigurationType.getInstance().factory)
+      RunManager.getInstance(projectRule.project).createConfiguration(config, AndroidRunConfigurationType.getInstance().factory)
     config.setModule(projectRule.module)
-    val device =
-      mockDeviceFor(AndroidVersion(AndroidVersion.VersionCodes.R), listOf(Abi.X86_64, Abi.X86))
+    val device = mockDeviceFor(AndroidVersion(AndroidVersion.VersionCodes.R), listOf(Abi.X86_64, Abi.X86))
 
     config.executeMakeBeforeRunStepInTest(device)
 
-    val env =
-      ExecutionEnvironmentBuilder.create(DefaultRunExecutor.getRunExecutorInstance(), settings)
-        .build()
+    val env = ExecutionEnvironmentBuilder.create(DefaultRunExecutor.getRunExecutorInstance(), settings).build()
     env.putCopyableUserData(TestRecorderAction.KEY, TestRecorderInfo(false))
 
-    val state =
-      config.getState(DefaultDebugExecutor.getDebugExecutorInstance(), env)
-        as AndroidConfigurationExecutorRunProfileState
+    val state = config.getState(DefaultDebugExecutor.getDebugExecutorInstance(), env) as AndroidConfigurationExecutorRunProfileState
     Truth.assertThat(state.executor).isInstanceOf(TestRecorderExecutor::class.java)
     Truth.assertThat((state.executor as TestRecorderExecutor).isRecordingTest).isFalse()
   }

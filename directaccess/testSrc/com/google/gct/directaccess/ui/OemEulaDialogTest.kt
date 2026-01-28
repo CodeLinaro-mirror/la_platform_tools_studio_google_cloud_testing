@@ -86,11 +86,7 @@ class OemEulaDialogTest {
     whenever(mockService.cloudProjectManager).thenReturn(projectManagerFlow)
     projectManagerFlow.value = mockProjectManager
     whenever(mockProjectManager.cloudProject).thenReturn(CloudProjectEntry("myUser", "myProject"))
-    projectRule.project.replaceService(
-      DirectAccessService::class.java,
-      mockService,
-      projectRule.disposable,
-    )
+    projectRule.project.replaceService(DirectAccessService::class.java, mockService, projectRule.disposable)
   }
 
   @Test
@@ -98,23 +94,16 @@ class OemEulaDialogTest {
     runTest(timeout = 10.seconds) {
       for ((result, metric) in
         listOf(
-          CompletableFuture.completedFuture(true) to
-            DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS,
-          CompletableFuture.completedFuture(false) to
-            DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS,
+          CompletableFuture.completedFuture(true) to DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS,
+          CompletableFuture.completedFuture(false) to DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS,
           CompletableFuture.failedFuture<Boolean>(Exception("expected")) to
             DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.CHECK_FAILED,
         )) {
         val tracker = TestUsageTracker(VirtualTimeScheduler())
         UsageTracker.setWriterForTest(tracker)
         val disposable = Disposer.newDisposable()
-        val content =
-          OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) {
-            result.get()
-          }
-        composeRule.setContent {
-          CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
-        }
+        val content = OemEulaContent(listOf("myLab", "myLab2"), disposable, projectRule.project) { result.get() }
+        composeRule.setContent { CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() } }
         Disposer.dispose(disposable)
         waitForCondition(1.seconds) { tracker.usages.isNotEmpty() }
         assertThat(tracker.usages.first().studioEvent.directAccessUsageEvent)
@@ -139,8 +128,7 @@ class OemEulaDialogTest {
 
       // Wait for the link to be clicked, then close the dialog
       whenever(browserLauncher.browse(any<URI>())).thenAnswer { Disposer.dispose(disposable) }
-      ApplicationManager.getApplication()
-        .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
+      ApplicationManager.getApplication().replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
       val tracker = TestUsageTracker(VirtualTimeScheduler())
       UsageTracker.setWriterForTest(tracker)
       val mutex = Mutex(true)
@@ -149,9 +137,7 @@ class OemEulaDialogTest {
           mutex.unlock()
           true
         }
-      composeRule.setContent {
-        CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
-      }
+      composeRule.setContent { CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() } }
       // Wait for the permission check to complete
       mutex.lock()
       // click the link
@@ -178,8 +164,7 @@ class OemEulaDialogTest {
 
       // Wait for the link to be clicked, then generate the callback
       whenever(browserLauncher.browse(any<URI>())).thenAnswer { invocation ->
-        val port =
-          invocation.getArgument<URI>(0).path.substringAfter("localPort=").substringBefore(";")
+        val port = invocation.getArgument<URI>(0).path.substringAfter("localPort=").substringBefore(";")
         NetHttpTransport()
           .createRequestFactory()
           .buildGetRequest(GenericUrl("http://localhost:$port/CALLBACK_Cloud_PartnerLab"))
@@ -188,8 +173,7 @@ class OemEulaDialogTest {
           .execute()
         Disposer.dispose(disposable)
       }
-      ApplicationManager.getApplication()
-        .replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
+      ApplicationManager.getApplication().replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
       val tracker = TestUsageTracker(VirtualTimeScheduler())
       UsageTracker.setWriterForTest(tracker)
       val mutex = Mutex(true)
@@ -198,9 +182,7 @@ class OemEulaDialogTest {
           mutex.unlock()
           true
         }
-      composeRule.setContent {
-        CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() }
-      }
+      composeRule.setContent { CompositionLocalProvider(LocalComponent provides mock()) { content.ComposeContent() } }
       // Wait for the permission check to complete
       mutex.lock()
       composeRule.waitForIdle()
@@ -228,43 +210,22 @@ class OemEulaDialogTest {
           .apply {
             setLowLevelHttpResponse(
               MockLowLevelHttpResponse().apply {
-                setContent(
-                  Gson()
-                    .toJson(
-                      TestIamPermissionsResponse().apply {
-                        permissions = listOf("resourcemanager.projects.update")
-                      }
-                    )
-                )
+                setContent(Gson().toJson(TestIamPermissionsResponse().apply { permissions = listOf("resourcemanager.projects.update") }))
               }
             )
           }
           .build()
 
-      Disposer.register(projectRule.disposable) {
-        CloudClientService.instance().overrideClientForTest = null
-      }
+      Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
       CloudClientService.instance().overrideClientForTest =
-        CloudClient(
-          MutableStateFlow(null),
-          projectRule.disposable.createCoroutineScope(),
-          overrideHttpTransport = transport,
-        )
+        CloudClient(MutableStateFlow(null), projectRule.disposable.createCoroutineScope(), overrideHttpTransport = transport)
 
-      val content =
-        OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
+      val content = OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
       assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isTrue()
-      val request =
-        Gson()
-          .fromJson(
-            transport.lowLevelHttpRequest.contentAsString,
-            TestIamPermissionsRequest::class.java,
-          )
+      val request = Gson().fromJson(transport.lowLevelHttpRequest.contentAsString, TestIamPermissionsRequest::class.java)
       assertThat(request.permissions).isEqualTo(listOf("resourcemanager.projects.update"))
       assertThat(transport.lowLevelHttpRequest.url)
-        .isEqualTo(
-          "https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions"
-        )
+        .isEqualTo("https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions")
     }
 
   @Test
@@ -274,39 +235,21 @@ class OemEulaDialogTest {
         MockHttpTransport.Builder()
           .apply {
             setLowLevelHttpResponse(
-              MockLowLevelHttpResponse().apply {
-                setContent(
-                  Gson().toJson(TestIamPermissionsResponse().apply { permissions = listOf() })
-                )
-              }
+              MockLowLevelHttpResponse().apply { setContent(Gson().toJson(TestIamPermissionsResponse().apply { permissions = listOf() })) }
             )
           }
           .build()
 
-      Disposer.register(projectRule.disposable) {
-        CloudClientService.instance().overrideClientForTest = null
-      }
+      Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
       CloudClientService.instance().overrideClientForTest =
-        CloudClient(
-          MutableStateFlow(null),
-          projectRule.disposable.createCoroutineScope(),
-          overrideHttpTransport = transport,
-        )
+        CloudClient(MutableStateFlow(null), projectRule.disposable.createCoroutineScope(), overrideHttpTransport = transport)
 
-      val content =
-        OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
+      val content = OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
       assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isFalse()
-      val request =
-        Gson()
-          .fromJson(
-            transport.lowLevelHttpRequest.contentAsString,
-            TestIamPermissionsRequest::class.java,
-          )
+      val request = Gson().fromJson(transport.lowLevelHttpRequest.contentAsString, TestIamPermissionsRequest::class.java)
       assertThat(request.permissions).isEqualTo(listOf("resourcemanager.projects.update"))
       assertThat(transport.lowLevelHttpRequest.url)
-        .isEqualTo(
-          "https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions"
-        )
+        .isEqualTo("https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions")
     }
 
   @Test
@@ -325,9 +268,7 @@ class OemEulaDialogTest {
 
       // Check case with access
       composeRule.setContent {
-        CompositionLocalProvider(LocalComponent provides mock()) {
-          createDialog(CompletableFuture.completedFuture(true)).ComposeContent()
-        }
+        CompositionLocalProvider(LocalComponent provides mock()) { createDialog(CompletableFuture.completedFuture(true)).ComposeContent() }
       }
       composeRule.waitForIdle()
       inCheckLatch.lock()
@@ -342,9 +283,7 @@ class OemEulaDialogTest {
 
       // Check case without access
       composeRule.setContent {
-        CompositionLocalProvider(LocalComponent provides mock()) {
-          createDialog(CompletableFuture.completedFuture(false)).ComposeContent()
-        }
+        CompositionLocalProvider(LocalComponent provides mock()) { createDialog(CompletableFuture.completedFuture(false)).ComposeContent() }
       }
       composeRule.waitForIdle()
       inCheckLatch.lock()
@@ -385,8 +324,6 @@ class OemEulaDialogTest {
       composeRule.waitForIdle()
 
       composeRule.waitUntilExactlyOneExists(hasContentDescription("Lab inaccessible"))
-      composeRule.waitUntilExactlyOneExists(
-        hasText("Select a project before adding OEM Lab devices.")
-      )
+      composeRule.waitUntilExactlyOneExists(hasText("Select a project before adding OEM Lab devices."))
     }
 }

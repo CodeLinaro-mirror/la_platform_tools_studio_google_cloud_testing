@@ -39,8 +39,7 @@ class TestRecorderExecutor(
   private val specificActivityName: String?,
   private val facet: AndroidFacet,
   @VisibleForTesting val isRecordingTest: Boolean,
-  private val getApplicationIdAndDevices:
-    (indicator: ProgressIndicator) -> Pair<String, List<IDevice>>,
+  private val getApplicationIdAndDevices: (indicator: ProgressIndicator) -> Pair<String, List<IDevice>>,
 ) : AndroidConfigurationExecutor {
 
   private val LOG = Logger.getInstance(this::class.java)
@@ -63,8 +62,7 @@ class TestRecorderExecutor(
     // Launching ETR is not supported when dual debugging windows are opened. If debugger type is
     // configured to "Detect Automatically",
     // temporarily set it to "Java only".
-    val startingDebuggerType =
-      (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType
+    val startingDebuggerType = (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType
     if (startingDebuggerType == "Auto") {
       (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType = "Java"
     }
@@ -72,15 +70,7 @@ class TestRecorderExecutor(
       object : DebuggerManagerListener {
         override fun sessionCreated(session: DebuggerSession) {
           session.process.addDebugProcessListener(
-            TestRecorderDebugProcessListener(
-              facet,
-              env,
-              device,
-              packageName,
-              isRecordingTest,
-              specificActivityName,
-              session,
-            )
+            TestRecorderDebugProcessListener(facet, env, device, packageName, isRecordingTest, specificActivityName, session)
           )
         }
       }
@@ -92,30 +82,22 @@ class TestRecorderExecutor(
       return baseExecutor.debug(indicator)
     } finally {
       busConnection.disconnect()
-      (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType =
-        startingDebuggerType
+      (env.runProfile as AndroidRunConfiguration).androidDebuggerContext.debuggerType = startingDebuggerType
     }
   }
 
   override val configuration =
-    env.runProfile as? RunConfiguration
-      ?: throw RuntimeException("Test recorder should only be run for RunConfiguration")
+    env.runProfile as? RunConfiguration ?: throw RuntimeException("Test recorder should only be run for RunConfiguration")
 
   override fun run(indicator: ProgressIndicator): RunContentDescriptor {
-    throw RuntimeException(
-      "TestRecorderAndroidRunConfigurationExecutor should always run in debug mode"
-    )
+    throw RuntimeException("TestRecorderAndroidRunConfigurationExecutor should always run in debug mode")
   }
 
   override fun applyChanges(indicator: ProgressIndicator): RunContentDescriptor {
-    throw RuntimeException(
-      "TestRecorderAndroidRunConfigurationExecutor should always run in debug mode"
-    )
+    throw RuntimeException("TestRecorderAndroidRunConfigurationExecutor should always run in debug mode")
   }
 
   override fun applyCodeChanges(indicator: ProgressIndicator): RunContentDescriptor {
-    throw RuntimeException(
-      "TestRecorderAndroidRunConfigurationExecutor should always run in debug mode"
-    )
+    throw RuntimeException("TestRecorderAndroidRunConfigurationExecutor should always run in debug mode")
   }
 }
