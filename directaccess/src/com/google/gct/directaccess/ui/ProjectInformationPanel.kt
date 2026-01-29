@@ -40,8 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jdesktop.swingx.VerticalLayout
 
-private const val VIEW_PRICING_DETAILS_LINK =
-  "https://d.android.com/r/studio-ui/device-streaming/pricing"
+private const val VIEW_PRICING_DETAILS_LINK = "https://d.android.com/r/studio-ui/device-streaming/pricing"
 private const val SPARK_PLAN_KEY = "Spark"
 private const val BLAZE_PLAN_KEY = "Blaze"
 
@@ -63,9 +62,7 @@ class ProjectInformationPanel(
       add(planHelpIcon)
     }
 
-  private val grayLabelFactory: (String) -> JBLabel = { text ->
-    JBLabel(text).apply { foreground = UIUtil.getLabelInfoForeground() }
-  }
+  private val grayLabelFactory: (String) -> JBLabel = { text -> JBLabel(text).apply { foreground = UIUtil.getLabelInfoForeground() } }
 
   private val sparkUsedMinutesLabel = JBLabel()
   private val sparkRemainingMinutesLabel = grayLabelFactory("")
@@ -76,24 +73,18 @@ class ProjectInformationPanel(
   private val usageFlow = MutableStateFlow<Double?>(null)
   private val usageProgressBar = UsageProgressBar(scope, usageFlow)
 
-  private val informationLabel =
-    grayLabelFactory("Estimated minutes based on usage across all Firebase project members.")
+  private val informationLabel = grayLabelFactory("Estimated minutes based on usage across all Firebase project members.")
   private val instructionPanel =
     JPanel(HorizontalLayout(0)).apply {
       foreground = UIUtil.getLabelInfoForeground()
       add(grayLabelFactory("Click "))
-      add(
-        grayLabelFactory("dropdown in device manager to add new devices.").apply {
-          icon = StudioIcons.Common.ADD
-        }
-      )
+      add(grayLabelFactory("dropdown in device manager to add new devices.").apply { icon = StudioIcons.Common.ADD })
     }
 
   private val planCardLayout = CardLayout()
   private val usagePanel = JPanel(planCardLayout)
 
-  private val viewPricingDetailsHyperlink =
-    HyperlinkLabel("View Pricing Details").apply { setHyperlinkTarget(VIEW_PRICING_DETAILS_LINK) }
+  private val viewPricingDetailsHyperlink = HyperlinkLabel("View Pricing Details").apply { setHyperlinkTarget(VIEW_PRICING_DETAILS_LINK) }
 
   init {
     val sparkUsagePanel =
@@ -127,9 +118,7 @@ class ProjectInformationPanel(
 
     updatePlanInformation(null)
     scope.launch {
-      cloudProjectManagerFlow.collectLatest { cloudProjectManager ->
-        withContext(uiContext) { onProjectChanged(cloudProjectManager) }
-      }
+      cloudProjectManagerFlow.collectLatest { cloudProjectManager -> withContext(uiContext) { onProjectChanged(cloudProjectManager) } }
     }
   }
 
@@ -139,10 +128,7 @@ class ProjectInformationPanel(
       return
     }
     cloudProjectManager.isBillingEnabledFlow.stateFlow.collectLatest { isBillingEnabled ->
-      updatePlanInformation(
-        withContext(Dispatchers.IO) { cloudProjectManager.usageQuota },
-        isBillingEnabled,
-      )
+      updatePlanInformation(withContext(Dispatchers.IO) { cloudProjectManager.usageQuota }, isBillingEnabled)
     }
   }
 
@@ -158,9 +144,7 @@ class ProjectInformationPanel(
 
     when (isBillingEnabled) {
       true -> description = "Blaze plans allow extended usage and is billed monthly."
-      false ->
-        description +=
-          " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
+      false -> description += " Switch to a Blaze plan with monthly billing to keep using the service after Spark minutes run out."
       else -> {}
     }
 
@@ -189,8 +173,7 @@ class ProjectInformationPanel(
       planCardLayout.show(usagePanel, BLAZE_PLAN_KEY)
     } else {
       val quotaLimit = quota?.second
-      usageFlow.value =
-        quotaUsage?.let { usage -> quotaLimit?.let { limit -> usage.toDouble() / limit } }
+      usageFlow.value = quotaUsage?.let { usage -> quotaLimit?.let { limit -> usage.toDouble() / limit } }
       sparkUsedMinutesLabel.text = "$usedMinutesText mins used"
       val remainingMinutes = quotaUsage?.let { usage -> quotaLimit?.let { limit -> limit - usage } }
       val remainingText =

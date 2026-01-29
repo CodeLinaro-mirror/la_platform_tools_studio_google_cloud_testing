@@ -23,11 +23,8 @@ import org.mockito.kotlin.mock
 
 class TestRecorderExecutorTest {
 
-
-  @get:Rule
-  val projectRule = AndroidProjectRule.inMemory()
-  @get:Rule
-  val usageTrackerRule = UsageTrackerRule()
+  @get:Rule val projectRule = AndroidProjectRule.inMemory()
+  @get:Rule val usageTrackerRule = UsageTrackerRule()
 
   @Test
   fun runDebugAndCleanStorage() {
@@ -43,33 +40,31 @@ class TestRecorderExecutorTest {
 
     var debugInvoked = false
 
-    val baseExecutor = object : AndroidConfigurationExecutor {
-      override val configuration = settings.configuration
+    val baseExecutor =
+      object : AndroidConfigurationExecutor {
+        override val configuration = settings.configuration
 
-      override fun run(indicator: ProgressIndicator): RunContentDescriptor {
-        throw RuntimeException("Shouldn't invoke")
+        override fun run(indicator: ProgressIndicator): RunContentDescriptor {
+          throw RuntimeException("Shouldn't invoke")
+        }
+
+        override fun debug(indicator: ProgressIndicator): RunContentDescriptor {
+          debugInvoked = true
+          return mock<RunContentDescriptor>()
+        }
+
+        override fun applyChanges(indicator: ProgressIndicator): RunContentDescriptor {
+          throw RuntimeException("Shouldn't invoke")
+        }
+
+        override fun applyCodeChanges(indicator: ProgressIndicator): RunContentDescriptor {
+          throw RuntimeException("Shouldn't invoke")
+        }
       }
-
-      override fun debug(indicator: ProgressIndicator): RunContentDescriptor {
-        debugInvoked = true
-        return mock<RunContentDescriptor>()
-      }
-
-      override fun applyChanges(indicator: ProgressIndicator): RunContentDescriptor {
-        throw RuntimeException("Shouldn't invoke")
-      }
-
-      override fun applyCodeChanges(indicator: ProgressIndicator): RunContentDescriptor {
-        throw RuntimeException("Shouldn't invoke")
-      }
-
-    }
 
     val device = mock<IDevice>()
 
-    val executor = TestRecorderExecutor(env, baseExecutor, "", projectRule.module.androidFacet!!, true) {
-      Pair("appId", listOf(device))
-    }
+    val executor = TestRecorderExecutor(env, baseExecutor, "", projectRule.module.androidFacet!!, true) { Pair("appId", listOf(device)) }
 
     executor.debug(EmptyProgressIndicator())
     runStats.success()

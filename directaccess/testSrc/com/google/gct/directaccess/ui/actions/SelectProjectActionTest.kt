@@ -157,19 +157,14 @@ class SelectProjectActionTest {
   private val permissionFlow =
     RefreshableStateFlow(scope, Long.MAX_VALUE) {
       when (cloudProjectManagerFlow.value?.cloudProject?.name) {
-        unsupportedTestProjectWithServiceUse ->
-          DirectAccessPermissionStatus.parseFrom(setOf(SERVICES_USE))
-        unsupportedTestProjectWithoutServiceUse ->
-          DirectAccessPermissionStatus.parseFrom(FULL_PERMISSIONS_SET - SERVICES_USE)
+        unsupportedTestProjectWithServiceUse -> DirectAccessPermissionStatus.parseFrom(setOf(SERVICES_USE))
+        unsupportedTestProjectWithoutServiceUse -> DirectAccessPermissionStatus.parseFrom(FULL_PERMISSIONS_SET - SERVICES_USE)
         supportedProjectName,
         noQuotaProjectName,
         blazeProjectName,
         createdProject -> DirectAccessPermissionStatus.parseFrom(FULL_PERMISSIONS_SET)
         viewerTestProject -> DirectAccessPermissionStatus.parseFrom(VIEWER_PERMISSIONS_SET)
-        unknownPermissionTestProject ->
-          DirectAccessPermissionStatus.parseFrom(
-            FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE
-          )
+        unknownPermissionTestProject -> DirectAccessPermissionStatus.parseFrom(FULL_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET + SERVICES_USE)
         else -> DirectAccessPermissionStatus.parseFrom(emptySet())
       }
     }
@@ -196,22 +191,15 @@ class SelectProjectActionTest {
   @Before
   fun setUp() {
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    Mockito.doReturn(TestUtils.deviceInfoListProvider())
-      .whenever(mockDirectAccessServiceSetup)
-      .getAccessibleDeviceInfoList(null)
+    Mockito.doReturn(TestUtils.deviceInfoListProvider()).whenever(mockDirectAccessServiceSetup).getAccessibleDeviceInfoList(null)
     whenever(mockDirectAccessServiceSetup.channel(any())).thenReturn(mock())
     ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessServiceSetup::class.java,
-        mockDirectAccessServiceSetup,
-        projectRule.disposable,
-      )
+      .replaceService(DirectAccessServiceSetup::class.java, mockDirectAccessServiceSetup, projectRule.disposable)
     val mockClientService = mock<CloudClientService>()
     val mockClient = mock<CloudClient>()
     doReturn(mockClient).whenever(mockClientService).client
     doReturn(true).whenever(mockClient).isDeviceStreamingServiceEnabled(any(), any())
-    ApplicationManager.getApplication()
-      .replaceService(CloudClientService::class.java, mockClientService, projectRule.disposable)
+    ApplicationManager.getApplication().replaceService(CloudClientService::class.java, mockClientService, projectRule.disposable)
   }
 
   @After
@@ -228,11 +216,7 @@ class SelectProjectActionTest {
       val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
       Mockito.doReturn(devices).whenever(mockProvisioner).devices
       Mockito.doReturn(mockProvisioner).whenever(mockDeviceProvisionerService).deviceProvisioner
-      projectRule.project.replaceService(
-        DeviceProvisionerService::class.java,
-        mockDeviceProvisionerService,
-        projectRule.disposable,
-      )
+      projectRule.project.replaceService(DeviceProvisionerService::class.java, mockDeviceProvisionerService, projectRule.disposable)
 
       val mockDirectAccessApplicationService = mock<DirectAccessApplicationService>()
       doAnswer {
@@ -255,16 +239,10 @@ class SelectProjectActionTest {
         .whenever(mockDirectAccessApplicationService)
         .getCloudProjectManager(anyOrNull())
       ApplicationManager.getApplication()
-        .replaceService(
-          DirectAccessApplicationService::class.java,
-          mockDirectAccessApplicationService,
-          projectRule.disposable,
-        )
+        .replaceService(DirectAccessApplicationService::class.java, mockDirectAccessApplicationService, projectRule.disposable)
 
       val mockDirectAccessService = mock<DirectAccessService>()
-      Mockito.doReturn(cloudProjectManagerFlow)
-        .whenever(mockDirectAccessService)
-        .cloudProjectManager
+      Mockito.doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
       Mockito.doReturn(scope).whenever(mockDirectAccessService).scope
 
       val selectedCloudProject = MutableStateFlow<String?>(null)
@@ -278,14 +256,9 @@ class SelectProjectActionTest {
         .whenever(mockDirectAccessService)
         .selectCloudProject(anyOrNull())
 
-      projectRule.project.replaceService(
-        DirectAccessService::class.java,
-        mockDirectAccessService,
-        projectRule.disposable,
-      )
+      projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
 
-      assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
-        .isInstanceOf(SelectProjectAction::class.java)
+      assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID)).isInstanceOf(SelectProjectAction::class.java)
 
       // Check if DirectAccessProjectSelector2 chooses the preferred project.
       firebaseProjectClientRule.setupFirebaseClient(
@@ -293,8 +266,7 @@ class SelectProjectActionTest {
         returnMalformedJson = false,
         projectList = listOf(apiDisabledProject, supportedProjectName),
       )
-      val testSelector =
-        DirectAccessProjectSelectorImpl(projectRule.project, supportedProjectName, true, scope)
+      val testSelector = DirectAccessProjectSelectorImpl(projectRule.project, supportedProjectName, true, scope)
       testSelector.isReady.takeWhile { !it }.collect()
       assertThat(testSelector.selectedProject.value).isEqualTo(supportedProjectName)
 
@@ -339,37 +311,26 @@ class SelectProjectActionTest {
           button.doClick()
 
           waitForCondition { loginUsersRule.loginService.isLoggedIn() }
-          waitForCondition {
-            dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
-          }
+          waitForCondition { dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext() }
           val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           waitForCondition { comboBox.model.size > 1 }
 
           // Select a project that does not support direct access.
-          exceptionToThrow =
-            Status.PERMISSION_DENIED.withDescription("Not authorized for project")
-              .asRuntimeException()
+          exceptionToThrow = Status.PERMISSION_DENIED.withDescription("Not authorized for project").asRuntimeException()
           comboBox.model.selectedItem = unsupportedTestProjectWithServiceUse
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name ==
-              unsupportedTestProjectWithServiceUse
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithServiceUse }
           assertThat(dialog.isOKActionEnabled).isTrue()
           var firstIconWithError: JBLabel? = null
           waitForCondition {
             firstIconWithError =
-              dialog.rootPane.findAllDescendants<JBLabel>().firstOrNull { label ->
-                label.icon == StudioIcons.Common.ERROR
-              }
+              dialog.rootPane.findAllDescendants<JBLabel>().firstOrNull { label -> label.icon == StudioIcons.Common.ERROR }
             firstIconWithError != null
           }
           val label = firstIconWithError!!
           waitForCondition {
             label
               .getHelpToolTipText()
-              .contains(
-                "You do not have access to Device Streaming in project $unsupportedTestProjectWithServiceUse."
-              )
+              .contains("You do not have access to Device Streaming in project $unsupportedTestProjectWithServiceUse.")
           }
 
           // Select a project with disabled Cloud Testing API
@@ -379,15 +340,11 @@ class SelectProjectActionTest {
               )
               .asRuntimeException()
           comboBox.model.selectedItem = apiDisabledProject
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name == apiDisabledProject
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == apiDisabledProject }
           waitForCondition {
             label
               .getHelpToolTipText()
-              .contains(
-                "Cloud Testing API is not enabled in your project $apiDisabledProject. Enable it by visiting Google Cloud console."
-              )
+              .contains("Cloud Testing API is not enabled in your project $apiDisabledProject. Enable it by visiting Google Cloud console.")
           }
 
           // Select a project without service use permission
@@ -397,10 +354,7 @@ class SelectProjectActionTest {
               )
               .asRuntimeException()
           comboBox.model.selectedItem = unsupportedTestProjectWithoutServiceUse
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name ==
-              unsupportedTestProjectWithoutServiceUse
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithoutServiceUse }
           waitForCondition {
             label
               .getHelpToolTipText()
@@ -411,32 +365,21 @@ class SelectProjectActionTest {
           dialog.clickDefaultButton()
         }
 
-        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) {
-          dialogWrapper ->
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialogWrapper ->
           val dialog = dialogWrapper as SelectProjectDialog
-          waitForCondition {
-            dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
-          }
+          waitForCondition { dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext() }
           val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           val errorLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
               label.icon == StudioIcons.Common.ERROR || label.icon is AnimatedIcon
             }
-          val planTooltipLabel =
-            dialog.rootPane.findAllDescendants<JBLabel>().last { label ->
-              label.icon == AllIcons.General.ContextHelp
-            }
-          val planLabel =
-            dialog.rootPane.findAllDescendants<JBLabel>().first { label ->
-              label.text?.startsWith("Plan:") == true
-            }
+          val planTooltipLabel = dialog.rootPane.findAllDescendants<JBLabel>().last { label -> label.icon == AllIcons.General.ContextHelp }
+          val planLabel = dialog.rootPane.findAllDescendants<JBLabel>().first { label -> label.text?.startsWith("Plan:") == true }
 
           // Select a project with viewer permission
           exceptionToThrow = null
           comboBox.model.selectedItem = viewerTestProject
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name == viewerTestProject
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == viewerTestProject }
           waitForCondition {
             errorLabel
               .getHelpToolTipText()
@@ -449,9 +392,7 @@ class SelectProjectActionTest {
 
           // Select a project with a mix of permission
           comboBox.model.selectedItem = unknownPermissionTestProject
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name == unknownPermissionTestProject
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == unknownPermissionTestProject }
           waitForCondition {
             errorLabel
               .getHelpToolTipText()
@@ -462,79 +403,52 @@ class SelectProjectActionTest {
           }
 
           val sparkUsedMinutesLabel =
-            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-              usedLabel.text?.endsWith(" mins used") == true
-            }
+            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel -> usedLabel.text?.endsWith(" mins used") == true }
 
           val remainingMinutesLabel =
-            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-              usedLabel.text?.endsWith("mins remaining") == true
-            }
+            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel -> usedLabel.text?.endsWith("mins remaining") == true }
 
-          val blazeUsedMinutesUnitLabel =
-            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-              usedLabel.text == "mins used"
-            }
+          val blazeUsedMinutesUnitLabel = dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel -> usedLabel.text == "mins used" }
           assertThat(blazeUsedMinutesUnitLabel).isNotNull()
           val blazeUsedMinutesLabel = blazeUsedMinutesUnitLabel.parent.components[0] as JBLabel
           val blazePricingInfoLabel = blazeUsedMinutesUnitLabel.parent.components[2] as JBLabel
 
           val usageProgressBar = dialog.rootPane.findAllDescendants<UsageProgressBar>().first()
 
-          val instructionLabel =
-            dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel ->
-              usedLabel.text == "Click "
-            }
+          val instructionLabel = dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel -> usedLabel.text == "Click " }
           val instructionsPanel = instructionLabel.parent
           val instructionLabelWithIcon = instructionsPanel.components[1] as JBLabel
           assertThat(instructionLabelWithIcon.icon).isEqualTo(StudioIcons.Common.ADD)
-          assertThat(instructionLabelWithIcon.text)
-            .isEqualTo("dropdown in device manager to add new devices.")
+          assertThat(instructionLabelWithIcon.text).isEqualTo("dropdown in device manager to add new devices.")
 
           assertThat(usageProgressBar.percentage.value).isNull()
           assertThat(sparkUsedMinutesLabel.text).isEqualTo("-- mins used")
           assertThat(remainingMinutesLabel.text).isEqualTo("-- mins remaining")
-          assertThat(fakePropertiesComponent[projectRule.project])
-            .isEqualTo(unknownPermissionTestProject)
+          assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
 
           comboBox.model.selectedItem = ERROR_FETCHING_FIREBASE_PROJECT
-          assertThat(fakePropertiesComponent[projectRule.project])
-            .isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
-          assertThat(fakePropertiesComponent[projectRule.project])
-            .isEqualTo(unknownPermissionTestProject)
+          assertThat(fakePropertiesComponent[projectRule.project]).isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
+          assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
 
           comboBox.model.selectedItem = NO_PROJECTS_AVAILABLE
           waitForCondition { !errorLabel.isVisible }
-          assertThat(fakePropertiesComponent[projectRule.project])
-            .isEqualTo(unknownPermissionTestProject)
+          assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
 
           // Select an invalid project that fails to fetch permissions.
           comboBox.model.selectedItem = invalidProject
-          waitForCondition {
-            errorLabel.getHelpToolTipText().contains("Unable to retrieve permission")
-          }
+          waitForCondition { errorLabel.getHelpToolTipText().contains("Unable to retrieve permission") }
 
           // Select a blaze project that supports direct access.
           comboBox.model.selectedItem = blazeProjectName
           waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
           waitForCondition { planLabel.text == "Blaze Plan" }
-          waitForCondition {
-            planTooltipLabel
-              .getHelpToolTipText()
-              .contains("Blaze plans allow extended usage and is billed monthly.")
-          }
+          waitForCondition { planTooltipLabel.getHelpToolTipText().contains("Blaze plans allow extended usage and is billed monthly.") }
 
           // Select a spark project that supports direct access.
           comboBox.model.selectedItem = supportedProjectName
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName }
           waitForCondition { planLabel.text == "Spark Plan" }
-          waitForCondition {
-            planTooltipLabel
-              .getHelpToolTipText()
-              .contains("Spark plans provide limited usage at no cost.")
-          }
+          waitForCondition { planTooltipLabel.getHelpToolTipText().contains("Spark plans provide limited usage at no cost.") }
           assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(supportedProjectName)
           waitForCondition { errorLabel.getHelpToolTipText().isEmpty() }
           waitForCondition { sparkUsedMinutesLabel.text == "60 mins used" }
@@ -543,9 +457,7 @@ class SelectProjectActionTest {
 
           // Select a spark project that's out of quota
           comboBox.model.selectedItem = noQuotaProjectName
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name == noQuotaProjectName
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == noQuotaProjectName }
           waitForCondition { sparkUsedMinutesLabel.text == "70 mins used" }
           waitForCondition { remainingMinutesLabel.text == "0 mins remaining" }
           assertThat(usageProgressBar.percentage.value).isEqualTo(1.0)
@@ -554,19 +466,13 @@ class SelectProjectActionTest {
           comboBox.model.selectedItem = blazeProjectName
           waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
           waitForCondition { planLabel.text == "Blaze Plan" }
-          waitForCondition {
-            planTooltipLabel
-              .getHelpToolTipText()
-              .contains("Blaze plans allow extended usage and is billed monthly.")
-          }
+          waitForCondition { planTooltipLabel.getHelpToolTipText().contains("Blaze plans allow extended usage and is billed monthly.") }
           waitForCondition { blazeUsedMinutesLabel.text == "60" }
           waitForCondition { blazePricingInfoLabel.text == "Blaze Plan may incur charges" }
 
           // Select a spark project that supports direct access with monthly quota.
           comboBox.model.selectedItem = supportedProjectName
-          waitForCondition {
-            cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName
-          }
+          waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == supportedProjectName }
           assertThat(errorLabel.getHelpToolTipText()).isEmpty()
           waitForCondition { planLabel.text == "Spark Plan" }
           waitForCondition {
@@ -590,8 +496,7 @@ class SelectProjectActionTest {
       // Cancel selection
       yieldUntil { selectedCloudProject.value == supportedProjectName }
       withContext(Dispatchers.EDT) {
-        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog
-          ->
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog ->
           val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           waitForCondition { selector.model.selectedItem == NO_PROJECTS_AVAILABLE }
           selector.model.selectedItem = blazeProjectName
@@ -614,8 +519,7 @@ class SelectProjectActionTest {
       devices.value = listOf(mockDeviceHandle)
 
       withContext(Dispatchers.EDT) {
-        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog
-          ->
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog ->
           val selector = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           assertThat(selector.isEnabled).isFalse()
           assertThat(selector.toolTipText).isEqualTo("Return all devices to change projects")
@@ -629,13 +533,10 @@ class SelectProjectActionTest {
       // Do not trigger project creation when closing the dialog.
       var invocationCountBeforeClosing = 0
       val invocationCount: () -> Int = {
-        mockingDetails(mockDirectAccessApplicationService).invocations.count {
-          it.method.name == "getCloudProjectManager"
-        }
+        mockingDetails(mockDirectAccessApplicationService).invocations.count { it.method.name == "getCloudProjectManager" }
       }
       withContext(Dispatchers.EDT) {
-        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog
-          ->
+        createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialog ->
           invocationCountBeforeClosing = invocationCount()
           dialog.clickDefaultButton()
         }
@@ -650,11 +551,7 @@ class SelectProjectActionTest {
       // Make sure the [DirectAccessOnboardingService] is initialized after login service
       // replacement.
       ApplicationManager.getApplication()
-        .replaceService(
-          DirectAccessOnboardingService::class.java,
-          DirectAccessOnboardingService(scope),
-          projectRule.disposable,
-        )
+        .replaceService(DirectAccessOnboardingService::class.java, DirectAccessOnboardingService(scope), projectRule.disposable)
 
       val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
       whenever(mockDirectAccessServiceSetup.channel(any())).thenReturn(mock())
@@ -662,70 +559,41 @@ class SelectProjectActionTest {
         .whenever(mockDirectAccessServiceSetup)
         .getAccessibleDeviceInfoList(null)
       ApplicationManager.getApplication()
-        .replaceService(
-          DirectAccessServiceSetup::class.java,
-          mockDirectAccessServiceSetup,
-          projectRule.disposable,
-        )
+        .replaceService(DirectAccessServiceSetup::class.java, mockDirectAccessServiceSetup, projectRule.disposable)
       val devices = MutableStateFlow(listOf<DeviceHandle>())
       val mockProvisioner = mock<DeviceProvisioner>()
       val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
       Mockito.doReturn(devices).whenever(mockProvisioner).devices
       Mockito.doReturn(mockProvisioner).whenever(mockDeviceProvisionerService).deviceProvisioner
-      projectRule.project.replaceService(
-        DeviceProvisionerService::class.java,
-        mockDeviceProvisionerService,
-        projectRule.disposable,
-      )
+      projectRule.project.replaceService(DeviceProvisionerService::class.java, mockDeviceProvisionerService, projectRule.disposable)
 
       val mockDirectAccessService = mock<DirectAccessService>()
-      Mockito.doReturn(cloudProjectManagerFlow)
-        .whenever(mockDirectAccessService)
-        .cloudProjectManager
+      Mockito.doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
       Mockito.doReturn(scope).whenever(mockDirectAccessService).scope
       val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
       doAnswer {
           mockDeviceSelectionListFlow.update {
-            it.map { selection ->
-              selection.copy(isSelected = selection.isSelected || selection.deviceInfo.isDefault)
-            }
+            it.map { selection -> selection.copy(isSelected = selection.isSelected || selection.deviceInfo.isDefault) }
           }
         }
         .whenever(mockDirectAccessService)
         .maybeApplyDefaultDevices()
-      Mockito.doReturn(mockDeviceSelectionListFlow)
-        .whenever(mockDirectAccessService)
-        .deviceSelectionListFlow
+      Mockito.doReturn(mockDeviceSelectionListFlow).whenever(mockDirectAccessService).deviceSelectionListFlow
       Mockito.doAnswer {
           val cloudProjectName = it.arguments[0] as? String
           cloudProjectName?.let { name -> fakePropertiesComponent[projectRule.project] = name }
-          cloudProjectManagerFlow.value =
-            createCloudProjectManager(
-              scope,
-              cloudProjectName,
-              isAuthorized = true,
-              outOfQuota = false,
-            )
+          cloudProjectManagerFlow.value = createCloudProjectManager(scope, cloudProjectName, isAuthorized = true, outOfQuota = false)
           runBlocking { permissionFlow.refresh() }
           Unit
         }
         .whenever(mockDirectAccessService)
         .selectCloudProject(any())
 
-      projectRule.project.replaceService(
-        DirectAccessService::class.java,
-        mockDirectAccessService,
-        projectRule.disposable,
-      )
+      projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
 
-      assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID))
-        .isInstanceOf(SelectProjectAction::class.java)
+      assertThat(CustomActionsSchema.getInstance().getCorrectedAction(SELECT_PROJECT_ID)).isInstanceOf(SelectProjectAction::class.java)
 
-      firebaseProjectClientRule.setupFirebaseClient(
-        throwErrorOnExecute = false,
-        returnMalformedJson = false,
-        projectList = listOf(),
-      )
+      firebaseProjectClientRule.setupFirebaseClient(throwErrorOnExecute = false, returnMalformedJson = false, projectList = listOf())
       val selectDeviceAction = SelectProjectAction()
 
       // Click the device selection button.
@@ -746,13 +614,9 @@ class SelectProjectActionTest {
       (handler.latestCreatedFirebaseProject as MutableStateFlow<String>).update { createdProject }
       loginUsersRule.setActiveUser("test@google.com")
 
-      val plugin =
-        DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
+      val plugin = DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
       yieldUntil { mockDeviceSelectionListFlow.value.count { it.isSelected } > 0 }
-      assertThat(
-          mockDeviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.key }
-        )
-        .isEqualTo(listOf("shiba/34"))
+      assertThat(mockDeviceSelectionListFlow.value.filter { it.isSelected }.map { it.deviceInfo.key }).isEqualTo(listOf("shiba/34"))
 
       // Verify the created template before cloud project gets ready.
       yieldUntil { plugin.templates.value.size == 1 }
@@ -760,8 +624,7 @@ class SelectProjectActionTest {
       yieldUntil { template.state.error?.severity == DeviceError.Severity.INFO }
       assertThat(template.state.error?.message).isEqualTo("Ready in a few minutes")
       yieldUntil {
-        template.activationAction.presentation.value.detail ==
-          "Android Device Streaming is setting up and will be ready in a few minutes."
+        template.activationAction.presentation.value.detail == "Android Device Streaming is setting up and will be ready in a few minutes."
       }
       withContext(Dispatchers.EDT) {
         createModalDialogAndInteractWithIt({ selectDeviceAction.actionPerformed(event) }) {
@@ -771,9 +634,7 @@ class SelectProjectActionTest {
 
           waitForCondition {
             projectCreatedLabel =
-              dialog.rootPane.findAllDescendants<JBLabel>().firstOrNull { label ->
-                label.text?.startsWith("Creating project") == true
-              }
+              dialog.rootPane.findAllDescendants<JBLabel>().firstOrNull { label -> label.text?.startsWith("Creating project") == true }
             projectCreatedLabel != null
           }
           assertThat(projectCreatedLabel!!.text).isEqualTo("Creating project $createdProject")
@@ -784,15 +645,13 @@ class SelectProjectActionTest {
             returnMalformedJson = false,
             projectList = listOf(createdProject),
           )
-          (service<DirectAccessOnboardingService>().taskFlow
-              as MutableStateFlow<DirectAccessOnboardingService.Task?>)
-            .update { task -> task?.copy(isPending = false) }
+          (service<DirectAccessOnboardingService>().taskFlow as MutableStateFlow<DirectAccessOnboardingService.Task?>).update { task ->
+            task?.copy(isPending = false)
+          }
 
           // The created project should be selected.
           waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == createdProject }
-          waitForCondition {
-            dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext()
-          }
+          waitForCondition { dialog.rootPane.findAllDescendants<ComboBox<String>>().iterator().hasNext() }
           val comboBox = dialog.rootPane.findAllDescendants<ComboBox<String>>().first()
           waitForCondition { comboBox.model.selectedItem == createdProject }
           dialog.clickDefaultButton()
@@ -809,10 +668,7 @@ class SelectProjectActionTest {
   fun testLoginPanel() =
     CoroutineTestUtils.runBlockingWithTimeout {
       val selectDeviceAction = SelectProjectAction()
-      projectRule.project
-        .service<DirectAccessPersistentStateComponent>()
-        .state
-        .selectedCloudProject = supportedProjectName
+      projectRule.project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject = supportedProjectName
 
       firebaseProjectClientRule.setupFirebaseClient(
         throwErrorOnExecute = false,
@@ -850,10 +706,7 @@ class SelectProjectActionTest {
         }
       }
 
-      projectRule.project
-        .service<DirectAccessPersistentStateComponent>()
-        .state
-        .selectedCloudProject = null
+      projectRule.project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject = null
     }
 
   @RunsInEdt
@@ -863,10 +716,7 @@ class SelectProjectActionTest {
       // Log in as a user without the firebase feature
       loginUsersRule.setActiveUser("test@google.com", features = setOf())
       val selectDeviceAction = SelectProjectAction()
-      projectRule.project
-        .service<DirectAccessPersistentStateComponent>()
-        .state
-        .selectedCloudProject = supportedProjectName
+      projectRule.project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject = supportedProjectName
 
       firebaseProjectClientRule.setupFirebaseClient(
         throwErrorOnExecute = false,
@@ -904,10 +754,7 @@ class SelectProjectActionTest {
         }
       }
 
-      projectRule.project
-        .service<DirectAccessPersistentStateComponent>()
-        .state
-        .selectedCloudProject = null
+      projectRule.project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject = null
     }
 
   @Test
@@ -967,23 +814,14 @@ class SelectProjectActionTest {
           throw RuntimeException("unauthorized")
         }
       }
-    Mockito.doReturn(directAccessReservationManager)
-      .whenever(mockCloudProjectManager)
-      .reservationManager
+    Mockito.doReturn(directAccessReservationManager).whenever(mockCloudProjectManager).reservationManager
 
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (isAuthorized) Pair(directAccessReservationManager.listReservations(), null)
-        else Pair(null, exceptionToThrow)
+        if (isAuthorized) Pair(directAccessReservationManager.listReservations(), null) else Pair(null, exceptionToThrow)
       }
-    Mockito.doReturn(reservationListFlow)
-      .whenever(mockCloudProjectManager)
-      .reservationListFlowWithException
-    Mockito.doAnswer {
-        if (permissionFlow.value.missingPermissions.isEmpty())
-          Pair(if (outOfQuota) 70L else 60L, 70L)
-        else null
-      }
+    Mockito.doReturn(reservationListFlow).whenever(mockCloudProjectManager).reservationListFlowWithException
+    Mockito.doAnswer { if (permissionFlow.value.missingPermissions.isEmpty()) Pair(if (outOfQuota) 70L else 60L, 70L) else null }
       .whenever(mockCloudProjectManager)
       .usageQuota
 
@@ -991,9 +829,7 @@ class SelectProjectActionTest {
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
         if (isAuthorized) TestUtils.deviceInfoListProvider() + preselectedDeviceInfo else listOf()
       }
-    Mockito.doReturn(accessibleDeviceInfoListFlow)
-      .whenever(mockCloudProjectManager)
-      .accessibleDeviceInfoListFlow
+    Mockito.doReturn(accessibleDeviceInfoListFlow).whenever(mockCloudProjectManager).accessibleDeviceInfoListFlow
 
     Mockito.doReturn(permissionFlow).whenever(mockCloudProjectManager).permissionFlow
 

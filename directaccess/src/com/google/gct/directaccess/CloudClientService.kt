@@ -33,9 +33,7 @@ import kotlinx.coroutines.launch
 @Service
 class CloudClientService(scope: CoroutineScope) {
   private val credentialFlow =
-    GoogleLoginService.instance.activeUserFlow
-      .map { getCredential() }
-      .stateIn(scope, SharingStarted.Lazily, getCredential())
+    GoogleLoginService.instance.activeUserFlow.map { getCredential() }.stateIn(scope, SharingStarted.Lazily, getCredential())
 
   internal var overrideClientForTest: CloudClient? = null
   val client = CloudClient(credentialFlow, scope)
@@ -63,10 +61,9 @@ class CloudClientService(scope: CoroutineScope) {
             androidModel.accessDeniedReasons.singleOrNull() == "EULA_NOT_ACCEPTED")
       }
       .filter { (_, perVersionInfo) ->
-        BuildNumber.fromString(perVersionInfo.directAccessVersionInfo?.minimumAndroidStudioVersion)
-          .let { catalogBuildNumber ->
-            catalogBuildNumber == null || catalogBuildNumber <= ApplicationInfo.getInstance().build
-          }
+        BuildNumber.fromString(perVersionInfo.directAccessVersionInfo?.minimumAndroidStudioVersion).let { catalogBuildNumber ->
+          catalogBuildNumber == null || catalogBuildNumber <= ApplicationInfo.getInstance().build
+        }
       }
 
   companion object {

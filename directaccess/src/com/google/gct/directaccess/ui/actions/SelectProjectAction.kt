@@ -30,10 +30,7 @@ import icons.FirebaseIcons
 import icons.StudioIcons
 import org.jetbrains.annotations.VisibleForTesting
 
-@VisibleForTesting
-val firebaseIconWithErrors = layeredIcon {
-  arrayOf(FirebaseIcons.ACTION_ICON, StudioIcons.Common.ERROR_DECORATOR)
-}
+@VisibleForTesting val firebaseIconWithErrors = layeredIcon { arrayOf(FirebaseIcons.ACTION_ICON, StudioIcons.Common.ERROR_DECORATOR) }
 
 class SelectProjectAction :
   AnAction(
@@ -49,17 +46,12 @@ class SelectProjectAction :
       return
     }
     val templates =
-      e.project
-        ?.service<DeviceProvisionerService>()
-        ?.deviceProvisioner
-        ?.templates
-        ?.value
-        ?.filterIsInstance<DirectAccessDeviceTemplate>() ?: listOf()
+      e.project?.service<DeviceProvisionerService>()?.deviceProvisioner?.templates?.value?.filterIsInstance<DirectAccessDeviceTemplate>()
+        ?: listOf()
     if (!service<DirectAccessDeprecationState>().isServiceEnabledFlow.value) {
       e.presentation.isEnabled = false
       e.presentation.text =
-        if (templates.isEmpty())
-          "Firebase Device Streaming is no longer compatible with this version of Android Studio."
+        if (templates.isEmpty()) "Firebase Device Streaming is no longer compatible with this version of Android Studio."
         else "Unsupported version: update required"
       return
     }
@@ -75,15 +67,13 @@ class SelectProjectAction :
         ?.map { it.key }
         ?.toSet() ?: setOf()
     e.presentation.icon =
-      if (templates.isNotEmpty() && templates.none { it.deviceInfo.key in accessibleDevices })
-        firebaseIconWithErrors
+      if (templates.isNotEmpty() && templates.none { it.deviceInfo.key in accessibleDevices }) firebaseIconWithErrors
       else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = StudioFlags.DIRECT_ACCESS.get()
   }
 
   override fun actionPerformed(e: AnActionEvent) {
-    val project =
-      e.project ?: throw IllegalArgumentException("Project required to invoke this action")
+    val project = e.project ?: throw IllegalArgumentException("Project required to invoke this action")
     SelectProjectDialog(project).show()
   }
 }

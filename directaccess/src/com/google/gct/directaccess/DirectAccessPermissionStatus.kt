@@ -40,22 +40,15 @@ const val NEW_DEVICE_SESSION_USE = "devicestreaming.googleapis.com/deviceSession
 const val NEW_DEVICE_SESSION_GET = "devicestreaming.googleapis.com/deviceSessions.get"
 const val NEW_DEVICE_SESSION_LIST = "devicestreaming.googleapis.com/deviceSessions.list"
 
-val NEW_VIEWER_PERMISSIONS_SET =
-  setOf(ENV_CATALOG_GET, NEW_DEVICE_SESSION_GET, NEW_DEVICE_SESSION_LIST)
+val NEW_VIEWER_PERMISSIONS_SET = setOf(ENV_CATALOG_GET, NEW_DEVICE_SESSION_GET, NEW_DEVICE_SESSION_LIST)
 val NEW_ADMIN_PERMISSIONS_SET =
   NEW_VIEWER_PERMISSIONS_SET +
-    setOf(
-      NEW_DEVICE_SESSION_CREATE,
-      NEW_DEVICE_SESSION_UPDATE,
-      NEW_DEVICE_SESSION_CANCEL,
-      NEW_DEVICE_SESSION_USE,
-    )
+    setOf(NEW_DEVICE_SESSION_CREATE, NEW_DEVICE_SESSION_UPDATE, NEW_DEVICE_SESSION_CANCEL, NEW_DEVICE_SESSION_USE)
 
 val VIEWER_PERMISSIONS_SET = setOf(ENV_CATALOG_GET, DEVICE_SESSION_GET, DEVICE_SESSION_LIST)
 
 val ADMIN_PERMISSIONS_SET =
-  VIEWER_PERMISSIONS_SET +
-    setOf(DEVICE_SESSION_CREATE, DEVICE_SESSION_UPDATE, DEVICE_SESSION_CANCEL, DEVICE_SESSION_USE)
+  VIEWER_PERMISSIONS_SET + setOf(DEVICE_SESSION_CREATE, DEVICE_SESSION_UPDATE, DEVICE_SESSION_CANCEL, DEVICE_SESSION_USE)
 
 val FULL_PERMISSIONS_SET = setOf(SERVICES_USE) + ADMIN_PERMISSIONS_SET
 val NEW_FULL_PERMISSIONS_SET = setOf(SERVICES_USE) + NEW_ADMIN_PERMISSIONS_SET
@@ -71,8 +64,7 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
   class Unknown(missingPermissions: Set<String>) : DirectAccessPermissionStatus(missingPermissions)
 
   /** User is missing SERVICE_USE which is required to use the service. */
-  class MissingServiceUse(missingPermissions: Set<String>) :
-    DirectAccessPermissionStatus(missingPermissions)
+  class MissingServiceUse(missingPermissions: Set<String>) : DirectAccessPermissionStatus(missingPermissions)
 
   /** User/Project does not have DA permissions */
   class None(missingPermissions: Set<String>) : DirectAccessPermissionStatus(missingPermissions)
@@ -85,10 +77,7 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
 
   companion object {
     @VisibleForTesting
-    internal fun parseFrom(
-      permissions: Set<String>,
-      isDefaultApiEnabled: Boolean = false,
-    ): DirectAccessPermissionStatus {
+    internal fun parseFrom(permissions: Set<String>, isDefaultApiEnabled: Boolean = false): DirectAccessPermissionStatus {
       if (isDefaultApiEnabled) {
         // None of the permissions requested exist on the user's IAM role
         if (permissions.isEmpty()) return None(NEW_FULL_PERMISSIONS_SET)
@@ -135,16 +124,11 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
       applyUserProject: Boolean,
       isDefaultApiEnabled: Boolean,
     ): TestIamPermissionsResponse {
-      val fullPermissionsSet =
-        if (isDefaultApiEnabled) NEW_FULL_PERMISSIONS_SET else FULL_PERMISSIONS_SET
-      return checkPermissions(fullPermissionsSet, cloudProject, applyUserProject)
-        ?: throw IOException("Got null response")
+      val fullPermissionsSet = if (isDefaultApiEnabled) NEW_FULL_PERMISSIONS_SET else FULL_PERMISSIONS_SET
+      return checkPermissions(fullPermissionsSet, cloudProject, applyUserProject) ?: throw IOException("Got null response")
     }
 
-    fun checkDirectAccessPermission(
-      cloudProject: CloudProjectEntry,
-      isDefaultApiEnabled: Boolean,
-    ): DirectAccessPermissionStatus {
+    fun checkDirectAccessPermission(cloudProject: CloudProjectEntry, isDefaultApiEnabled: Boolean): DirectAccessPermissionStatus {
       val response =
         try {
           getTestIamPermissionsResponse(cloudProject, true, isDefaultApiEnabled)
@@ -155,10 +139,7 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
           ?: try {
             getTestIamPermissionsResponse(cloudProject, false, isDefaultApiEnabled)
           } catch (e: IOException) {
-            thisLogger()
-              .warn(
-                "Could not fetch permissions for user ${cloudProject.user} for project ${cloudProject.name}: ${e.message}"
-              )
+            thisLogger().warn("Could not fetch permissions for user ${cloudProject.user} for project ${cloudProject.name}: ${e.message}")
             return None(FULL_PERMISSIONS_SET)
           }
       // response.permission is null if the user does not have any permissions

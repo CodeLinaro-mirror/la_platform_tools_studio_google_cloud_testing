@@ -131,24 +131,12 @@ class AddDirectAccessDeviceDialog(
       }
     }
 
-  private val modelColumn =
-    TableTextColumn<DirectAccessDeviceProfile>(
-      "Model",
-      TableColumnWidth.Weighted(1f),
-      attribute = { it.codename },
-    )
+  private val modelColumn = TableTextColumn<DirectAccessDeviceProfile>("Model", TableColumnWidth.Weighted(1f), attribute = { it.codename })
 
   private val labColumn =
-    TableTextColumn<DirectAccessDeviceProfile>(
-      "Lab",
-      TableColumnWidth.Weighted(1f),
-      attribute = { it.labIdDisplayName },
-    )
+    TableTextColumn<DirectAccessDeviceProfile>("Lab", TableColumnWidth.Weighted(1f), attribute = { it.labIdDisplayName })
 
-  /**
-   * A table column that displays the device name and any associated tags. The tags are displayed as
-   * chips next to the device name.
-   */
+  /** A table column that displays the device name and any associated tags. The tags are displayed as chips next to the device name. */
   private val nameWithTag =
     TableTextColumnWithTags<DirectAccessDeviceProfile>(
       "Name",
@@ -159,8 +147,7 @@ class AddDirectAccessDeviceDialog(
             ?: tagPrefixList
               .firstOrNull { target ->
                 // Match device api with its tag.
-                tag.startsWith("$target=") &&
-                  tag.substringAfter("=").toIntOrNull() == device.apiRange.lowerEndpoint()
+                tag.startsWith("$target=") && tag.substringAfter("=").toIntOrNull() == device.apiRange.lowerEndpoint()
               }
               ?.capitalize()
         }
@@ -187,9 +174,7 @@ class AddDirectAccessDeviceDialog(
       rows =
         deviceSelectionListFlow.value.map { deviceSelection ->
           val isEnabled =
-            profiles.entries
-              .find { (profile, _) -> profile.isSameDevice(deviceSelection.deviceInfo) }
-              ?.value ?: deviceSelection.isSelected
+            profiles.entries.find { (profile, _) -> profile.isSameDevice(deviceSelection.deviceInfo) }?.value ?: deviceSelection.isSelected
           DirectAccessDeviceProfile(deviceSelection.deviceInfo, isEnabled)
         }
       profiles = rows.map { profile -> profile to profile.isAlreadyPresent }.toMutableStateMap()
@@ -212,9 +197,7 @@ class AddDirectAccessDeviceDialog(
 
   override fun createCenterPanel(): JComponent {
     @OptIn(ExperimentalJewelApi::class) (enableNewSwingCompositing())
-    val component = StudioComposePanel {
-      CompositionLocalProvider(LocalProject provides project) { ComposeContent() }
-    }
+    val component = StudioComposePanel { CompositionLocalProvider(LocalProject provides project) { ComposeContent() } }
     component.preferredSize = JBUI.size(900, 650)
     component.minimumSize = JBUI.size(600, 350)
     return component
@@ -232,10 +215,7 @@ class AddDirectAccessDeviceDialog(
 
   @Composable
   private fun ButtonBar() {
-    Row(
-      modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
-      horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
+    Row(modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
       Spacer(Modifier.weight(1f))
       OutlinedButton(onClick = { close(CANCEL_EXIT_CODE) }) { Text("Cancel") }
       DefaultButton(
@@ -251,21 +231,17 @@ class AddDirectAccessDeviceDialog(
   }
 
   private fun confirm(): Boolean {
-    val selectedKeys: Map<String, Boolean> =
-      profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
+    val selectedKeys: Map<String, Boolean> = profiles.entries.associate { (profile, isSelected) -> profile.key to isSelected }
     val unacceptedDevices =
       deviceSelectionListFlow.value.filter {
-        selectedKeys[it.deviceInfo.key] == true &&
-          it.deviceInfo.accessStatus.contains("EULA_NOT_ACCEPTED")
+        selectedKeys[it.deviceInfo.key] == true && it.deviceInfo.accessStatus.contains("EULA_NOT_ACCEPTED")
       }
     if (unacceptedDevices.isNotEmpty()) {
       showEulaDialog(unacceptedDevices.map { it.deviceInfo.labId }.distinct())
       return false
     } else {
       deviceSelectionListFlow.update { devices ->
-        devices.map { selection: DeviceSelection ->
-          selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true)
-        }
+        devices.map { selection: DeviceSelection -> selection.copy(isSelected = selectedKeys[selection.deviceInfo.key] == true) }
       }
       return true
     }
@@ -286,10 +262,7 @@ class AddDirectAccessDeviceDialog(
     maxLines: Int = 2,
   ) =
     TableColumn(name, width, comparator) { value, _ ->
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-      ) {
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(attribute(value), overflow = overflow, maxLines = maxLines)
         tags(value).forEach { tag ->
           Chip(
@@ -303,20 +276,11 @@ class AddDirectAccessDeviceDialog(
       }
     }
 
-  /**
-   * Adjusts the padding of the chip to fit the text. This is used to make the chips in the table
-   * more compact.
-   */
+  /** Adjusts the padding of the chip to fit the text. This is used to make the chips in the table more compact. */
   private fun ChipStyle.update(tag: String) =
     ChipStyle(
       colors.withBackground(tag),
-      ChipMetrics(
-        metrics.cornerSize,
-        PaddingValues(start = 6.dp, top = 2.dp, bottom = 2.dp, end = 6.dp),
-        0.dp,
-        0.dp,
-        DpSize.Zero,
-      ),
+      ChipMetrics(metrics.cornerSize, PaddingValues(start = 6.dp, top = 2.dp, bottom = 2.dp, end = 6.dp), 0.dp, 0.dp, DpSize.Zero),
     )
 
   private fun getBackgroundColor(tag: String): Color? {
@@ -395,18 +359,14 @@ class AddDirectAccessDeviceDialog(
 }
 
 // Note Collator is by default case-insensitive
-private val Lab =
-  RowAttribute<DirectAccessDeviceProfile, String>("Device Lab", Collator.getInstance()) {
-    it.labIdDisplayName
-  }
+private val Lab = RowAttribute<DirectAccessDeviceProfile, String>("Device Lab", Collator.getInstance()) { it.labIdDisplayName }
 
 internal class RemoteDeviceFilterState : DeviceFilterState<DirectAccessDeviceProfile>() {
   val labFilter = SetFilterState(Lab)
   val manufacturerFilter = SetFilterState(Manufacturer)
   override val textFilter = RemoteDeviceTextFilter()
 
-  override fun apply(row: DirectAccessDeviceProfile): Boolean =
-    super.apply(row) && labFilter.apply(row) && manufacturerFilter.apply(row)
+  override fun apply(row: DirectAccessDeviceProfile): Boolean = super.apply(row) && labFilter.apply(row) && manufacturerFilter.apply(row)
 }
 
 internal class RemoteDeviceTextFilter : TextFilterState<DirectAccessDeviceProfile>() {
@@ -419,10 +379,7 @@ internal class RemoteDeviceTextFilter : TextFilterState<DirectAccessDeviceProfil
 }
 
 @Composable
-internal fun RemoteDeviceFilters(
-  profiles: List<DirectAccessDeviceProfile>,
-  filterState: RemoteDeviceFilterState,
-) {
+internal fun RemoteDeviceFilters(profiles: List<DirectAccessDeviceProfile>, filterState: RemoteDeviceFilterState) {
   SingleSelectionRadioButtons(FormFactor.uniqueValuesOf(profiles), filterState.formFactorFilter)
   SetFilter(Manufacturer.uniqueValuesOf(profiles), filterState.manufacturerFilter)
   SetFilter(Lab.uniqueValuesOf(profiles), filterState.labFilter) { name ->
@@ -440,19 +397,11 @@ internal fun RemoteDeviceFilters(
           )
           ExternalLink(
             "Learn more",
-            onClick = {
-              BrowserUtil.browse(
-                "http://developer.android.com/r/studio-ui/device-streaming/2P/enable"
-              )
-            },
+            onClick = { BrowserUtil.browse("http://developer.android.com/r/studio-ui/device-streaming/2P/enable") },
           )
         }
       }) {
-        Icon(
-          IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
-          "Lab inaccessible",
-          Modifier.padding(horizontal = 4.dp),
-        )
+        Icon(IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning), "Lab inaccessible", Modifier.padding(horizontal = 4.dp))
       }
     }
   }

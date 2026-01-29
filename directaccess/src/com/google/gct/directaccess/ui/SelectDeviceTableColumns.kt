@@ -26,11 +26,7 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.scale.JBUIScale
 
-data class SelectDeviceRowData(
-  val isEnabled: Boolean,
-  var isSelected: Boolean,
-  val deviceInfo: DeviceInfo,
-)
+data class SelectDeviceRowData(val isEnabled: Boolean, var isSelected: Boolean, val deviceInfo: DeviceInfo)
 
 internal object SelectDeviceTableColumns {
 
@@ -51,8 +47,7 @@ internal object SelectDeviceTableColumns {
         addItemListener { rowValue.isSelected = isSelected }
       }
 
-    override fun updateValue(rowValue: SelectDeviceRowData, component: JBCheckBox, value: Boolean) =
-      Unit
+    override fun updateValue(rowValue: SelectDeviceRowData, component: JBCheckBox, value: Boolean) = Unit
   }
 
   object DeviceIcon : Column<SelectDeviceRowData, String, JBLabel> {
@@ -66,8 +61,7 @@ internal object SelectDeviceTableColumns {
       return JBLabel(icon)
     }
 
-    override fun updateValue(rowValue: SelectDeviceRowData, component: JBLabel, value: String) =
-      Unit
+    override fun updateValue(rowValue: SelectDeviceRowData, component: JBLabel, value: String) = Unit
   }
 
   object Manufacturer :
@@ -78,18 +72,10 @@ internal object SelectDeviceTableColumns {
     )
 
   object Name :
-    LabelColumn<SelectDeviceRowData>(
-      "Name",
-      Column.SizeConstraint(min = 150, preferred = 300),
-      stringAttribute { it.deviceInfo.name },
-    )
+    LabelColumn<SelectDeviceRowData>("Name", Column.SizeConstraint(min = 150, preferred = 300), stringAttribute { it.deviceInfo.name })
 
   object Api :
-    LabelColumn<SelectDeviceRowData>(
-      "API",
-      Column.SizeConstraint(min = 20, max = 65),
-      stringAttribute { it.deviceInfo.api.toString() },
-    )
+    LabelColumn<SelectDeviceRowData>("API", Column.SizeConstraint(min = 20, max = 65), stringAttribute { it.deviceInfo.api.toString() })
 
   object Width :
     LabelColumn<SelectDeviceRowData>(

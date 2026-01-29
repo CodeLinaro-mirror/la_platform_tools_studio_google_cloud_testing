@@ -40,11 +40,7 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
 
   /** A flow of devices with selected states. */
   val deviceSelectionListFlow =
-    MutableStateFlow(
-      project.service<DirectAccessPersistentStateComponent>().deviceSelectionList.map {
-        it.createDeviceSelection()
-      }
-    )
+    MutableStateFlow(project.service<DirectAccessPersistentStateComponent>().deviceSelectionList.map { it.createDeviceSelection() })
   /** Connection to application message bus to listen to project closing events */
   private val messageBusConnection: MessageBusConnection
   /** Tracks studio project closing */
@@ -59,13 +55,11 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
         "" -> null
         else -> {
           // Stores the last non-null cloud project in PropertiesComponent.
-          project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject =
-            cloudProject
+          project.service<DirectAccessPersistentStateComponent>().state.selectedCloudProject = cloudProject
           getCloudProject(cloudProject)
         }
       }
-    _cloudProjectManager.value =
-      service<DirectAccessApplicationService>().registerCloudProject(project, cloudProjectEntry)
+    _cloudProjectManager.value = service<DirectAccessApplicationService>().registerCloudProject(project, cloudProjectEntry)
   }
 
   /** Selects default devices only once for each user project. */
@@ -76,9 +70,7 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
 
     deviceSelectionListFlow.update { deviceSelections ->
       if (deviceSelections.any { it.isSelected }) return@update deviceSelections
-      deviceSelections.map {
-        if (it.deviceInfo.isDefault && !it.isSelected) it.copy(isSelected = true) else it
-      }
+      deviceSelections.map { if (it.deviceInfo.isDefault && !it.isSelected) it.copy(isSelected = true) else it }
     }
   }
 
@@ -87,9 +79,7 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
       val loginService = service<GoogleLoginService>()
       loginService.activeUserFlow.collect {
         if (it?.isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) == true) {
-          selectCloudProject(
-            project.service<DirectAccessPersistentStateComponent>().selectedCloudProject
-          )
+          selectCloudProject(project.service<DirectAccessPersistentStateComponent>().selectedCloudProject)
         } else {
           selectCloudProject(null)
         }

@@ -36,8 +36,7 @@ internal const val SURVEY_DONE_FIELD = "direct.access.survey.done"
 @Service(Service.Level.APP)
 class DirectAccessFeatureSurveys(val calendar: () -> Calendar = { Calendar.getInstance() }) {
 
-  private var lastDayWithConnection =
-    PropertiesComponent.getInstance().getLong(LAST_DAY_WITH_CONNECTION_FIELD, 0)
+  private var lastDayWithConnection = PropertiesComponent.getInstance().getLong(LAST_DAY_WITH_CONNECTION_FIELD, 0)
     set(value) {
       field = value
       PropertiesComponent.getInstance().setValue(LAST_DAY_WITH_CONNECTION_FIELD, value.toString())
@@ -49,8 +48,7 @@ class DirectAccessFeatureSurveys(val calendar: () -> Calendar = { Calendar.getIn
       PropertiesComponent.getInstance().setValue(SURVEY_DONE_FIELD, value)
     }
 
-  private var daysWithConnection =
-    PropertiesComponent.getInstance().getLong(DAYS_WITH_CONNECTION_FIELD, 0)
+  private var daysWithConnection = PropertiesComponent.getInstance().getLong(DAYS_WITH_CONNECTION_FIELD, 0)
     set(value) {
       field = value
       PropertiesComponent.getInstance().setValue(DAYS_WITH_CONNECTION_FIELD, value.toString())
@@ -83,8 +81,7 @@ class DirectAccessFeatureSurveys(val calendar: () -> Calendar = { Calendar.getIn
   }
 
   private fun triggerSurvey() {
-    val notificationGroup =
-      NotificationGroupManager.getInstance().getNotificationGroup("Feature Survey") ?: return
+    val notificationGroup = NotificationGroupManager.getInstance().getNotificationGroup("Feature Survey") ?: return
 
     val notification =
       notificationGroup.createNotification(

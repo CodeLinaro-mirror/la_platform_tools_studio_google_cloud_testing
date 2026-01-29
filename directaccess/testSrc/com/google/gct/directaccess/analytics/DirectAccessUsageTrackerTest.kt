@@ -132,20 +132,9 @@ class DirectAccessUsageTrackerTest {
     loginUsersRule.setActiveUser("test@google.com")
     scope = CoroutineScope(MoreExecutors.directExecutor().asCoroutineDispatcher())
     directAccessReservationManager =
-      DirectAccessReservationManager(
-        "test-project",
-        scope,
-        isDefaultApiEnabled = true,
-        grpcConnectionRule.channel,
-      ) {
-        "testToken"
-      }
+      DirectAccessReservationManager("test-project", scope, isDefaultApiEnabled = true, grpcConnectionRule.channel) { "testToken" }
     setupConnection { reservationName ->
-      FakeDirectAccessConnection(
-        directAccessReservationManager,
-        reservationName,
-        scope.createChildScope(true),
-      )
+      FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true))
     }
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
@@ -165,18 +154,13 @@ class DirectAccessUsageTrackerTest {
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null)).thenReturn(listOf())
     ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessServiceSetup::class.java,
-        mockDirectAccessServiceSetup,
-        projectRule.disposable,
-      )
+      .replaceService(DirectAccessServiceSetup::class.java, mockDirectAccessServiceSetup, projectRule.disposable)
     // Sets up mock project service.
     val mockDirectAccessService = mock<DirectAccessService>()
     val cloudProjectName = "test-project"
     val cloudProjectManagerFlow = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
     val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
-    whenever(mockCloudProjectManager.cloudProject)
-      .thenReturn(CloudProjectEntry("", cloudProjectName))
+    whenever(mockCloudProjectManager.cloudProject).thenReturn(CloudProjectEntry("", cloudProjectName))
     whenever(mockCloudProjectManager.isDefaultApiEnabled).thenReturn(true)
     val deviceSelectionListFlow = MutableStateFlow<List<DeviceSelection>>(listOf())
     var isProjectClosing = false
@@ -195,11 +179,7 @@ class DirectAccessUsageTrackerTest {
         },
       )
 
-    projectRule.project.replaceService(
-      DirectAccessService::class.java,
-      mockDirectAccessService,
-      projectRule.disposable,
-    )
+    projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
 
     // Sets up deviceSelectionListFlow.
     scope.launch {
@@ -211,22 +191,17 @@ class DirectAccessUsageTrackerTest {
     // Sets up APIs in cloudProjectManager.
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
-        if (service<GoogleLoginService>().isLoggedIn())
-          Pair(directAccessReservationManager.listReservations(), null)
+        if (service<GoogleLoginService>().isLoggedIn()) Pair(directAccessReservationManager.listReservations(), null)
         else Pair(null, Exception())
       }
-    whenever(mockCloudProjectManager.reservationListFlowWithException)
-      .thenReturn(reservationListFlow)
+    whenever(mockCloudProjectManager.reservationListFlowWithException).thenReturn(reservationListFlow)
 
-    val accessibleDeviceInfoListFlow =
-      RefreshableStateFlow(scope, Long.MAX_VALUE) { TestUtils.deviceInfoListProvider() }
-    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow)
-      .thenReturn(accessibleDeviceInfoListFlow)
+    val accessibleDeviceInfoListFlow = RefreshableStateFlow(scope, Long.MAX_VALUE) { TestUtils.deviceInfoListProvider() }
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow).thenReturn(accessibleDeviceInfoListFlow)
     whenever(mockCloudProjectManager.reservationManager).thenReturn(directAccessReservationManager)
 
     val mockDirectAccessConnectionManager = mock<DirectAccessConnectionManager>()
-    whenever(mockCloudProjectManager.connectionManager)
-      .thenReturn(mockDirectAccessConnectionManager)
+    whenever(mockCloudProjectManager.connectionManager).thenReturn(mockDirectAccessConnectionManager)
 
     // Sets up connectionManager.
     doAnswer {
@@ -348,9 +323,7 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     template.activationAction.activate()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
 
     val studioEvent = findUsageEvent(CONNECT_DEVICE)
     assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
@@ -371,15 +344,8 @@ class DirectAccessUsageTrackerTest {
   fun trackConnectionFailMetricWhenErrorConnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
-        override suspend fun connect(
-          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
-        ) = throw Exception()
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
+        override suspend fun connect(progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit) = throw Exception()
       }
     }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
@@ -411,17 +377,10 @@ class DirectAccessUsageTrackerTest {
   fun testConnectionIdIncrementsIrrespectiveOfSuccess() = runBlockingWithTimeout {
     // Override default connection setup
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
         private var connectCount = 0
 
-        override suspend fun connect(
-          progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
-        ) {
+        override suspend fun connect(progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit) {
           if (++connectCount > 2) {
             // The real connect() will update its state on failure
             state.update { it.copy(ConnectionState.Disconnected(StateReason.CONNECTION_FAILED)) }
@@ -463,9 +422,7 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     template.activationAction.activate()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
 
     template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(14))
 
@@ -484,22 +441,14 @@ class DirectAccessUsageTrackerTest {
 
     template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
     val sixtyMinuteEvent = findUsageEvent(EXTEND_RESERVATION)
-    assertThat(
-        sixtyMinuteEvent.directAccessUsageEvent.extendReservationDetails.extendReservationDuration
-      )
-      .isEqualTo(THIRTY_MINUTES)
+    assertThat(sixtyMinuteEvent.directAccessUsageEvent.extendReservationDetails.extendReservationDuration).isEqualTo(THIRTY_MINUTES)
   }
 
   @Test
   fun trackExtendFailMetricWhenErrorExtendingReservation() = runBlockingWithTimeout {
     // Override default connection setup
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
         override suspend fun extendReservation(duration: Duration) = throw Exception()
       }
     }
@@ -507,9 +456,7 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     template.activationAction.activate()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
 
     try {
       template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
@@ -538,9 +485,7 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     template.activationAction.activate()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
 
     try {
       template.activeDevice?.reservationAction?.reserve(Duration.ofMinutes(30))
@@ -565,17 +510,13 @@ class DirectAccessUsageTrackerTest {
   @Test
   fun trackDisconnectDeviceSuccessMetricWhenSuccessDisconnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
-    setupConnection { reservationName ->
-      getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
-    }
+    setupConnection { reservationName -> getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true)) }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
     findUsageEvent(CONNECT_DEVICE)
 
     handle.deactivationAction.deactivate()
@@ -595,61 +536,49 @@ class DirectAccessUsageTrackerTest {
   }
 
   @Test
-  fun trackDisconnectDeviceSuccessWhenDeviceIsConnectedWhenReservationExpires() =
-    runBlockingWithTimeout {
-      // Override default connection setup
-      setupConnection { reservationName ->
-        getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
-      }
-      val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
+  fun trackDisconnectDeviceSuccessWhenDeviceIsConnectedWhenReservationExpires() = runBlockingWithTimeout {
+    // Override default connection setup
+    setupConnection { reservationName -> getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true)) }
+    val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
-      // Activate device
-      val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-      val reservationFlow =
-        directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
-      reservationFlow.waitUntilActive()
-      yieldUntil {
-        template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-      }
-      findUsageEvent(CONNECT_DEVICE)
+    // Activate device
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    val reservationFlow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    reservationFlow.waitUntilActive()
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
+    findUsageEvent(CONNECT_DEVICE)
 
-      // Simulate reservation end
-      (reservationFlow as MutableStateFlow).update {
-        it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build()
-      }
-      yieldUntil { reservationFlow.value.state.isClosed() }
+    // Simulate reservation end
+    (reservationFlow as MutableStateFlow).update { it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build() }
+    yieldUntil { reservationFlow.value.state.isClosed() }
 
-      // Wait for the end reservation event.
-      // This also ensures that the sticky notification for reservation end is shown
-      // This notification is then cleaned by the rule
-      findUsageEvent(END_RESERVATION)
+    // Wait for the end reservation event.
+    // This also ensures that the sticky notification for reservation end is shown
+    // This notification is then cleaned by the rule
+    findUsageEvent(END_RESERVATION)
 
-      val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
-      assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
+    val studioEvent = findUsageEvent(DISCONNECT_DEVICE)
+    assertThat(studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.DIRECT_ACCESS_USAGE_EVENT)
 
-      val directAccessEvent = studioEvent.directAccessUsageEvent
-      assertThat(directAccessEvent.type).isEqualTo(DISCONNECT_DEVICE)
-      assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
-      assertThat(directAccessEvent.failureReason).isEqualTo(FailureReason.SESSION_ENDED)
+    val directAccessEvent = studioEvent.directAccessUsageEvent
+    assertThat(directAccessEvent.type).isEqualTo(DISCONNECT_DEVICE)
+    assertThat(directAccessEvent.hasDeviceSessionId()).isTrue()
+    assertThat(directAccessEvent.failureReason).isEqualTo(FailureReason.SESSION_ENDED)
 
-      val disconnectDeviceDetails = directAccessEvent.disconnectDeviceDetails
-      assertThat(disconnectDeviceDetails.success).isTrue()
-      assertThat(disconnectDeviceDetails.userDisconnected).isFalse()
-    }
+    val disconnectDeviceDetails = directAccessEvent.disconnectDeviceDetails
+    assertThat(disconnectDeviceDetails.success).isTrue()
+    assertThat(disconnectDeviceDetails.userDisconnected).isFalse()
+  }
 
   @Test
   fun trackDisconnectDeviceSuccessWhenUserLogsOut() = runBlockingWithTimeout {
-    setupConnection { reservationName ->
-      getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
-    }
+    setupConnection { reservationName -> getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true)) }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
 
     loginUsersRule.logOut("test@google.com")
 
@@ -668,9 +597,7 @@ class DirectAccessUsageTrackerTest {
 
   @Test
   fun trackDisconnectDeviceSuccessWhenProjectClosing() = runBlockingWithTimeout {
-    setupConnection { reservationName ->
-      getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
-    }
+    setupConnection { reservationName -> getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true)) }
 
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
@@ -700,12 +627,7 @@ class DirectAccessUsageTrackerTest {
   fun trackDisconnectDeviceFailureMetricWhenErrorDisconnectingDevice() = runBlockingWithTimeout {
     // Override default connection setup
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
         override suspend fun closeConnection(stateReason: StateReason) = throw Exception()
       }
     }
@@ -714,9 +636,7 @@ class DirectAccessUsageTrackerTest {
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
     findUsageEvent(CONNECT_DEVICE)
 
     try {
@@ -745,9 +665,7 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
     handle.reservationAction.endReservation()
     yieldUntil { handle.connectionState is ConnectionState.Disconnected }
 
@@ -768,24 +686,19 @@ class DirectAccessUsageTrackerTest {
 
   @Test
   fun endReservationNotTrackedOnUserLogOut() = runBlockingWithTimeout {
-    setupConnection { reservationName ->
-      getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true))
-    }
+    setupConnection { reservationName -> getSuccessFulDisconnectTestConnection(reservationName, scope.createChildScope(true)) }
     val template = plugin.templates.value[0] as DirectAccessDeviceTemplate
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
 
     loginUsersRule.logOut("test@google.com")
 
     findUsageEvent(DISCONNECT_DEVICE)
 
-    assertThat(tracker.usages.any { it.studioEvent.directAccessUsageEvent.type == END_RESERVATION })
-      .isFalse()
+    assertThat(tracker.usages.any { it.studioEvent.directAccessUsageEvent.type == END_RESERVATION }).isFalse()
   }
 
   @Test
@@ -794,17 +707,12 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
-    val reservationFlow =
-      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
+    val reservationFlow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
     reservationFlow.waitUntilActive()
 
     // Update the reservation to EXPIRED state
-    (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build()
-    }
+    (reservationFlow as MutableStateFlow).update { it.toBuilder().apply { state = Reservation.SessionState.EXPIRED }.build() }
     yieldUntil { reservationFlow.value.state.isClosed() }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
@@ -828,17 +736,12 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
-    val reservationFlow =
-      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
+    val reservationFlow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
     reservationFlow.waitUntilActive()
 
     // Simulates force check-in in other project.
-    (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { state = Reservation.SessionState.FINISHED }.build()
-    }
+    (reservationFlow as MutableStateFlow).update { it.toBuilder().apply { state = Reservation.SessionState.FINISHED }.build() }
     yieldUntil { reservationFlow.value.state.isClosed() }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
@@ -862,15 +765,10 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
-    val reservationFlow =
-      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
+    val reservationFlow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
     reservationFlow.waitUntilActive()
-    (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { state = Reservation.SessionState.ERROR }.build()
-    }
+    (reservationFlow as MutableStateFlow).update { it.toBuilder().apply { state = Reservation.SessionState.ERROR }.build() }
     yieldUntil { reservationFlow.value.state == Reservation.SessionState.ERROR }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
@@ -895,15 +793,10 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
-    val reservationFlow =
-      directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
+    val reservationFlow = directAccessReservationManager.fetchReservationFlow(handle.reservation.name)
     reservationFlow.waitUntilActive()
-    (reservationFlow as MutableStateFlow).update {
-      it.toBuilder().apply { state = Reservation.SessionState.UNAVAILABLE }.build()
-    }
+    (reservationFlow as MutableStateFlow).update { it.toBuilder().apply { state = Reservation.SessionState.UNAVAILABLE }.build() }
     yieldUntil { reservationFlow.value.state == Reservation.SessionState.UNAVAILABLE }
 
     val studioEvent = findUsageEvent(END_RESERVATION)
@@ -923,12 +816,7 @@ class DirectAccessUsageTrackerTest {
   fun trackEndReservationFailMetricWhenErrorEndingReservation() = runBlockingWithTimeout {
     // Override default connection setup
     setupConnection { reservationName ->
-      object :
-        FakeDirectAccessConnection(
-          directAccessReservationManager,
-          reservationName,
-          scope.createChildScope(true),
-        ) {
+      object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, scope.createChildScope(true)) {
         override suspend fun endReservation(withGracePeriod: Boolean) = throw Exception()
       }
     }
@@ -936,9 +824,7 @@ class DirectAccessUsageTrackerTest {
 
     // Activate device
     val handle = template.activationAction.activate() as DirectAccessDeviceHandle
-    yieldUntil {
-      template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected
-    }
+    yieldUntil { template.activeDevice?.connection?.state?.value?.connection is ConnectionState.Connected }
     directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
 
     try {
@@ -981,21 +867,12 @@ class DirectAccessUsageTrackerTest {
       }
   }
 
-  private fun AndroidStudioEvent.isEventOfType(type: DirectAccessUsageEventType) =
-    directAccessUsageEvent.type == type
+  private fun AndroidStudioEvent.isEventOfType(type: DirectAccessUsageEventType) = directAccessUsageEvent.type == type
 
-  private fun getSuccessFulDisconnectTestConnection(
-    reservationName: String,
-    deviceScope: CoroutineScope,
-  ) =
-    object :
-      FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
-      override suspend fun connect(
-        progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit
-      ) {
-        state.update {
-          it.copy(connection = ConnectionState.Connecting(StateReason.USER_INITIATED))
-        }
+  private fun getSuccessFulDisconnectTestConnection(reservationName: String, deviceScope: CoroutineScope) =
+    object : FakeDirectAccessConnection(directAccessReservationManager, reservationName, deviceScope) {
+      override suspend fun connect(progressReporter: suspend (String, suspend CoroutineScope.() -> Unit) -> Unit) {
+        state.update { it.copy(connection = ConnectionState.Connecting(StateReason.USER_INITIATED)) }
         session.hostServices.connect(deviceAddress()!!)
         super.connect(progressReporter)
       }

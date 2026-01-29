@@ -29,27 +29,29 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.mock
 
-/**
- * Tests for [TestLabExceptionFilter]
- */
+/** Tests for [TestLabExceptionFilter] */
 class TestLabExceptionFilterTest {
   private val myProjectRule = ProjectRule()
-  private val myProject get() = myProjectRule.project
+  private val myProject
+    get() = myProjectRule.project
+
   private val mockGlobalSearchScope: GlobalSearchScope = mock()
 
-  private val myExceptionFiles = listOf(
-    ClassNameFileTuple("TestClass1", "com.test.package.TestClass1", "TestClass1.kt"),
-    ClassNameFileTuple("TestClass2", "com.test.package.TestClass2", "TestClass2.kt"),
-    ClassNameFileTuple("TestClass2", "com.test.package2.TestClass2", "TestClass2.kt"),
-    ClassNameFileTuple("TestClass3", "com.test.TestClass3", "TestClass3.kt"),
-    ClassNameFileTuple("TestClass4", "com.test.additional.package.string.TestClass4", "TestClass4.kt"),
-  )
+  private val myExceptionFiles =
+    listOf(
+      ClassNameFileTuple("TestClass1", "com.test.package.TestClass1", "TestClass1.kt"),
+      ClassNameFileTuple("TestClass2", "com.test.package.TestClass2", "TestClass2.kt"),
+      ClassNameFileTuple("TestClass2", "com.test.package2.TestClass2", "TestClass2.kt"),
+      ClassNameFileTuple("TestClass3", "com.test.TestClass3", "TestClass3.kt"),
+      ClassNameFileTuple("TestClass4", "com.test.additional.package.string.TestClass4", "TestClass4.kt"),
+    )
 
   @get:Rule
-  val myRule = RuleChain(
-    myProjectRule,
-    ProjectServiceRule(myProjectRule, PsiShortNamesCache::class.java) { FakePsiShortNamesCache(myProject, myExceptionFiles) },
-  )
+  val myRule =
+    RuleChain(
+      myProjectRule,
+      ProjectServiceRule(myProjectRule, PsiShortNamesCache::class.java) { FakePsiShortNamesCache(myProject, myExceptionFiles) },
+    )
 
   private lateinit var myTestLabFilter: TestLabExceptionFilter
 
@@ -109,7 +111,8 @@ class TestLabExceptionFilterTest {
 
   @Test
   fun applyFilter_catchException() {
-    val line = "2023-08-14 03:08:24.346  1154-1524  Conscrypt               com.google.android.gms               W  \tat com.google.android.gms.org.conscrypt.Platform.setSocketWriteTimeout(:com.google.android.gms@221819047@22.18.19 (190800-449480960):2)"
+    val line =
+      "2023-08-14 03:08:24.346  1154-1524  Conscrypt               com.google.android.gms               W  \tat com.google.android.gms.org.conscrypt.Platform.setSocketWriteTimeout(:com.google.android.gms@221819047@22.18.19 (190800-449480960):2)"
     assert(myTestLabFilter.applyFilter(line, line.length) == null)
   }
 
@@ -127,7 +130,7 @@ class TestLabExceptionFilterTest {
 
   @Test
   fun applyFilter_missingFileName() {
-      val line = "\tat com.test.additional.package.string.TestClass4.throw(:32)"
+    val line = "\tat com.test.additional.package.string.TestClass4.throw(:32)"
     assert(myTestLabFilter.applyFilter(line, line.length) == null)
   }
 

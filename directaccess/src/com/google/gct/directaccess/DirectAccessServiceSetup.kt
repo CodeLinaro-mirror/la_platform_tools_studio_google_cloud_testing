@@ -32,10 +32,7 @@ import io.grpc.netty.shaded.io.netty.channel.ChannelOption
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslProvider
 
-/**
- * A setup service with methods that are used by other services in direct access module and can be
- * replaced in testing environment.
- */
+/** A setup service with methods that are used by other services in direct access module and can be replaced in testing environment. */
 @Service
 class DirectAccessServiceSetup {
   private val defaultChannel = createChannel(StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
@@ -45,37 +42,23 @@ class DirectAccessServiceSetup {
     NettyChannelBuilder.forTarget("dns:///$endpoint")
       .sslContext(
         GrpcSslContexts.configure(SslContextBuilder.forClient(), SslProvider.JDK)
-          .trustManager(
-            ConfirmingTrustManager.createForStorage(
-              CertificateManager.DEFAULT_PATH,
-              CertificateManager.DEFAULT_PASSWORD,
-            )
-          )
+          .trustManager(ConfirmingTrustManager.createForStorage(CertificateManager.DEFAULT_PATH, CertificateManager.DEFAULT_PASSWORD))
           .build()
       )
       .withOption(ChannelOption.TCP_NODELAY, true)
       .build()
 
-  fun channel(isDefaultApiEnabled: Boolean): ManagedChannel =
-    if (isDefaultApiEnabled) defaultChannel else backupChannel
+  fun channel(isDefaultApiEnabled: Boolean): ManagedChannel = if (isDefaultApiEnabled) defaultChannel else backupChannel
 
   fun endPoint(isDefaultApiEnabled: Boolean): String =
-    if (isDefaultApiEnabled) StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
-    else StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
+    if (isDefaultApiEnabled) StudioFlags.DEVICE_STREAMING_ENDPOINT.get() else StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
 
-  fun fetchAccessToken(): String? =
-    service<GoogleLoginService>().fetchOAuth2Token(LoginFeature.feature<FirebaseLoginFeature>())
+  fun fetchAccessToken(): String? = service<GoogleLoginService>().fetchOAuth2Token(LoginFeature.feature<FirebaseLoginFeature>())
 
-  /**
-   * Returns a list of device info that are accessible with the current login state and
-   * [cloudProject].
-   */
+  /** Returns a list of device info that are accessible with the current login state and [cloudProject]. */
   fun getAccessibleDeviceInfoList(cloudProject: String?): List<DeviceInfo> =
     if (service<DirectAccessDeprecationState>().isServiceEnabledFlow.value) {
-      CatalogClient.getAvailableDevices(
-        "https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/",
-        cloudProject,
-      )
+      CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/", cloudProject)
     } else {
       listOf()
     }

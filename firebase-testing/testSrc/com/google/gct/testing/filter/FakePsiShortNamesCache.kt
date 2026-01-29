@@ -29,20 +29,20 @@ import com.intellij.util.Processor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
-internal data class ClassNameFileTuple(
-  val shortClassName: String,
-  val fullClassName: String,
-  val fileLocation: String,
-)
+internal data class ClassNameFileTuple(val shortClassName: String, val fullClassName: String, val fileLocation: String)
 
 internal class FakePsiShortNamesCache(project: Project, exceptionClasses: List<ClassNameFileTuple>) : PsiShortNamesCache() {
-  private val projectClasses: Map<String, Array<PsiClass>> = exceptionClasses.map { klass ->
-    val fakePsiClass: PsiClass = mock {
-      on { qualifiedName } doReturn klass.fullClassName
-      on { containingFile } doReturn FakePsiFile(project, klass.fileLocation)
-    }
-    (klass.shortClassName to fakePsiClass)
-  }.groupBy({ it.first }, {it.second}).mapValues { (_, values) -> values.toTypedArray() }
+  private val projectClasses: Map<String, Array<PsiClass>> =
+    exceptionClasses
+      .map { klass ->
+        val fakePsiClass: PsiClass = mock {
+          on { qualifiedName } doReturn klass.fullClassName
+          on { containingFile } doReturn FakePsiFile(project, klass.fileLocation)
+        }
+        (klass.shortClassName to fakePsiClass)
+      }
+      .groupBy({ it.first }, { it.second })
+      .mapValues { (_, values) -> values.toTypedArray() }
 
   override fun getClassesByName(name: String, scope: GlobalSearchScope): Array<PsiClass> = projectClasses[name] ?: emptyArray()
 
@@ -79,8 +79,8 @@ internal class FakePsiShortNamesCache(project: Project, exceptionClasses: List<C
   }
 }
 
-private class FakePsiFile(project: Project, private val filename: String)
-  : MockPsiFile(LightVirtualFile(filename), MockPsiManager(project)) {
+private class FakePsiFile(project: Project, private val filename: String) :
+  MockPsiFile(LightVirtualFile(filename), MockPsiManager(project)) {
   override fun getName(): String = filename
 
   override fun getContainingFile(): PsiFile = this

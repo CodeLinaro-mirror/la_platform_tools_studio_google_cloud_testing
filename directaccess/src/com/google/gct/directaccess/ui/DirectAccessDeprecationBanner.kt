@@ -22,10 +22,8 @@ import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo.DeliveryType.BANNER
 import com.intellij.openapi.project.Project
 
-internal class DirectAccessDeprecationBanner(
-  project: Project,
-  deprecationData: DevServicesDeprecationData,
-) : DeprecationBanner(project, deprecationData, true) {
+internal class DirectAccessDeprecationBanner(project: Project, deprecationData: DevServicesDeprecationData) :
+  DeprecationBanner(project, deprecationData, true) {
   override fun trackUserNotified() {
     logEvent(userNotified = true)
   }

@@ -97,23 +97,14 @@ class DirectAccessPersistentStateComponentTest {
     val mockAdbLibApplicationService = mock<AdbLibApplicationService>()
     whenever(mockAdbLibApplicationService.session).thenReturn(session)
     ApplicationManager.getApplication()
-      .replaceService(
-        AdbLibApplicationService::class.java,
-        mockAdbLibApplicationService,
-        projectRule.disposable,
-      )
+      .replaceService(AdbLibApplicationService::class.java, mockAdbLibApplicationService, projectRule.disposable)
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
-    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(any()))
-      .thenReturn(listOf(deviceInfo))
+    whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(any())).thenReturn(listOf(deviceInfo))
     whenever(mockDirectAccessServiceSetup.channel(any())).thenReturn(grpcConnectionRule.channel)
     whenever(mockDirectAccessServiceSetup.fetchAccessToken()).thenReturn("testToken")
     ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessServiceSetup::class.java,
-        mockDirectAccessServiceSetup,
-        projectRule.disposable,
-      )
+      .replaceService(DirectAccessServiceSetup::class.java, mockDirectAccessServiceSetup, projectRule.disposable)
     loginUsersRule.setActiveUser("test@google.com")
   }
 
@@ -130,27 +121,12 @@ class DirectAccessPersistentStateComponentTest {
     val state = projectRule.project.service<DirectAccessPersistentStateComponent>().state
     state.selectedCloudProject = CLOUD_PROJECT_NAME
     state.deviceSelectionList = mutableListOf(persistentDeviceSelectionData)
-    val deviceSelectionList =
-      projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value
+    val deviceSelectionList = projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value
     assertThat(deviceSelectionList.size).isEqualTo(1)
-    assertThat(deviceSelectionList[0].isSelected)
-      .isEqualTo(persistentDeviceSelectionData.isSelected)
+    assertThat(deviceSelectionList[0].isSelected).isEqualTo(persistentDeviceSelectionData.isSelected)
     assertThat(deviceSelectionList[0].deviceInfo).isEqualTo(deviceInfo)
-    yieldUntil {
-      projectRule.project
-        .service<DirectAccessService>()
-        .cloudProjectManager
-        .value
-        ?.cloudProject
-        ?.name == CLOUD_PROJECT_NAME
-    }
-    yieldUntil {
-      projectRule.project
-        .service<DirectAccessService>()
-        .deviceSelectionListFlow
-        .value[0]
-        .deviceInfo == deviceInfo
-    }
+    yieldUntil { projectRule.project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name == CLOUD_PROJECT_NAME }
+    yieldUntil { projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value[0].deviceInfo == deviceInfo }
   }
 
   @Test
@@ -158,8 +134,7 @@ class DirectAccessPersistentStateComponentTest {
     val state = projectRule.project.service<DirectAccessPersistentStateComponent>().state
     yieldUntil { state.selectedCloudProject == "" }
     projectRule.project.service<DirectAccessService>().selectCloudProject(CLOUD_PROJECT_NAME)
-    projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value =
-      listOf(DeviceSelection(true, deviceInfo))
+    projectRule.project.service<DirectAccessService>().deviceSelectionListFlow.value = listOf(DeviceSelection(true, deviceInfo))
     yieldUntil { state.selectedCloudProject == CLOUD_PROJECT_NAME }
     yieldUntil { state.deviceSelectionList.size == 1 }
     assertThat(state.deviceSelectionList[0]).isEqualTo(persistentDeviceSelectionData)

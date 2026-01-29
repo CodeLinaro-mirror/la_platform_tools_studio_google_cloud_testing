@@ -247,11 +247,7 @@ object TestUtils {
       screenY = 200
       screenDensity = 300
       perVersionInfo =
-        listOf(
-          generatePerVersionInfo().apply {
-            directAccessVersionInfo.apply { minimumAndroidStudioVersion = "999.9999.99" }
-          }
-        )
+        listOf(generatePerVersionInfo().apply { directAccessVersionInfo.apply { minimumAndroidStudioVersion = "999.9999.99" } })
     }
 
   private val phoneWithNoCapacity =
@@ -267,8 +263,7 @@ object TestUtils {
       screenX = 100
       screenY = 200
       screenDensity = 300
-      perVersionInfo =
-        listOf(generatePerVersionInfo().apply { deviceCapacity = "DEVICE_CAPACITY_NONE" })
+      perVersionInfo = listOf(generatePerVersionInfo().apply { deviceCapacity = "DEVICE_CAPACITY_NONE" })
     }
 
   private val phoneWithOemEulaNotAccepted =
@@ -311,8 +306,7 @@ object TestUtils {
     PerAndroidVersionInfo().apply {
       deviceCapacity = "DEVICE_CAPACITY_HIGH"
       versionId = api
-      directAccessVersionInfo =
-        DirectAccessVersionInfo().apply { directAccessSupported = isDirectAccessSupported }
+      directAccessVersionInfo = DirectAccessVersionInfo().apply { directAccessSupported = isDirectAccessSupported }
       interactiveDeviceAvailabilityEstimate = "30s"
     }
 
@@ -329,17 +323,9 @@ object TestUtils {
     )
 
   val androidDeviceCatalogWithMissingFields =
-    createDeviceCatalog(
-      phone,
-      wearable,
-      tablet,
-      invalidDevice,
-      phoneLessThanApi26,
-      phoneSupportedOnHigherASVersion,
-    )
+    createDeviceCatalog(phone, wearable, tablet, invalidDevice, phoneLessThanApi26, phoneSupportedOnHigherASVersion)
 
-  private fun createDeviceCatalog(vararg androidModels: AndroidModel) =
-    AndroidDeviceCatalog().apply { models = androidModels.toList() }
+  private fun createDeviceCatalog(vararg androidModels: AndroidModel) = AndroidDeviceCatalog().apply { models = androidModels.toList() }
 
   val DirectAccessDeviceHandle.connectionState: DirectAccessConnection.ConnectionState
     get() = connection.state.value.connection
@@ -351,22 +337,15 @@ object TestUtils {
     get() = sourceTemplate.properties.title
 
   fun getNotifications(project: Project): Array<Notification> =
-    NotificationsManager.getNotificationsManager()
-      .getNotificationsOfType(Notification::class.java, project)
+    NotificationsManager.getNotificationsManager().getNotificationsOfType(Notification::class.java, project)
 
   suspend fun Project.refreshReservations() =
-    service<DirectAccessService>()
-      .cloudProjectManager
-      .value
-      ?.reservationListFlowWithException
-      ?.refresh()
+    service<DirectAccessService>().cloudProjectManager.value?.reservationListFlowWithException?.refresh()
 
   suspend fun Project.showAllTemplates(verifyOldSelection: (List<DeviceSelection>) -> Unit = {}) {
     yieldUntil { service<DirectAccessService>().deviceSelectionListFlow.value.isNotEmpty() }
     val deviceSelectionListFlow = service<DirectAccessService>().deviceSelectionListFlow
     verifyOldSelection(deviceSelectionListFlow.value)
-    deviceSelectionListFlow.update {
-      it.map { selection -> DeviceSelection(true, selection.deviceInfo) }
-    }
+    deviceSelectionListFlow.update { it.map { selection -> DeviceSelection(true, selection.deviceInfo) } }
   }
 }

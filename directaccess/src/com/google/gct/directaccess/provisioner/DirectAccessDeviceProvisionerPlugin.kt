@@ -79,19 +79,18 @@ private val FAST_TASK_TIMEOUT = Duration.ofSeconds(2)
 private val PRESELECTED_DEVICE_KEY_SET = setOf("shiba/34", "felix/33", "b0q/33", "gts8uwifi/33")
 
 /**
- * Provides direct access to physical devices run by Firebase. Supports configuring direct access
- * device templates and activating / deactivating them.
+ * Provides direct access to physical devices run by Firebase. Supports configuring direct access device templates and activating /
+ * deactivating them.
  */
-class DirectAccessDeviceProvisionerPlugin(
-  private val scope: CoroutineScope,
-  private val project: Project,
-) : DeviceProvisionerPlugin, Disposable {
+class DirectAccessDeviceProvisionerPlugin(private val scope: CoroutineScope, private val project: Project) :
+  DeviceProvisionerPlugin, Disposable {
   // TODO: find a proper priority
   override val priority: Int = 120
 
   override fun <T : Extension> extension(extensionClass: Class<T>): T? {
     if (extensionClass == NotificationBannersExtension::class.java) {
-      @Suppress("UNCHECKED_CAST") return NotificationBannersExtension(bannerManager.banners) as T
+      @Suppress("UNCHECKED_CAST")
+      return NotificationBannersExtension(bannerManager.banners) as T
     }
     return null
   }
@@ -107,16 +106,12 @@ class DirectAccessDeviceProvisionerPlugin(
   // The mapping is from a string of device id to its full device information.
   private val accessibleDeviceInfoMapFlow = MutableStateFlow(mapOf<String, DeviceInfo>())
   private val cachedTemplatesMap = mutableMapOf<String, DirectAccessDeviceTemplate>()
-  private val bannerManager =
-    DirectAccessBannersManager(project, scope, templates.map { it.isNotEmpty() })
+  private val bannerManager = DirectAccessBannersManager(project, scope, templates.map { it.isNotEmpty() })
 
   private val vetoableLogOutListener =
     object : VetoableLogoutListener {
       private val deviceList: List<DirectAccessDeviceHandle>
-        get() =
-          devices.value.filterIsInstance<DirectAccessDeviceHandle>().filter {
-            it.state is DeviceState.Connected
-          }
+        get() = devices.value.filterIsInstance<DirectAccessDeviceHandle>().filter { it.state is DeviceState.Connected }
 
       override fun canLogout(): Boolean {
         val (title, message) =
@@ -142,11 +137,7 @@ class DirectAccessDeviceProvisionerPlugin(
         runBlocking {
           deviceList
             .map {
-              scope.launch {
-                withContext(NonCancellable) {
-                  withTimeout(FAST_TASK_TIMEOUT) { it.reservationAction.endReservation() }
-                }
-              }
+              scope.launch { withContext(NonCancellable) { withTimeout(FAST_TASK_TIMEOUT) { it.reservationAction.endReservation() } } }
             }
             .joinAll()
         }
@@ -163,11 +154,7 @@ class DirectAccessDeviceProvisionerPlugin(
       scope.launch {
         service<DirectAccessOnboardingService>().taskFlow.filterNotNull().collect { task ->
           if (task.isPending) {
-            project
-              .service<DirectAccessService>()
-              .deviceSelectionListFlow
-              .takeWhile { it.isEmpty() }
-              .collect()
+            project.service<DirectAccessService>().deviceSelectionListFlow.takeWhile { it.isEmpty() }.collect()
             project.service<DirectAccessService>().maybeApplyDefaultDevices()
           } else {
             project.service<DirectAccessService>().selectCloudProject(task.cloudProject.name)
@@ -178,17 +165,14 @@ class DirectAccessDeviceProvisionerPlugin(
 
     scope.launch {
       // Create a flow of valid gcp projects.
-      project.service<DirectAccessService>().cloudProjectManager.collectLatest { cloudProjectManager
-        ->
+      project.service<DirectAccessService>().cloudProjectManager.collectLatest { cloudProjectManager ->
         if (cloudProjectManager == null) {
           accessibleDeviceInfoMapFlow.value = mapOf()
           reservationsFlow.value = null
         } else {
           launch {
-            cloudProjectManager.accessibleDeviceInfoListFlow.stateFlow.collect {
-              newAccessibleDeviceInfoList ->
-              accessibleDeviceInfoMapFlow.value =
-                newAccessibleDeviceInfoList.groupBy { it.key }.mapValues { it.value.first() }
+            cloudProjectManager.accessibleDeviceInfoListFlow.stateFlow.collect { newAccessibleDeviceInfoList ->
+              accessibleDeviceInfoMapFlow.value = newAccessibleDeviceInfoList.groupBy { it.key }.mapValues { it.value.first() }
             }
           }
           launch {
@@ -206,8 +190,7 @@ class DirectAccessDeviceProvisionerPlugin(
 
     scope.launch {
       accessibleDeviceInfoMapFlow.collect { accessibleDeviceInfoMap ->
-        project.service<DirectAccessService>().deviceSelectionListFlow.update {
-          oldDeviceSelectionList ->
+        project.service<DirectAccessService>().deviceSelectionListFlow.update { oldDeviceSelectionList ->
           // A device will occur in the new list if it was selected with the previous project
           // or accessible with the new project.
 
@@ -216,9 +199,8 @@ class DirectAccessDeviceProvisionerPlugin(
             oldDeviceSelectionList
               .filter { it.isSelected }
               .map { oldSelection ->
-                accessibleDeviceInfoMap[oldSelection.deviceInfo.key]?.let { newDeviceInfo ->
-                  oldSelection.copy(deviceInfo = newDeviceInfo)
-                } ?: oldSelection
+                accessibleDeviceInfoMap[oldSelection.deviceInfo.key]?.let { newDeviceInfo -> oldSelection.copy(deviceInfo = newDeviceInfo) }
+                  ?: oldSelection
               }
           val selectedDeviceKeySet = selectedDeviceSelectionList.map { it.deviceInfo.key }.toSet()
 
@@ -242,8 +224,7 @@ class DirectAccessDeviceProvisionerPlugin(
 
     // Update templates with enabledDevicesFlow.
     scope.launch {
-      project.service<DirectAccessService>().deviceSelectionListFlow.collect { deviceSelectionList
-        ->
+      project.service<DirectAccessService>().deviceSelectionListFlow.collect { deviceSelectionList ->
         val newTemplates =
           _templates.updateAndGet {
             val existingDeviceInfoMap = it.groupBy { template -> template.deviceInfo }
@@ -258,9 +239,7 @@ class DirectAccessDeviceProvisionerPlugin(
                       MutableStateFlow(deviceInfo).also { flow ->
                         templateScope.launch {
                           accessibleDeviceInfoMapFlow.collect { deviceMap ->
-                            flow.update { oldDeviceInfo ->
-                              deviceMap[deviceInfo.key] ?: oldDeviceInfo.copy(isInCatalog = false)
-                            }
+                            flow.update { oldDeviceInfo -> deviceMap[deviceInfo.key] ?: oldDeviceInfo.copy(isInCatalog = false) }
                           }
                         }
                       }
@@ -279,10 +258,7 @@ class DirectAccessDeviceProvisionerPlugin(
         // TODO (b/338286373) remove reservationListFlowWithException from CloudProjectManager.
         matchReservations(
           newTemplates,
-          project.directAccessCloudProjectManager
-            ?.reservationListFlowWithException
-            ?.refresh()
-            ?.first ?: listOf(),
+          project.directAccessCloudProjectManager?.reservationListFlowWithException?.refresh()?.first ?: listOf(),
         )
       }
     }
@@ -291,10 +267,7 @@ class DirectAccessDeviceProvisionerPlugin(
   }
 
   @VisibleForTesting
-  suspend fun matchReservations(
-    templates: List<DirectAccessDeviceTemplate>,
-    reservations: List<Reservation>?,
-  ): Unit =
+  suspend fun matchReservations(templates: List<DirectAccessDeviceTemplate>, reservations: List<Reservation>?): Unit =
     withContext(NonCancellable) {
       if (reservations == null) {
         return@withContext
@@ -302,10 +275,7 @@ class DirectAccessDeviceProvisionerPlugin(
       // Applies a NonCancellable job to the coroutine context so that if this method is cancelled
       // and called again from an outside `collectLatest` block, `createDeviceHandleIfAbsent` will
       // not be called concurrently for the same template.
-      val templateMap =
-        templates.groupBy { template ->
-          template.deviceInfo.let { it.codename to it.api.toString() }
-        }
+      val templateMap = templates.groupBy { template -> template.deviceInfo.let { it.codename to it.api.toString() } }
 
       reservations
         .filter { reservation -> !reservation.state.isClosed() && reservation.hasAndroidDevice() }
@@ -317,8 +287,7 @@ class DirectAccessDeviceProvisionerPlugin(
           }
             ?: launch {
               // Select the device with active reservation to create its template.
-              project.service<DirectAccessService>().deviceSelectionListFlow.update { selectionList
-                ->
+              project.service<DirectAccessService>().deviceSelectionListFlow.update { selectionList ->
                 selectionList.map { selection ->
                   if (selection.deviceInfo.let { it.codename to it.api.toString() } == key) {
                     DeviceSelection(true, selection.deviceInfo)
@@ -334,33 +303,27 @@ class DirectAccessDeviceProvisionerPlugin(
     val sn = device.deviceInfoFlow.value.serialNumber
     if (sn.matches(Regex("^localhost:\\d+$"))) {
       val port = sn.substringAfter(':').toIntOrNull() ?: return null
-      return devices.value.filterIsInstance<DirectAccessDeviceHandle>().firstOrNull {
-        it.claim(port, device)
-      }
-        ?: project.directAccessCloudProjectManager
-          ?.connectionManager
-          ?.connections
-          ?.get(port)
-          ?.let { connection ->
-            // Create a handle with the ConnectedDevice if its port is managed by the
-            // DirectAccessConnectionManager.
-            val reservation = connection.state.value.reservation
-            val androidDevice = reservation.androidDevice
-            if (!reservation.state.isClosed() && reservation.hasAndroidDevice()) {
-              // Wait for the target template becoming available before creating a device handle.
-              withTimeoutOrNull(FAST_TASK_TIMEOUT) {
-                  _templates
-                    .mapNotNull { list ->
-                      list.firstOrNull {
-                        it.deviceInfo.codename == androidDevice.androidModelId &&
-                          it.deviceInfo.api.toString() == androidDevice.androidVersionId
-                      }
+      return devices.value.filterIsInstance<DirectAccessDeviceHandle>().firstOrNull { it.claim(port, device) }
+        ?: project.directAccessCloudProjectManager?.connectionManager?.connections?.get(port)?.let { connection ->
+          // Create a handle with the ConnectedDevice if its port is managed by the
+          // DirectAccessConnectionManager.
+          val reservation = connection.state.value.reservation
+          val androidDevice = reservation.androidDevice
+          if (!reservation.state.isClosed() && reservation.hasAndroidDevice()) {
+            // Wait for the target template becoming available before creating a device handle.
+            withTimeoutOrNull(FAST_TASK_TIMEOUT) {
+                _templates
+                  .mapNotNull { list ->
+                    list.firstOrNull {
+                      it.deviceInfo.codename == androidDevice.androidModelId &&
+                        it.deviceInfo.api.toString() == androidDevice.androidVersionId
                     }
-                    .first()
-                }
-                ?.createDeviceHandleIfAbsent(reservation.name)
-            } else null
-          }
+                  }
+                  .first()
+              }
+              ?.createDeviceHandleIfAbsent(reservation.name)
+          } else null
+        }
     }
     return null
   }
@@ -369,15 +332,13 @@ class DirectAccessDeviceProvisionerPlugin(
     object : CreateDeviceTemplateAction {
       override suspend fun create(parent: Component?) {
         withContext(AndroidDispatchers.uiThread) {
-          val deviceSelectionListFlow =
-            project.service<DirectAccessService>().deviceSelectionListFlow
+          val deviceSelectionListFlow = project.service<DirectAccessService>().deviceSelectionListFlow
           if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
             UsageTracker.log(
               AndroidStudioEvent.newBuilder()
                 .setKind(AndroidStudioEvent.EventKind.DEVICE_MANAGER)
                 .setDeviceManagerEvent(
-                  DeviceManagerEvent.newBuilder()
-                    .setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
+                  DeviceManagerEvent.newBuilder().setKind(DeviceManagerEvent.EventKind.DIRECT_ACCESS_ADD_DEVICE_ACTION)
                 )
             )
           }
@@ -387,10 +348,7 @@ class DirectAccessDeviceProvisionerPlugin(
       override val presentation: StateFlow<DeviceAction.Presentation> =
         MutableStateFlow(
             StudioDefaultDeviceActionPresentation.fromContext()
-              .copy(
-                label = "Select Remote Devices",
-                enabled = service<DirectAccessDeprecationState>().isServiceEnabledFlow.value,
-              )
+              .copy(label = "Select Remote Devices", enabled = service<DirectAccessDeprecationState>().isServiceEnabledFlow.value)
           )
           .asStateFlow()
     }

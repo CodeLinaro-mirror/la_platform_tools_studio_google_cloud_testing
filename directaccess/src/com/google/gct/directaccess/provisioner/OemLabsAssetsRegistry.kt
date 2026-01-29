@@ -62,12 +62,10 @@ private fun getCacheDir(): Path? {
 /**
  * Provides OEM-specific lab resources (e.g. display name, icon)
  *
- * Assets are fully populated when fetched -- there's no lazy loading here as the use case is simple
- * here.
+ * Assets are fully populated when fetched -- there's no lazy loading here as the use case is simple here.
  *
- * How assets are loaded: Server first: we try to download it from a server (or it could be that the
- * previously downloaded cache is available). Fallback: we try to find the built-in assets, If all
- * else fails, the asset is considered and shown as "unknown".
+ * How assets are loaded: Server first: we try to download it from a server (or it could be that the previously downloaded cache is
+ * available). Fallback: we try to find the built-in assets, If all else fails, the asset is considered and shown as "unknown".
  */
 @Service
 class OemLabsAssetsRegistry(
@@ -76,15 +74,7 @@ class OemLabsAssetsRegistry(
   networkTimeoutMs: Int = MAX_NETWORK_TIMEOUT_MS,
   cacheExpiryHours: Int = TimeUnit.DAYS.toHours(1).toInt(),
   useNetwork: Boolean = true,
-) :
-  NetworkCache(
-    baseUrl,
-    OEM_LABS_ASSETS_CACHE_DIR_KEY,
-    cacheDir,
-    networkTimeoutMs,
-    cacheExpiryHours,
-    useNetwork,
-  ) {
+) : NetworkCache(baseUrl, OEM_LABS_ASSETS_CACHE_DIR_KEY, cacheDir, networkTimeoutMs, cacheExpiryHours, useNetwork) {
 
   private val assetsMap: MutableMap<String, OemLabAsset> = mutableMapOf()
 
@@ -98,8 +88,7 @@ class OemLabsAssetsRegistry(
   }
 
   override fun readDefaultData(relative: String): InputStream {
-    return OemLabsAssetsRegistry::class.java.getResourceAsStream("$ASSETS_OFFLINE_DIR/$relative")
-      ?: readFallbackUnknownData(relative)
+    return OemLabsAssetsRegistry::class.java.getResourceAsStream("$ASSETS_OFFLINE_DIR/$relative") ?: readFallbackUnknownData(relative)
   }
 
   private fun readFallbackUnknownData(relative: String): InputStream {
@@ -108,9 +97,7 @@ class OemLabsAssetsRegistry(
 
     thisLogger().warn("Unknown assets ($relative), fallback to default data at $relativePath.")
 
-    return OemLabsAssetsRegistry::class
-      .java
-      .getResourceAsStream("$ASSETS_OFFLINE_DIR/$relativePath")
+    return OemLabsAssetsRegistry::class.java.getResourceAsStream("$ASSETS_OFFLINE_DIR/$relativePath")
       ?: error("Resource not found: $ASSETS_OFFLINE_DIR/$relativePath")
   }
 
@@ -145,9 +132,8 @@ class OemLabsAssetsRegistry(
     )
 
   /**
-   * Under the hood, it fetches assets from a server (or potentially a local cache). If the asset
-   * remains unavailable or if an error occurs during retrieval, the function falls back to built-in
-   * or unknown assets.
+   * Under the hood, it fetches assets from a server (or potentially a local cache). If the asset remains unavailable or if an error occurs
+   * during retrieval, the function falls back to built-in or unknown assets.
    *
    * If anything unexpected during extraction, we just give up.
    */
@@ -164,11 +150,7 @@ class OemLabsAssetsRegistry(
     assetsMap[assetId] = asset
   }
 
-  class OemLabIcon(
-    val description: String,
-    val lightThemeData: ByteArray,
-    val darkThemeData: ByteArray,
-  ) :
+  class OemLabIcon(val description: String, val lightThemeData: ByteArray, val darkThemeData: ByteArray) :
     CachedImageIcon(
       loader =
         object : ImageDataLoader {
@@ -179,10 +161,7 @@ class OemLabsAssetsRegistry(
 
           override fun patch(transform: IconTransform): ImageDataLoader? = null
 
-          override fun loadImage(
-            parameters: LoadIconParameters,
-            scaleContext: ScaleContext,
-          ): Image {
+          override fun loadImage(parameters: LoadIconParameters, scaleContext: ScaleContext): Image {
             val data = if (parameters.isDark) darkThemeData else lightThemeData
             val scale = scaleContext.getScale(DerivedScaleType.PIX_SCALE).toFloat()
             return renderSvgToImage(data, scale, parameters, scaleContext)
@@ -200,11 +179,7 @@ class OemLabsAssetsRegistry(
       val data = if (isDark) darkThemeData else lightThemeData
       val painter = data.decodeToSvgPainter(LocalDensity.current)
 
-      org.jetbrains.jewel.ui.component.Icon(
-        painter = painter,
-        contentDescription = description,
-        modifier = modifier,
-      )
+      org.jetbrains.jewel.ui.component.Icon(painter = painter, contentDescription = description, modifier = modifier)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -285,18 +260,7 @@ class OemLabsAssetsRegistry(
   }
 }
 
-private fun renderSvgToImage(
-  data: ByteArray,
-  scale: Float,
-  parameters: LoadIconParameters,
-  scaleContext: ScaleContext,
-): Image {
+private fun renderSvgToImage(data: ByteArray, scale: Float, parameters: LoadIconParameters, scaleContext: ScaleContext): Image {
   val image = renderSvg(data, scale)
-  return convertImage(
-    image = image,
-    filters = parameters.filters,
-    scaleContext = scaleContext,
-    isUpScaleNeeded = false,
-    imageScale = scale,
-  )
+  return convertImage(image = image, filters = parameters.filters, scaleContext = scaleContext, isUpScaleNeeded = false, imageScale = scale)
 }

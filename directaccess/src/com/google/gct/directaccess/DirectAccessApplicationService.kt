@@ -21,8 +21,8 @@ import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * An application level service that maps a user project to its [DirectAccessCloudProjectManager] so
- * that different projects with the same cloud project share the same manager.
+ * An application level service that maps a user project to its [DirectAccessCloudProjectManager] so that different projects with the same
+ * cloud project share the same manager.
  */
 @Service
 class DirectAccessApplicationService(private val scope: CoroutineScope) {
@@ -30,14 +30,10 @@ class DirectAccessApplicationService(private val scope: CoroutineScope) {
   /** A mapping from a user project to its selected cloud project. */
   private val cloudProjectMap = mutableMapOf<Project, CloudProjectEntry>()
   /** A mapping from a cloud project to its [DirectAccessCloudProjectManager]. */
-  private val cloudProjectManagerMap =
-    mutableMapOf<CloudProjectEntry, DirectAccessCloudProjectManager>()
+  private val cloudProjectManagerMap = mutableMapOf<CloudProjectEntry, DirectAccessCloudProjectManager>()
 
   @Synchronized
-  fun registerCloudProject(
-    project: Project,
-    cloudProject: CloudProjectEntry?,
-  ): DirectAccessCloudProjectManager? {
+  fun registerCloudProject(project: Project, cloudProject: CloudProjectEntry?): DirectAccessCloudProjectManager? {
     val existingCloudProject = cloudProjectMap[project]
     if (existingCloudProject == cloudProject) {
       return getCloudProjectManager(cloudProject)
@@ -59,15 +55,12 @@ class DirectAccessApplicationService(private val scope: CoroutineScope) {
   }
 
   /**
-   * Returns a unique [DirectAccessCloudProjectManager] from [cloudProject]. Do not dispose the
-   * returned [DirectAccessCloudProjectManager] manually, use [removeUnusedCloudProjectManager]
-   * instead to potentially reuse it elsewhere.
+   * Returns a unique [DirectAccessCloudProjectManager] from [cloudProject]. Do not dispose the returned [DirectAccessCloudProjectManager]
+   * manually, use [removeUnusedCloudProjectManager] instead to potentially reuse it elsewhere.
    */
   @Synchronized
   fun getCloudProjectManager(cloudProject: CloudProjectEntry?): DirectAccessCloudProjectManager? {
     if (cloudProject == null) return null
-    return cloudProjectManagerMap.computeIfAbsent(cloudProject) {
-      DirectAccessCloudProjectManager(it, scope.createChildScope(true))
-    }
+    return cloudProjectManagerMap.computeIfAbsent(cloudProject) { DirectAccessCloudProjectManager(it, scope.createChildScope(true)) }
   }
 }

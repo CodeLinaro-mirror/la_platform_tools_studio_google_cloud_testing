@@ -34,10 +34,7 @@ import kotlinx.coroutines.launch
 private const val INITIAL_WAIT_TIME_SECONDS = 60L
 private const val WAIT_TIME_INTERVAL_SECONDS = 10L
 
-/**
- * An application level service to track cloud project created from login flow with
- * [FirebaseLoginFeature.handler].
- */
+/** An application level service to track cloud project created from login flow with [FirebaseLoginFeature.handler]. */
 @Service
 class DirectAccessOnboardingService(scope: CoroutineScope) {
   /**
@@ -48,8 +45,8 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
   data class Task(val cloudProject: CloudProjectEntry, val isPending: Boolean)
 
   /**
-   * After a new cloud project is created with login, the [taskFlow] emits a pending [Task], waits
-   * until the cloud project has necessary permissions and emits the second one with finished state.
+   * After a new cloud project is created with login, the [taskFlow] emits a pending [Task], waits until the cloud project has necessary
+   * permissions and emits the second one with finished state.
    */
   val taskFlow: StateFlow<Task?> =
     MutableStateFlow<Task?>(null).apply {
@@ -58,15 +55,9 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
           val loginFeature = LoginFeature.feature<FirebaseLoginFeature>()
           service<GoogleLoginService>().activeUserFlow.collectLatest { user ->
             if (user?.isLoggedIn(loginFeature) == true) {
-              val createdProject =
-                loginFeature.handler?.latestCreatedFirebaseProject?.value ?: return@collectLatest
+              val createdProject = loginFeature.handler?.latestCreatedFirebaseProject?.value ?: return@collectLatest
               val cloudProject = CloudProjectEntry(user.email, createdProject)
-              service<CloudClientService>()
-                .client
-                .enableDeviceStreamingService(
-                  createdProject,
-                  StudioFlags.DEVICE_STREAMING_ENDPOINT.get(),
-                )
+              service<CloudClientService>().client.enableDeviceStreamingService(createdProject, StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
               value = Task(cloudProject, true)
               // Wait a minimum time before project ready.
               delay(TimeUnit.SECONDS.toMillis(INITIAL_WAIT_TIME_SECONDS))
@@ -77,10 +68,7 @@ class DirectAccessOnboardingService(scope: CoroutineScope) {
                     checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty() &&
                       service<CloudClientService>()
                         .client
-                        .isDeviceStreamingServiceEnabled(
-                          createdProject,
-                          StudioFlags.DEVICE_STREAMING_ENDPOINT.get(),
-                        )
+                        .isDeviceStreamingServiceEnabled(createdProject, StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
                   ) {
                     break
                   }

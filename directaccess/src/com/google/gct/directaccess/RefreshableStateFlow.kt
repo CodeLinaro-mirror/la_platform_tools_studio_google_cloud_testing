@@ -34,11 +34,7 @@ import kotlinx.coroutines.withContext
  * @param refreshIntervalMs refresh interval of the state flow
  * @param refresher a function that gets the latest value to update [stateFlow]
  */
-class RefreshableStateFlow<T>(
-  scope: CoroutineScope,
-  refreshIntervalMs: Long,
-  private val refresher: () -> T,
-) {
+class RefreshableStateFlow<T>(scope: CoroutineScope, refreshIntervalMs: Long, private val refresher: () -> T) {
   private val mutex = Mutex(false)
 
   private var job: Job? = null
@@ -47,9 +43,7 @@ class RefreshableStateFlow<T>(
 
   val stateFlow: StateFlow<T> = _stateFlow
 
-  /**
-   * Current value of the flow. Does not refresh the flow. Call refresh() to get refreshed value.
-   */
+  /** Current value of the flow. Does not refresh the flow. Call refresh() to get refreshed value. */
   val value: T
     get() = stateFlow.value
 
@@ -70,8 +64,7 @@ class RefreshableStateFlow<T>(
   /**
    * Refreshes the state flow and returns its value immediately.
    *
-   * This method runs [refresher] sequentially with the internal periodic updater and resets its
-   * update interval.
+   * This method runs [refresher] sequentially with the internal periodic updater and resets its update interval.
    */
   suspend fun refresh(): T =
     mutex.withLock {

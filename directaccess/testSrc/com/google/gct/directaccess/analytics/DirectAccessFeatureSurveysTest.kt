@@ -38,8 +38,7 @@ class DirectAccessFeatureSurveysTest {
 
     for (count in 1..MINIMUM_DAYS_WITH_CONNECTION_BEFORE_SURVEY) {
       directAccessFeatureSurveys.trackConnection()
-      assertThat(PropertiesComponent.getInstance().getLong(DAYS_WITH_CONNECTION_FIELD, 0))
-        .isEqualTo(count)
+      assertThat(PropertiesComponent.getInstance().getLong(DAYS_WITH_CONNECTION_FIELD, 0)).isEqualTo(count)
       calendar.time = Date(calendar.time.time + TimeUnit.DAYS.toMillis(1))
       directAccessFeatureSurveys.trackDisconnection()
 
