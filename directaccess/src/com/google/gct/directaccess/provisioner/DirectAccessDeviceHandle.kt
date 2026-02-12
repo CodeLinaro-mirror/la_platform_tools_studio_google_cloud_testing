@@ -34,7 +34,7 @@ import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
-import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.android.tools.idea.streaming.core.DevicePanel
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.cloud.devicestreaming.v1.DeviceSession.SessionState
 import com.google.gct.directaccess.DirectAccessService
@@ -430,7 +430,7 @@ class DirectAccessDeviceHandle(
         object : ToolWindowManagerListener {
           override fun toolWindowShown(toolWindow: ToolWindow) {
             if (toolWindow.id == RUNNING_DEVICES_TOOL_WINDOW_ID) {
-              val devicePanel = toolWindow.contentManager.selectedContent?.component as? StreamingDevicePanel<*> ?: return
+              val devicePanel = toolWindow.contentManager.selectedContent?.component as? DevicePanel<*> ?: return
               devicePanel.maybeShowBannerNotification()
             }
           }
@@ -562,7 +562,7 @@ class DirectAccessDeviceHandle(
       ?.addContentManagerListener(
         object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
-              val devicePanel = event.content.component as? StreamingDevicePanel<*> ?: return
+              val devicePanel = event.content.component as? DevicePanel<*> ?: return
               devicePanel.maybeShowBannerNotification()
             }
           }
@@ -570,8 +570,8 @@ class DirectAccessDeviceHandle(
       )
   }
 
-  private fun StreamingDevicePanel<*>.maybeShowBannerNotification() {
-    if (id.serialNumber == connection.deviceAddress()?.address) {
+  private fun DevicePanel<*>.maybeShowBannerNotification() {
+    if (deviceSerialNumber == connection.deviceAddress()?.address) {
       invokeLater { notificationManager.onDevicePanelVisibilityChanged() }
     }
   }

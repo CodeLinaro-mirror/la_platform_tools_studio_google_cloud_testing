@@ -36,8 +36,9 @@ import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
-import com.android.tools.idea.streaming.core.DeviceId
-import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.android.tools.idea.streaming.core.DeviceDisplayListener
+import com.android.tools.idea.streaming.core.DevicePanel
+import com.android.tools.idea.streaming.emulator.DisplayViewContainer
 import com.android.tools.idea.testing.DebugLoggerRule
 import com.android.tools.idea.testing.disposable
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
@@ -100,6 +101,7 @@ import java.time.format.FormatStyle
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
+import javax.swing.JPanel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -1501,16 +1503,27 @@ class DirectAccessDeviceProvisionerTest {
   }
 
   private fun setupMockContentForRunningDevicePanel(bannerNotificationHolder: MutableList<EditorNotificationPanel>): Content {
-    val mockStreamingDevicePanel = mock<StreamingDevicePanel<*>>()
-    whenever(mockStreamingDevicePanel.id).thenReturn(DeviceId.ofPhysicalDevice("localhost:${fakeConnection.port}"))
-    doAnswer { bannerNotificationHolder.add(it.arguments[0] as EditorNotificationPanel) }
-      .whenever(mockStreamingDevicePanel)
-      .addNotification(any())
-    doAnswer { bannerNotificationHolder.remove(it.arguments[0] as EditorNotificationPanel) }
-      .whenever(mockStreamingDevicePanel)
-      .removeNotification(any())
+    val fakeDevicePanel = FakeDevicePanel("localhost:${fakeConnection.port}", bannerNotificationHolder)
     val mockContent = mock<Content>()
-    doAnswer { mockStreamingDevicePanel }.whenever(mockContent).component
+    doAnswer { fakeDevicePanel.component }.whenever(mockContent).component
     return mockContent
   }
+}
+
+private class FakeDevicePanel(override val deviceSerialNumber: String, val bannerNotificationHolder: MutableList<EditorNotificationPanel>) :
+  JPanel(), DevicePanel<DisplayViewContainer<*>> {
+
+  override fun addNotification(notificationPanel: EditorNotificationPanel) {
+    bannerNotificationHolder.add(notificationPanel)
+  }
+
+  override fun removeNotification(notificationPanel: EditorNotificationPanel) {
+    bannerNotificationHolder.remove(notificationPanel)
+  }
+
+  override fun addDeviceDisplayListener(listener: DeviceDisplayListener) {}
+
+  override fun removeDeviceDisplayListener(listener: DeviceDisplayListener) {}
+
+  override fun dispose() {}
 }
