@@ -83,7 +83,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
       public void actionPerformed(ActionEvent e) {
         myFacet = context.getModule() == null ? null : AndroidFacet.getInstance(context.getModule());
         if (ApplicationManager.getApplication().getService(GoogleLoginService.class).isLoggedIn(
-          LoginFeature.Companion.getEP_NAME().findExtension(FirebaseLoginFeature.class))) {
+          LoginFeature.feature(FirebaseLoginFeature.class))) {
           myCloudConfigurationComboBox.setFacet(myFacet);
           myCloudProjectSelector.setFacet(myFacet);
         }
@@ -106,7 +106,7 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     JButton connectToCloudButton = new JButton(GoogleLoginService.getInstance().isLoggedIn() ? "Authorize Firebase" : "Sign in with Google");
     connectToCloudButton.addActionListener(e -> {
       GoogleLoginService.getInstance().logInBlocking(
-        ImmutableSet.of(getFirebaseFeature()),
+        ImmutableSet.of(LoginFeature.feature(FirebaseLoginFeature.class)),
         GoogleLoginPluginEvent.LoginType.FEATURE_LOGIN,
         PreferredUser.ActiveUser.INSTANCE, true, topPanel);
       ApplicationManager.getApplication().invokeLater(this::updateVisibility);
@@ -286,9 +286,5 @@ public class CloudTestMatrixTargetConfigurable implements DeployTargetConfigurab
     public @NotNull ActionUpdateThread getActionUpdateThread() {
       return ActionUpdateThread.EDT;
     }
-  }
-
-  private static LoginFeature getFirebaseFeature() {
-    return LoginFeature.Companion.getEP_NAME().findExtension(FirebaseLoginFeature.class);
   }
 }
