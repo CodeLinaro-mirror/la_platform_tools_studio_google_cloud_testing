@@ -29,7 +29,6 @@ import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.sdklib.deviceprovisioner.TemplateActivationAction
 import com.android.sdklib.deviceprovisioner.TemplateState
-import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.StudioDefaultDeviceActionPresentation
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
@@ -44,6 +43,7 @@ import com.google.services.firebase.directaccess.client.waitUntilActive
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.FailureReason
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressManager
@@ -67,6 +67,7 @@ import javax.swing.Icon
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -273,7 +274,7 @@ class DirectAccessDeviceTemplate(
         val (title, message) = getDialogTitleAndMessage(billingStatus)
 
         return PropertiesComponent.getInstance(project).getBoolean(persistenceKey, false) ||
-          withContext(AndroidDispatchers.uiThread) {
+          withContext(Dispatchers.EDT) {
             MessageDialogBuilder.yesNo(title, message)
               .doNotAsk(
                 object : DoNotAskOption.Adapter() {
@@ -351,9 +352,7 @@ class DirectAccessDeviceTemplate(
               "The ${properties.title} will be available in $waitingTimeText.\n" +
                 "You will not be billed for this duration. $BLAZE_PRICE_LEARN_MORE_LINK"
             val result =
-              withContext(AndroidDispatchers.uiThread) {
-                Messages.showOkCancelDialog(message, title, "Reserve", "Cancel", Messages.getQuestionIcon())
-              }
+              withContext(Dispatchers.EDT) { Messages.showOkCancelDialog(message, title, "Reserve", "Cancel", Messages.getQuestionIcon()) }
             if (result != Messages.OK) {
               isActivationStarted.value = false
               throw CancellationException("Device reservation cancelled.")

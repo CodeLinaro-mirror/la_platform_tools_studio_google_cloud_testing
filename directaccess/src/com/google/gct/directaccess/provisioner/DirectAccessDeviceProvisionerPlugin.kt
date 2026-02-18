@@ -24,7 +24,6 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceTemplate
 import com.android.sdklib.deviceprovisioner.Extension
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
@@ -44,6 +43,7 @@ import com.google.services.firebase.directaccess.client.isClosed
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.DeviceManagerEvent
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
@@ -53,6 +53,7 @@ import java.awt.Component
 import java.io.IOException
 import java.time.Duration
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -331,7 +332,7 @@ class DirectAccessDeviceProvisionerPlugin(private val scope: CoroutineScope, pri
   override val createDeviceTemplateAction =
     object : CreateDeviceTemplateAction {
       override suspend fun create(parent: Component?) {
-        withContext(AndroidDispatchers.uiThread) {
+        withContext(Dispatchers.EDT) {
           val deviceSelectionListFlow = project.service<DirectAccessService>().deviceSelectionListFlow
           if (AddDirectAccessDeviceDialog(project, deviceSelectionListFlow).showAndGet()) {
             UsageTracker.log(
