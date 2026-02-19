@@ -34,7 +34,7 @@ import com.android.sdklib.deviceprovisioner.asMap
 import com.android.sdklib.deviceprovisioner.awaitDisconnection
 import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
-import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.android.tools.idea.streaming.core.DevicePanel
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.cloud.devicestreaming.v1.DeviceSession.SessionState
 import com.google.gct.directaccess.DirectAccessService
@@ -105,8 +105,7 @@ class DirectAccessDeviceHandle(
   override val id = DeviceId(PLUGIN_ID, false, "reservation=${reservationName}")
 
   private val reservationManager =
-    project.directAccessCloudProjectManager?.reservationManager
-      ?: throw RuntimeException("Reservation manager not available.")
+    project.directAccessCloudProjectManager?.reservationManager ?: throw RuntimeException("Reservation manager not available.")
 
   val connection: DirectAccessConnection =
     project.directAccessCloudProjectManager?.connectionManager?.create(reservationName)
@@ -119,8 +118,7 @@ class DirectAccessDeviceHandle(
     get() = sourceTemplate.icon
 
   private val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
-  override val stateFlow =
-    MutableStateFlow(initialState.withReservation(mapReservation(reservationFlow.value)))
+  override val stateFlow = MutableStateFlow(initialState.withReservation(mapReservation(reservationFlow.value)))
   // [notificationManager] collects [stateFlow] and needs to be initiated after.
   val notificationManager = DirectAccessNotificationManager(project, this)
 
@@ -161,24 +159,17 @@ class DirectAccessDeviceHandle(
           when (sessionState) {
             SessionState.EXPIRED -> trackEndReservation(true, EndReservationType.EXPIRE)
             SessionState.FINISHED -> trackEndReservation(true, EndReservationType.FORCE_CHECK_IN)
-            SessionState.ERROR ->
-              trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
-            SessionState.UNAVAILABLE ->
-              trackEndReservation(
-                false,
-                EndReservationType.ERROR,
-                FailureReason.FAILED_TO_ALLOCATE_DEVICE,
-              )
-            else ->
-              trackEndReservation(false, EndReservationType.UNKNOWN, FailureReason.UNKNOWN_FAILURE)
+            SessionState.ERROR -> trackEndReservation(false, EndReservationType.ERROR, FailureReason.UNKNOWN_FAILURE)
+            SessionState.UNAVAILABLE -> trackEndReservation(false, EndReservationType.ERROR, FailureReason.FAILED_TO_ALLOCATE_DEVICE)
+            else -> trackEndReservation(false, EndReservationType.UNKNOWN, FailureReason.UNKNOWN_FAILURE)
           }
         }
       }
   }
 
   /**
-   * End reservation should be tracked when the session is closed and the throwable is null or
-   * [CancellationException] It should not be tracked if the session is not closed.
+   * End reservation should be tracked when the session is closed and the throwable is null or [CancellationException] It should not be
+   * tracked if the session is not closed.
    */
   private fun shouldTrackEndReservation(throwable: Throwable?, state: SessionState) =
     if (state.isClosed()) {
@@ -188,9 +179,7 @@ class DirectAccessDeviceHandle(
     }
 
   /** Map Reservation to its device provisioner format. */
-  private fun mapReservation(
-    reservation: Reservation
-  ): com.android.sdklib.deviceprovisioner.Reservation {
+  private fun mapReservation(reservation: Reservation): com.android.sdklib.deviceprovisioner.Reservation {
     val reservationState =
       when (reservation.state) {
         SessionState.REQUESTED,
@@ -212,9 +201,7 @@ class DirectAccessDeviceHandle(
     )
   }
 
-  private fun DeviceState.withReservation(
-    reservation: com.android.sdklib.deviceprovisioner.Reservation
-  ): DeviceState =
+  private fun DeviceState.withReservation(reservation: com.android.sdklib.deviceprovisioner.Reservation): DeviceState =
     when (this) {
       is DeviceState.Connected -> copy(reservation = reservation)
       is DeviceState.Disconnected -> {
@@ -255,21 +242,16 @@ class DirectAccessDeviceHandle(
                   it.reservation
                     // This state should not be possible since the reservation is mapped on every
                     // update
-                    ?: throw IllegalStateException(
-                        "Reservation required to activate Device Streaming."
-                      )
-                      .also {
-                        // TODO(b/277240160): Add correct failure reason
-                        trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
-                      }
+                    ?: throw IllegalStateException("Reservation required to activate Device Streaming.").also {
+                      // TODO(b/277240160): Add correct failure reason
+                      trackConnectMetrics(false, failureReason = FailureReason.UNKNOWN_FAILURE)
+                    }
                 // Properties obtained from device after the first connection are lost here.
                 // The properties will be read again when device is claimed by the plugin.
                 // This is fine since the connection event does not require those properties
                 // to be from the device. Also, the initial event does not have those properties
                 val properties = sourceTemplate.deviceInfo.toDeviceProperties(connectionAttempts)
-                DeviceState.Disconnected(properties)
-                  .copy(isTransitioning = true)
-                  .withReservation(reservation)
+                DeviceState.Disconnected(properties).copy(isTransitioning = true).withReservation(reservation)
               }
               scope.trackConnectTime()
               try {
@@ -313,16 +295,11 @@ class DirectAccessDeviceHandle(
         }
       }
 
-      private val defaultPresentation =
-        DeviceAction.Presentation("Connect", AllIcons.Actions.Resume, false)
+      private val defaultPresentation = DeviceAction.Presentation("Connect", AllIcons.Actions.Resume, false)
 
       override val presentation: StateFlow<DeviceAction.Presentation> =
         stateFlow
-          .map {
-            defaultPresentation.copy(
-              enabled = it is DeviceState.Disconnected && !it.isTransitioning
-            )
-          }
+          .map { defaultPresentation.copy(enabled = it is DeviceState.Disconnected && !it.isTransitioning) }
           .stateIn(scope, SharingStarted.Eagerly, defaultPresentation)
 
       private fun CoroutineScope.trackConnectTime() = launch {
@@ -373,16 +350,13 @@ class DirectAccessDeviceHandle(
             // Reservation enters grace period. Don't track end reservation metric.
             connection.endReservation(withGracePeriod = true)
             if (shouldShowNotification) {
-              notificationManager.showDeviceDisconnectedNotification(
-                reservationFlow.value.expireTime.seconds
-              )
+              notificationManager.showDeviceDisconnectedNotification(reservationFlow.value.expireTime.seconds)
             }
             service<DirectAccessFeatureSurveys>().trackDisconnection()
           }
         }
 
-      private val defaultPresentation =
-        DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, true)
+      private val defaultPresentation = DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, true)
 
       override val presentation = MutableStateFlow(defaultPresentation).asStateFlow()
     }
@@ -390,25 +364,19 @@ class DirectAccessDeviceHandle(
   override val reservationAction: ReservationAction =
     object : ReservationAction {
       override suspend fun reserve(duration: Duration): Instant {
-        val reservation =
-          state.reservation ?: throw DeviceActionException("Reservation not available.")
-        val endTime =
-          reservation.endTime ?: throw DeviceActionException("Reservation end time not available.")
+        val reservation = state.reservation ?: throw DeviceActionException("Reservation not available.")
+        val endTime = reservation.endTime ?: throw DeviceActionException("Reservation end time not available.")
         try {
           connection.extendReservation(duration)
           // Wait until reservation updates.
           withTimeout(EXTENSION_TIMEOUT.toMillis()) {
-            stateFlow
-              .takeWhile { it.reservation?.endTime?.toEpochMilli() == endTime.toEpochMilli() }
-              .collect()
+            stateFlow.takeWhile { it.reservation?.endTime?.toEpochMilli() == endTime.toEpochMilli() }.collect()
           }
           trackExtendReservation(true, duration)
         } catch (e: TimeoutCancellationException) {
           // TODO(b/277240160): Add correct failure reason here as well as below
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
-          throw DeviceActionException(
-            "Failed to extend reservation within ${EXTENSION_TIMEOUT.seconds} seconds. Please try again."
-          )
+          throw DeviceActionException("Failed to extend reservation within ${EXTENSION_TIMEOUT.seconds} seconds. Please try again.")
         } catch (e: CancellationException) {
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw e
@@ -427,8 +395,7 @@ class DirectAccessDeviceHandle(
           trackExtendReservation(false, duration, FailureReason.UNKNOWN_FAILURE)
           throw DeviceActionException("Failed to extend reservation. Please try again.", e)
         }
-        return state.reservation?.endTime
-          ?: throw DeviceActionException("Extended reservation end time not available.")
+        return state.reservation?.endTime ?: throw DeviceActionException("Extended reservation end time not available.")
       }
 
       override suspend fun endReservation() =
@@ -438,11 +405,7 @@ class DirectAccessDeviceHandle(
             connection.endReservation()
           } catch (e: Exception) {
             hasUserForceCheckedInDevice = false
-            trackEndReservation(
-              false,
-              EndReservationType.FORCE_CHECK_IN,
-              FailureReason.UNKNOWN_FAILURE,
-            )
+            trackEndReservation(false, EndReservationType.FORCE_CHECK_IN, FailureReason.UNKNOWN_FAILURE)
             throw DeviceActionException("Failed to end reservation. Please try again.", e)
           }
           service<DirectAccessFeatureSurveys>().trackDisconnection()
@@ -453,18 +416,13 @@ class DirectAccessDeviceHandle(
         MutableStateFlow(DeviceAction.Presentation("Reserve", AllIcons.Actions.Resume, true))
     }
 
-  /**
-   * Returns true and changes state to [DeviceState.Connected] if [port] matches the [connection] of
-   * handle.
-   */
+  /** Returns true and changes state to [DeviceState.Connected] if [port] matches the [connection] of handle. */
   suspend fun claim(port: Int, device: ConnectedDevice): Boolean {
     if (connection.port != port) {
       return false
     }
     // Show the device tab in running devices window.
-    project.messageBus
-      .syncPublisher(DeviceHeadsUpListener.TOPIC)
-      .userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
+    project.messageBus.syncPublisher(DeviceHeadsUpListener.TOPIC).userInvolvementRequired(device.deviceInfoFlow.value.serialNumber, project)
     project.messageBus
       .connect(device.scope)
       .subscribe(
@@ -472,9 +430,7 @@ class DirectAccessDeviceHandle(
         object : ToolWindowManagerListener {
           override fun toolWindowShown(toolWindow: ToolWindow) {
             if (toolWindow.id == RUNNING_DEVICES_TOOL_WINDOW_ID) {
-              val devicePanel =
-                toolWindow.contentManager.selectedContent?.component as? StreamingDevicePanel<*>
-                  ?: return
+              val devicePanel = toolWindow.contentManager.selectedContent?.component as? DevicePanel<*> ?: return
               devicePanel.maybeShowBannerNotification()
             }
           }
@@ -494,19 +450,12 @@ class DirectAccessDeviceHandle(
       // number directly since the user might pick the same device in two different sessions,
       // and it might have been wiped out.
       wearPairingId = properties["debug.firebase.test.lab.session"] ?: properties["ro.serialno"]
-      populateDeviceInfoProto(
-        PLUGIN_ID,
-        device.serialNumber,
-        properties,
-        connectionAttempts.toString(),
-      )
+      populateDeviceInfoProto(PLUGIN_ID, device.serialNumber, properties, connectionAttempts.toString())
       deviceInfoProto.oemLabName = sourceTemplate.deviceInfo.labId
       icon = this@DirectAccessDeviceHandle.icon
     }
 
-    stateFlow.update {
-      DeviceState.Connected(deviceProperties, device, reservation = it.reservation)
-    }
+    stateFlow.update { DeviceState.Connected(deviceProperties, device, reservation = it.reservation) }
     scope
       .launch {
         var exception: Exception? = null
@@ -522,9 +471,7 @@ class DirectAccessDeviceHandle(
         }
       }
       .invokeOnCompletion {
-        stateFlow.update {
-          DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation)
-        }
+        stateFlow.update { DeviceState.Disconnected(deviceProperties, false, it.status, it.reservation) }
         if (project.isDisposed) {
           return@invokeOnCompletion
         }
@@ -533,11 +480,7 @@ class DirectAccessDeviceHandle(
 
         // Show notification if the device disconnected without user action
         if (!hasUserDisconnectedDevice && !hasUserForceCheckedInDevice) {
-          scope.launch {
-            notificationManager.showDeviceDisconnectedNotification(
-              state.reservation?.endTime?.epochSecond
-            )
-          }
+          scope.launch { notificationManager.showDeviceDisconnectedNotification(state.reservation?.endTime?.epochSecond) }
           if (reservationFlow.value.state.isClosed()) {
             showReservationEndedNotification()
           }
@@ -567,17 +510,12 @@ class DirectAccessDeviceHandle(
   private fun getScopeCancelledReason() =
     when {
       reservationFlow.value.state.isClosed() -> FailureReason.SESSION_ENDED
-      !service<GoogleLoginService>().isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) ->
-        FailureReason.USER_LOGGED_OUT
+      !service<GoogleLoginService>().isLoggedIn(LoginFeature.feature<FirebaseLoginFeature>()) -> FailureReason.USER_LOGGED_OUT
       project.service<DirectAccessService>().isProjectClosing -> FailureReason.PROJECT_CLOSING
       else -> FailureReason.UNKNOWN_FAILURE
     }
 
-  private fun trackConnectMetrics(
-    wasSuccessful: Boolean,
-    timeToConnectMs: Long? = null,
-    failureReason: FailureReason? = null,
-  ) =
+  private fun trackConnectMetrics(wasSuccessful: Boolean, timeToConnectMs: Long? = null, failureReason: FailureReason? = null) =
     DirectAccessUsageTracker.getInstance()
       .trackConnectDevice(
         wasSuccessful,
@@ -588,37 +526,17 @@ class DirectAccessDeviceHandle(
         failureReason,
       )
 
-  private fun trackExtendReservation(
-    wasSuccessful: Boolean,
-    duration: Duration,
-    failReason: FailureReason? = null,
-  ) =
+  private fun trackExtendReservation(wasSuccessful: Boolean, duration: Duration, failReason: FailureReason? = null) =
     DirectAccessUsageTracker.getInstance()
-      .trackExtendReservation(
-        wasSuccessful,
-        duration,
-        reservationName,
-        state.properties.deviceInfoProto,
-        failReason,
-      )
+      .trackExtendReservation(wasSuccessful, duration, reservationName, state.properties.deviceInfoProto, failReason)
 
   private fun trackDisconnectMetric(wasSuccessful: Boolean, failureReason: FailureReason? = null) {
     DirectAccessUsageTracker.getInstance()
-      .trackDisconnectDevice(
-        wasSuccessful,
-        hasUserDisconnectedDevice,
-        reservationName,
-        state.properties.deviceInfoProto,
-        failureReason,
-      )
+      .trackDisconnectDevice(wasSuccessful, hasUserDisconnectedDevice, reservationName, state.properties.deviceInfoProto, failureReason)
     hasUserDisconnectedDevice = false
   }
 
-  private fun trackEndReservation(
-    wasSuccessful: Boolean,
-    endType: EndReservationType,
-    failureReason: FailureReason? = null,
-  ) =
+  private fun trackEndReservation(wasSuccessful: Boolean, endType: EndReservationType, failureReason: FailureReason? = null) =
     DirectAccessUsageTracker.getInstance()
       .trackEndReservation(
         wasSuccessful,
@@ -631,8 +549,7 @@ class DirectAccessDeviceHandle(
       )
 
   private fun getTotalReservationTime(): Long {
-    val reservationStartTime =
-      reservationManager.fetchReservationFlow(reservationName).value.createTime.seconds
+    val reservationStartTime = reservationManager.fetchReservationFlow(reservationName).value.createTime.seconds
     return Instant.now().epochSecond - reservationStartTime
   }
 
@@ -645,7 +562,7 @@ class DirectAccessDeviceHandle(
       ?.addContentManagerListener(
         object : ContentManagerListener {
             override fun selectionChanged(event: ContentManagerEvent) {
-              val devicePanel = event.content.component as? StreamingDevicePanel<*> ?: return
+              val devicePanel = event.content.component as? DevicePanel<*> ?: return
               devicePanel.maybeShowBannerNotification()
             }
           }
@@ -653,8 +570,8 @@ class DirectAccessDeviceHandle(
       )
   }
 
-  private fun StreamingDevicePanel<*>.maybeShowBannerNotification() {
-    if (id.serialNumber == connection.deviceAddress()?.address) {
+  private fun DevicePanel<*>.maybeShowBannerNotification() {
+    if (deviceSerialNumber == connection.deviceAddress()?.address) {
       invokeLater { notificationManager.onDevicePanelVisibilityChanged() }
     }
   }
@@ -675,8 +592,6 @@ inline fun buildDirectAccessDeviceProperties(block: DeviceProperties.Builder.() 
     block()
   }
 
-fun ReservationState.isClosed() =
-  this == ReservationState.ERROR || this == ReservationState.COMPLETE
+fun ReservationState.isClosed() = this == ReservationState.ERROR || this == ReservationState.COMPLETE
 
-internal fun getRunningDeviceWindow(project: Project) =
-  ToolWindowManager.getInstance(project).getToolWindow(RUNNING_DEVICES_TOOL_WINDOW_ID)
+internal fun getRunningDeviceWindow(project: Project) = ToolWindowManager.getInstance(project).getToolWindow(RUNNING_DEVICES_TOOL_WINDOW_ID)

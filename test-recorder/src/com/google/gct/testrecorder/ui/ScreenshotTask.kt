@@ -24,13 +24,12 @@ import com.intellij.util.ExceptionUtil
 import kotlinx.coroutines.runBlocking
 
 /** A task that captures a screenshot from a device. */
-open class ScreenshotTask(
-  project: Project,
-  private val screenshotProvider: ScreenshotProvider,
-) : Task.Modal(project, "Take Screenshot", true) {
+open class ScreenshotTask(project: Project, private val screenshotProvider: ScreenshotProvider) :
+  Task.Modal(project, "Take Screenshot", true) {
 
   var screenshot: ScreenshotImage? = null
     private set
+
   var error: String? = null
     protected set
 
@@ -39,8 +38,7 @@ open class ScreenshotTask(
     indicator.text = "Obtaining screenshot from device\u2026"
     try {
       screenshot = runBlocking { screenshotProvider.captureScreenshot() }
-    }
-    catch (e: Exception) {
+    } catch (e: Exception) {
       error = ExceptionUtil.getMessage(e) ?: "Unexpected error while obtaining screenshot: ${e.javaClass}"
     }
     indicator.checkCanceled()

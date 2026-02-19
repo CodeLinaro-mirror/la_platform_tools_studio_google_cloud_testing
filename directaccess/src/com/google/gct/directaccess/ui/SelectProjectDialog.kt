@@ -74,8 +74,7 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val CLOUD_TEST_API_ENABLE_LINK =
-  "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
+private const val CLOUD_TEST_API_ENABLE_LINK = "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
 
 class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
@@ -87,15 +86,10 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     service<GoogleLoginService>()
       .activeUserFlow
       .map { LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn() }
-      .stateIn(
-        scope,
-        SharingStarted.Eagerly,
-        LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn(),
-      )
+      .stateIn(scope, SharingStarted.Eagerly, LoginFeature.feature<FirebaseLoginFeature>().isLoggedIn())
 
   private var temporarySelectedCloudProjectName: String? = null
-  private val temporarySelectedCloudProjectManager =
-    MutableStateFlow<DirectAccessCloudProjectManager?>(null)
+  private val temporarySelectedCloudProjectManager = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
 
   init {
     setOKButtonText("Confirm")
@@ -135,8 +129,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     return panel
   }
 
-  private fun createTitleLabel(text: String) =
-    JBLabel(text, JBLabel.LEFT).apply { font = JBFont.h2() }
+  private fun createTitleLabel(text: String) = JBLabel(text, JBLabel.LEFT).apply { font = JBFont.h2() }
 
   private fun createLoginPanel(): JPanel {
     val topPanel = JPanel(VerticalLayout(5))
@@ -169,8 +162,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
         action =
           object :
             AbstractAction(
-              if (GoogleLoginService.instance.isLoggedIn()) "Authorize Device Streaming"
-              else "Login and enable Device Streaming"
+              if (GoogleLoginService.instance.isLoggedIn()) "Authorize Device Streaming" else "Login and enable Device Streaming"
             ) {
             override fun actionPerformed(e: ActionEvent) {
               feature.logInBlocking(parentComponent = this@SelectProjectDialog.rootPane)
@@ -194,17 +186,10 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       DirectAccessProjectSelectorImpl(
         project,
         preferredProject,
-        project
-          .service<DeviceProvisionerService>()
-          .deviceProvisioner
-          .devices
-          .value
-          .filterIsInstance<DirectAccessDeviceHandle>()
-          .none {
-            // Disable the selector if there are connecting or connected devices.
-            it.state is DeviceState.Connected ||
-              (it.state is DeviceState.Disconnected && it.state.isTransitioning)
-          },
+        project.service<DeviceProvisionerService>().deviceProvisioner.devices.value.filterIsInstance<DirectAccessDeviceHandle>().none {
+          // Disable the selector if there are connecting or connected devices.
+          it.state is DeviceState.Connected || (it.state is DeviceState.Disconnected && it.state.isTransitioning)
+        },
         scope,
       )
     chooseProjectPanel.add(selector.component)
@@ -214,8 +199,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
         isVisible = false
       }
     chooseProjectPanel.add(statusIcon)
-    val projectInformationPanel =
-      ProjectInformationPanel(scope, uiContext, temporarySelectedCloudProjectManager)
+    val projectInformationPanel = ProjectInformationPanel(scope, uiContext, temporarySelectedCloudProjectManager)
 
     scope.launch {
       selector.isReady.takeWhile { !it }.collect()
@@ -231,9 +215,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     temporarySelectedCloudProjectName = null
     okAction.isEnabled = false
     val service = service<DirectAccessApplicationService>()
-    service.removeUnusedCloudProjectManager(
-      temporarySelectedCloudProjectManager.value?.cloudProject
-    )
+    service.removeUnusedCloudProjectManager(temporarySelectedCloudProjectManager.value?.cloudProject)
     temporarySelectedCloudProjectManager.value = null
   }
 
@@ -244,9 +226,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     temporarySelectedCloudProjectName = cloudProject
     okAction.isEnabled = true
     val service = service<DirectAccessApplicationService>()
-    service.removeUnusedCloudProjectManager(
-      temporarySelectedCloudProjectManager.value?.cloudProject
-    )
+    service.removeUnusedCloudProjectManager(temporarySelectedCloudProjectManager.value?.cloudProject)
     val user = service<GoogleLoginService>().getEmail() ?: return
     val cloudProjectEntry = CloudProjectEntry(user, cloudProject)
     temporarySelectedCloudProjectManager.value = service.getCloudProjectManager(cloudProjectEntry)
@@ -286,24 +266,15 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       parent.revalidate()
       launch {
         val permission = cloudProjectManager?.permissionFlow?.value
-        val reservationListException =
-          cloudProjectManager?.reservationListFlowWithException?.value?.second
+        val reservationListException = cloudProjectManager?.reservationListFlowWithException?.value?.second
         val errorMessage = getErrorMessage(cloudProject, permission, reservationListException)
         if (errorMessage != null) {
           val (linkText, link) =
             when {
-              errorMessage.contains("Google Cloud console") ->
-                Pair("Google Cloud console", "$CLOUD_TEST_API_ENABLE_LINK$cloudProject")
-              else ->
-                Pair(
-                  "Learn More",
-                  "http://d.android.com/r/studio-ui/device-streaming/help/permissions",
-                )
+              errorMessage.contains("Google Cloud console") -> Pair("Google Cloud console", "$CLOUD_TEST_API_ENABLE_LINK$cloudProject")
+              else -> Pair("Learn More", "http://d.android.com/r/studio-ui/device-streaming/help/permissions")
             }
-          HelpTooltip()
-            .setDescription(errorMessage)
-            .setLink(linkText) { BrowserUtil.browse(link) }
-            .installOn(statusIcon)
+          HelpTooltip().setDescription(errorMessage).setLink(linkText) { BrowserUtil.browse(link) }.installOn(statusIcon)
           statusIcon.icon = StudioIcons.Common.ERROR
           statusIcon.isVisible = true
           statusIcon.revalidate()
@@ -317,18 +288,13 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     }
   }
 
-  private fun getErrorMessage(
-    cloudProject: String,
-    permission: DirectAccessPermissionStatus?,
-    exception: Exception?,
-  ): String? {
+  private fun getErrorMessage(cloudProject: String, permission: DirectAccessPermissionStatus?, exception: Exception?): String? {
     return if (permission == null) "Unable to retrieve permission"
     else if (exception != null) {
       getErrorMessageFromException(cloudProject, permission, exception)
     } else {
       when (permission) {
-        is DirectAccessPermissionStatus.None ->
-          "You do not have access to Device Streaming in project $cloudProject."
+        is DirectAccessPermissionStatus.None -> "You do not have access to Device Streaming in project $cloudProject."
         is DirectAccessPermissionStatus.Viewer,
         is DirectAccessPermissionStatus.MissingServiceUse,
         is DirectAccessPermissionStatus.Unknown ->
@@ -339,26 +305,17 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     }
   }
 
-  private fun getErrorMessageFromException(
-    cloudProject: String,
-    permission: DirectAccessPermissionStatus,
-    exception: Exception,
-  ) =
+  private fun getErrorMessageFromException(cloudProject: String, permission: DirectAccessPermissionStatus, exception: Exception) =
     if (exception is StatusRuntimeException) {
       getStatusCodeErrorMessage(cloudProject, permission, exception)
     } else {
       "An unknown error occurred when checking your permissions."
     }
 
-  private fun getStatusCodeErrorMessage(
-    cloudProject: String,
-    permission: DirectAccessPermissionStatus,
-    exception: StatusRuntimeException,
-  ) =
+  private fun getStatusCodeErrorMessage(cloudProject: String, permission: DirectAccessPermissionStatus, exception: StatusRuntimeException) =
     if (exception.status.code == Status.Code.PERMISSION_DENIED) {
       val description = exception.status.description
-      val apiDisabledString =
-        "Cloud Testing API has not been used in project $cloudProject before or it is disabled."
+      val apiDisabledString = "Cloud Testing API has not been used in project $cloudProject before or it is disabled."
       val serviceUsageMissing = "Grant the caller the roles/serviceusage.serviceUsageConsumer role"
       when {
         description?.contains(apiDisabledString, true) == true ->
@@ -381,22 +338,13 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     val directAccessService = project.service<DirectAccessService>()
     directAccessService.selectCloudProject(temporarySelectedCloudProjectName)
     // Apply default devices if the selected project has a nonempty device catalog.
-    if (
-      directAccessService.cloudProjectManager.value
-        ?.accessibleDeviceInfoListFlow
-        ?.stateFlow
-        ?.value
-        ?.isNotEmpty() == true
-    ) {
+    if (directAccessService.cloudProjectManager.value?.accessibleDeviceInfoListFlow?.stateFlow?.value?.isNotEmpty() == true) {
       directAccessService.maybeApplyDefaultDevices()
     }
   }
 
   override fun doOKAction() {
-    if (
-      temporarySelectedCloudProjectName !=
-        temporarySelectedCloudProjectManager.value?.cloudProject?.name
-    ) {
+    if (temporarySelectedCloudProjectName != temporarySelectedCloudProjectManager.value?.cloudProject?.name) {
       object : Task.Modal(project, "Loading cloud project information...", false) {
           override fun run(indicator: ProgressIndicator) {
             indicator.isIndeterminate = true

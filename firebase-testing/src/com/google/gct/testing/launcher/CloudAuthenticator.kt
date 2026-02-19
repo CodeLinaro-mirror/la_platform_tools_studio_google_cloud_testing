@@ -29,10 +29,9 @@ import com.google.gct.testing.CloudTestingUtils
 import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.io.IOException
-import java.util.concurrent.CompletableFuture
 
 private const val APPLICATION_NAME = "GCTL"
 
@@ -67,11 +66,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   val storage: Storage
     get() {
       return myStorage
-        ?: Storage.Builder(
-            myHttpTransport,
-            GsonFactory.getDefaultInstance(),
-            firebaseFeature.credential(),
-          )
+        ?: Storage.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myStorage = it }
@@ -79,20 +74,12 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   fun recreateTestAndToolResults(testBackendUrl: String?, toolResultsBackendUrl: String?) {
     myTest =
-      Testing.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          firebaseFeature.credential(),
-        )
+      Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(testBackendUrl)
         .build()
     myToolresults =
-      ToolResults.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          firebaseFeature.credential(),
-        )
+      ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
         .setApplicationName(APPLICATION_NAME)
         .setRootUrl(toolResultsBackendUrl)
         .build()
@@ -101,11 +88,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   val cloudResourceManager: CloudResourceManager
     get() {
       return myCloudResourceManager
-        ?: CloudResourceManager.Builder(
-            myHttpTransport,
-            GsonFactory.getDefaultInstance(),
-            firebaseFeature.credential(),
-          )
+        ?: CloudResourceManager.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myCloudResourceManager = it }
@@ -118,11 +101,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   /** Get a test client pointing to the given backend. */
   private fun getTest(endpoint: String?): Testing {
     return myTest
-      ?: Testing.Builder(
-          myHttpTransport,
-          GsonFactory.getDefaultInstance(),
-          firebaseFeature.credential(),
-        )
+      ?: Testing.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
         .setApplicationName(APPLICATION_NAME)
         .apply {
           if (endpoint != null) {
@@ -135,10 +114,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   /** Get the [AndroidDeviceCatalog] for the given FTL `endpoint`. */
   @Throws(IOException::class)
-  fun getAndroidDeviceCatalogForEnvironment(
-    endpoint: String?,
-    gcpProject: String?,
-  ): AndroidDeviceCatalog {
+  fun getAndroidDeviceCatalogForEnvironment(endpoint: String?, gcpProject: String?): AndroidDeviceCatalog {
     val currentTimestamp = System.currentTimeMillis()
     try {
       val getter = getTest(endpoint).testEnvironmentCatalog()["ANDROID"]
@@ -151,10 +127,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
           catalog.runtimeConfiguration.locales.isEmpty() ||
           catalog.runtimeConfiguration.orientations.isEmpty()
       ) {
-        showDeviceCatalogError(
-          "Android device catalog is empty for some dimensions",
-          currentTimestamp,
-        )
+        showDeviceCatalogError("Android device catalog is empty for some dimensions", currentTimestamp)
       }
       return catalog
     } finally {
@@ -183,9 +156,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
 
   private fun showDeviceCatalogError(errorMessageSuffix: String, currentTimestamp: Long) {
     // The error should be reported just once per burst of invocations.
-    if (
-      currentTimestamp - myLastDiscoveryServiceInvocationTimestamp > 1000L
-    ) { // If more than a second has passed.
+    if (currentTimestamp - myLastDiscoveryServiceInvocationTimestamp > 1000L) { // If more than a second has passed.
       CloudTestingUtils.showErrorMessage(
         null,
         "Error retrieving android device catalog",
@@ -197,11 +168,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   val toolresults: ToolResults
     get() =
       myToolresults
-        ?: ToolResults.Builder(
-            myHttpTransport,
-            GsonFactory.getDefaultInstance(),
-            firebaseFeature.credential(),
-          )
+        ?: ToolResults.Builder(myHttpTransport, GsonFactory.getDefaultInstance(), firebaseFeature.credential())
           .setApplicationName(APPLICATION_NAME)
           .build()
           .also { myToolresults = it }
@@ -209,9 +176,7 @@ class CloudAuthenticator(scope: CoroutineScope) {
   fun prepareCredential() {
     if (!firebaseFeature.isLoggedIn()) {
       if (!authorize()) {
-        throw RuntimeException(
-          "Failed to authorize to Google Cloud! Please check if you set the correct user account."
-        )
+        throw RuntimeException("Failed to authorize to Google Cloud! Please check if you set the correct user account.")
       }
     }
   }

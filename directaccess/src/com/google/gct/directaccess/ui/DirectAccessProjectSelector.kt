@@ -104,8 +104,7 @@ class DirectAccessProjectSelectorImpl(
       "Create a Spark Plan Project...",
       object : AnAction() {
         override fun actionPerformed(e: AnActionEvent) {
-          LoginFeature.feature<FirebaseLoginFeature>()
-            .logInBlocking(parentComponent = this@DirectAccessProjectSelectorImpl)
+          LoginFeature.feature<FirebaseLoginFeature>().logInBlocking(parentComponent = this@DirectAccessProjectSelectorImpl)
         }
       },
     )
@@ -146,11 +145,7 @@ class DirectAccessProjectSelectorImpl(
       withContext(uiDispatcher) { showCard(newProjectCreatedCard) }
       launch {
         // Show [projectSelectorCard] after the created project is selected.
-        project
-          .service<DirectAccessService>()
-          .cloudProjectManager
-          .takeWhile { it?.cloudProject?.name != projectName }
-          .collect()
+        project.service<DirectAccessService>().cloudProjectManager.takeWhile { it?.cloudProject?.name != projectName }.collect()
         preferredProject = projectName
         withContext(uiDispatcher) {
           showCard(projectSelectorCard)
@@ -174,9 +169,7 @@ class DirectAccessProjectSelectorImpl(
 
   private suspend fun getProjects() =
     try {
-      withContext(Dispatchers.IO) {
-        FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
-      }
+      withContext(Dispatchers.IO) { FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId } }
     } catch (e: Exception) {
       null
     }

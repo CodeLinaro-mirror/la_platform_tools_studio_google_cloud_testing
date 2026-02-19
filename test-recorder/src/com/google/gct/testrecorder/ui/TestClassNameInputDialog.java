@@ -85,7 +85,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
   private String mySelectedLanguage;
 
   private JPanel myRootPanel;
-  private JTextArea myClassNameArea;
+  private JTextField myClassNameField;
   private JLabel myErrorMessageLabel;
   private JComboBox<String> myClassLanguageComboBox;
 
@@ -159,10 +159,10 @@ public class TestClassNameInputDialog extends DialogWrapper {
       myClassName = activityTestNameBase + counter++;
     }
 
-    myClassNameArea.setText(myClassName);
-    myClassNameArea.setBorder(BorderFactory.createCompoundBorder(
+    myClassNameField.setText(myClassName);
+    myClassNameField.setBorder(BorderFactory.createCompoundBorder(
       new JTextField().getBorder(),
-      BorderFactory.createEmptyBorder(5, 5, 5, 5)));
+      BorderFactory.createEmptyBorder()));
   }
 
   private VirtualFile detectOrCreateTestSourceDirectoryAndDefaultOutputLanguage() {
@@ -305,12 +305,11 @@ public class TestClassNameInputDialog extends DialogWrapper {
     label1.setOpaque(true);
     label1.setText("Test class name:");
     panel2.add(label1, BorderLayout.WEST);
-    myClassNameArea = new JTextArea();
-    myClassNameArea.setLineWrap(true);
-    myClassNameArea.setMinimumSize(new Dimension(320, 27));
-    myClassNameArea.setOpaque(true);
-    myClassNameArea.setPreferredSize(new Dimension(320, 27));
-    panel2.add(myClassNameArea, BorderLayout.EAST);
+    myClassNameField = new JTextField();
+    myClassNameField.setMinimumSize(new Dimension(320, 27));
+    myClassNameField.setOpaque(true);
+    myClassNameField.setPreferredSize(new Dimension(320, 27));
+    panel2.add(myClassNameField, BorderLayout.EAST);
     final JPanel panel3 = new JPanel();
     panel3.setLayout(new BorderLayout(0, 0));
     panel3.setMinimumSize(new Dimension(450, 29));
@@ -501,7 +500,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
     // Set up document listener for class name text field.
     // Update OK button based on the entered class name.
-    myClassNameArea.getDocument().addDocumentListener(new DocumentListener() {
+    myClassNameField.getDocument().addDocumentListener(new DocumentListener() {
       @Override
       public void insertUpdate(DocumentEvent documentEvent) {
         update();
@@ -518,7 +517,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
       }
 
       private void update() {
-        myClassName = myClassNameArea.getText().trim();
+        myClassName = myClassNameField.getText().trim();
         updateOKButton();
       }
     });
@@ -593,6 +592,6 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
   @Override
   public JComponent getPreferredFocusedComponent() {
-    return myClassNameArea;
+    return myClassNameField;
   }
 }

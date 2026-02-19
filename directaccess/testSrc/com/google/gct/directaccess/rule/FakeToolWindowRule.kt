@@ -51,13 +51,10 @@ class FakeToolWindowRule(private val projectRule: ProjectRule) : ExternalResourc
   }
 }
 
-private class FakeToolWindowManager(
-  project: Project,
-  private val fakeRunningDevicesWindow: ToolWindow,
-) : ToolWindowHeadlessManagerImpl(project) {
+private class FakeToolWindowManager(project: Project, private val fakeRunningDevicesWindow: ToolWindow) :
+  ToolWindowHeadlessManagerImpl(project) {
   override fun getToolWindow(id: String?): ToolWindow? {
-    return if (id == RUNNING_DEVICES_TOOL_WINDOW_ID) fakeRunningDevicesWindow
-    else super.getToolWindow(id)
+    return if (id == RUNNING_DEVICES_TOOL_WINDOW_ID) fakeRunningDevicesWindow else super.getToolWindow(id)
   }
 }
 
@@ -112,8 +109,6 @@ class FakeToolWindow(project: Project) : ToolWindowHeadlessManagerImpl.MockToolW
 
   private fun notify(content: Content) =
     listeners.forEach { listener ->
-      listener.selectionChanged(
-        ContentManagerEvent(Any(), content, 0, ContentManagerEvent.ContentOperation.undefined)
-      )
+      listener.selectionChanged(ContentManagerEvent(Any(), content, 0, ContentManagerEvent.ContentOperation.undefined))
     }
 }

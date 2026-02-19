@@ -27,10 +27,7 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 
-@State(
-  name = "DeviceStreaming",
-  storages = [Storage("caches/deviceStreaming.xml", roamingType = RoamingType.DISABLED)],
-)
+@State(name = "DeviceStreaming", storages = [Storage("caches/deviceStreaming.xml", roamingType = RoamingType.DISABLED)])
 @Service(Service.Level.PROJECT)
 class DirectAccessPersistentStateComponent(val project: Project) :
   SimplePersistentStateComponent<DirectAccessPersistentStateComponent.State>(State()) {
@@ -120,8 +117,7 @@ data class PersistentDeviceSelectionData(
     )
 }
 
-fun DeviceSelection.toPersistentDeviceSelectionData() =
-  deviceInfo.createPersistentDeviceSelectionData(isSelected)
+fun DeviceSelection.toPersistentDeviceSelectionData() = deviceInfo.createPersistentDeviceSelectionData(isSelected)
 
 fun DeviceInfo.createPersistentDeviceSelectionData(isSelected: Boolean) =
   PersistentDeviceSelectionData(

@@ -18,7 +18,7 @@ package com.google.gct.directaccess.provisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
 import com.android.tools.idea.deviceprovisioner.runCatchingDeviceActionException
-import com.android.tools.idea.streaming.core.StreamingDevicePanel
+import com.android.tools.idea.streaming.core.DevicePanel
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
@@ -70,22 +70,16 @@ private val RESERVATION_EXPIRING_SECONDS = TimeUnit.MINUTES.toSeconds(5)
 const val RESERVATION_EXPIRING_BANNER_TITLE = "Reservation ending in less than 5 mins"
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class DirectAccessNotificationManager(
-  private val project: Project,
-  private val deviceHandle: DirectAccessDeviceHandle,
-) {
+class DirectAccessNotificationManager(private val project: Project, private val deviceHandle: DirectAccessDeviceHandle) {
   private var deviceDisconnectedNotification: Notification? = null
-  private val reservationExpiringNotification =
-    ReservationExpiringNotification(project, deviceHandle)
+  private val reservationExpiringNotification = ReservationExpiringNotification(project, deviceHandle)
 
   private val deviceName: String
     get() = deviceHandle.sourceTemplate.properties.title
 
   private val formattedEndTime: String
     get() =
-      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-        .withZone(ZoneId.systemDefault())
-        .format(deviceHandle.state.reservation?.endTime)
+      DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault()).format(deviceHandle.state.reservation?.endTime)
 
   private val mutex = Mutex()
 
@@ -138,23 +132,15 @@ class DirectAccessNotificationManager(
         } ?: ""
       deviceDisconnectedNotification =
         notificationGroup
-          .createNotification(
-            "$deviceName on Firebase stopped",
-            message,
-            NotificationType.INFORMATION,
-          )
+          .createNotification("$deviceName on Firebase stopped", message, NotificationType.INFORMATION)
           .addAction(
             NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
-              deviceHandle.launchCatchingDeviceActionException(project = project) {
-                activationAction.activate()
-              }
+              deviceHandle.launchCatchingDeviceActionException(project = project) { activationAction.activate() }
             }
           )
           .addAction(
             NotificationAction.createExpiring("Return and erase device") { _, _ ->
-              deviceHandle.launchCatchingDeviceActionException(project = project) {
-                reservationAction.endReservation()
-              }
+              deviceHandle.launchCatchingDeviceActionException(project = project) { reservationAction.endReservation() }
             }
           )
           .setIcon(deviceHandle.icon)
@@ -193,16 +179,14 @@ class DirectAccessNotificationManager(
         "$deviceName session lost",
         // TODO (b/353573777): Remove "login again" content once Android Studio could logout
         // automatically.
-        "Android Studio can not access session status right now. " +
-          "Please check your network connection and login again.",
+        "Android Studio can not access session status right now. " + "Please check your network connection and login again.",
         NotificationType.INFORMATION,
       )
       .setIcon(deviceHandle.icon)
       .notify(project)
 
   private fun getDeviceDisconnectedNotificationPhrase(reservationExpireTime: Long): String? {
-    val timeRemaining =
-      Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)
+    val timeRemaining = Instant.now().until(Instant.ofEpochSecond(reservationExpireTime), ChronoUnit.SECONDS)
     return when {
       timeRemaining <= 0 -> null
       timeRemaining < 60 -> "less than 1 minute"
@@ -220,32 +204,21 @@ class DirectAccessNotificationManager(
       deviceDisconnectedNotification = null
     }
 
-  private suspend fun expireReservationExpiringNotification() =
-    mutex.withLock { reservationExpiringNotification.expire() }
+  private suspend fun expireReservationExpiringNotification() = mutex.withLock { reservationExpiringNotification.expire() }
 
   private fun DeviceState.shouldShowDisconnectedNotification() =
     this is DeviceState.Disconnected && !isTransitioning && reservation?.state?.isClosed() == false
 
   /** Show reservation expiring notification depending on user visible content */
-  private class ReservationExpiringNotification(
-    private val project: Project,
-    private val deviceHandle: DirectAccessDeviceHandle,
-  ) {
+  private class ReservationExpiringNotification(private val project: Project, private val deviceHandle: DirectAccessDeviceHandle) {
 
     /** Panel for this [DirectAccessDeviceHandle] */
-    private val devicePanel: StreamingDevicePanel<*>?
+    private val devicePanel: DevicePanel<*>?
       get() = getRunningDeviceWindow(project)?.devicePanel
 
-    /**
-     * True if the current visible panel in RDW is for this [DirectAccessDeviceHandle]; false
-     * otherwise
-     */
+    /** True if the current visible panel in RDW is for this [DirectAccessDeviceHandle]; false otherwise */
     private val isDeviceVisible: Boolean
-      get() =
-        devicePanel?.let {
-          it.id.serialNumber ==
-            getRunningDeviceWindow(project)?.visibleDevicePanel?.id?.serialNumber
-        } ?: false
+      get() = devicePanel?.let { it.deviceSerialNumber == getRunningDeviceWindow(project)?.visibleDevicePanel?.deviceSerialNumber } ?: false
 
     /** [EditorNotificationPanel] that is being shown in RDW */
     private var bannerNotification: EditorNotificationPanel? = null
@@ -337,9 +310,7 @@ class DirectAccessNotificationManager(
           "${deviceHandle.sourceTemplate.properties.title} will disconnect in less than 5 mins. Extend reservation to continue access to the device.",
           NotificationType.INFORMATION,
         )
-        .addAction(
-          NotificationAction.createExpiring("Extend 15 mins") { _, _ -> extendReservation() }
-        )
+        .addAction(NotificationAction.createExpiring("Extend 15 mins") { _, _ -> extendReservation() })
         .setIcon(deviceHandle.icon)
         .whenExpired { expire() }
 
@@ -351,14 +322,14 @@ class DirectAccessNotificationManager(
       }
 
     /** Gets current visible panel in RDW */
-    private val ToolWindow.visibleDevicePanel: StreamingDevicePanel<*>?
-      get() = contentManager.selectedContent?.component as? StreamingDevicePanel<*>
+    private val ToolWindow.visibleDevicePanel: DevicePanel<*>?
+      get() = contentManager.selectedContent?.component as? DevicePanel<*>
 
     /** Gets the panel for this [DirectAccessDeviceHandle] from RDW */
-    private val ToolWindow.devicePanel: StreamingDevicePanel<*>?
+    private val ToolWindow.devicePanel: DevicePanel<*>?
       get() =
         contentManager.contents
-          .mapNotNull { it.component as? StreamingDevicePanel<*> }
-          .firstOrNull { it.id.serialNumber == deviceHandle.connection.deviceAddress()?.address }
+          .mapNotNull { it.component as? DevicePanel<*> }
+          .firstOrNull { it.deviceSerialNumber == deviceHandle.connection.deviceAddress()?.address }
   }
 }

@@ -41,8 +41,7 @@ class DirectAccessPermissionStatusTest {
   fun testViewerPermissions() {
     val permissions = parseFrom(VIEWER_PERMISSIONS_SET + SERVICES_USE, false)
     assertThat(permissions).isInstanceOf(Viewer::class.java)
-    assertThat(permissions.missingPermissions)
-      .isEqualTo(ADMIN_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET)
+    assertThat(permissions.missingPermissions).isEqualTo(ADMIN_PERMISSIONS_SET - VIEWER_PERMISSIONS_SET)
   }
 
   @Test

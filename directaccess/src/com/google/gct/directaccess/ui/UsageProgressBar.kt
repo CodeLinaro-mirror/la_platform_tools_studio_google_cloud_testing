@@ -39,10 +39,7 @@ private const val DEFAULT_GAP = 3
  *
  * The left circle border is filled with active color when [percentage] has a nonnull value.
  */
-class UsageProgressBar(
-  scope: CoroutineScope,
-  @VisibleForTesting val percentage: StateFlow<Double?>,
-) : JPanel() {
+class UsageProgressBar(scope: CoroutineScope, @VisibleForTesting val percentage: StateFlow<Double?>) : JPanel() {
 
   override fun paintComponent(g: Graphics?) {
     super.paintComponent(g)

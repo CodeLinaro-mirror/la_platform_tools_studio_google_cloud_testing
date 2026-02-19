@@ -118,9 +118,7 @@ class OemEulaContent(
   private val labs: List<String>,
   private val disposable: Disposable,
   private val project: Project,
-  @get:VisibleForTesting
-  internal val permissionChecker: suspend (CloudProjectEntry) -> Boolean =
-    ::permissionCheck, // test only
+  @get:VisibleForTesting internal val permissionChecker: suspend (CloudProjectEntry) -> Boolean = ::permissionCheck, // test only
 ) {
 
   private enum class PermissionCheckResult {
@@ -143,12 +141,9 @@ class OemEulaContent(
           metricsReceivedCallback,
           metricsClickedConsoleButton,
           when (hasPermission) {
-            PermissionCheckResult.ACCESS ->
-              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
-            PermissionCheckResult.NO_ACCESS ->
-              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS
-            PermissionCheckResult.ERROR ->
-              DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.CHECK_FAILED
+            PermissionCheckResult.ACCESS -> DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.ACCESS
+            PermissionCheckResult.NO_ACCESS -> DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.NO_ACCESS
+            PermissionCheckResult.ERROR -> DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.CHECK_FAILED
             else -> DirectAccessUsageEvent.OemLabDialogDetails.AccessCheckResult.UNKNOWN
           },
         )
@@ -161,8 +156,7 @@ class OemEulaContent(
   internal fun ComposeContent() {
     LaunchedEffect(key) {
       withContext(Dispatchers.IO) {
-        val cloudProject =
-          project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
+        val cloudProject = project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject
         hasPermission =
           if (cloudProject == null) {
             PermissionCheckResult.NO_PROJECT
@@ -181,11 +175,7 @@ class OemEulaContent(
     }
     Column(modifier = Modifier.padding(start = 3.dp)) {
       val plural = if (labs.size > 1) "s" else ""
-      Text(
-        "Enable Partner OEM Device Labs",
-        style = JewelTheme.typography.h2TextStyle,
-        modifier = Modifier.padding(vertical = 10.dp),
-      )
+      Text("Enable Partner OEM Device Labs", style = JewelTheme.typography.h2TextStyle, modifier = Modifier.padding(vertical = 10.dp))
       Text(
         "One or more of the selected devices is hosted by a Partner OEM Device Lab. An Owner or Editor of " +
           "your Firebase project needs to enable the partner device lab$plural in Google Cloud Console."
@@ -196,17 +186,11 @@ class OemEulaContent(
         val owner = ModalTaskOwner.component(LocalComponent.current)
         OutlinedButton(
           // allow access if we failed to check permissions--maybe the redirect will still work?
-          enabled =
-            hasPermission == PermissionCheckResult.ACCESS ||
-              hasPermission == PermissionCheckResult.ERROR,
+          enabled = hasPermission == PermissionCheckResult.ACCESS || hasPermission == PermissionCheckResult.ERROR,
           style = JewelTheme.defaultButtonStyle,
           onClick = {
             metricsClickedConsoleButton = true
-            runWithModalProgressBlocking(
-              owner,
-              "Continue in Cloud Console...",
-              TaskCancellation.cancellable(),
-            ) {
+            runWithModalProgressBlocking(owner, "Continue in Cloud Console...", TaskCancellation.cancellable()) {
               startServerAndAwaitFirstCallback()
             }
           },
@@ -215,23 +199,12 @@ class OemEulaContent(
         }
         if (hasPermission == PermissionCheckResult.LOADING) {
           CircularProgressIndicator(modifier = Modifier.padding(horizontal = 5.dp))
-          Text(
-            "Checking permissions...",
-            color = StandardColors.DISABLED_TEXT_COLOR.toComposeColor(),
-          )
+          Text("Checking permissions...", color = StandardColors.DISABLED_TEXT_COLOR.toComposeColor())
         } else if (hasPermission == PermissionCheckResult.NO_ACCESS) {
-          Icon(
-            IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
-            "Lab inaccessible",
-            Modifier.padding(horizontal = 4.dp),
-          )
+          Icon(IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning), "Lab inaccessible", Modifier.padding(horizontal = 4.dp))
           Text("Contact project administrator for access.")
         } else if (hasPermission == PermissionCheckResult.NO_PROJECT) {
-          Icon(
-            IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning),
-            "Lab inaccessible",
-            Modifier.padding(horizontal = 4.dp),
-          )
+          Icon(IntelliJIconKey.fromPlatformIcon(AllIcons.General.Warning), "Lab inaccessible", Modifier.padding(horizontal = 4.dp))
           Text("Select a project before adding OEM Lab devices.")
         }
       }
@@ -268,26 +241,14 @@ class OemEulaContent(
         val inlineContent =
           mapOf(
             contentId to
-              InlineTextContent(
-                Placeholder(
-                  width = 12.em,
-                  height = 1.2.em,
-                  placeholderVerticalAlign = PlaceholderVerticalAlign.TextTop,
-                )
-              ) {
-                ExternalLink(
-                  "Learn more",
-                  uri =
-                    "https://firebase.google.com/docs/test-lab/usage-quotas-pricing#device-streaming",
-                )
+              InlineTextContent(Placeholder(width = 12.em, height = 1.2.em, placeholderVerticalAlign = PlaceholderVerticalAlign.TextTop)) {
+                ExternalLink("Learn more", uri = "https://firebase.google.com/docs/test-lab/usage-quotas-pricing#device-streaming")
               }
           )
 
         Text(
           buildAnnotatedString {
-            append(
-              "Standard quota and pricing for Android Device Streaming also apply when using devices from a partner device lab. "
-            )
+            append("Standard quota and pricing for Android Device Streaming also apply when using devices from a partner device lab. ")
             appendInlineContent(contentId, "Learn more")
           },
           inlineContent = inlineContent,
@@ -319,20 +280,10 @@ class OemEulaContent(
 
     val handler =
       object : AbstractHandler() {
-        override fun handle(
-          target: String?,
-          request: HttpServletRequest,
-          response: HttpServletResponse,
-          dispatch: Int,
-        ) {
+        override fun handle(target: String?, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int) {
           if (target == "/CALLBACK_Cloud_PartnerLab") {
             disposable.createCoroutineScope().launch {
-              project
-                .service<DirectAccessService>()
-                .cloudProjectManager
-                .value
-                ?.accessibleDeviceInfoListFlow
-                ?.refresh()
+              project.service<DirectAccessService>().cloudProjectManager.value?.accessibleDeviceInfoListFlow?.refresh()
             }
 
             lock?.unlock()

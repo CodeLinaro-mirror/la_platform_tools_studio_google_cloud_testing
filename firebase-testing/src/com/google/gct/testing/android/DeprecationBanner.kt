@@ -23,14 +23,17 @@ import javax.swing.SwingConstants
 
 class DeprecationBanner : EditorNotificationPanel(Status.Warning) {
   init {
-    text = "<html>" +
-      "Targeting Firebase Test Lab devices from a run configuration is now deprecated,<br>" +
-      "and this functionality will be removed in a future release." +
-      "</html>"
+    text =
+      "<html>" +
+        "Targeting Firebase Test Lab devices from a run configuration is now deprecated,<br>" +
+        "and this functionality will be removed in a future release." +
+        "</html>"
 
-    createActionLabel("More info", {
-      BrowserUtil.browse("https://developer.android.com/studio/services/deprecated#narwhal-feature-drop")
-    }, false)
+    createActionLabel(
+      "More info",
+      { BrowserUtil.browse("https://developer.android.com/studio/services/deprecated#narwhal-feature-drop") },
+      false,
+    )
 
     // Move the action labels to the south of the banner.
     if (myLinksPanel.parent.layout is BorderLayout) {

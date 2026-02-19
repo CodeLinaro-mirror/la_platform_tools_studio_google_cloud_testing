@@ -119,38 +119,20 @@ class DirectAccessServiceDeprecationTest {
     scope = projectRule.disposable.createCoroutineScope()
     mockDeprecationService = mock()
     deprecationDataFlow = MutableStateFlow(DevServicesDeprecationData.EMPTY)
-    serviceEnabledFlow =
-      deprecationDataFlow
-        .map { data -> !data.isUnsupported() }
-        .stateIn(scope, SharingStarted.Eagerly, true)
-    doAnswer { deprecationDataFlow.asStateFlow() }
-      .whenever(mockDeprecationService)
-      .serviceDeprecationData
+    serviceEnabledFlow = deprecationDataFlow.map { data -> !data.isUnsupported() }.stateIn(scope, SharingStarted.Eagerly, true)
+    doAnswer { deprecationDataFlow.asStateFlow() }.whenever(mockDeprecationService).serviceDeprecationData
     doAnswer { serviceEnabledFlow }.whenever(mockDeprecationService).isServiceEnabledFlow
     ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessDeprecationState::class.java,
-        mockDeprecationService,
-        projectRule.disposable,
-      )
+      .replaceService(DirectAccessDeprecationState::class.java, mockDeprecationService, projectRule.disposable)
 
     val mockCloudClientService = mock<CloudClientService>()
     doReturn(listOf(model to PerAndroidVersionInfo().apply { versionId = "35" }))
       .whenever(mockCloudClientService)
       .getAvailableDevices(any(), any())
-    ApplicationManager.getApplication()
-      .replaceService(
-        CloudClientService::class.java,
-        mockCloudClientService,
-        projectRule.disposable,
-      )
+    ApplicationManager.getApplication().replaceService(CloudClientService::class.java, mockCloudClientService, projectRule.disposable)
 
     ApplicationManager.getApplication()
-      .replaceService(
-        DirectAccessServiceSetup::class.java,
-        DirectAccessServiceSetup(),
-        projectRule.disposable,
-      )
+      .replaceService(DirectAccessServiceSetup::class.java, DirectAccessServiceSetup(), projectRule.disposable)
 
     tracker = TestUsageTracker(VirtualTimeScheduler())
     UsageTracker.setWriterForTest(tracker)
@@ -168,9 +150,7 @@ class DirectAccessServiceDeprecationTest {
 
     // Show the banner when there are templates.
     templates.value = listOf(fakeTemplate)
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
-    }
+    deprecationDataFlow.update { deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED) }
     val banners = plugin.getNotificationBanners()
 
     // Get the first non-empty value
@@ -180,8 +160,7 @@ class DirectAccessServiceDeprecationTest {
     assertThat(banner.background).isEqualTo(Banner.ERROR_BACKGROUND)
 
     findUsageEvent().let {
-      assertThat(it.deprecationStatus)
-        .isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
+      assertThat(it.deprecationStatus).isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
       assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
       assertThat(it.userNotified).isTrue()
       assertThat(it.hasMoreInfoClicked()).isFalse()
@@ -191,8 +170,7 @@ class DirectAccessServiceDeprecationTest {
     val updateLink = banner.findLabelByName("Update Android Studio")
     updateLink?.doClick()
     findUsageEvent().let {
-      assertThat(it.deprecationStatus)
-        .isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
+      assertThat(it.deprecationStatus).isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
       assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
       assertThat(it.hasUserNotified()).isFalse()
       assertThat(it.hasMoreInfoClicked()).isFalse()
@@ -202,8 +180,7 @@ class DirectAccessServiceDeprecationTest {
     val moreInfoLink = banner.findLabelByName("More info")
     moreInfoLink?.doClick()
     findUsageEvent().let {
-      assertThat(it.deprecationStatus)
-        .isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
+      assertThat(it.deprecationStatus).isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
       assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
       assertThat(it.hasUserNotified()).isFalse()
       assertThat(it.moreInfoClicked).isTrue()
@@ -229,16 +206,12 @@ class DirectAccessServiceDeprecationTest {
     assertThat(banners.value).isEmpty()
     withContext(Dispatchers.EDT) { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
 
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED)
-    }
+    deprecationDataFlow.update { deprecationProto.copy(status = DevServicesDeprecationStatus.DEPRECATED) }
     yieldUntil { banners.value.isNotEmpty() }
     val banner = banners.first { it.isNotEmpty() }.first()
     assertThat(banner.background).isEqualTo(Banner.WARNING_BACKGROUND)
 
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
-    }
+    deprecationDataFlow.update { deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED) }
     yieldUntil { banners.first { it.isNotEmpty() }.first().background == Banner.ERROR_BACKGROUND }
   }
 
@@ -257,9 +230,7 @@ class DirectAccessServiceDeprecationTest {
 
   @Test
   fun disableSelectProjectActionWhenUnsupported() = runBlocking {
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED)
-    }
+    deprecationDataFlow.update { deprecationProto.copy(status = DevServicesDeprecationStatus.UNSUPPORTED) }
     yieldUntil { !service<DirectAccessDeprecationState>().isServiceEnabledFlow.value }
     val action = SelectProjectAction()
     // Click the device selection button.
@@ -277,10 +248,7 @@ class DirectAccessServiceDeprecationTest {
       )
     action.update(event)
     assertThat(event.presentation.isEnabled).isFalse()
-    assertThat(event.presentation.text)
-      .isEqualTo(
-        "Firebase Device Streaming is no longer compatible with this version of Android Studio."
-      )
+    assertThat(event.presentation.text).isEqualTo("Firebase Device Streaming is no longer compatible with this version of Android Studio.")
   }
 
   @Test
@@ -340,9 +308,7 @@ class DirectAccessServiceDeprecationTest {
     assertThat(banner.isVisible).isTrue()
     assertThat(banner.background).isEqualTo(Banner.WARNING_BACKGROUND)
 
-    deprecationDataFlow.update {
-      deprecationProto.copy(status = DevServicesDeprecationStatus.SUPPORTED)
-    }
+    deprecationDataFlow.update { deprecationProto.copy(status = DevServicesDeprecationStatus.SUPPORTED) }
 
     yieldUntil { plugin.getNotificationBanners().value.isEmpty() }
   }
@@ -350,11 +316,7 @@ class DirectAccessServiceDeprecationTest {
   private suspend fun findUsageEvent(): DevServiceDeprecationInfo {
     var info: DevServiceDeprecationInfo? = null
     yieldUntil {
-      val event =
-        tracker.usages.lastOrNull {
-          it.studioEvent.directAccessUsageEvent.type ==
-            DirectAccessUsageEventType.SERVICE_DEPRECATION
-        }
+      val event = tracker.usages.lastOrNull { it.studioEvent.directAccessUsageEvent.type == DirectAccessUsageEventType.SERVICE_DEPRECATION }
       info = event?.studioEvent?.directAccessUsageEvent?.devServiceDeprecationInfo
       info != null
     }
@@ -364,9 +326,7 @@ class DirectAccessServiceDeprecationTest {
   private suspend fun configureDevServicesDeprecationStatus(status: DevServicesDeprecationStatus) {
     deprecationDataFlow.update { deprecationProto.copy(status = status) }
     if (status == DevServicesDeprecationStatus.UNSUPPORTED) {
-      yieldUntil(Duration.ofSeconds(2)) {
-        !service<DirectAccessDeprecationState>().isServiceEnabledFlow.value
-      }
+      yieldUntil(Duration.ofSeconds(2)) { !service<DirectAccessDeprecationState>().isServiceEnabledFlow.value }
     }
   }
 

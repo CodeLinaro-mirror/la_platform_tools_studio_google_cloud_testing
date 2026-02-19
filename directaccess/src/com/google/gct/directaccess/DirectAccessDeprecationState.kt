@@ -31,17 +31,10 @@ class DirectAccessDeprecationState(scope: CoroutineScope) : Disposable {
 
   val serviceDeprecationData: StateFlow<DevServicesDeprecationData> =
     service<DevServicesDeprecationDataProvider>()
-      .registerServiceForChange(
-        "directaccess/directaccess",
-        "Android Device Streaming",
-        this@DirectAccessDeprecationState,
-      )
+      .registerServiceForChange("directaccess/directaccess", "Android Device Streaming", this@DirectAccessDeprecationState)
 
   // Service stays enabled for SUPPORTED and DEPRECATED
-  val isServiceEnabledFlow =
-    serviceDeprecationData
-      .map { data -> !data.isUnsupported() }
-      .stateIn(scope, SharingStarted.Eagerly, true)
+  val isServiceEnabledFlow = serviceDeprecationData.map { data -> !data.isUnsupported() }.stateIn(scope, SharingStarted.Eagerly, true)
 
   override fun dispose() = Unit
 }

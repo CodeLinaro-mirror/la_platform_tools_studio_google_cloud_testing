@@ -66,10 +66,8 @@ class DirectAccessBannersManager(
           launch {
             service<DirectAccessDeprecationState>().serviceDeprecationData.collect { data ->
               mutex.withLock {
-                deprecationBanner =
-                  if (data.isSupported()) null else DirectAccessDeprecationBanner(project, data)
-                banners.value =
-                  listOfNotNull(deprecationBanner, incidentBanner.takeIf { !data.isUnsupported() })
+                deprecationBanner = if (data.isSupported()) null else DirectAccessDeprecationBanner(project, data)
+                banners.value = listOfNotNull(deprecationBanner, incidentBanner.takeIf { !data.isUnsupported() })
               }
             }
           }
@@ -80,13 +78,10 @@ class DirectAccessBannersManager(
                 try {
                   val incidents =
                     Gson().fromJson(outageJsonText(), JsonArray::class.java).filter { json ->
-                      json is JsonObject &&
-                        json["service_key"]?.asString == serviceKey &&
-                        !json.has("end")
+                      json is JsonObject && json["service_key"]?.asString == serviceKey && !json.has("end")
                     }
                   mutex.withLock {
-                    incidentBanner =
-                      if (incidents.isEmpty()) null else DirectAccessIncidentBanner(incidents)
+                    incidentBanner = if (incidents.isEmpty()) null else DirectAccessIncidentBanner(incidents)
                     banners.value = listOfNotNull(deprecationBanner, incidentBanner)
                   }
                 } catch (e: IOException) {

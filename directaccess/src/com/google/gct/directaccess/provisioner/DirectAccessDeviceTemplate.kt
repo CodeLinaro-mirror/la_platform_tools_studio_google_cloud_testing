@@ -87,11 +87,9 @@ val SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(1
 val LONG_AWAITING_RESERVATION_READY_TIME_LIMIT: Duration = Duration.ofMinutes(15)
 
 internal const val UNKNOWN_DEVICE_DO_NOT_ASK = "device.streaming.unknown.do.not.ask"
-internal const val SPARK_SINGLE_DEVICE_DO_NOT_ASK =
-  "device.streaming.spark.single.device.do.not.ask"
+internal const val SPARK_SINGLE_DEVICE_DO_NOT_ASK = "device.streaming.spark.single.device.do.not.ask"
 internal const val SPARK_MULTI_DEVICE_DO_NOT_ASK = "device.streaming.spark.multi.device.do.not.ask"
-internal const val BLAZE_SINGLE_DEVICE_DO_NOT_ASK =
-  "device.streaming.blaze.single.device.do.not.ask"
+internal const val BLAZE_SINGLE_DEVICE_DO_NOT_ASK = "device.streaming.blaze.single.device.do.not.ask"
 internal const val BLAZE_MULTI_DEVICE_DO_NOT_ASK = "device.streaming.blaze.multi.device.do.not.ask"
 
 private const val BLAZE_PRICE_LINK = "https://d.android.com/r/studio-ui/device-streaming/pricing"
@@ -138,8 +136,7 @@ class DirectAccessDeviceTemplate(
         service<DirectAccessOnboardingService>().taskFlow,
         service<DirectAccessDeprecationState>().isServiceEnabledFlow,
       ) { isStarted, reservationAvailable, deviceInfo, task, isServiceEnabled ->
-        val waitTimeText =
-          deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
+        val waitTimeText = deviceInfo.deviceAvailabilityEstimateSeconds?.let { waitTimeText(it, "min") }
 
         if (reservationAvailable) {
           isCloudProjectBeingCreatedFlow.value = false
@@ -153,14 +150,12 @@ class DirectAccessDeviceTemplate(
           isActivating = isStarted,
           error =
             when {
-              !isServiceEnabled ->
-                DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
+              !isServiceEnabled -> DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
               reservationAvailable && deviceInfo.isInCatalog && waitTimeText != null ->
                 DirectAccessDeviceError(DeviceError.Severity.WARNING, "$waitTimeText")
               reservationAvailable && !deviceInfo.isInCatalog ->
                 DirectAccessDeviceError(DeviceError.Severity.WARNING, "No longer available")
-              isCloudProjectBeingCreatedFlow.value ->
-                DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
+              isCloudProjectBeingCreatedFlow.value -> DirectAccessDeviceError(DeviceError.Severity.INFO, "Ready in a few minutes")
               else -> null
             },
         )
@@ -207,9 +202,8 @@ class DirectAccessDeviceTemplate(
       /**
        * Creates a [DirectAccessDeviceHandle] and starts a connection to it.
        *
-       * The returned device handle prioritizes connecting to an existing reservation over
-       * requesting a new one. This method is disabled when a device handle is active or being
-       * created. At most one device is available for each template.
+       * The returned device handle prioritizes connecting to an existing reservation over requesting a new one. This method is disabled
+       * when a device handle is active or being created. At most one device is available for each template.
        *
        * TODO (b/246171065): activating multiple devices.
        */
@@ -226,8 +220,7 @@ class DirectAccessDeviceTemplate(
 
         return withBackgroundProgress(project, "Reserving a ${deviceInfo.name}...", true) {
           reportProgress { progressReporter ->
-            val isDefaultApiEnabled =
-              project.directAccessCloudProjectManager?.isDefaultApiEnabled == true
+            val isDefaultApiEnabled = project.directAccessCloudProjectManager?.isDefaultApiEnabled == true
             val reservationName =
               progressReporter.indeterminateStep {
                 try {
@@ -238,22 +231,14 @@ class DirectAccessDeviceTemplate(
                 } catch (e: Exception) {
                   isActivationStarted.value = false
                   if (e is StatusRuntimeException && e.status.code == RESOURCE_EXHAUSTED) {
-                    trackReserveDevice(
-                      false,
-                      failureReason = FailureReason.RESOURCE_EXHAUSTED,
-                      isDefaultApiApplied = isDefaultApiEnabled,
-                    )
+                    trackReserveDevice(false, failureReason = FailureReason.RESOURCE_EXHAUSTED, isDefaultApiApplied = isDefaultApiEnabled)
                     throw DeviceActionException(
                       "All Spark plan minutes for the current period have been used. " +
                         "Upgrade to a Blaze plan to immediately continue using this service.",
                       e,
                     )
                   }
-                  trackReserveDevice(
-                    false,
-                    failureReason = FailureReason.UNKNOWN_FAILURE,
-                    isDefaultApiApplied = isDefaultApiEnabled,
-                  )
+                  trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE, isDefaultApiApplied = isDefaultApiEnabled)
                   throw DeviceActionException("Failed to reserve a device. Please try again.", e)
                 }
               }
@@ -268,9 +253,7 @@ class DirectAccessDeviceTemplate(
                   // Shut down the connection attempt cleanly if possible.
                   deviceHandle?.connection?.endReservation(false)
                   // In case the connection wasn't created yet, cancel the reservation directly.
-                  project.directAccessCloudProjectManager
-                    ?.reservationManager
-                    ?.cancelReservation(reservationName, false)
+                  project.directAccessCloudProjectManager?.reservationManager?.cancelReservation(reservationName, false)
                   isActivationStarted.value = false
                 }
                 if (e is CancellationException || e is DeviceActionException) {
@@ -308,10 +291,8 @@ class DirectAccessDeviceTemplate(
       private fun getPersistenceKeyForDoNoAsk(billingStatus: Boolean?, isMultiDevice: Boolean) =
         when (billingStatus) {
           null -> UNKNOWN_DEVICE_DO_NOT_ASK
-          false ->
-            if (isMultiDevice) SPARK_MULTI_DEVICE_DO_NOT_ASK else SPARK_SINGLE_DEVICE_DO_NOT_ASK
-          true ->
-            if (isMultiDevice) BLAZE_MULTI_DEVICE_DO_NOT_ASK else BLAZE_SINGLE_DEVICE_DO_NOT_ASK
+          false -> if (isMultiDevice) SPARK_MULTI_DEVICE_DO_NOT_ASK else SPARK_SINGLE_DEVICE_DO_NOT_ASK
+          true -> if (isMultiDevice) BLAZE_MULTI_DEVICE_DO_NOT_ASK else BLAZE_SINGLE_DEVICE_DO_NOT_ASK
         }
 
       private fun getDialogTitleAndMessage(billingStatus: Boolean?): Pair<String, String> {
@@ -371,13 +352,7 @@ class DirectAccessDeviceTemplate(
                 "You will not be billed for this duration. $BLAZE_PRICE_LEARN_MORE_LINK"
             val result =
               withContext(AndroidDispatchers.uiThread) {
-                Messages.showOkCancelDialog(
-                  message,
-                  title,
-                  "Reserve",
-                  "Cancel",
-                  Messages.getQuestionIcon(),
-                )
+                Messages.showOkCancelDialog(message, title, "Reserve", "Cancel", Messages.getQuestionIcon())
               }
             if (result != Messages.OK) {
               isActivationStarted.value = false
@@ -388,19 +363,12 @@ class DirectAccessDeviceTemplate(
 
       private suspend fun findOrCreateReservation(): String {
         val reservationManager =
-          project.directAccessCloudProjectManager?.reservationManager
-            ?: throw RuntimeException("Unable to access ReservationManager.")
+          project.directAccessCloudProjectManager?.reservationManager ?: throw RuntimeException("Unable to access ReservationManager.")
 
         val (reservationName, startTime) =
           withProgressText("Creating reservation...") {
             @Suppress("UnstableApiUsage")
-            blockingContext {
-              findOrCreateReservation(
-                reservationManager,
-                deviceInfo.codename,
-                deviceInfo.api.toString(),
-              )
-            }
+            blockingContext { findOrCreateReservation(reservationManager, deviceInfo.codename, deviceInfo.api.toString()) }
           }
         if (startTime != 0L) {
           scope.logReserveMetricWhenReservationActive(
@@ -409,9 +377,7 @@ class DirectAccessDeviceTemplate(
             project.directAccessCloudProjectManager?.isDefaultApiEnabled == true,
           )
         }
-        scope.launch {
-          project.directAccessCloudProjectManager?.reservationListFlowWithException?.refresh()
-        }
+        scope.launch { project.directAccessCloudProjectManager?.reservationListFlowWithException?.refresh() }
         return reservationName
       }
 
@@ -423,9 +389,7 @@ class DirectAccessDeviceTemplate(
       ): Pair<String, Long> {
         val result =
           ApplicationManager.getApplication()
-            .executeOnPooledThread(
-              Callable { runCatching { reservationManager.findOrCreateReservation(codename, api) } }
-            )
+            .executeOnPooledThread(Callable { runCatching { reservationManager.findOrCreateReservation(codename, api) } })
         try {
           while (!result.isDone) {
             ProgressManager.checkCanceled()
@@ -449,8 +413,7 @@ class DirectAccessDeviceTemplate(
         return result.get().getOrThrow()
       }
 
-      private val defaultPresentation =
-        DeviceAction.Presentation("Acquire", StudioIcons.Avd.RUN, false)
+      private val defaultPresentation = DeviceAction.Presentation("Acquire", StudioIcons.Avd.RUN, false)
 
       override val presentation: StateFlow<DeviceAction.Presentation> =
         combine(
@@ -459,22 +422,12 @@ class DirectAccessDeviceTemplate(
             deviceInfoFlow,
             isCloudProjectBeingCreatedFlow,
             service<DirectAccessDeprecationState>().isServiceEnabledFlow,
-          ) {
-            started,
-            reservationAvailable,
-            deviceInfo,
-            isCloudProjectBeingCreated,
-            isServiceEnabled ->
-            val enabled =
-              !started && reservationAvailable && deviceInfo.isInCatalog && isServiceEnabled
+          ) { started, reservationAvailable, deviceInfo, isCloudProjectBeingCreated, isServiceEnabled ->
+            val enabled = !started && reservationAvailable && deviceInfo.isInCatalog && isServiceEnabled
             // TODO(b/314857500): Improve user experience with null
             // deviceAvailabilityEstimateSeconds.
             val icon =
-              if (
-                deviceInfo.deviceAvailabilityEstimateSeconds?.let {
-                  it >= SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds
-                } == true
-              )
+              if (deviceInfo.deviceAvailabilityEstimateSeconds?.let { it >= SHORT_AWAITING_RESERVATION_READY_TIME_LIMIT.seconds } == true)
                 StudioIcons.Avd.START_RESERVATION
               else StudioIcons.Avd.RUN
             defaultPresentation.copy(
@@ -485,12 +438,9 @@ class DirectAccessDeviceTemplate(
                   enabled -> null
                   started -> "Activation already in progress."
                   !isServiceEnabled -> "Unsupported version: update required"
-                  isCloudProjectBeingCreated ->
-                    "Android Device Streaming is setting up and will be ready in a few minutes."
-                  !reservationAvailable ->
-                    "Device unavailable: click the Firebase action to address issues."
-                  reservationAvailable && !deviceInfo.isInCatalog ->
-                    "${properties.title} removed from the Firebase Test Lab catalog."
+                  isCloudProjectBeingCreated -> "Android Device Streaming is setting up and will be ready in a few minutes."
+                  !reservationAvailable -> "Device unavailable: click the Firebase action to address issues."
+                  reservationAvailable && !deviceInfo.isInCatalog -> "${properties.title} removed from the Firebase Test Lab catalog."
                   else -> throw RuntimeException("Conditions exhausted")
                 },
             )
@@ -504,9 +454,7 @@ class DirectAccessDeviceTemplate(
     object : DeleteAction {
       override suspend fun delete() {
         project.service<DirectAccessService>().deviceSelectionListFlow.update { devices ->
-          devices.map {
-            if (it.deviceInfo.key == deviceInfo.key) it.copy(isSelected = false) else it
-          }
+          devices.map { if (it.deviceInfo.key == deviceInfo.key) it.copy(isSelected = false) else it }
         }
       }
 
@@ -515,21 +463,17 @@ class DirectAccessDeviceTemplate(
     }
 
   /**
-   * Creates a [DirectAccessDeviceHandle] with Disconnected state for [reservationName] if one is
-   * not present already.
+   * Creates a [DirectAccessDeviceHandle] with Disconnected state for [reservationName] if one is not present already.
    *
-   * The returned device handle prioritizes connecting to an existing reservation over requesting a
-   * new one. This method is disabled when a device handle is active or being created. At most one
-   * device is available for each template.
+   * The returned device handle prioritizes connecting to an existing reservation over requesting a new one. This method is disabled when a
+   * device handle is active or being created. At most one device is available for each template.
    *
    * TODO (b/246171065): activating multiple devices.
    */
   suspend fun createDeviceHandleIfAbsent(reservationName: String): DeviceHandle? {
     if (isActivationStarted.compareAndSet(expect = false, update = true)) {
       withTimeoutOrNull(2.seconds) { isAvailableFlow.takeWhile { !it }.collect() }
-        ?: throw DeviceActionException(
-          "${deviceInfo.name} not available for reserving with reservation $reservationName."
-        )
+        ?: throw DeviceActionException("${deviceInfo.name} not available for reserving with reservation $reservationName.")
       try {
         return createDeviceHandle(reservationName)
       } catch (e: Exception) {
@@ -543,8 +487,8 @@ class DirectAccessDeviceTemplate(
   /**
    * Creates a [DirectAccessDeviceHandle] for the given [reservationName].
    *
-   * Reservation corresponding to [reservationName] can be a new reservation requested by the user
-   * that is inactive, or it can be an active reservation created elsewhere.
+   * Reservation corresponding to [reservationName] can be a new reservation requested by the user that is inactive, or it can be an active
+   * reservation created elsewhere.
    */
   private fun createDeviceHandle(reservationName: String): DirectAccessDeviceHandle {
     val deviceScope = scope.createChildScope(isSupervisor = true)
@@ -581,14 +525,7 @@ class DirectAccessDeviceTemplate(
     isDefaultApiApplied: Boolean = false,
   ) {
     DirectAccessUsageTracker.getInstance()
-      .trackReserveDevice(
-        wasSuccessful,
-        timeToReserve,
-        reservationName,
-        properties.deviceInfoProto,
-        failureReason,
-        isDefaultApiApplied,
-      )
+      .trackReserveDevice(wasSuccessful, timeToReserve, reservationName, properties.deviceInfoProto, failureReason, isDefaultApiApplied)
   }
 
   private fun waitTimeText(seconds: Long, minuteSuffix: String): String? =
