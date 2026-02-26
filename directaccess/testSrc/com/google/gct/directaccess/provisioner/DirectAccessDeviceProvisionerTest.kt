@@ -36,11 +36,13 @@ import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
+import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.DeviceDisplayListener
 import com.android.tools.idea.streaming.core.DevicePanel
 import com.android.tools.idea.streaming.emulator.DisplayViewContainer
 import com.android.tools.idea.testing.DebugLoggerRule
 import com.android.tools.idea.testing.disposable
+import com.android.tools.idea.testing.ui.createFakeToolWindow
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -59,7 +61,6 @@ import com.google.gct.directaccess.TestUtils.showAllTemplates
 import com.google.gct.directaccess.analytics.DirectAccessUsageTracker
 import com.google.gct.directaccess.directAccessCloudProjectManager
 import com.google.gct.directaccess.rule.CleanUpNotificationRule
-import com.google.gct.directaccess.rule.FakeToolWindowRule
 import com.google.gct.directaccess.rule.PropertiesComponentRule
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginUsersRule
@@ -89,6 +90,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.openapi.ui.messages.MessageDialog
+import com.intellij.openapi.wm.ToolWindow
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.EditorNotificationPanel
@@ -123,12 +125,12 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class DirectAccessDeviceProvisionerTest {
@@ -828,7 +830,9 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
 
     // Switch the panel in RDW
-    fakeToolWindow.contentManager.addContent(mock())
+    val otherContent = mock<Content>()
+    fakeToolWindow.contentManager.addContent(otherContent)
+    fakeToolWindow.contentManager.setSelectedContent(otherContent)
 
     yieldUntil { bannerNotifications.isEmpty() }
     assertThat(getNotifications(projectRule.project).isEmpty()).isTrue()
@@ -842,7 +846,6 @@ class DirectAccessDeviceProvisionerTest {
 
     session.hostServices.disconnect(handle.connection.deviceAddress()!!)
     yieldUntil { handle.stateFlow.value is Disconnected }
-    verify(fakeToolWindow.contentManager).removeContentManagerListener(any())
   }
 
   @Test
@@ -855,7 +858,9 @@ class DirectAccessDeviceProvisionerTest {
     // Add mock content and a separate mock to simulate 2 devices with the required device
     // not visible in RDW
     fakeToolWindow.contentManager.addContent(mockContent)
-    fakeToolWindow.contentManager.addContent(mock())
+    val otherContent = mock<Content>()
+    fakeToolWindow.contentManager.addContent(otherContent)
+    fakeToolWindow.contentManager.setSelectedContent(otherContent)
 
     directAccessReservationManager.extendReservation(
       handle.reservation.name,
@@ -1526,4 +1531,13 @@ private class FakeDevicePanel(override val deviceSerialNumber: String, val banne
   override fun removeDeviceDisplayListener(listener: DeviceDisplayListener) {}
 
   override fun dispose() {}
+}
+
+private class FakeToolWindowRule(private val projectRule: ProjectRule) : ExternalResource() {
+
+  lateinit var fakeToolWindow: ToolWindow
+
+  override fun before() {
+    fakeToolWindow = createFakeToolWindow(projectRule.project, projectRule.disposable, RUNNING_DEVICES_TOOL_WINDOW_ID)
+  }
 }
