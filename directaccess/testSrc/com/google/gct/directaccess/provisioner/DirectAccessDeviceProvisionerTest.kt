@@ -95,6 +95,7 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.content.Content
+import com.intellij.ui.content.ContentFactory
 import icons.StudioIcons
 import java.time.Duration
 import java.time.ZoneId
@@ -814,10 +815,9 @@ class DirectAccessDeviceProvisionerTest {
   fun testBannerNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
-    val mockContent = setupMockContentForRunningDevicePanel(bannerNotifications)
     val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
-
-    fakeToolWindow.contentManager.addContent(mockContent)
+    val content = setupContentForRunningDevicePanel(fakeToolWindow.contentManager.factory, bannerNotifications)
+    fakeToolWindow.contentManager.addContent(content)
 
     directAccessReservationManager.extendReservation(
       handle.reservation.name,
@@ -830,7 +830,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
 
     // Switch the panel in RDW
-    val otherContent = mock<Content>()
+    val otherContent = fakeToolWindow.contentManager.factory.createContent(JPanel(), "Other Content", false)
     fakeToolWindow.contentManager.addContent(otherContent)
     fakeToolWindow.contentManager.setSelectedContent(otherContent)
 
@@ -838,7 +838,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(getNotifications(projectRule.project).isEmpty()).isTrue()
 
     // Switch to original panel in RDW
-    fakeToolWindow.contentManager.setSelectedContent(mockContent)
+    fakeToolWindow.contentManager.setSelectedContent(content)
 
     yieldUntil { bannerNotifications.isNotEmpty() }
     assertThat(bannerNotifications.size).isEqualTo(1)
@@ -852,13 +852,12 @@ class DirectAccessDeviceProvisionerTest {
   fun testBalloonNotificationForReservationExpiringNotification() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
-    val mockContent = setupMockContentForRunningDevicePanel(bannerNotifications)
     val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
+    val content = setupContentForRunningDevicePanel(fakeToolWindow.contentManager.factory, bannerNotifications)
 
-    // Add mock content and a separate mock to simulate 2 devices with the required device
-    // not visible in RDW
-    fakeToolWindow.contentManager.addContent(mockContent)
-    val otherContent = mock<Content>()
+    // Add this content and a separate content to simulate 2 devices with the required device not visible in RDW.
+    fakeToolWindow.contentManager.addContent(content)
+    val otherContent = fakeToolWindow.contentManager.factory.createContent(JPanel(), "Other Content", false)
     fakeToolWindow.contentManager.addContent(otherContent)
     fakeToolWindow.contentManager.setSelectedContent(otherContent)
 
@@ -877,10 +876,9 @@ class DirectAccessDeviceProvisionerTest {
   fun testBannerNotificationWhenRDWClosedAndReOpened() = runBlockingWithTimeout {
     val bannerNotifications = mutableListOf<EditorNotificationPanel>()
     val handle = setupReservationExpiringTest()
-    val mockContent = setupMockContentForRunningDevicePanel(bannerNotifications)
     val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
-
-    fakeToolWindow.contentManager.addContent(mockContent)
+    val content = setupContentForRunningDevicePanel(fakeToolWindow.contentManager.factory, bannerNotifications)
+    fakeToolWindow.contentManager.addContent(content)
 
     directAccessReservationManager.extendReservation(
       handle.reservation.name,
@@ -1507,11 +1505,12 @@ class DirectAccessDeviceProvisionerTest {
     return handle
   }
 
-  private fun setupMockContentForRunningDevicePanel(bannerNotificationHolder: MutableList<EditorNotificationPanel>): Content {
+  private fun setupContentForRunningDevicePanel(
+    contentFactory: ContentFactory,
+    bannerNotificationHolder: MutableList<EditorNotificationPanel>,
+  ): Content {
     val fakeDevicePanel = FakeDevicePanel("localhost:${fakeConnection.port}", bannerNotificationHolder)
-    val mockContent = mock<Content>()
-    doAnswer { fakeDevicePanel.component }.whenever(mockContent).component
-    return mockContent
+    return contentFactory.createContent(fakeDevicePanel.component, "Content", false)
   }
 }
 
