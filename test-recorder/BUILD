@@ -32,6 +32,11 @@ iml_module(
         "//tools/adt/idea/analytics",
         "@intellij//:org.jetbrains.kotlin",
         "//tools/adt/idea/testartifacts:intellij.android.testartifacts",
+        "@intellij//:intellij.java.execution",
+        "@intellij//:intellij.java.debugger.impl",
+        "@intellij//:intellij.java.debugger",
+        "@intellij//:intellij.java.impl",
+        "@intellij//:intellij.java.compiler",
     ],
 )
 
@@ -102,4 +107,5 @@ iml_module(
     test_srcs = ["testSrc"],
     test_timeout = "long",
     visibility = ["//visibility:public"],
+    deps = ["@intellij//:intellij.java.impl"],
 )
