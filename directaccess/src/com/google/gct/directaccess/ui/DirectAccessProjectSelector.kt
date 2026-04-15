@@ -94,6 +94,8 @@ class DirectAccessProjectSelectorImpl(
   }
 
   override val selectedProject = MutableStateFlow("")
+  val rawSelectedProject: String
+    get() = comboBox.selectedItem as String
 
   override val isReady = MutableStateFlow(false)
 
