@@ -225,7 +225,6 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     // Update [selectedCloudProjectName] immediately to avoid delays of creating its cloud project
     // manager.
     temporarySelectedCloudProjectName = cloudProject
-    okAction.isEnabled = true
     val service = service<DirectAccessApplicationService>()
     service.removeUnusedCloudProjectManager(temporarySelectedCloudProjectManager.value?.cloudProject)
     val user = service<GoogleLoginService>().getEmail() ?: return
@@ -258,6 +257,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       statusIcon.isVisible = true
       statusIcon.icon = AnimatedIcon.Default()
       HelpTooltip.dispose(statusIcon)
+      okAction.isEnabled = false
       parent.revalidate()
     }
     updateTemporarySelectedCloudProject(cloudProject)
@@ -280,9 +280,11 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           statusIcon.isVisible = true
           statusIcon.revalidate()
           statusIcon.repaint()
+          okAction.isEnabled = false
         } else {
           statusIcon.toolTipText = ""
           statusIcon.isVisible = false
+          okAction.isEnabled = true
         }
         parent.revalidate()
       }
