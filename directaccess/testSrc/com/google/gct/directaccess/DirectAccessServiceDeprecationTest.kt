@@ -168,7 +168,7 @@ class DirectAccessServiceDeprecationTest {
     }
 
     val updateLink = banner.findLabelByName("Update Android Studio")
-    updateLink?.doClick()
+    withContext(Dispatchers.EDT) { updateLink?.doClick() }
     findUsageEvent().let {
       assertThat(it.deprecationStatus).isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
       assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
@@ -178,7 +178,7 @@ class DirectAccessServiceDeprecationTest {
     }
 
     val moreInfoLink = banner.findLabelByName("More info")
-    moreInfoLink?.doClick()
+    withContext(Dispatchers.EDT) { moreInfoLink?.doClick() }
     findUsageEvent().let {
       assertThat(it.deprecationStatus).isEqualTo(DevServiceDeprecationInfo.DeprecationStatus.UNSUPPORTED)
       assertThat(it.deliveryType).isEqualTo(DevServiceDeprecationInfo.DeliveryType.BANNER)
@@ -288,7 +288,7 @@ class DirectAccessServiceDeprecationTest {
     assertThat(banner.background).isEqualTo(Banner.WARNING_BACKGROUND)
 
     val closeButton = banner.findDescendant<InplaceButton>() ?: fail("Close button not found")
-    closeButton.doClick()
+    withContext(Dispatchers.EDT) { closeButton.doClick() }
 
     assertThat(banner.isVisible).isFalse()
   }
