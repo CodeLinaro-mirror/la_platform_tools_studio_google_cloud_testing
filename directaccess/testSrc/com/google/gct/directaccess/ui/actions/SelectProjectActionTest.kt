@@ -616,9 +616,13 @@ class SelectProjectActionTest {
           mouseEvent,
         )
 
-      val handler = LoginFeature.feature<FirebaseLoginFeature>().handler!!
-      (handler.latestCreatedFirebaseProject as MutableStateFlow<String>).update { createdProject }
       loginUsersRule.setActiveUser("test@google.com")
+      (service<DirectAccessOnboardingService>().taskFlow as MutableStateFlow<DirectAccessOnboardingService.Task?>).update {
+        DirectAccessOnboardingService.Task(
+          CloudProjectEntry("test@google.com", createdProject),
+          DirectAccessOnboardingService.State.STARTED,
+        )
+      }
 
       val plugin = DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
       yieldUntil { mockDeviceSelectionListFlow.value.count { it.isSelected } > 0 }
@@ -652,7 +656,7 @@ class SelectProjectActionTest {
             projectList = listOf(createdProject),
           )
           (service<DirectAccessOnboardingService>().taskFlow as MutableStateFlow<DirectAccessOnboardingService.Task?>).update { task ->
-            task?.copy(isPending = false)
+            task?.copy(state = DirectAccessOnboardingService.State.API_ENABLED)
           }
 
           // The created project should be selected.

@@ -151,10 +151,10 @@ class DirectAccessDeviceProvisionerPlugin(private val scope: CoroutineScope, pri
     scope.coroutineContext.job.invokeOnCompletion { _templates.update { listOf() } }
 
     // Select project from login onboarding tasks.
-    if (StudioFlags.DIRECT_ACCESS_CREATE_PROJECT.get()) {
+    if (StudioFlags.DIRECT_ACCESS_CREATE_PROJECT.get() || StudioFlags.DIRECT_ACCESS_CREATE_PROJECT_IN_SETUP_DIALOG.get()) {
       scope.launch {
         service<DirectAccessOnboardingService>().taskFlow.filterNotNull().collect { task ->
-          if (task.isPending) {
+          if (task.state.isPending()) {
             project.service<DirectAccessService>().deviceSelectionListFlow.takeWhile { it.isEmpty() }.collect()
             project.service<DirectAccessService>().maybeApplyDefaultDevices()
           } else {
