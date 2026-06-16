@@ -441,6 +441,7 @@ class DirectAccessDeviceHandle(
     val deviceProperties = buildDirectAccessDeviceProperties {
       resolution = Resolution.readFromDevice(device)
       readCommonProperties(properties)
+      deviceType = sourceTemplate.deviceInfo.type
       // Override model and manufacturer as the info read from device
       // may be different from catalog
       manufacturer = sourceTemplate.properties.manufacturer
