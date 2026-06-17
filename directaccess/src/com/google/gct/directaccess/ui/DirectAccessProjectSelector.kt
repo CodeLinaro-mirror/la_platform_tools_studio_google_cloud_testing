@@ -37,7 +37,7 @@ import com.intellij.platform.ide.progress.ModalTaskOwner
 import com.intellij.platform.ide.progress.TaskCancellation
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.platform.util.progress.reportProgressScope
-import com.intellij.platform.util.progress.withProgressText
+import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.CollectionComboBoxModel
 import com.intellij.ui.components.AnActionLink
 import com.intellij.ui.components.JBLabel
@@ -54,6 +54,7 @@ import java.awt.Color
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JTextField
+import javax.swing.SwingConstants
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -125,18 +126,16 @@ class DirectAccessProjectSelectorImpl(
 
           runWithModalProgressBlocking(
             ModalTaskOwner.component(this@DirectAccessProjectSelectorImpl),
-            "Creating default firebase project",
+            "Creating Default Firebase Project",
             TaskCancellation.cancellable(),
           ) {
             try {
               reportProgressScope { reporter ->
                 onboardingService.start()
                 if (onboardingService.isTosNeeded()) {
-                  reporter.itemStep("Please review and accept terms of service") {
-                    withProgressText("via the opened browser...") {
-                      server.run()
-                      onboardingService.notifyTosAccepted()
-                    }
+                  reporter.itemStep("Review and accept terms via the browser...") {
+                    server.run()
+                    onboardingService.notifyTosAccepted()
                   }
                 }
               }
@@ -152,7 +151,7 @@ class DirectAccessProjectSelectorImpl(
       },
     )
 
-  private val projectCreatingLabel = JBLabel()
+  private val projectCreatingLabel = JBLabel(AnimatedIcon.Default.INSTANCE).apply { horizontalTextPosition = SwingConstants.LEADING }
 
   override val component =
     JPanel(VerticalLayout(5)).apply {
