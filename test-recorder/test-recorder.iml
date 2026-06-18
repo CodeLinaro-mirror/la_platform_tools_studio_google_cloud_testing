@@ -45,5 +45,10 @@
     <orderEntry type="module" module-name="analytics" />
     <orderEntry type="library" name="studio-plugin-org.jetbrains.kotlin" level="project" />
     <orderEntry type="module" module-name="intellij.android.testartifacts" />
+    <orderEntry type="library" name="studio-plugin-intellij.java.execution" level="project" />
+    <orderEntry type="library" name="studio-plugin-intellij.java.debugger.impl" level="project" />
+    <orderEntry type="library" name="studio-plugin-intellij.java.debugger" level="project" />
+    <orderEntry type="library" name="studio-plugin-intellij.java.impl" level="project" />
+    <orderEntry type="library" name="studio-plugin-intellij.java.compiler" level="project" />
   </component>
 </module>

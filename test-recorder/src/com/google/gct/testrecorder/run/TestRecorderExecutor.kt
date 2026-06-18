@@ -44,7 +44,7 @@ class TestRecorderExecutor(
 
   private val LOG = Logger.getInstance(this::class.java)
 
-  override fun debug(indicator: ProgressIndicator): RunContentDescriptor {
+  override fun debug(indicator: ProgressIndicator): RunContentDescriptor? {
     LOG.info("Start test recording session")
 
     val (packageName, devices) = getApplicationIdAndDevices(indicator)

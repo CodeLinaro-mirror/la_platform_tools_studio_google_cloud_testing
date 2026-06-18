@@ -23,6 +23,7 @@ import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.util.net.ssl.CertificateManager
 import com.intellij.util.net.ssl.ConfirmingTrustManager
 import io.grpc.ManagedChannel
@@ -58,7 +59,12 @@ class DirectAccessServiceSetup {
   /** Returns a list of device info that are accessible with the current login state and [cloudProject]. */
   fun getAccessibleDeviceInfoList(cloudProject: String?): List<DeviceInfo> =
     if (service<DirectAccessDeprecationState>().isServiceEnabledFlow.value) {
-      CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/", cloudProject)
+      try {
+        CatalogClient.getAvailableDevices("https://${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}/", cloudProject)
+      } catch (e: Exception) {
+        thisLogger().warn(e)
+        listOf()
+      }
     } else {
       listOf()
     }

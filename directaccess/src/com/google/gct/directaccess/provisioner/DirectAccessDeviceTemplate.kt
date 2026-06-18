@@ -142,7 +142,7 @@ class DirectAccessDeviceTemplate(
         if (reservationAvailable) {
           isCloudProjectBeingCreatedFlow.value = false
         } else {
-          if (task?.isPending == true) {
+          if (task?.state?.isPending() == true) {
             isCloudProjectBeingCreatedFlow.value = true
           }
         }

@@ -11,7 +11,6 @@ iml_module(
     test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
     # do not sort: must match IML order
     test_deps = [
-        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
         "//tools/adt/idea/.idea/libraries:mockito",
         "//tools/base/testutils:studio.android.sdktools.testutils",
         "//tools/adt/idea/.idea/libraries:truth",
@@ -24,11 +23,13 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:junit4",
         "//tools/adt/idea/.idea/libraries:kotlin-test",
         "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose.tests",
+        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
     ],
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
+        "//tools/adt/idea/project-system:intellij.android.projectSystem",
         "//tools/base/sdklib:studio.android.sdktools.sdklib",
         "@intellij//:intellij-sdk",
         "@intellij//:com.intellij.java",
@@ -43,7 +44,7 @@ iml_module(
         "//tools/base/adblib:studio.android.sdktools.adblib",
         "//tools/base/adblib-tools:studio.android.sdktools.adblib.tools",
         "//tools/vendor/google/login:google-login",
-        "//tools/analytics-library/tracker:analytics-tracker",
+        "//tools/vendor/google/login/onboarding:login.onboarding",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
         "//tools/adt/idea/.idea/libraries:google-api-client",
         "//tools/vendor/google/firebase",
@@ -56,5 +57,6 @@ iml_module(
         "@intellij//:intellij.libraries.grpc",
         "@intellij//:intellij.libraries.grpc.netty.shaded",
         "//tools/adt/idea/.idea/libraries:jetty",
+        "//tools/analytics-library/tracker:analytics-tracker",
     ],
 )

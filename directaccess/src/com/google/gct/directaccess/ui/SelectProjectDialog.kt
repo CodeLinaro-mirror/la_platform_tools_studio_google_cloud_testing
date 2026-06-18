@@ -90,6 +90,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
   private var temporarySelectedCloudProjectName: String? = null
   private val temporarySelectedCloudProjectManager = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
+  private lateinit var selector: DirectAccessProjectSelectorImpl
 
   init {
     setOKButtonText("Confirm")
@@ -182,7 +183,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       project.service<DirectAccessService>().cloudProjectManager.value?.cloudProject?.name
         ?: project.service<DirectAccessPersistentStateComponent>().selectedCloudProject
     val chooseProjectPanel = JPanel(HorizontalLayout(5))
-    val selector =
+    selector =
       DirectAccessProjectSelectorImpl(
         project,
         preferredProject,
@@ -224,7 +225,6 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     // Update [selectedCloudProjectName] immediately to avoid delays of creating its cloud project
     // manager.
     temporarySelectedCloudProjectName = cloudProject
-    okAction.isEnabled = true
     val service = service<DirectAccessApplicationService>()
     service.removeUnusedCloudProjectManager(temporarySelectedCloudProjectManager.value?.cloudProject)
     val user = service<GoogleLoginService>().getEmail() ?: return
@@ -257,6 +257,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       statusIcon.isVisible = true
       statusIcon.icon = AnimatedIcon.Default()
       HelpTooltip.dispose(statusIcon)
+      okAction.isEnabled = false
       parent.revalidate()
     }
     updateTemporarySelectedCloudProject(cloudProject)
@@ -279,9 +280,11 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           statusIcon.isVisible = true
           statusIcon.revalidate()
           statusIcon.repaint()
+          okAction.isEnabled = false
         } else {
           statusIcon.toolTipText = ""
           statusIcon.isVisible = false
+          okAction.isEnabled = true
         }
         parent.revalidate()
       }
@@ -336,7 +339,9 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
   private fun confirmSelection() {
     val directAccessService = project.service<DirectAccessService>()
-    directAccessService.selectCloudProject(temporarySelectedCloudProjectName)
+    // There's some delay in setting up the temporarySelected values, but at this point we know we definitely want what's selected
+    // in the UI--so just use that directly.
+    directAccessService.selectCloudProject(selector.rawSelectedProject)
     // Apply default devices if the selected project has a nonempty device catalog.
     if (directAccessService.cloudProjectManager.value?.accessibleDeviceInfoListFlow?.stateFlow?.value?.isNotEmpty() == true) {
       directAccessService.maybeApplyDefaultDevices()

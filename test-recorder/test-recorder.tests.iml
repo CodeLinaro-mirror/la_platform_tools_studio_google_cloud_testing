@@ -2,14 +2,15 @@
 <module type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$/testSrc">
-      <sourceFolder url="file://$MODULE_DIR$/testSrc" isTestSource="true" />
-    </content>
     <content url="file://$MODULE_DIR$/testResources">
       <sourceFolder url="file://$MODULE_DIR$/testResources" type="java-test-resource" />
     </content>
+    <content url="file://$MODULE_DIR$/testSrc">
+      <sourceFolder url="file://$MODULE_DIR$/testSrc" isTestSource="true" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="studio-plugin-intellij.java.impl" level="project" />
     <orderEntry type="library" scope="TEST" name="junit4" level="project" />
     <orderEntry type="library" scope="TEST" name="studio-sdk" level="project" />
     <orderEntry type="library" scope="TEST" name="studio-plugin-com.intellij.java" level="project" />

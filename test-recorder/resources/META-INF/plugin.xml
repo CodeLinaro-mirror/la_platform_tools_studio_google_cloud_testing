@@ -22,6 +22,14 @@
   <depends>com.android.tools.gradle.dsl</depends>
   <depends>com.intellij.java</depends>
   <depends>org.jetbrains.kotlin</depends>
+  <dependencies>
+    <module name="intellij.java.compiler"/>
+    <module name="intellij.java.execution"/>
+    <module name="intellij.java.debugger"/>
+    <module name="intellij.java.impl"/>
+    <module name="intellij.java.debugger"/>
+    <module name="intellij.java.debugger.impl"/>
+  </dependencies>
 
   <!-- This is temporary mechanism to mark certain plugins as K2-compatible. See IntelliJ commit cf213fb139 for details. -->
   <extensions defaultExtensionNs="org.jetbrains.kotlin">

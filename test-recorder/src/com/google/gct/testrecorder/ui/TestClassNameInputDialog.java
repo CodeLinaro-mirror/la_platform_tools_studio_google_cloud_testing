@@ -466,12 +466,9 @@ public class TestClassNameInputDialog extends DialogWrapper {
     if (!iterator.hasNext()) {
       iterator = mainIdeaSourceProvider.getKotlinDirectories().iterator();
     }
-    if (!iterator.hasNext()) {
-      return null;
-    }
     while (iterator.hasNext()) {
       VirtualFile sourceRoot = iterator.next();
-      if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(sourceRoot, myProject)
+      if (!isGenerated(sourceRoot)
           && sourceRoot.findFileByRelativePath(fileRelativePath) != null) {
         return sourceRoot;
       }
@@ -479,10 +476,20 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return null;
   }
 
+  private boolean isGenerated(VirtualFile file) {
+    if (ApplicationManager.getApplication().isDispatchThread()) {
+      // GeneratedSourcesFilter.isGeneratedSourceByAnyFilter requires background thread access in recent
+      // platform versions. Fall back to path-based detection on EDT to avoid threading assertions.
+      String path = file.getPath();
+      return path.contains("/build/generated/");
+    }
+    return GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(file, myProject);
+  }
+
   private List<VirtualFile> getExistingAndroidTestSourceRoots() {
     List<VirtualFile> existingAndroidTestSourceRoots = Lists.newArrayList();
     for (VirtualFile testSourceRoot : ModuleRootManager.getInstance(myTestClassModule).getSourceRoots(JavaSourceRootType.TEST_SOURCE)) {
-      if (!GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(testSourceRoot, myProject)) {
+      if (!isGenerated(testSourceRoot)) {
         TestArtifactSearchScopes searchScopes = TestArtifactSearchScopes.getInstance(myTestClassModule);
         if (searchScopes != null && searchScopes.isAndroidTestSource(testSourceRoot)) {
           existingAndroidTestSourceRoots.add(testSourceRoot);

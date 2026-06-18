@@ -319,7 +319,7 @@ class SelectProjectActionTest {
           exceptionToThrow = Status.PERMISSION_DENIED.withDescription("Not authorized for project").asRuntimeException()
           comboBox.model.selectedItem = unsupportedTestProjectWithServiceUse
           waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == unsupportedTestProjectWithServiceUse }
-          assertThat(dialog.isOKActionEnabled).isTrue()
+          waitForCondition { !dialog.isOKActionEnabled }
           var firstIconWithError: JBLabel? = null
           waitForCondition {
             firstIconWithError =
@@ -346,6 +346,7 @@ class SelectProjectActionTest {
               .getHelpToolTipText()
               .contains("Cloud Testing API is not enabled in your project $apiDisabledProject. Enable it by visiting Google Cloud console.")
           }
+          waitForCondition { !dialog.isOKActionEnabled }
 
           // Select a project without service use permission
           exceptionToThrow =
@@ -362,7 +363,8 @@ class SelectProjectActionTest {
                 "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
               )
           }
-          dialog.clickDefaultButton()
+          waitForCondition { !dialog.isOKActionEnabled }
+          dialog.doCancelAction()
         }
 
         createModalDialogAndInteractWithIt({ selectProjectAction.actionPerformed(event) }) { dialogWrapper ->
@@ -389,6 +391,7 @@ class SelectProjectActionTest {
               )
           }
           assertThat(errorLabel.icon).isEqualTo(StudioIcons.Common.ERROR)
+          waitForCondition { !dialog.isOKActionEnabled }
 
           // Select a project with a mix of permission
           comboBox.model.selectedItem = unknownPermissionTestProject
@@ -401,6 +404,7 @@ class SelectProjectActionTest {
                   permissionFlow.value.missingPermissions.joinToString("")
               )
           }
+          waitForCondition { !dialog.isOKActionEnabled }
 
           val sparkUsedMinutesLabel =
             dialog.rootPane.findAllDescendants<JBLabel>().first { usedLabel -> usedLabel.text?.endsWith(" mins used") == true }
@@ -437,10 +441,12 @@ class SelectProjectActionTest {
           // Select an invalid project that fails to fetch permissions.
           comboBox.model.selectedItem = invalidProject
           waitForCondition { errorLabel.getHelpToolTipText().contains("Unable to retrieve permission") }
+          waitForCondition { !dialog.isOKActionEnabled }
 
           // Select a blaze project that supports direct access.
           comboBox.model.selectedItem = blazeProjectName
           waitForCondition { cloudProjectManagerFlow.value?.cloudProject?.name == blazeProjectName }
+          waitForCondition { dialog.isOKActionEnabled }
           waitForCondition { planLabel.text == "Blaze Plan" }
           waitForCondition { planTooltipLabel.getHelpToolTipText().contains("Blaze plans allow extended usage and is billed monthly.") }
 
@@ -610,9 +616,13 @@ class SelectProjectActionTest {
           mouseEvent,
         )
 
-      val handler = LoginFeature.feature<FirebaseLoginFeature>().handler!!
-      (handler.latestCreatedFirebaseProject as MutableStateFlow<String>).update { createdProject }
       loginUsersRule.setActiveUser("test@google.com")
+      (service<DirectAccessOnboardingService>().taskFlow as MutableStateFlow<DirectAccessOnboardingService.Task?>).update {
+        DirectAccessOnboardingService.Task(
+          CloudProjectEntry("test@google.com", createdProject),
+          DirectAccessOnboardingService.State.STARTED,
+        )
+      }
 
       val plugin = DirectAccessDeviceProvisionerPlugin(scope.createChildScope(true), projectRule.project)
       yieldUntil { mockDeviceSelectionListFlow.value.count { it.isSelected } > 0 }
@@ -646,7 +656,7 @@ class SelectProjectActionTest {
             projectList = listOf(createdProject),
           )
           (service<DirectAccessOnboardingService>().taskFlow as MutableStateFlow<DirectAccessOnboardingService.Task?>).update { task ->
-            task?.copy(isPending = false)
+            task?.copy(state = DirectAccessOnboardingService.State.API_ENABLED)
           }
 
           // The created project should be selected.
