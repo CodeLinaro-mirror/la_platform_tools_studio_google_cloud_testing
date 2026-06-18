@@ -16,7 +16,6 @@
 package com.google.gct.directaccess
 
 import com.android.tools.idea.flags.StudioFlags
-import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
 import com.google.services.firebase.FirebaseLoginFeature
 import com.google.services.firebase.directaccess.client.CloudClient
@@ -25,21 +24,15 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.BuildNumber
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @Service
 class CloudClientService(scope: CoroutineScope) {
-  private val credentialFlow =
-    GoogleLoginService.instance.activeUserFlow.map { getCredential() }.stateIn(scope, SharingStarted.Lazily, getCredential())
-
   internal var overrideClientForTest: CloudClient? = null
-  val client = CloudClient(credentialFlow, scope)
+  val client = CloudClient({ getToken() })
     get() = overrideClientForTest ?: field
 
-  private fun getCredential() = LoginFeature.feature<FirebaseLoginFeature>().credential()
+  private fun getToken() = LoginFeature.feature<FirebaseLoginFeature>().oAuthToken()
 
   init {
     scope.launch {
