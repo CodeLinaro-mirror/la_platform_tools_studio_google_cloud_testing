@@ -246,7 +246,7 @@ class DirectAccessDeviceTemplate(
             progressReporter.indeterminateStep {
               var deviceHandle: DirectAccessDeviceHandle? = null
               try {
-                deviceHandle = createDeviceHandle(reservationName)
+                deviceHandle = createDeviceHandle(reservationName, isTransitioning = true)
                 deviceHandle.activationAction.activate()
                 return@indeterminateStep deviceHandle
               } catch (e: Exception) {
@@ -489,14 +489,14 @@ class DirectAccessDeviceTemplate(
    * Reservation corresponding to [reservationName] can be a new reservation requested by the user that is inactive, or it can be an active
    * reservation created elsewhere.
    */
-  private fun createDeviceHandle(reservationName: String): DirectAccessDeviceHandle {
+  private fun createDeviceHandle(reservationName: String, isTransitioning: Boolean = false): DirectAccessDeviceHandle {
     val deviceScope = scope.createChildScope(isSupervisor = true)
     // Notify provisioner plugin of the new device.
     return DirectAccessDeviceHandle(
         project,
         deviceScope,
         this@DirectAccessDeviceTemplate,
-        DeviceState.Disconnected(properties),
+        DeviceState.Disconnected(properties, isTransitioning = isTransitioning),
         reservationName,
       )
       .also { activeDevice = it }
