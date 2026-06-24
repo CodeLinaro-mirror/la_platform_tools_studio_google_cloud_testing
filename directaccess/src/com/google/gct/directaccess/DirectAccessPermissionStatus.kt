@@ -15,11 +15,7 @@
  */
 package com.google.gct.directaccess
 
-import com.android.annotations.concurrency.Slow
-import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsRequest
-import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsResponse
 import com.google.common.annotations.VisibleForTesting
-import com.google.services.firebase.directaccess.client.GOOGLE_USER_PROJECT_KEY
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import java.io.IOException
@@ -123,13 +119,13 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
       cloudProject: CloudProjectEntry,
       applyUserProject: Boolean,
       isDefaultApiEnabled: Boolean,
-    ): TestIamPermissionsResponse {
+    ): List<String> {
       val fullPermissionsSet = if (isDefaultApiEnabled) NEW_FULL_PERMISSIONS_SET else FULL_PERMISSIONS_SET
       return checkPermissions(fullPermissionsSet, cloudProject, applyUserProject) ?: throw IOException("Got null response")
     }
 
     fun checkDirectAccessPermission(cloudProject: CloudProjectEntry, isDefaultApiEnabled: Boolean): DirectAccessPermissionStatus {
-      val response =
+      val permissions =
         try {
           getTestIamPermissionsResponse(cloudProject, true, isDefaultApiEnabled)
         } catch (e: IOException) {
@@ -143,24 +139,11 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
             return None(FULL_PERMISSIONS_SET)
           }
       // response.permission is null if the user does not have any permissions
-      val permissions = response.permissions ?: emptyList()
       return parseFrom(permissions.toSet(), isDefaultApiEnabled)
     }
   }
 }
 
-@Slow
-internal fun checkPermissions(
-  permissions: Set<String>,
-  cloudProject: CloudProjectEntry,
-  applyUserProject: Boolean = true,
-): TestIamPermissionsResponse? {
-  val request = TestIamPermissionsRequest().apply { this.permissions = permissions.toList() }
-  return service<CloudClientService>()
-    .client
-    .cloudResourceManager
-    .projects()
-    .testIamPermissions("projects/${cloudProject.name}", request)
-    .apply { if (applyUserProject) requestHeaders[GOOGLE_USER_PROJECT_KEY] = cloudProject.name }
-    .execute()
+internal fun checkPermissions(permissions: Set<String>, cloudProject: CloudProjectEntry, applyUserProject: Boolean = true): List<String>? {
+  return service<CloudClientService>().client.testIamPermissions(cloudProject.name, permissions, applyUserProject)
 }

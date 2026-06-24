@@ -51,7 +51,6 @@
     <orderEntry type="module" module-name="firebase" />
     <orderEntry type="module" module-name="intellij.android.streaming" />
     <orderEntry type="module" module-name="intellij.android.server-flags" />
-    <orderEntry type="library" name="cloudresourcemanager" level="project" />
     <orderEntry type="module" module-name="intellij.android.device" />
     <orderEntry type="module" module-name="intellij.android.adt.ui.compose" />
     <orderEntry type="module" module-name="intellij.android.artwork-compose" />

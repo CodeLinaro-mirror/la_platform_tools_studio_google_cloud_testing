@@ -112,7 +112,7 @@ fun OemEulaDialog(labs: List<String>, project: Project): DialogWrapper =
 
 @Suppress("RedundantSuspendModifier") // "suspend" is needed in tests
 private suspend fun permissionCheck(project: CloudProjectEntry) =
-  !checkPermissions(setOf("resourcemanager.projects.update"), project)?.permissions.isNullOrEmpty()
+  !checkPermissions(setOf("resourcemanager.projects.update"), project).isNullOrEmpty()
 
 class OemEulaContent(
   private val labs: List<String>,
