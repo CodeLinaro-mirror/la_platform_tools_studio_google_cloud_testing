@@ -16,7 +16,6 @@
 package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceType
-import com.android.tools.idea.concurrency.createCoroutineScope
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.common.truth.Truth.assertThat
@@ -25,7 +24,6 @@ import com.google.gct.directaccess.TestUtils.androidDeviceCatalog
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalogWithMissingFields
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.CloudClient
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -34,7 +32,6 @@ import org.mockito.Mockito.doCallRealMethod
 import org.mockito.Mockito.spy
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 class CatalogClientTest {
@@ -47,7 +44,7 @@ class CatalogClientTest {
   }
 
   private fun setupCloudClient(deviceCatalog: AndroidDeviceCatalog) {
-    val client: CloudClient = spy(CloudClient(MutableStateFlow(mock()), projectRule.testRootDisposable.createCoroutineScope()))
+    val client: CloudClient = spy(CloudClient({ "mockToken" }))
     CloudClientService.instance().overrideClientForTest = client
     doCallRealMethod().whenever(client).getAvailableDevices(any(), any())
     // Use "doReturn" vs "whenever/thenReturn" so we don't call the real method, which will throw.

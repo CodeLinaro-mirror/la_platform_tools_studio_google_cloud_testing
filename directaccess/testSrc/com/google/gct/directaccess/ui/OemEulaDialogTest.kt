@@ -27,7 +27,6 @@ import com.android.testutils.waitForCondition
 import com.android.tools.adtui.compose.utils.StudioComposeTestRule.Companion.createStudioComposeTestRule
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.concurrency.createCoroutineScope
 import com.android.tools.idea.testing.HeadlessTaskSupportRule
 import com.android.tools.idea.testing.disposable
 import com.google.api.client.http.GenericUrl
@@ -217,8 +216,7 @@ class OemEulaDialogTest {
           .build()
 
       Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
-      CloudClientService.instance().overrideClientForTest =
-        CloudClient(MutableStateFlow(null), projectRule.disposable.createCoroutineScope(), overrideHttpTransport = transport)
+      CloudClientService.instance().overrideClientForTest = CloudClient({ null }, overrideHttpTransport = transport)
 
       val content = OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
       assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isTrue()
@@ -241,8 +239,7 @@ class OemEulaDialogTest {
           .build()
 
       Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
-      CloudClientService.instance().overrideClientForTest =
-        CloudClient(MutableStateFlow(null), projectRule.disposable.createCoroutineScope(), overrideHttpTransport = transport)
+      CloudClientService.instance().overrideClientForTest = CloudClient({ null }, overrideHttpTransport = transport)
 
       val content = OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
       assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isFalse()

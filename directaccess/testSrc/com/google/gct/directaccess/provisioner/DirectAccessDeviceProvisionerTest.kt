@@ -294,6 +294,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[2].properties.title).isEqualTo("Google Pixel 6 Pro")
     assertThat(provisioner.templates.value[2].properties.resolution).isEqualTo(Resolution(300, 400))
     assertThat(provisioner.templates.value[2].properties.density).isEqualTo(500)
+    assertThat(provisioner.templates.value[2].properties.deviceType).isEqualTo(DeviceType.HANDHELD)
     assertThat(provisioner.templates.value[2].properties.isRemote).isTrue()
     assertThat((provisioner.templates.value[2] as DirectAccessDeviceTemplate).deviceInfo.deviceAvailabilityEstimateSeconds).isEqualTo(3000)
     yieldUntil {
@@ -308,6 +309,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(provisioner.templates.value[4].properties.resolution).isEqualTo(Resolution(50, 100))
     assertThat(provisioner.templates.value[4].properties.density).isEqualTo(150)
     assertThat(provisioner.templates.value[4].properties.isRemote).isTrue()
+    assertThat(provisioner.templates.value[4].properties.deviceType).isEqualTo(DeviceType.WEAR)
 
     // Log out
     loginUsersRule.logOut("test@google.com")
@@ -363,6 +365,7 @@ class DirectAccessDeviceProvisionerTest {
     assertThat(properties.androidVersion!!.apiLevel).isEqualTo(deviceInfo.api)
     assertThat(properties.model).isEqualTo(deviceInfo.name)
     assertThat(properties.manufacturer).isEqualTo(deviceInfo.manufacturer)
+    assertThat(properties.deviceType).isEqualTo(DeviceType.HANDHELD)
 
     yieldUntil { state.value.reservation?.state == ReservationState.ACTIVE }
     assertThat(state.value.status).isEqualTo("Connecting to device...")
