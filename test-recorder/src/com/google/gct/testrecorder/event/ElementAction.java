@@ -18,7 +18,7 @@ package com.google.gct.testrecorder.event;
 import com.android.utils.Pair;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.xml.util.XmlStringUtil;
 import com.intellij.ui.JBColor;
 import org.jetbrains.annotations.NotNull;
 
@@ -97,7 +97,7 @@ public abstract class ElementAction {
 
     String className = getElementClassName();
     if (!isNullOrEmpty(className)) {
-      return getClassName(className);
+      return XmlStringUtil.escapeString(getClassName(className));
     }
 
     return "unidentified element";
@@ -115,7 +115,7 @@ public abstract class ElementAction {
   protected String getDisplayText() {
     String text = getElementText();
     if (!text.isEmpty()) {
-      return getIdAttributeDisplayPresentation("text", StringUtil.escapeStringCharacters(text));
+      return getIdAttributeDisplayPresentation("text", text);
     }
     return "";
   }
@@ -129,14 +129,18 @@ public abstract class ElementAction {
   }
 
   protected String getIdAttributeDisplayPresentation(String idAttributeKind, String idAttributeValue) {
+    return idAttributeKind + " " + wrapInStyle(XmlStringUtil.escapeString(idAttributeValue));
+  }
+
+  protected String wrapInStyle(String htmlContent) {
     final String idTextColor = !JBColor.isBright() ? "#eeeeee" : "#111111";
-    return idAttributeKind + " <span style='color: " + idTextColor + "; font-weight: bold;'>" + idAttributeValue + "</span>";
+    return "<span style='color: " + idTextColor + "; font-weight: bold;'>" + htmlContent + "</span>";
   }
 
   @NotNull
   protected String getRendererString(String displayElementAttribute) {
     String elementClassName = getElementClassName();
-    String displayElementType = isNullOrEmpty(elementClassName) ? "element" : getClassName(elementClassName);
+    String displayElementType = isNullOrEmpty(elementClassName) ? "element" : XmlStringUtil.escapeString(getClassName(elementClassName));
     return displayElementType + " with " + displayElementAttribute;
   }
 
