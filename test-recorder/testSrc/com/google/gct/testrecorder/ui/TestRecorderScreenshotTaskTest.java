@@ -18,8 +18,9 @@ package com.google.gct.testrecorder.ui;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.argThat;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,8 +62,61 @@ public class TestRecorderScreenshotTaskTest {
     ScreenshotCallback callback = mock(ScreenshotCallback.class);
 
     TestRecorderScreenshotTask task = new TestRecorderScreenshotTask(project, device, "com.example.app", callback);
+    injectMockScreenshotProvider(task);
 
-    // Bypass/mock the device screenshot extraction using a secured/stubbed ScreenshotProvider
+    task.run(new EmptyProgressIndicator());
+
+    // Verify that uiautomator dump command targets /data/local/tmp and a randomized file, and not /sdcard
+    verify(device, atLeastOnce()).executeShellCommand(
+        contains("uiautomator dump /data/local/tmp/testrecorder_ui_hierarchy_"),
+        any(),
+        anyLong(),
+        any()
+    );
+
+    // Verify that the remote file is cleaned up via rm -f
+    verify(device, atLeastOnce()).executeShellCommand(
+        contains("rm -f /data/local/tmp/testrecorder_ui_hierarchy_"),
+        any(),
+        anyLong(),
+        any()
+    );
+  }
+
+  @Test
+  public void testCleanupWhenDumpThrowsException() throws Exception {
+    Project project = mock(Project.class);
+    AdbLibService adbLibService = mock(AdbLibService.class);
+    when(project.getService(AdbLibService.class)).thenReturn(adbLibService);
+
+    IDevice device = mock(IDevice.class);
+    when(device.getSerialNumber()).thenReturn("12345678");
+    ScreenshotCallback callback = mock(ScreenshotCallback.class);
+
+    // Stub uiautomator dump command to throw an exception
+    doThrow(new RuntimeException("Dump failed"))
+        .when(device).executeShellCommand(
+            contains("uiautomator dump"),
+            any(),
+            anyLong(),
+            any()
+        );
+
+    TestRecorderScreenshotTask task = new TestRecorderScreenshotTask(project, device, "com.example.app", callback);
+    injectMockScreenshotProvider(task);
+
+    task.run(new EmptyProgressIndicator());
+
+    // Verify that the remote file is cleaned up via rm -f even though the dump failed
+    verify(device, atLeastOnce()).executeShellCommand(
+        contains("rm -f /data/local/tmp/testrecorder_ui_hierarchy_"),
+        any(),
+        anyLong(),
+        any()
+    );
+  }
+
+  private void injectMockScreenshotProvider(TestRecorderScreenshotTask task) throws Exception {
     ScreenshotProvider mockProvider = new ScreenshotProvider() {
       @Override
       public Object captureScreenshot(@NotNull Continuation<? super ScreenshotImage> continuation) {
@@ -74,7 +128,6 @@ public class TestRecorderScreenshotTaskTest {
       }
     };
 
-    // Inject our mock provider into the parent class using reflection
     Field providerField = ScreenshotTask.class.getDeclaredField("screenshotProvider");
     providerField.setAccessible(true);
     Disposable originalProvider = (Disposable) providerField.get(task);
@@ -82,23 +135,5 @@ public class TestRecorderScreenshotTaskTest {
     if (originalProvider != null) {
       Disposer.dispose(originalProvider);
     }
-
-    task.run(new EmptyProgressIndicator());
-
-    // Verify that uiautomator dump command targets /data/local/tmp and a randomized file, and not /sdcard
-    verify(device, atLeastOnce()).executeShellCommand(
-        argThat(cmd -> cmd.contains("uiautomator dump /data/local/tmp/testrecorder_ui_hierarchy_")),
-        any(),
-        anyLong(),
-        any()
-    );
-
-    // Verify that the remote file is cleaned up via rm -f
-    verify(device, atLeastOnce()).executeShellCommand(
-        argThat(cmd -> cmd.contains("rm -f /data/local/tmp/testrecorder_ui_hierarchy_")),
-        any(),
-        anyLong(),
-        any()
-    );
   }
 }

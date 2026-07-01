@@ -68,14 +68,7 @@ public class SafeUiHierarchyLoaderTest {
 
     SafeUiAutomatorModel model = SafeUiHierarchyLoader.load(file);
 
-    // If hardened, it should either fail to parse (return null) or parse but not expand the entity.
-    if (model != null) {
-      BasicTreeNode root = model.getXmlRootNode();
-      UiNode node = (UiNode) root.getChildren()[0];
-      String text = node.getAttribute("text");
-      assertThat(text).isNotEqualTo("top-secret-content");
-      // Usually it will be empty or contain the entity reference literal depending on parser settings,
-      // but the key is that it MUST NOT contain the secret content.
-    }
+    // Hardened parser should disallow DOCTYPE completely and fail to parse (returning null)
+    assertThat(model).isNull();
   }
 }

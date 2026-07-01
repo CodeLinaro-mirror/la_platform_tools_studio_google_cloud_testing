@@ -18,10 +18,10 @@ package com.google.gct.testrecorder.util;
 import com.android.uiautomator.tree.BasicTreeNode;
 import com.android.uiautomator.tree.RootWindowNode;
 import com.android.uiautomator.tree.UiNode;
-import com.android.utils.XmlUtils;
 import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -36,11 +36,17 @@ public final class SafeUiHierarchyLoader {
 
   public static SafeUiAutomatorModel load(File xmlFile) {
     try {
-      String xmlContent = new String(Files.readAllBytes(xmlFile.toPath()), StandardCharsets.UTF_8);
-      Document doc = XmlUtils.parseDocumentSilently(xmlContent, false);
-      if (doc == null) {
-        return null;
-      }
+      DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+      factory.setNamespaceAware(false);
+      factory.setValidating(false);
+      // Disable DTD/DOCTYPEs completely and configure secure processing features to prevent XXE (CWE-611)
+      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+      factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+
+      DocumentBuilder builder = factory.newDocumentBuilder();
+      Document doc = builder.parse(xmlFile);
       Element rootElement = doc.getDocumentElement();
       if (rootElement == null) {
         return null;
