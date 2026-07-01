@@ -93,6 +93,8 @@ iml_module(
         "//tools/adt/idea/android-plugin:intellij.android.plugin",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework",
         "//tools/studio/google/cloud/testing/test-recorder",
+        "//tools/adt/idea/android-adb:intellij.android.adb",
+        "//tools/adt/idea/android-adb-ui:intellij.android.adb.ui",
         "//tools/analytics-library/testing:android.sdktools.analytics-testing",
         "//tools/adt/idea/android:intellij.android.core",
         "//tools/adt/idea/execution/common:intellij.android.execution.common",

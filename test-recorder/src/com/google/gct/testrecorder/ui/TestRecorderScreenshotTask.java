@@ -27,6 +27,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
@@ -74,34 +75,40 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
     if (indicator.isCanceled()) {
       return;
     }
-    indicator.setText("Dumping UI hierarchy on the device...");
-    String uiHierarchyRemoteContainerPath = String.format("/sdcard/%s/files/testrecorder", myPackageName);
-    String uiHierarchyRemotePath = uiHierarchyRemoteContainerPath + "/ui_hierarchy.xml";
+    String uiHierarchyRemotePath = "/data/local/tmp/testrecorder_ui_hierarchy_" + UUID.randomUUID() + ".xml";
     try {
-      myDevice.executeShellCommand("mkdir -p " + uiHierarchyRemoteContainerPath, new CollectingOutputReceiver(), 3, TimeUnit.SECONDS);
-      IS_UI_HIERARCHY_DUMPING = true;
-      myDevice.executeShellCommand("uiautomator dump " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 10, TimeUnit.SECONDS);
-      IS_UI_HIERARCHY_DUMPING = false;
-    } catch (Exception e) {
-      showErrorMessage("Could not dump UI hierarchy on the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
-      return;
-    }
+      indicator.setText("Dumping UI hierarchy on the device...");
+      try {
+        IS_UI_HIERARCHY_DUMPING = true;
+        myDevice.executeShellCommand("uiautomator dump " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 10, TimeUnit.SECONDS);
+      } catch (Exception e) {
+        showErrorMessage("Could not dump UI hierarchy on the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
+        return;
+      } finally {
+        IS_UI_HIERARCHY_DUMPING = false;
+      }
 
-    if (indicator.isCanceled()) {
-      return;
-    }
-    indicator.setText("Pulling UI hierarchy from the device...");
-    try {
-      myDevice.pullFile(uiHierarchyRemotePath, myUiHierarchyLocalFile.getAbsolutePath());
-    } catch (Exception e) {
-      showErrorMessage("Could not pull UI hierarchy file from the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
-      return;
-    }
+      if (indicator.isCanceled()) {
+        return;
+      }
+      indicator.setText("Pulling UI hierarchy from the device...");
+      try {
+        myDevice.pullFile(uiHierarchyRemotePath, myUiHierarchyLocalFile.getAbsolutePath());
+      } catch (Exception e) {
+        showErrorMessage("Could not pull UI hierarchy file from the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
+        return;
+      }
 
-    if (indicator.isCanceled()) {
-      return;
+      if (indicator.isCanceled()) {
+        return;
+      }
+      success = true;
+    } finally {
+      try {
+        myDevice.executeShellCommand("rm -f " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 2, TimeUnit.SECONDS);
+      } catch (Exception ignored) {
+      }
     }
-    success = true;
   }
 
   private void showErrorMessage(@NotNull String errorMessage, @NotNull String title) {
