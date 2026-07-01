@@ -16,11 +16,11 @@
 
 package com.google.gct.testrecorder.ui;
 
-import com.android.uiautomator.UiAutomatorModel;
+import com.google.gct.testrecorder.util.SafeUiAutomatorModel;
 
 import java.awt.image.BufferedImage;
 
 public interface ScreenshotCallback {
 
-  void onSuccess(BufferedImage image, UiAutomatorModel model);
+  void onSuccess(BufferedImage image, SafeUiAutomatorModel model);
 }

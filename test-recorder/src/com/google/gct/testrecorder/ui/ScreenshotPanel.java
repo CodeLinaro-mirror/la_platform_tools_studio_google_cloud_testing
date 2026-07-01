@@ -15,7 +15,7 @@
  */
 package com.google.gct.testrecorder.ui;
 
-import com.android.uiautomator.UiAutomatorModel;
+import com.google.gct.testrecorder.util.SafeUiAutomatorModel;
 import com.android.uiautomator.tree.BasicTreeNode;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,7 +30,7 @@ public class ScreenshotPanel extends JPanel {
 
   private RecordingDialog myParent;
   private BufferedImage myImage;
-  private UiAutomatorModel myModel;
+  private SafeUiAutomatorModel myModel;
 
   private Dimension myCanvasSize;
   private Dimension myImageSize;
@@ -195,7 +195,7 @@ public class ScreenshotPanel extends JPanel {
   }
 
   // Update screenshot and UI hierarchy, and refresh screenshot panel
-  public void updateScreenShot(BufferedImage image, UiAutomatorModel model) {
+  public void updateScreenShot(BufferedImage image, SafeUiAutomatorModel model) {
     myImage = image;
     myModel = model;
 
@@ -218,7 +218,7 @@ public class ScreenshotPanel extends JPanel {
   }
 
   // Get UI hierarchy model
-  public UiAutomatorModel getModel() {
+  public SafeUiAutomatorModel getModel() {
     return myModel;
   }
 }

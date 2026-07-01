@@ -20,7 +20,8 @@ import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.ui.screenshot.ScreenshotImage;
 import com.android.tools.idea.ui.screenshot.ShellCommandScreenshotProvider;
-import com.android.uiautomator.UiAutomatorModel;
+import com.google.gct.testrecorder.util.SafeUiHierarchyLoader;
+import com.google.gct.testrecorder.util.SafeUiAutomatorModel;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -112,7 +113,7 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
     if (success) {
       ScreenshotImage screenshotImage = getScreenshot();
       BufferedImage image = screenshotImage == null ? null : screenshotImage.getImage();
-      myCallback.onSuccess(image, new UiAutomatorModel(myUiHierarchyLocalFile));
+      myCallback.onSuccess(image, SafeUiHierarchyLoader.load(myUiHierarchyLocalFile));
     }
   }
 }

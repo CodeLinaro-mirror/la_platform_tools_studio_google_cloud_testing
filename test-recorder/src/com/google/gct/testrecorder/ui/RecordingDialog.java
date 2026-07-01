@@ -209,9 +209,17 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     myAddAssertionButton.addActionListener(
       actionEvent -> new TestRecorderScreenshotTask(myProject, myDevice, myPackageName, (initialImage, model) -> {
+        if (model == null) {
+          Messages.showErrorDialog(myProject, "Failed to load UI hierarchy from device.", "Error");
+          return;
+        }
         myAssertionMode = true;
         getRootPane().setDefaultButton(mySaveAssertionAndAddAnotherButton);
         BasicTreeNode root = model.getXmlRootNode();
+        if (root == null) {
+          Messages.showErrorDialog(myProject, "Failed to parse UI hierarchy from device.", "Error");
+          return;
+        }
         String applicationId = getApplicationId(myFacet, "");
         if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
           Messages.showMessageDialog(myRootPanel, "Out-of-app assertions are not supported and will break the generated Espresso test.",
