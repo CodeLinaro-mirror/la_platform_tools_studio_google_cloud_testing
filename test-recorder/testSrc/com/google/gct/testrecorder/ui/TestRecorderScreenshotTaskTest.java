@@ -26,15 +26,18 @@ import static org.mockito.Mockito.when;
 
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.adblib.AdbLibService;
+import com.android.tools.idea.testing.AndroidProjectRule;
 import com.android.tools.idea.ui.screenshot.ScreenshotImage;
 import com.android.tools.idea.ui.screenshot.ScreenshotProvider;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.progress.EmptyProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.testFramework.ServiceContainerUtil;
 import java.lang.reflect.Field;
 import kotlin.coroutines.Continuation;
 import org.jetbrains.annotations.NotNull;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -42,11 +45,16 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class TestRecorderScreenshotTaskTest {
 
+  @Rule
+  public AndroidProjectRule projectRule = AndroidProjectRule.inMemory();
+
   @Test
   public void testPathHardeningAndCleanup() throws Exception {
-    Project project = mock(Project.class);
-    AdbLibService adbLibService = mock(AdbLibService.class);
-    when(project.getService(AdbLibService.class)).thenReturn(adbLibService);
+    Project project = projectRule.getProject();
+
+    // Mock and register AdbLibService which is required by ShellCommandScreenshotProvider
+    AdbLibService mockAdbLibService = mock(AdbLibService.class);
+    ServiceContainerUtil.registerServiceInstance(project, AdbLibService.class, mockAdbLibService);
 
     IDevice device = mock(IDevice.class);
     when(device.getSerialNumber()).thenReturn("12345678");
