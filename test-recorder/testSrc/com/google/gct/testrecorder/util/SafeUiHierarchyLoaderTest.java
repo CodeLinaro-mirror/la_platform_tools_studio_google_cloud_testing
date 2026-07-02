@@ -67,7 +67,7 @@ public class SafeUiHierarchyLoaderTest {
     Files.write(file.toPath(), xml.getBytes(StandardCharsets.UTF_8));
 
     SafeUiAutomatorModel model = SafeUiHierarchyLoader.load(file);
-    
+
     // If hardened, it should either fail to parse (return null) or parse but not expand the entity.
     if (model != null) {
       BasicTreeNode root = model.getXmlRootNode();
