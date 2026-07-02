@@ -76,8 +76,7 @@ class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, priva
     get() {
       val endpoint = "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}"
       val serviceFilter = StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
-      val project = "projects/${cloudProject.name}"
-      return service<CloudClientService>().client.getQuotaUsageAndLimit(endpoint, serviceFilter, project)
+      return service<CloudClientService>().client.getQuotaUsageAndLimit(endpoint, serviceFilter, cloudProject.name)
     }
 
   val reservationManager: DirectAccessReservationManager =

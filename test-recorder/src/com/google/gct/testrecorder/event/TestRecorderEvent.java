@@ -18,6 +18,8 @@ package com.google.gct.testrecorder.event;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.util.containers.ContainerUtil;
+import com.intellij.xml.util.XmlStringUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
@@ -182,7 +184,8 @@ public class TestRecorderEvent extends ElementAction {
   @Override
   public String getRendererString() {
     if (isPermissionsRequest()) {
-      return getIdAttributeDisplayPresentation("", StringUtil.join(requestedPermissions, "<br>"));
+      String escapedAndJoined = StringUtil.join(ContainerUtil.map(requestedPermissions, XmlStringUtil::escapeString), "<br>");
+      return " " + wrapInStyle(escapedAndJoined);
     }
 
     if (isDelayedMessagePost()) {

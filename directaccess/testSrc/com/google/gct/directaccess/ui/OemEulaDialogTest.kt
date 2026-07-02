@@ -29,12 +29,6 @@ import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.testing.HeadlessTaskSupportRule
 import com.android.tools.idea.testing.disposable
-import com.google.api.client.http.GenericUrl
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.testing.http.MockHttpTransport
-import com.google.api.client.testing.http.MockLowLevelHttpResponse
-import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsRequest
-import com.google.api.services.cloudresourcemanager.v3.model.TestIamPermissionsResponse
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.CloudProjectEntry
@@ -42,6 +36,8 @@ import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gson.Gson
 import com.google.services.firebase.directaccess.client.CloudClient
+import com.google.services.firebase.directaccess.client.api.TestIamPermissionsRequest
+import com.google.services.firebase.directaccess.client.api.TestIamPermissionsResponse
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEventKt.oemLabDialogDetails
 import com.google.wireless.android.sdk.stats.directAccessUsageEvent
@@ -53,6 +49,9 @@ import com.intellij.testFramework.RuleChain
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import kotlin.time.Duration.Companion.seconds
@@ -65,7 +64,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @Suppress("UnstableApiUsage")
@@ -164,12 +165,11 @@ class OemEulaDialogTest {
       // Wait for the link to be clicked, then generate the callback
       whenever(browserLauncher.browse(any<URI>())).thenAnswer { invocation ->
         val port = invocation.getArgument<URI>(0).path.substringAfter("localPort=").substringBefore(";")
-        NetHttpTransport()
-          .createRequestFactory()
-          .buildGetRequest(GenericUrl("http://localhost:$port/CALLBACK_Cloud_PartnerLab"))
-          .setReadTimeout(100_000)
-          .setThrowExceptionOnExecuteError(true)
-          .execute()
+        HttpClient.newHttpClient()
+          .send(
+            HttpRequest.newBuilder().uri(URI.create("http://localhost:$port/CALLBACK_Cloud_PartnerLab")).build(),
+            HttpResponse.BodyHandlers.discarding(),
+          )
         Disposer.dispose(disposable)
       }
       ApplicationManager.getApplication().replaceService(BrowserLauncher::class.java, browserLauncher, projectRule.disposable)
@@ -204,50 +204,63 @@ class OemEulaDialogTest {
   @Test
   fun testPermissionCheckCall_hasPermission() =
     runTest(timeout = 10.seconds) {
-      val transport =
-        MockHttpTransport.Builder()
-          .apply {
-            setLowLevelHttpResponse(
-              MockLowLevelHttpResponse().apply {
-                setContent(Gson().toJson(TestIamPermissionsResponse().apply { permissions = listOf("resourcemanager.projects.update") }))
-              }
-            )
-          }
-          .build()
-
-      Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
-      CloudClientService.instance().overrideClientForTest = CloudClient({ null }, overrideHttpTransport = transport)
+      val permissions = listOf("resourcemanager.projects.update")
+      val mockHttpClient: HttpClient = mockClient(permissions)
 
       val content = OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
       assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isTrue()
-      val request = Gson().fromJson(transport.lowLevelHttpRequest.contentAsString, TestIamPermissionsRequest::class.java)
-      assertThat(request.permissions).isEqualTo(listOf("resourcemanager.projects.update"))
-      assertThat(transport.lowLevelHttpRequest.url)
-        .isEqualTo("https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions")
+
+      val requestCaptor = argumentCaptor<HttpRequest>()
+      verify(mockHttpClient).send(requestCaptor.capture(), any<HttpResponse.BodyHandler<String>>())
+      val request = requestCaptor.firstValue
+
+      val requestBody = Gson().fromJson(getRequestBody(request), TestIamPermissionsRequest::class.java)
+      assertThat(requestBody.permissions).isEqualTo(permissions)
+      assertThat(request.uri().toString()).isEqualTo("https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions")
     }
 
   @Test
   fun testPermissionCheckCall_noPermission() =
     runTest(timeout = 10.seconds) {
-      val transport =
-        MockHttpTransport.Builder()
-          .apply {
-            setLowLevelHttpResponse(
-              MockLowLevelHttpResponse().apply { setContent(Gson().toJson(TestIamPermissionsResponse().apply { permissions = listOf() })) }
-            )
-          }
-          .build()
-
-      Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
-      CloudClientService.instance().overrideClientForTest = CloudClient({ null }, overrideHttpTransport = transport)
-
+      mockClient(listOf())
       val content = OemEulaContent(listOf("myLab", "myLab2"), projectRule.disposable, projectRule.project)
       assertThat(content.permissionChecker(CloudProjectEntry("myUser", "myProject"))).isFalse()
-      val request = Gson().fromJson(transport.lowLevelHttpRequest.contentAsString, TestIamPermissionsRequest::class.java)
-      assertThat(request.permissions).isEqualTo(listOf("resourcemanager.projects.update"))
-      assertThat(transport.lowLevelHttpRequest.url)
-        .isEqualTo("https://cloudresourcemanager.googleapis.com/v3/projects/myProject:testIamPermissions")
     }
+
+  private fun mockClient(permissions: List<String>): HttpClient {
+    val mockHttpClient: HttpClient = mock()
+    val mockResponse: HttpResponse<String> = mock()
+    whenever(mockResponse.statusCode()).thenReturn(200)
+    whenever(mockResponse.body()).thenReturn(Gson().toJson(TestIamPermissionsResponse(permissions)))
+    whenever(mockHttpClient.send(any(), any<HttpResponse.BodyHandler<String>>())).thenReturn(mockResponse)
+
+    Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
+    CloudClientService.instance().overrideClientForTest = CloudClient({ "faketoken" }, httpClient = mockHttpClient)
+    return mockHttpClient
+  }
+
+  private fun getRequestBody(request: HttpRequest): String {
+    val publisher = request.bodyPublisher().orElse(null) ?: return ""
+    val byteArrayOutputStream = java.io.ByteArrayOutputStream()
+    publisher.subscribe(
+      object : java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer> {
+        override fun onSubscribe(subscription: java.util.concurrent.Flow.Subscription) {
+          subscription.request(Long.MAX_VALUE)
+        }
+
+        override fun onNext(item: java.nio.ByteBuffer) {
+          val bytes = ByteArray(item.remaining())
+          item.get(bytes)
+          byteArrayOutputStream.write(bytes)
+        }
+
+        override fun onError(throwable: Throwable) {}
+
+        override fun onComplete() {}
+      }
+    )
+    return byteArrayOutputStream.toString("UTF-8")
+  }
 
   @Test
   @RunsInEdt

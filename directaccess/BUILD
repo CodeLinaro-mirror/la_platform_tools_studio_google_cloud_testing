@@ -50,7 +50,6 @@ iml_module(
         "//tools/vendor/google/firebase",
         "//tools/adt/idea/streaming:intellij.android.streaming",
         "//tools/adt/idea/server-flags:intellij.android.server-flags",
-        "//tools/adt/idea/.idea/libraries:cloudresourcemanager",
         "//tools/adt/idea/intellij.android.device",
         "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose",
         "//tools/adt/idea/artwork-compose:intellij.android.artwork-compose",

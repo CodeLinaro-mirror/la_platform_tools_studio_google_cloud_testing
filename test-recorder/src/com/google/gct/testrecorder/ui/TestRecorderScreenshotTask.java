@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,35 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.gct.testrecorder.ui;
 
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.ui.screenshot.ScreenshotImage;
 import com.android.tools.idea.ui.screenshot.ShellCommandScreenshotProvider;
-import com.android.uiautomator.UiAutomatorModel;
+import com.google.gct.testrecorder.util.SafeUiHierarchyLoader;
+import com.google.gct.testrecorder.util.SafeUiAutomatorModel;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
 
 public class TestRecorderScreenshotTask extends ScreenshotTask {
-  public static volatile boolean IS_UI_HIERARCHY_DUMPING = false;
-  private static final String UI_HIERARCHY_FAILURE_DIALOG_TITLE = "Failed to get UI hierarchy";
-
-  private final Project myProject;
+  private static final String UI_HIERARCHY_FAILURE_DIALOG_TITLE = "UI Hierarchy Dump Failure";
   private final IDevice myDevice;
   private final String myPackageName;
   private final ScreenshotCallback myCallback;
+  private final Project myProject;
   private File myUiHierarchyLocalFile;
-  private boolean success = false;
+  private boolean success;
 
-  public TestRecorderScreenshotTask(Project project, IDevice device, String packageName, ScreenshotCallback callback) {
+  public static volatile boolean IS_UI_HIERARCHY_DUMPING = false;
+
+  public TestRecorderScreenshotTask(@NotNull Project project, @NotNull IDevice device, @NotNull String packageName,
+                                    @NotNull ScreenshotCallback callback) {
     super(project, new ShellCommandScreenshotProvider(project, device.getSerialNumber()));
     myProject = project;
     myDevice = device;
@@ -61,6 +63,7 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
     if (indicator.isCanceled()) {
       return;
     }
+
     indicator.setText("Creating temporary file for UI hierarchy...");
     try {
       myUiHierarchyLocalFile = File.createTempFile("ui_hierarchy", ".xml");
@@ -73,34 +76,41 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
     if (indicator.isCanceled()) {
       return;
     }
-    indicator.setText("Dumping UI hierarchy on the device...");
-    String uiHierarchyRemoteContainerPath = String.format("/sdcard/%s/files/testrecorder", myPackageName);
-    String uiHierarchyRemotePath = uiHierarchyRemoteContainerPath + "/ui_hierarchy.xml";
-    try {
-      myDevice.executeShellCommand("mkdir -p " + uiHierarchyRemoteContainerPath, new CollectingOutputReceiver(), 3, TimeUnit.SECONDS);
-      IS_UI_HIERARCHY_DUMPING = true;
-      myDevice.executeShellCommand("uiautomator dump " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 10, TimeUnit.SECONDS);
-      IS_UI_HIERARCHY_DUMPING = false;
-    } catch (Exception e) {
-      showErrorMessage("Could not dump UI hierarchy on the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
-      return;
-    }
 
-    if (indicator.isCanceled()) {
-      return;
-    }
-    indicator.setText("Pulling UI hierarchy from the device...");
+    String uiHierarchyRemotePath = "/data/local/tmp/testrecorder_ui_hierarchy_" + UUID.randomUUID() + ".xml";
     try {
-      myDevice.pullFile(uiHierarchyRemotePath, myUiHierarchyLocalFile.getAbsolutePath());
-    } catch (Exception e) {
-      showErrorMessage("Could not pull UI hierarchy file from the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
-      return;
-    }
+      indicator.setText("Dumping UI hierarchy on the device...");
+      try {
+        IS_UI_HIERARCHY_DUMPING = true;
+        myDevice.executeShellCommand("uiautomator dump " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 10, TimeUnit.SECONDS);
+      } catch (Exception e) {
+        showErrorMessage("Could not dump UI hierarchy on the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
+        return;
+      } finally {
+        IS_UI_HIERARCHY_DUMPING = false;
+      }
 
-    if (indicator.isCanceled()) {
-      return;
+      if (indicator.isCanceled()) {
+        return;
+      }
+      indicator.setText("Pulling UI hierarchy from the device...");
+      try {
+        myDevice.pullFile(uiHierarchyRemotePath, myUiHierarchyLocalFile.getAbsolutePath());
+      } catch (Exception e) {
+        showErrorMessage("Could not pull UI hierarchy file from the device: " + e.getMessage(), UI_HIERARCHY_FAILURE_DIALOG_TITLE);
+        return;
+      }
+
+      if (indicator.isCanceled()) {
+        return;
+      }
+      success = true;
+    } finally {
+      try {
+        myDevice.executeShellCommand("rm -f " + uiHierarchyRemotePath, new CollectingOutputReceiver(), 2, TimeUnit.SECONDS);
+      } catch (Exception ignored) {
+      }
     }
-    success = true;
   }
 
   private void showErrorMessage(@NotNull String errorMessage, @NotNull String title) {
@@ -112,7 +122,7 @@ public class TestRecorderScreenshotTask extends ScreenshotTask {
     if (success) {
       ScreenshotImage screenshotImage = getScreenshot();
       BufferedImage image = screenshotImage == null ? null : screenshotImage.getImage();
-      myCallback.onSuccess(image, new UiAutomatorModel(myUiHierarchyLocalFile));
+      myCallback.onSuccess(image, SafeUiHierarchyLoader.load(myUiHierarchyLocalFile));
     }
   }
 }

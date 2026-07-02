@@ -66,6 +66,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.xml.util.XmlStringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.psi.PsiDirectory;
@@ -208,9 +209,17 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
 
     myAddAssertionButton.addActionListener(
       actionEvent -> new TestRecorderScreenshotTask(myProject, myDevice, myPackageName, (initialImage, model) -> {
+        if (model == null) {
+          Messages.showErrorDialog(myProject, "Failed to load UI hierarchy from device.", "Error");
+          return;
+        }
         myAssertionMode = true;
         getRootPane().setDefaultButton(mySaveAssertionAndAddAnotherButton);
         BasicTreeNode root = model.getXmlRootNode();
+        if (root == null) {
+          Messages.showErrorDialog(myProject, "Failed to parse UI hierarchy from device.", "Error");
+          return;
+        }
         String applicationId = getApplicationId(myFacet, "");
         if (!applicationId.isEmpty() && !applicationId.equals(getAppPackageName(root))) {
           Messages.showMessageDialog(myRootPanel, "Out-of-app assertions are not supported and will break the generated Espresso test.",
@@ -302,7 +311,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
           }
           String resourceId = getResourceId(node);
           String nodeString = resourceId.isEmpty() ? getClassName(node) : resourceId;
-          return super.getListCellRendererComponent(list, prefix + nodeString, index, isSelected, cellHasFocus);
+          return super.getListCellRendererComponent(list, prefix + XmlStringUtil.escapeString(nodeString), index, isSelected, cellHasFocus);
         }
         else {
           // non UI element
