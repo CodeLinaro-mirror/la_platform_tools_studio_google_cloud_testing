@@ -62,6 +62,9 @@ import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
 import com.intellij.openapi.fileChooser.ex.FileSaverDialogImpl;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
@@ -583,7 +586,32 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     if (myIsRecordingTest) {
       // Show the test class name input dialog before (potentially) setting up Espresso dependencies,
       // which might confuse Gradle about the location of android tests.
-      TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet.getModule(), myLaunchedActivityName);
+
+      TestClassNameInputDialog.EnvironmentResult environment =
+        ProgressManager.getInstance().run(new Task.WithResult<TestClassNameInputDialog.EnvironmentResult, RuntimeException>(myProject, "Detecting test environment", true) {
+          @Override
+          protected TestClassNameInputDialog.EnvironmentResult compute(@NotNull ProgressIndicator indicator) {
+            return TestClassNameInputDialog.performEnvironmentDetection(myFacet.getModule(), myLaunchedActivityName);
+          }
+        });
+
+      if (environment == null) {
+        Messages.showErrorDialog(myProject, "Could not detect or create the test source directory!", "Error");
+        return;
+      }
+
+      VirtualFile testSourceDirectory = environment.testSourceDirectory;
+      if (testSourceDirectory == null && environment.directoryToCreateParent != null) {
+        testSourceDirectory = TestClassNameInputDialog.getOrCreateSubdirectoryOnEDT(
+          environment.directoryToCreateParent, environment.subdirectoriesToCreate, true);
+      }
+
+      if (testSourceDirectory == null) {
+        Messages.showErrorDialog(myProject, "Could not detect or create the test source directory!", "Error");
+        return;
+      }
+
+      TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet.getModule(), myLaunchedActivityName, testSourceDirectory, environment.defaultLanguageIndex);
       if (!chooser.showAndGet()) {
         return;
       }
