@@ -71,4 +71,14 @@ public class SafeUiHierarchyLoaderTest {
     // Hardened parser should disallow DOCTYPE completely and fail to parse (returning null)
     assertThat(model).isNull();
   }
+
+  @Test
+  public void testLoadMalformedXml() throws Exception {
+    String xml = "This is not XML";
+    File file = temporaryFolder.newFile("bad.xml");
+    Files.write(file.toPath(), xml.getBytes(StandardCharsets.UTF_8));
+
+    SafeUiAutomatorModel model = SafeUiHierarchyLoader.load(file);
+    assertThat(model).isNull();
+  }
 }
