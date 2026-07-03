@@ -19,14 +19,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.android.tools.idea.testing.AndroidProjectRule;
 import com.google.gct.testrecorder.util.UiAutomatorNodeHelper;
-import com.intellij.openapi.ui.TestDialog;
-import com.intellij.openapi.ui.TestDialogManager;
-import java.util.concurrent.CountDownLatch;
-import java.lang.reflect.InvocationTargetException;
-import javax.swing.SwingUtilities;
-import org.jetbrains.android.facet.AndroidFacet;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
