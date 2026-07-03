@@ -94,6 +94,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 import java.util.concurrent.CountDownLatch;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
@@ -300,28 +302,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
     });
 
-    myAssertionElementComboBox.setRenderer(new DefaultListCellRenderer() {
-      @Override
-      public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-        if (value instanceof BasicTreeNode) {
-          BasicTreeNode node = (BasicTreeNode)value;
-          // Add indent.
-          int indent = myNodeIndentMap.get(node);
-          String prefix = StringUtil.repeat("  ", indent);
-          // No indent for selected element.
-          if (index == -1) {
-            prefix = "";
-          }
-          String resourceId = getResourceId(node);
-          String nodeString = resourceId.isEmpty() ? getClassName(node) : resourceId;
-          return super.getListCellRendererComponent(list, prefix + XmlStringUtil.escapeString(nodeString), index, isSelected, cellHasFocus);
-        }
-        else {
-          // non UI element
-          return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-        }
-      }
-    });
+    myAssertionElementComboBox.setRenderer(new AssertionElementRenderer(() -> myNodeIndentMap));
 
     myAssertionRuleComboBox.addItemListener(itemEvent -> {
       Object selectedItem = myAssertionRuleComboBox.getSelectedItem();
@@ -829,5 +810,36 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       // Scroll action list so that the last action is visible.
       myActionList.ensureIndexIsVisible(myActionList.getItemsCount() - 1);
     });
+  }
+
+  @VisibleForTesting
+  static class AssertionElementRenderer extends DefaultListCellRenderer {
+    private final Supplier<Map<BasicTreeNode, Integer>> nodeIndentMapSupplier;
+
+    AssertionElementRenderer(Supplier<Map<BasicTreeNode, Integer>> nodeIndentMapSupplier) {
+      this.nodeIndentMapSupplier = nodeIndentMapSupplier;
+    }
+
+    @Override
+    public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+      if (value instanceof BasicTreeNode) {
+        BasicTreeNode node = (BasicTreeNode)value;
+        // Add indent.
+        Map<BasicTreeNode, Integer> nodeIndentMap = nodeIndentMapSupplier.get();
+        Integer indent = nodeIndentMap == null ? null : nodeIndentMap.get(node);
+        String prefix = StringUtil.repeat("  ", indent == null ? 0 : indent);
+        // No indent for selected element.
+        if (index == -1) {
+          prefix = "";
+        }
+        String resourceId = getResourceId(node);
+        String nodeString = resourceId.isEmpty() ? getClassName(node) : resourceId;
+        return super.getListCellRendererComponent(list, prefix + XmlStringUtil.escapeString(nodeString), index, isSelected, cellHasFocus);
+      }
+      else {
+        // non UI element
+        return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+      }
+    }
   }
 }
