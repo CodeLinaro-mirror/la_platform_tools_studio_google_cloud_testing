@@ -31,11 +31,11 @@ import com.android.tools.idea.deviceprovisioner.NotificationBannersExtension
 import com.android.tools.idea.gservices.DevServicesDeprecationData
 import com.android.tools.idea.gservices.DevServicesDeprecationStatus
 import com.android.tools.idea.testing.disposable
-import com.google.api.services.testing.model.AndroidModel
-import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.ui.actions.SelectProjectAction
+import com.google.services.firebase.directaccess.client.api.AndroidModel
+import com.google.services.firebase.directaccess.client.api.PerAndroidVersionInfo
 import com.google.wireless.android.sdk.stats.DevServiceDeprecationInfo
 import com.google.wireless.android.sdk.stats.DirectAccessUsageEvent.DirectAccessUsageEventType
 import com.intellij.icons.AllIcons

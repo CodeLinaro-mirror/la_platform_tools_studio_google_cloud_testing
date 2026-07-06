@@ -17,13 +17,14 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.tools.idea.adddevicedialog.FormFactors
-import com.google.api.services.testing.model.AndroidModel
-import com.google.api.services.testing.model.LabInfo
-import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.gct.directaccess.CloudClientService
+import com.google.services.firebase.directaccess.client.api.AndroidModel
+import com.google.services.firebase.directaccess.client.api.LabInfo
+import com.google.services.firebase.directaccess.client.api.PerAndroidVersionInfo
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.util.text.nullize
+import kotlin.reflect.KMutableProperty0
 
 object CatalogClient {
 
@@ -36,7 +37,29 @@ object CatalogClient {
     }
 
   private fun AndroidModel.createDeviceInfo(perVersionInfo: PerAndroidVersionInfo): DeviceInfo? {
-    if (isAnyCriticalDeviceInfoValueNull()) return null
+    fun <T> getOrLog(field: KMutableProperty0<T?>): T? {
+      return field.get()
+        ?: run {
+          logger.warn("${field.name} is null for $this")
+          return null
+        }
+    }
+
+    val id = getOrLog(::id) ?: return null
+    val brand = getOrLog(::brand) ?: return null
+    val name = getOrLog(::name) ?: return null
+    val manufacturer = getOrLog(::manufacturer) ?: return null
+    val codename = getOrLog(::codename) ?: return null
+    val screenX = getOrLog(::screenX) ?: return null
+    val screenY = getOrLog(::screenY) ?: return null
+    val screenDensity = getOrLog(::screenDensity) ?: return null
+    val versionId =
+      perVersionInfo.versionId?.toIntOrNull()
+        ?: run {
+          logger.warn("versionId is null or invalid for $this")
+          return null
+        }
+
     val type =
       when (formFactor) {
         // TODO(b/258705520) Move "TABLET" to a separate branch when DeviceType supports
@@ -62,7 +85,7 @@ object CatalogClient {
         "XR" -> FormFactors.XR
         else -> FormFactors.PHONE
       }
-    val deviceAvailabilityEstimateSeconds = perVersionInfo.interactiveDeviceAvailabilityEstimate?.substringBefore("s")?.toLong()
+    val deviceAvailabilityEstimateSeconds = perVersionInfo.interactiveDeviceAvailabilityEstimate?.substringBefore("s")?.toLongOrNull()
     return DeviceInfo(
       id,
       brand,
@@ -74,7 +97,7 @@ object CatalogClient {
         },
       manufacturer,
       codename,
-      perVersionInfo.versionId.toInt(),
+      versionId,
       type,
       provisionerFormFactor,
       screenX,
@@ -92,27 +115,5 @@ object CatalogClient {
     return (this?.name?.nullize(true) ?: "Google") // Fallback here means google owned labs (i.e. Direct Access).
       .lowercase()
       .replace(Regex("[ -]"), "_")
-  }
-
-  private fun AndroidModel.isAnyCriticalDeviceInfoValueNull(): Boolean {
-    val nullValue =
-      when {
-        id == null -> "id"
-        brand == null -> "brand"
-        name == null -> "name"
-        manufacturer == null -> "manufacturer"
-        codename == null -> "codename"
-        screenX == null -> "screenX"
-        screenY == null -> "screenY"
-        screenDensity == null -> "screenDensity"
-        else -> null
-      }
-
-    return if (nullValue == null) {
-      false
-    } else {
-      logger.warn("$nullValue is null for $this")
-      true
-    }
   }
 }

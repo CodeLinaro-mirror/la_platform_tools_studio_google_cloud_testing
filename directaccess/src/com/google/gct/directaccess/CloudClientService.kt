@@ -47,11 +47,12 @@ class CloudClientService(scope: CoroutineScope) {
     client
       .getAvailableDevices(endpoint, cloudProject)
       .filter { (androidModel, _) ->
+        val accessDeniedReasons = androidModel.accessDeniedReasons
         (StudioFlags.SHOW_OEM_LAB_DEVICES.get() || androidModel.labInfo == null) &&
-          (androidModel.accessDeniedReasons.isNullOrEmpty() ||
+          (accessDeniedReasons.isNullOrEmpty() ||
             // Right now the only supported reason is that the 2p lab eula isn't accepted.
             // Filter out devices with any other denied reason.
-            androidModel.accessDeniedReasons.singleOrNull() == "EULA_NOT_ACCEPTED")
+            accessDeniedReasons.singleOrNull() == "EULA_NOT_ACCEPTED")
       }
       .filter { (_, perVersionInfo) ->
         BuildNumber.fromString(perVersionInfo.directAccessVersionInfo?.minimumAndroidStudioVersion).let { catalogBuildNumber ->

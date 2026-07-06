@@ -47,7 +47,6 @@
     <orderEntry type="module" module-name="google-login" />
     <orderEntry type="module" module-name="login.onboarding" />
     <orderEntry type="library" name="studio-analytics-proto" level="project" />
-    <orderEntry type="library" name="google-api-client" level="project" />
     <orderEntry type="module" module-name="firebase" />
     <orderEntry type="module" module-name="intellij.android.streaming" />
     <orderEntry type="module" module-name="intellij.android.server-flags" />
