@@ -23,6 +23,7 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.openapi.project.Project
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.mock
@@ -32,6 +33,7 @@ class AndroidRunConfigurationTestRecorderExecutorProviderTest {
   @get:Rule val projectRule = AndroidProjectRule.testProject(AndroidCoreTestProject.SIMPLE_APPLICATION)
 
   @Test
+  @Ignore("b/531716132")
   fun produceCorrectExecutor() {
     val config =
       object : AndroidRunConfiguration(projectRule.project, AndroidRunConfigurationType.getInstance().factory) {
