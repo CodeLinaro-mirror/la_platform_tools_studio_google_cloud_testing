@@ -62,6 +62,9 @@ import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
 import com.intellij.openapi.fileChooser.ex.FileSaverDialogImpl;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
@@ -91,7 +94,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
@@ -297,28 +302,7 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       }
     });
 
-    myAssertionElementComboBox.setRenderer(new DefaultListCellRenderer() {
-      @Override
-      public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-        if (value instanceof BasicTreeNode) {
-          BasicTreeNode node = (BasicTreeNode)value;
-          // Add indent.
-          int indent = myNodeIndentMap.get(node);
-          String prefix = StringUtil.repeat("  ", indent);
-          // No indent for selected element.
-          if (index == -1) {
-            prefix = "";
-          }
-          String resourceId = getResourceId(node);
-          String nodeString = resourceId.isEmpty() ? getClassName(node) : resourceId;
-          return super.getListCellRendererComponent(list, prefix + XmlStringUtil.escapeString(nodeString), index, isSelected, cellHasFocus);
-        }
-        else {
-          // non UI element
-          return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-        }
-      }
-    });
+    myAssertionElementComboBox.setRenderer(new AssertionElementRenderer(() -> myNodeIndentMap));
 
     myAssertionRuleComboBox.addItemListener(itemEvent -> {
       Object selectedItem = myAssertionRuleComboBox.getSelectedItem();
@@ -583,7 +567,32 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
     if (myIsRecordingTest) {
       // Show the test class name input dialog before (potentially) setting up Espresso dependencies,
       // which might confuse Gradle about the location of android tests.
-      TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet.getModule(), myLaunchedActivityName);
+
+      TestClassNameInputDialog.EnvironmentResult environment =
+        ProgressManager.getInstance().run(new Task.WithResult<TestClassNameInputDialog.EnvironmentResult, RuntimeException>(myProject, "Detecting test environment", true) {
+          @Override
+          protected TestClassNameInputDialog.EnvironmentResult compute(@NotNull ProgressIndicator indicator) {
+            return TestClassNameInputDialog.performEnvironmentDetection(myFacet.getModule(), myLaunchedActivityName);
+          }
+        });
+
+      if (environment == null) {
+        Messages.showErrorDialog(myProject, "Could not detect or create the test source directory!", "Error");
+        return;
+      }
+
+      VirtualFile testSourceDirectory = environment.testSourceDirectory;
+      if (testSourceDirectory == null && environment.directoryToCreateParent != null) {
+        testSourceDirectory = TestClassNameInputDialog.getOrCreateSubdirectoryOnEDT(
+          environment.directoryToCreateParent, environment.subdirectoriesToCreate, true);
+      }
+
+      if (testSourceDirectory == null) {
+        Messages.showErrorDialog(myProject, "Could not detect or create the test source directory!", "Error");
+        return;
+      }
+
+      TestClassNameInputDialog chooser = new TestClassNameInputDialog(myFacet.getModule(), myLaunchedActivityName, testSourceDirectory, environment.defaultLanguageIndex);
       if (!chooser.showAndGet()) {
         return;
       }
@@ -801,5 +810,36 @@ public class RecordingDialog extends DialogWrapper implements TestRecorderEventL
       // Scroll action list so that the last action is visible.
       myActionList.ensureIndexIsVisible(myActionList.getItemsCount() - 1);
     });
+  }
+
+  @VisibleForTesting
+  static class AssertionElementRenderer extends DefaultListCellRenderer {
+    private final Supplier<Map<BasicTreeNode, Integer>> nodeIndentMapSupplier;
+
+    AssertionElementRenderer(Supplier<Map<BasicTreeNode, Integer>> nodeIndentMapSupplier) {
+      this.nodeIndentMapSupplier = nodeIndentMapSupplier;
+    }
+
+    @Override
+    public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+      if (value instanceof BasicTreeNode) {
+        BasicTreeNode node = (BasicTreeNode)value;
+        // Add indent.
+        Map<BasicTreeNode, Integer> nodeIndentMap = nodeIndentMapSupplier.get();
+        Integer indent = nodeIndentMap == null ? null : nodeIndentMap.get(node);
+        String prefix = StringUtil.repeat("  ", indent == null ? 0 : indent);
+        // No indent for selected element.
+        if (index == -1) {
+          prefix = "";
+        }
+        String resourceId = getResourceId(node);
+        String nodeString = resourceId.isEmpty() ? getClassName(node) : resourceId;
+        return super.getListCellRendererComponent(list, prefix + XmlStringUtil.escapeString(nodeString), index, isSelected, cellHasFocus);
+      }
+      else {
+        // non UI element
+        return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+      }
+    }
   }
 }

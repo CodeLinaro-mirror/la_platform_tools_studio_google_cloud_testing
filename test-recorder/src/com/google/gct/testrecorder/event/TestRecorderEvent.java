@@ -184,6 +184,9 @@ public class TestRecorderEvent extends ElementAction {
   @Override
   public String getRendererString() {
     if (isPermissionsRequest()) {
+      if (requestedPermissions == null) {
+        return "";
+      }
       String escapedAndJoined = StringUtil.join(ContainerUtil.map(requestedPermissions, XmlStringUtil::escapeString), "<br>");
       return " " + wrapInStyle(escapedAndJoined);
     }

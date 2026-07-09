@@ -20,6 +20,7 @@ import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
 import com.android.SdkConstants;
+import com.android.annotations.VisibleForTesting;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.analytics.UsageTrackerUtils;
 import com.android.tools.idea.projectsystem.AndroidProjectSystem;
@@ -53,15 +54,14 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
@@ -78,37 +78,134 @@ public class TestClassNameInputDialog extends DialogWrapper {
 
   private final Project myProject;
   private final String myLaunchedActivityName;
-  private Module myTestClassModule;
+  private final Module myTestClassModule;
+  private final VirtualFile myTestSourceDirectory;
   private PsiDirectory myTestClassParent;
   private PsiClass myTestClass;
   private String myClassName;
   private String mySelectedLanguage;
 
-  private JPanel myRootPanel;
-  private JTextField myClassNameField;
-  private JLabel myErrorMessageLabel;
-  private JComboBox<String> myClassLanguageComboBox;
+  protected JPanel myRootPanel;
+  protected JTextField myClassNameField;
+  protected JLabel myErrorMessageLabel;
+  protected JComboBox<String> myClassLanguageComboBox;
 
+  public static class EnvironmentResult {
+    public final VirtualFile testSourceDirectory;
+    public final VirtualFile directoryToCreateParent;
+    public final String[] subdirectoriesToCreate;
+    public final int defaultLanguageIndex;
 
-  protected TestClassNameInputDialog(Module launchedModule, String launchedActivityName) {
+    public EnvironmentResult(@Nullable VirtualFile testSourceDirectory,
+                             @Nullable VirtualFile directoryToCreateParent,
+                             @Nullable String[] subdirectoriesToCreate,
+                             int defaultLanguageIndex) {
+      this.testSourceDirectory = testSourceDirectory;
+      this.directoryToCreateParent = directoryToCreateParent;
+      this.subdirectoriesToCreate = subdirectoriesToCreate;
+      this.defaultLanguageIndex = defaultLanguageIndex;
+    }
+  }
+
+  @Nullable
+  public static EnvironmentResult performEnvironmentDetection(@NotNull Module module, @NotNull String launchedActivityName) {
+    AtomicReference<EnvironmentResult> result = new AtomicReference<>();
+    ApplicationManager.getApplication().runReadAction(() -> {
+      String launchedActivityPath = launchedActivityName.replace('.', '/');
+      int defaultLanguageIndex = 0; // Java
+
+      AndroidFacet facet = AndroidFacet.getInstance(module);
+      if (facet == null) return;
+
+      IdeaSourceProvider mainIdeaSourceProvider = SourceProviders.getInstance(facet).getMainIdeaSourceProvider();
+      VirtualFile launchedActivitySourceRoot = null;
+      for (VirtualFile sourceRoot : Iterables.concat(mainIdeaSourceProvider.getJavaDirectories(),
+                                                     mainIdeaSourceProvider.getKotlinDirectories())) {
+        if (!isGenerated(sourceRoot, module.getProject())
+            && sourceRoot.findFileByRelativePath(appendJavaExtension(launchedActivityPath)) != null) {
+          launchedActivitySourceRoot = sourceRoot;
+          break;
+        }
+        if (!isGenerated(sourceRoot, module.getProject())
+            && sourceRoot.findFileByRelativePath(appendKotlinExtension(launchedActivityPath)) != null) {
+          launchedActivitySourceRoot = sourceRoot;
+          defaultLanguageIndex = 1; // Kotlin
+          break;
+        }
+      }
+
+      if (launchedActivitySourceRoot == null) return;
+
+      VirtualFile testSourceDirectory = null;
+      VirtualFile directoryToCreateParent = null;
+      String[] subdirectoriesToCreate = null;
+
+      List<VirtualFile> existingAndroidTestSourceRoots = getExistingAndroidTestSourceRoots(module);
+
+      if (existingAndroidTestSourceRoots.isEmpty()) {
+        UsageTracker.log(UsageTrackerUtils.withProjectId(
+          AndroidStudioEvent.newBuilder()
+            .setCategory(EventCategory.TEST_RECORDER)
+            .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER),
+          module.getProject()));
+
+        VirtualFile closestContentRoot = getClosestContentRoot(module, launchedActivitySourceRoot);
+        List<String> androidTestSourceRoots = getAndroidTestSourceRoots(module);
+
+        if (androidTestSourceRoots.isEmpty()) {
+          VirtualFile contentRootParent = closestContentRoot.getParent();
+          if (contentRootParent != null && contentRootParent.getName().equals("src")) {
+            directoryToCreateParent = contentRootParent;
+            subdirectoriesToCreate = new String[]{"androidTest", "java"};
+          } else {
+            directoryToCreateParent = closestContentRoot;
+            subdirectoriesToCreate = new String[]{"src", "androidTest", "java"};
+          }
+        } else {
+          String closestAndroidTestSourcePath =
+            androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
+          closestAndroidTestSourcePath =
+            getFilePathPrefix(launchedActivitySourceRoot.getCanonicalPath(), closestAndroidTestSourcePath) + closestAndroidTestSourcePath;
+          VirtualFile parentDirectory = closestContentRoot;
+          if (closestContentRoot.getCanonicalPath() == null ||
+              !closestAndroidTestSourcePath.startsWith(closestContentRoot.getCanonicalPath())) {
+            parentDirectory = findContainingDirectory(launchedActivitySourceRoot, closestAndroidTestSourcePath);
+          }
+          if (parentDirectory != null && parentDirectory.getCanonicalPath() != null) {
+            directoryToCreateParent = parentDirectory;
+            subdirectoriesToCreate = closestAndroidTestSourcePath.substring(parentDirectory.getCanonicalPath().length() + 1).split("/");
+          }
+        }
+      } else {
+        testSourceDirectory = existingAndroidTestSourceRoots.get(
+          findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, getCanonicalPaths(existingAndroidTestSourceRoots)));
+      }
+
+      if (testSourceDirectory != null || directoryToCreateParent != null) {
+        result.set(new EnvironmentResult(testSourceDirectory, directoryToCreateParent, subdirectoriesToCreate, defaultLanguageIndex));
+      }
+    });
+    return result.get();
+  }
+
+  protected TestClassNameInputDialog(Module launchedModule, String launchedActivityName, @NotNull VirtualFile testSourceDirectory, int defaultLanguageIndex) {
     super(launchedModule.getProject(), true);
-    setupUI();
     myProject = launchedModule.getProject();
     myLaunchedActivityName = launchedActivityName;
     myTestClassModule = launchedModule;
+    myTestSourceDirectory = testSourceDirectory;
 
-    // Initialize dialog
+    setupUI();
     init();
 
     setTitle("Specify a test class for your test");
 
     myClassLanguageComboBox.addItem(JAVA_LANGUAGE_NAME);
     myClassLanguageComboBox.addItem(KOTLIN_LANGUAGE_NAME);
+    myClassLanguageComboBox.setSelectedIndex(defaultLanguageIndex);
 
     prepareEnvironment();
 
-    // Remove the Kotlin language option if the launched activity is not a Kotlin class
-    // and Kotlin plugin is not enabled.
     if (myClassLanguageComboBox.getSelectedIndex() < 1 && !hasKotlinPlugin()) {
       myClassLanguageComboBox.removeItemAt(1);
     }
@@ -140,17 +237,9 @@ public class TestClassNameInputDialog extends DialogWrapper {
   }
 
   private void prepareEnvironment() {
-    final VirtualFile testSourceDirectory = detectOrCreateTestSourceDirectoryAndDefaultOutputLanguage();
-
-    if (testSourceDirectory == null) {
-      throw new RuntimeException("Could not detect or create the test source directory!");
-    }
-
     String[] activityNameFragments = myLaunchedActivityName.split("\\.");
+    VirtualFile testFileParent = getOrCreateSubdirectoryOnEDT(myTestSourceDirectory, activityNameFragments, false);
 
-    VirtualFile testFileParent = getOrCreateSubdirectory(testSourceDirectory, activityNameFragments, false);
-
-    // Generate a unique test class name based on the name of the launched activity.
     String activityTestNameBase = activityNameFragments[activityNameFragments.length - 1] + "Test";
     myTestClassParent = PsiManager.getInstance(myProject).findDirectory(testFileParent);
     myClassName = activityTestNameBase;
@@ -165,71 +254,8 @@ public class TestClassNameInputDialog extends DialogWrapper {
       BorderFactory.createEmptyBorder()));
   }
 
-  private VirtualFile detectOrCreateTestSourceDirectoryAndDefaultOutputLanguage() {
-    String launchedActivityPath = myLaunchedActivityName.replace('.', '/');
-    VirtualFile launchedActivitySourceRoot = getContainingSourceRoot(appendJavaExtension(launchedActivityPath));
-    if (launchedActivitySourceRoot == null) {
-      launchedActivitySourceRoot = getContainingSourceRoot(appendKotlinExtension(launchedActivityPath));
-      if (launchedActivitySourceRoot != null) {
-        // If the launched activity is a Kotlin class, select Kotlin as the default output language for the test class.
-        myClassLanguageComboBox.setSelectedIndex(1);
-      }
-    }
-    if (launchedActivitySourceRoot == null) {
-      throw new RuntimeException("Failed to obtain launched activity source root.");
-    }
-
-    List<VirtualFile> existingAndroidTestSourceRoots = getExistingAndroidTestSourceRoots();
-
-    if (existingAndroidTestSourceRoots.isEmpty()) {
-      UsageTracker.log(UsageTrackerUtils.withProjectId(
-        AndroidStudioEvent.newBuilder()
-          .setCategory(EventCategory.TEST_RECORDER)
-          .setKind(EventKind.TEST_RECORDER_MISSING_INSTRUMENTATION_TEST_FOLDER),
-        myProject));
-
-      VirtualFile closestContentRoot = getClosestContentRoot(launchedActivitySourceRoot);
-      List<String> androidTestSourceRoots = getAndroidTestSourceRoots();
-
-      if (androidTestSourceRoots.isEmpty()) {
-        // This is not expected to ever happen in a properly set up project, but if it does,
-        // create a test source root following naming convention, i.e., $MODULE_DIR$/src/androidTest/java.
-        // TODO: If there are examples when naming convention fails, consider updating .iml as well,
-        // e.g., using contentEntry.addSourceFolder(VfsUtilCore.pathToUrl(parentSourceRoot.getCanonicalPath() + "/androidTest/java"), true);
-        VirtualFile contentRootParent = closestContentRoot.getParent();
-        if (contentRootParent != null && contentRootParent.getName().equals("src")) {
-          // Make "androidTest" a sibling of the closest content root.
-          return getOrCreateSubdirectory(contentRootParent, new String[]{"androidTest", "java"}, true);
-        }
-        return getOrCreateSubdirectory(closestContentRoot, new String[]{"src", "androidTest", "java"}, true);
-      }
-      else {
-        String closestAndroidTestSourcePath =
-          androidTestSourceRoots.get(findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, androidTestSourceRoots));
-        // Ensure that test path has the same file path prefix as the source root path (b/262355661).
-        closestAndroidTestSourcePath =
-          getFilePathPrefix(launchedActivitySourceRoot.getCanonicalPath(), closestAndroidTestSourcePath) + closestAndroidTestSourcePath;
-        VirtualFile parentDirectory = closestContentRoot;
-        if (closestContentRoot.getCanonicalPath() == null ||
-            !closestAndroidTestSourcePath.startsWith(closestContentRoot.getCanonicalPath())) {
-          parentDirectory = findContainingDirectory(launchedActivitySourceRoot, closestAndroidTestSourcePath);
-          if (parentDirectory == null) {
-            throw new RuntimeException("Failed to find a parent directory for android test source path: " + closestAndroidTestSourcePath
-                                       + " and launched activity source root: " + launchedActivitySourceRoot.getCanonicalPath());
-          }
-        }
-        return getOrCreateSubdirectory(
-          parentDirectory, closestAndroidTestSourcePath.substring(parentDirectory.getCanonicalPath().length() + 1).split("/"), true);
-      }
-    }
-    else {
-      return existingAndroidTestSourceRoots.get(
-        findClosestAndroidTestSourceRootIndex(launchedActivitySourceRoot, getCanonicalPaths(existingAndroidTestSourceRoots)));
-    }
-  }
-
-  private VirtualFile getClosestContentRoot(@Nullable VirtualFile launchedActivitySourceRoot) {
-    @NotNull VirtualFile[] contentRoots = ModuleRootManager.getInstance(myTestClassModule).getContentRoots();
+  private static VirtualFile getClosestContentRoot(Module module, @Nullable VirtualFile launchedActivitySourceRoot) {
+    @NotNull VirtualFile[] contentRoots = ModuleRootManager.getInstance(module).getContentRoots();
     if (contentRoots.length == 0) {
       throw new RuntimeException("Could not find any content roots");
     }
@@ -249,15 +275,15 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return contentRoots[0];
   }
 
-  private VirtualFile findContainingDirectory(VirtualFile currentDirectory, String path) {
+  private static VirtualFile findContainingDirectory(VirtualFile currentDirectory, String path) {
     if (currentDirectory == null || path.startsWith(currentDirectory.getCanonicalPath())) {
       return currentDirectory;
     }
     return findContainingDirectory(currentDirectory.getParent(), path);
   }
 
-  private List<String> getAndroidTestSourceRoots() {
-    AndroidFacet facet = AndroidFacet.getInstance(myTestClassModule);
+  private static List<String> getAndroidTestSourceRoots(Module module) {
+    AndroidFacet facet = AndroidFacet.getInstance(module);
     if (facet == null) return emptyList();
     SourceProviders sourceProviders = SourceProviders.getInstance(facet);
     IdeaSourceProvider androidSourceProvider = sourceProviders.getDeviceTestSources().get(CommonTestType.ANDROID_TEST);
@@ -275,7 +301,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
       androidSourceProvider.getKotlinDirectoryUrls()
     )).map(TestClassNameInputDialog::getURLPath).collect(toList());
   }
-  
+
   private void setupUI() {
     myRootPanel = new JPanel();
     myRootPanel.setLayout(new BorderLayout(0, 0));
@@ -319,7 +345,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
     label2.setOpaque(true);
     label2.setText("Test class language:");
     panel3.add(label2, BorderLayout.WEST);
-    myClassLanguageComboBox = new JComboBox();
+    myClassLanguageComboBox = new JComboBox<>();
     myClassLanguageComboBox.setMaximumSize(new Dimension(320, 29));
     myClassLanguageComboBox.setMinimumSize(new Dimension(320, 29));
     myClassLanguageComboBox.setOpaque(true);
@@ -368,30 +394,27 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return canonicalPaths;
   }
 
-  private VirtualFile getOrCreateSubdirectory(final VirtualFile parentDirectory, final String[] subdirectoriesPath,
-                                              final boolean includeLastPathElement) {
-    return ApplicationManager.getApplication().runWriteAction(new Computable<VirtualFile>() {
-      @Override
-      public VirtualFile compute() {
-        VirtualFile currentDirectory = parentDirectory;
-        int subdirectoriesPathLength = includeLastPathElement ? subdirectoriesPath.length : subdirectoriesPath.length - 1;
-        for (int i = 0; i < subdirectoriesPathLength; i++) {
-          String subdirectory = subdirectoriesPath[i];
-          VirtualFile child = currentDirectory.findChild(subdirectory);
-          if (child == null) {
-            try {
-              currentDirectory = currentDirectory.createChildDirectory(this, subdirectory);
-            }
-            catch (Exception e) {
-              throw new RuntimeException("Failed to create subdirectory " + subdirectory, e);
-            }
+  static VirtualFile getOrCreateSubdirectoryOnEDT(final VirtualFile parentDirectory, final String[] subdirectoriesPath,
+                                                  final boolean includeLastPathElement) {
+    return ApplicationManager.getApplication().runWriteAction((Computable<VirtualFile>) () -> {
+      VirtualFile currentDirectory = parentDirectory;
+      int subdirectoriesPathLength = includeLastPathElement ? subdirectoriesPath.length : subdirectoriesPath.length - 1;
+      for (int i = 0; i < subdirectoriesPathLength; i++) {
+        String subdirectory = subdirectoriesPath[i];
+        VirtualFile child = currentDirectory.findChild(subdirectory);
+        if (child == null) {
+          try {
+            currentDirectory = currentDirectory.createChildDirectory(null, subdirectory);
           }
-          else {
-            currentDirectory = child;
+          catch (Exception e) {
+            throw new RuntimeException("Failed to create subdirectory " + subdirectory, e);
           }
         }
-        return currentDirectory;
+        else {
+          currentDirectory = child;
+        }
       }
+      return currentDirectory;
     });
   }
 
@@ -405,7 +428,6 @@ public class TestClassNameInputDialog extends DialogWrapper {
     int closestAndroidTestSourceIndex = 0;
     // androidTestSourceRootPaths should never be empty in this method.
     String closestAndroidTestSourceRootPath = androidTestSourceRootPaths.get(closestAndroidTestSourceIndex);
-
 
     int maxOverlapSize = computeOverlapSize(sourceRootCanonicalPath, closestAndroidTestSourceRootPath);
     for (int i = 1; i < androidTestSourceRootPaths.size(); i++) {
@@ -445,53 +467,34 @@ public class TestClassNameInputDialog extends DialogWrapper {
     return "";
   }
 
-  private static void collectModulesClosure(@NotNull Module module, List<Module> result) {
-    if (result.contains(module)) {
-      return;
-    }
-
-    result.add(module);
-
-    for (Module depModule : ModuleRootManager.getInstance(module).getDependencies()) {
-      collectModulesClosure(depModule, result);
-    }
-  }
-
-  @Nullable
-  private VirtualFile getContainingSourceRoot(String fileRelativePath) {
-    AndroidFacet facet = AndroidFacet.getInstance(myTestClassModule);
-    if (facet == null) return null;
-    IdeaSourceProvider mainIdeaSourceProvider = SourceProviders.getInstance(facet).getMainIdeaSourceProvider();
-    Iterator<VirtualFile> iterator = mainIdeaSourceProvider.getJavaDirectories().iterator();
-    if (!iterator.hasNext()) {
-      iterator = mainIdeaSourceProvider.getKotlinDirectories().iterator();
-    }
-    while (iterator.hasNext()) {
-      VirtualFile sourceRoot = iterator.next();
-      if (!isGenerated(sourceRoot)
-          && sourceRoot.findFileByRelativePath(fileRelativePath) != null) {
-        return sourceRoot;
-      }
-    }
-    return null;
-  }
-
-  private boolean isGenerated(VirtualFile file) {
+  @VisibleForTesting
+  static boolean isGenerated(VirtualFile file, Project project) {
     if (ApplicationManager.getApplication().isDispatchThread()) {
       // GeneratedSourcesFilter.isGeneratedSourceByAnyFilter requires background thread access in recent
       // platform versions. Fall back to path-based detection on EDT to avoid threading assertions.
       String path = file.getPath();
       return path.contains("/build/generated/");
     }
-    return GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(file, myProject);
+    return GeneratedSourcesFilter.isGeneratedSourceByAnyFilter(file, project);
   }
 
-  private List<VirtualFile> getExistingAndroidTestSourceRoots() {
+  @VisibleForTesting
+  static boolean isAndroidTest(VirtualFile file, Module module) {
+    if (ApplicationManager.getApplication().isDispatchThread()) {
+      // TestArtifactSearchScopes.isAndroidTestSource may require background thread access in recent
+      // platform versions. Fall back to path-based detection on EDT.
+      String path = file.getPath();
+      return path.contains("/src/androidTest/");
+    }
+    TestArtifactSearchScopes searchScopes = TestArtifactSearchScopes.getInstance(module);
+    return searchScopes != null && searchScopes.isAndroidTestSource(file);
+  }
+
+  private static List<VirtualFile> getExistingAndroidTestSourceRoots(Module module) {
     List<VirtualFile> existingAndroidTestSourceRoots = Lists.newArrayList();
-    for (VirtualFile testSourceRoot : ModuleRootManager.getInstance(myTestClassModule).getSourceRoots(JavaSourceRootType.TEST_SOURCE)) {
-      if (!isGenerated(testSourceRoot)) {
-        TestArtifactSearchScopes searchScopes = TestArtifactSearchScopes.getInstance(myTestClassModule);
-        if (searchScopes != null && searchScopes.isAndroidTestSource(testSourceRoot)) {
+    for (VirtualFile testSourceRoot : ModuleRootManager.getInstance(module).getSourceRoots(JavaSourceRootType.TEST_SOURCE)) {
+      if (!isGenerated(testSourceRoot, module.getProject())) {
+        if (isAndroidTest(testSourceRoot, module)) {
           existingAndroidTestSourceRoots.add(testSourceRoot);
         }
       }
@@ -505,8 +508,6 @@ public class TestClassNameInputDialog extends DialogWrapper {
     myErrorMessageLabel.setText("");
     myErrorMessageLabel.setForeground(JBColor.RED);
 
-    // Set up document listener for class name text field.
-    // Update OK button based on the entered class name.
     myClassNameField.getDocument().addDocumentListener(new DocumentListener() {
       @Override
       public void insertUpdate(DocumentEvent documentEvent) {
@@ -552,12 +553,7 @@ public class TestClassNameInputDialog extends DialogWrapper {
   protected void doOKAction() {
     mySelectedLanguage = (String)myClassLanguageComboBox.getSelectedItem();
 
-    if (ApplicationManager.getApplication().runReadAction(new Computable<Boolean>() {
-      @Override
-      public Boolean compute() {
-        return doesClassExist();
-      }
-    })) {
+    if (ApplicationManager.getApplication().runReadAction((Computable<Boolean>) this::doesClassExist)) {
       myErrorMessageLabel.setText("File already exists.");
       return;
     }
@@ -585,11 +581,6 @@ public class TestClassNameInputDialog extends DialogWrapper {
     myClassName = null;
     myTestClass = null;
     super.doCancelAction();
-  }
-
-  @Override
-  public void dispose() {
-    super.dispose();
   }
 
   @Override
