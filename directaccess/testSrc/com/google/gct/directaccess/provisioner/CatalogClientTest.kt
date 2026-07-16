@@ -17,13 +17,13 @@ package com.google.gct.directaccess.provisioner
 
 import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.tools.idea.testing.AndroidProjectRule
-import com.google.api.services.testing.model.AndroidDeviceCatalog
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalog
 import com.google.gct.directaccess.TestUtils.androidDeviceCatalogWithMissingFields
 import com.google.gct.login2.LoginUsersRule
 import com.google.services.firebase.directaccess.client.CloudClient
+import com.google.services.firebase.directaccess.client.api.AndroidDeviceCatalog
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule

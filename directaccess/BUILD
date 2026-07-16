@@ -46,7 +46,6 @@ iml_module(
         "//tools/vendor/google/login:google-login",
         "//tools/vendor/google/login/onboarding:login.onboarding",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
-        "//tools/adt/idea/.idea/libraries:google-api-client",
         "//tools/vendor/google/firebase",
         "//tools/adt/idea/streaming:intellij.android.streaming",
         "//tools/adt/idea/server-flags:intellij.android.server-flags",
