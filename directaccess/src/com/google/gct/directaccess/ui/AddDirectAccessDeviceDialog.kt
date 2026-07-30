@@ -86,8 +86,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
-import org.jetbrains.jewel.foundation.ExperimentalJewelApi
-import org.jetbrains.jewel.foundation.enableNewSwingCompositing
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.Orientation
 import org.jetbrains.jewel.ui.component.Checkbox
@@ -196,7 +194,6 @@ class AddDirectAccessDeviceDialog(
   override fun createSouthPanel(): JComponent? = null
 
   override fun createCenterPanel(): JComponent {
-    @OptIn(ExperimentalJewelApi::class) (enableNewSwingCompositing())
     val component = StudioComposePanel { CompositionLocalProvider(LocalProject provides project) { ComposeContent() } }
     component.preferredSize = JBUI.size(900, 650)
     component.minimumSize = JBUI.size(600, 350)
