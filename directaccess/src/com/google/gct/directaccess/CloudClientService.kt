@@ -26,10 +26,13 @@ import com.intellij.openapi.util.BuildNumber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+/** API key for logged-out FTL catalog access exposed from project oval-bot-582 with access to Cloud Testing API only. */
+const val CATALOG_ACCESS_API_KEY = "AIzaSyAjidSpCP9kwpg9ZnfVe0RBYu2PC6daDzk"
+
 @Service
 class CloudClientService(scope: CoroutineScope) {
   internal var overrideClientForTest: CloudClient? = null
-  val client = CloudClient({ getToken() })
+  val client = CloudClient({ getToken() }, CATALOG_ACCESS_API_KEY)
     get() = overrideClientForTest ?: field
 
   private fun getToken() = LoginFeature.feature<FirebaseLoginFeature>().oAuthToken()

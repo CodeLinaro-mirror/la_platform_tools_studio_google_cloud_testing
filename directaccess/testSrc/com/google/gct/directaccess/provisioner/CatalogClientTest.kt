@@ -44,7 +44,7 @@ class CatalogClientTest {
   }
 
   private fun setupCloudClient(deviceCatalog: AndroidDeviceCatalog) {
-    val client: CloudClient = spy(CloudClient({ "mockToken" }))
+    val client: CloudClient = spy(CloudClient({ "mockToken" }, "catalogkey"))
     CloudClientService.instance().overrideClientForTest = client
     doCallRealMethod().whenever(client).getAvailableDevices(any(), any())
     // Use "doReturn" vs "whenever/thenReturn" so we don't call the real method, which will throw.
