@@ -24,6 +24,7 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:kotlin-test",
         "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose.tests",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
+        "//tools/vendor/google/login:google-login.tests",
     ],
     test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],
