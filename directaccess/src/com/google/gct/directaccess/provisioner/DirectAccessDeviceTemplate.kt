@@ -161,6 +161,14 @@ class DirectAccessDeviceTemplate(
             },
         )
       }
+      .combine(project.service<DirectAccessService>().permissionFlow) { templateState, permission ->
+        val permErrorMsg = permission?.templateErrorMessage
+        if (permErrorMsg != null) {
+          templateState.copy(error = DirectAccessDeviceError(DeviceError.Severity.WARNING, permErrorMsg))
+        } else {
+          templateState
+        }
+      }
       .stateIn(scope, SharingStarted.Eagerly, TemplateState())
 
   /** Icon to show for the template and handle */
@@ -209,6 +217,12 @@ class DirectAccessDeviceTemplate(
        * TODO (b/246171065): activating multiple devices.
        */
       override suspend fun activate(duration: Duration?): DeviceHandle {
+        val permission = project.service<DirectAccessService>().permissionFlow.value
+        val cloudProjectName = project.directAccessCloudProjectManager?.cloudProject?.name ?: ""
+        val errorMsg = permission?.getDetailedErrorMessage(cloudProjectName)
+        if (errorMsg != null) {
+          throw DeviceActionException(errorMsg)
+        }
         // Disable further activate actions to avoid multiple devices.
         if (!isActivationStarted.compareAndSet(expect = false, update = true)) {
           throw DeviceActionDisabledException(this)

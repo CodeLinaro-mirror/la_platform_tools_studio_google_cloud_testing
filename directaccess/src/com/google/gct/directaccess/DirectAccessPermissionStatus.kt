@@ -71,6 +71,39 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
   /** User has full DA admin permissions */
   class Full : DirectAccessPermissionStatus(emptySet())
 
+  /** Device Streaming API is not enabled in the cloud project */
+  object ApiNotEnabled : DirectAccessPermissionStatus(emptySet())
+
+  /** Short error message string to display on device templates in Device Manager. */
+  val templateErrorMessage: String?
+    get() =
+      when (this) {
+        ApiNotEnabled -> "API is not enabled in project"
+        is None -> "No permission in project"
+        is Viewer,
+        is MissingServiceUse,
+        is Unknown -> "Insufficient permissions"
+        is Full -> null
+      }
+
+  /** Detailed error message to display in activation exceptions or dialog tooltips for [cloudProject]. */
+  fun getDetailedErrorMessage(cloudProject: String, includeMissingPermissionDetails: Boolean = false): String? =
+    when (this) {
+      ApiNotEnabled -> "Android Device Streaming API is not enabled in project $cloudProject. Enable it by visiting Google Cloud console."
+      is None -> "You do not have access to Device Streaming in project $cloudProject."
+      is Viewer,
+      is MissingServiceUse,
+      is Unknown -> {
+        if (includeMissingPermissionDetails && missingPermissions.isNotEmpty()) {
+          "You do not have full access to Device Streaming in project $cloudProject. You are missing the following permissions:<br>" +
+            missingPermissions.joinToString("<br>")
+        } else {
+          "You do not have full access to Device Streaming in project $cloudProject. You are missing required permissions."
+        }
+      }
+      is Full -> null
+    }
+
   companion object {
     @VisibleForTesting
     internal fun parseFrom(permissions: Set<String>, isDefaultApiEnabled: Boolean = false): DirectAccessPermissionStatus {
@@ -136,7 +169,8 @@ sealed class DirectAccessPermissionStatus(val missingPermissions: Set<String>) {
             getTestIamPermissionsResponse(cloudProject, false, isDefaultApiEnabled)
           } catch (e: IOException) {
             thisLogger().warn("Could not fetch permissions for user ${cloudProject.user} for project ${cloudProject.name}: ${e.message}")
-            return None(FULL_PERMISSIONS_SET)
+            val fullPermissions = if (isDefaultApiEnabled) NEW_FULL_PERMISSIONS_SET else FULL_PERMISSIONS_SET
+            return None(fullPermissions)
           }
       // response.permission is null if the user does not have any permissions
       return parseFrom(permissions.toSet(), isDefaultApiEnabled)

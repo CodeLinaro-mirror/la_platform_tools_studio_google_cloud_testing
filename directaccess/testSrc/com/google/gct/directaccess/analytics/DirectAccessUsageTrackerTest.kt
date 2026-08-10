@@ -31,6 +31,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
+import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
 import com.google.gct.directaccess.RefreshableStateFlow
@@ -166,6 +167,7 @@ class DirectAccessUsageTrackerTest {
     var isProjectClosing = false
     whenever(mockDirectAccessService.deviceSelectionListFlow).thenReturn(deviceSelectionListFlow)
     whenever(mockDirectAccessService.cloudProjectManager).thenReturn(cloudProjectManagerFlow)
+    whenever(mockDirectAccessService.permissionFlow).thenReturn(MutableStateFlow(DirectAccessPermissionStatus.Full()))
     doAnswer { isProjectClosing }.whenever(mockDirectAccessService).isProjectClosing
     application.messageBus
       .connect(projectRule.disposable)

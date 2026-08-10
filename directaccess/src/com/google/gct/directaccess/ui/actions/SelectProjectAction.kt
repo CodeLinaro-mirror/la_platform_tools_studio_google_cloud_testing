@@ -15,9 +15,11 @@
  */
 package com.google.gct.directaccess.ui.actions
 
+import com.android.sdklib.deviceprovisioner.DeviceError
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessDeprecationState
+import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.ui.SelectProjectDialog
@@ -66,9 +68,12 @@ class SelectProjectAction :
         ?.value
         ?.map { it.key }
         ?.toSet() ?: setOf()
-    e.presentation.icon =
-      if (templates.isNotEmpty() && templates.none { it.deviceInfo.key in accessibleDevices }) firebaseIconWithErrors
-      else FirebaseIcons.ACTION_ICON
+    val permission = e.project?.service<DirectAccessService>()?.permissionFlow?.value
+    val isError =
+      (permission != null && permission !is DirectAccessPermissionStatus.Full) ||
+        (templates.isNotEmpty() && templates.none { it.deviceInfo.key in accessibleDevices }) ||
+        templates.any { it.stateFlow.value.error?.severity == DeviceError.Severity.ERROR }
+    e.presentation.icon = if (isError) firebaseIconWithErrors else FirebaseIcons.ACTION_ICON
     e.presentation.isVisible = StudioFlags.DIRECT_ACCESS.get()
   }
 

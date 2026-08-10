@@ -20,6 +20,7 @@ import com.android.annotations.concurrency.Slow
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
@@ -27,6 +28,7 @@ import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.FULL_PERMISSIONS_SET
+import com.google.gct.directaccess.NEW_FULL_PERMISSIONS_SET
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginFeature
@@ -75,6 +77,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val CLOUD_TEST_API_ENABLE_LINK = "https://console.developers.google.com/apis/api/testing.googleapis.com/overview?project="
+private const val DEVICE_STREAMING_API_ENABLE_LINK =
+  "https://console.cloud.google.com/apis/api/devicestreaming.googleapis.com/overview?project="
 
 class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
@@ -268,13 +272,10 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
       launch {
         val permission = cloudProjectManager?.permissionFlow?.value
         val reservationListException = cloudProjectManager?.reservationListFlowWithException?.value?.second
-        val errorMessage = getErrorMessage(cloudProject, permission, reservationListException)
+        val isDefaultApiEnabled = cloudProjectManager?.isDefaultApiEnabled == true
+        val errorMessage = getErrorMessage(cloudProject, permission, reservationListException, isDefaultApiEnabled)
         if (errorMessage != null) {
-          val (linkText, link) =
-            when {
-              errorMessage.contains("Google Cloud console") -> Pair("Google Cloud console", "$CLOUD_TEST_API_ENABLE_LINK$cloudProject")
-              else -> Pair("Learn More", "http://d.android.com/r/studio-ui/device-streaming/help/permissions")
-            }
+          val (linkText, link) = getErrorMessageLink(errorMessage, cloudProject, isDefaultApiEnabled)
           HelpTooltip().setDescription(errorMessage).setLink(linkText) { BrowserUtil.browse(link) }.installOn(statusIcon)
           statusIcon.icon = StudioIcons.Common.ERROR
           statusIcon.isVisible = true
@@ -291,51 +292,85 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
     }
   }
 
-  private fun getErrorMessage(cloudProject: String, permission: DirectAccessPermissionStatus?, exception: Exception?): String? {
-    return if (permission == null) "Unable to retrieve permission"
-    else if (exception != null) {
-      getErrorMessageFromException(cloudProject, permission, exception)
-    } else {
-      when (permission) {
-        is DirectAccessPermissionStatus.None -> "You do not have access to Device Streaming in project $cloudProject."
-        is DirectAccessPermissionStatus.Viewer,
-        is DirectAccessPermissionStatus.MissingServiceUse,
-        is DirectAccessPermissionStatus.Unknown ->
-          "You do not have full access to Device Streaming in project $cloudProject. You are missing the following permissions:<br>" +
-            permission.missingPermissions.joinToString("<br>")
-        is DirectAccessPermissionStatus.Full -> null
+  @VisibleForTesting
+  internal fun getErrorMessageLink(errorMessage: String, cloudProject: String, isDefaultApiEnabled: Boolean): Pair<String, String> {
+    return when {
+      errorMessage.contains("permissions") -> {
+        Pair("Google Cloud console", "https://console.cloud.google.com/iam-admin/iam?project=$cloudProject")
       }
+      errorMessage.contains("Google Cloud console") -> {
+        if (isDefaultApiEnabled) {
+          Pair("Google Cloud console", "$DEVICE_STREAMING_API_ENABLE_LINK$cloudProject")
+        } else {
+          Pair("Google Cloud console", "$CLOUD_TEST_API_ENABLE_LINK$cloudProject")
+        }
+      }
+      else -> Pair("Learn More", "http://d.android.com/r/studio-ui/device-streaming/help/permissions")
     }
   }
 
-  private fun getErrorMessageFromException(cloudProject: String, permission: DirectAccessPermissionStatus, exception: Exception) =
+  @VisibleForTesting
+  internal fun getErrorMessage(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus?,
+    exception: Exception?,
+    isDefaultApiEnabled: Boolean = false,
+  ): String? {
+    return if (permission == null) "Unable to retrieve permission"
+    else if (exception != null) {
+      getErrorMessageFromException(cloudProject, permission, exception, isDefaultApiEnabled)
+    } else {
+      permission.getDetailedErrorMessage(cloudProject, includeMissingPermissionDetails = true)
+    }
+  }
+
+  @VisibleForTesting
+  internal fun getErrorMessageFromException(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: Exception,
+    isDefaultApiEnabled: Boolean = false,
+  ) =
     if (exception is StatusRuntimeException) {
-      getStatusCodeErrorMessage(cloudProject, permission, exception)
+      getStatusCodeErrorMessage(cloudProject, permission, exception, isDefaultApiEnabled)
     } else {
       "An unknown error occurred when checking your permissions."
     }
 
-  private fun getStatusCodeErrorMessage(cloudProject: String, permission: DirectAccessPermissionStatus, exception: StatusRuntimeException) =
-    if (exception.status.code == Status.Code.PERMISSION_DENIED) {
+  @VisibleForTesting
+  internal fun getStatusCodeErrorMessage(
+    cloudProject: String,
+    permission: DirectAccessPermissionStatus,
+    exception: StatusRuntimeException,
+    isDefaultApiEnabled: Boolean = false,
+  ): String {
+    return if (exception.status.code == Status.Code.PERMISSION_DENIED) {
       val description = exception.status.description
-      val apiDisabledString = "Cloud Testing API has not been used in project $cloudProject before or it is disabled."
+      val apiDisabledString =
+        if (isDefaultApiEnabled) "Device Streaming API has not been used in project $cloudProject before or it is disabled."
+        else "Cloud Testing API has not been used in project $cloudProject before or it is disabled."
       val serviceUsageMissing = "Grant the caller the roles/serviceusage.serviceUsageConsumer role"
+      val fullPermissions = if (isDefaultApiEnabled) NEW_FULL_PERMISSIONS_SET else FULL_PERMISSIONS_SET
       when {
-        description?.contains(apiDisabledString, true) == true ->
-          "Cloud Testing API is not enabled in your project $cloudProject. Enable it by visiting Google Cloud console."
+        permission == DirectAccessPermissionStatus.ApiNotEnabled || description?.contains(apiDisabledString, true) == true ->
+          "${if (isDefaultApiEnabled) "Device Streaming API" else "Cloud Testing API"} is not enabled in your project $cloudProject. Enable it by visiting Google Cloud console."
         description?.contains(serviceUsageMissing, true) == true -> {
-          if (permission.missingPermissions == FULL_PERMISSIONS_SET) {
+          if (permission.missingPermissions == fullPermissions) {
             "You do not have access to Device Streaming in project $cloudProject."
           } else {
             "You do not have full access to Device Streaming in project $cloudProject. You are missing the following permissions:<br>" +
               permission.missingPermissions.joinToString("<br>")
           }
         }
-        else -> "You do not have access to Device Streaming in project $cloudProject."
+        else -> {
+          permission.getDetailedErrorMessage(cloudProject, includeMissingPermissionDetails = true)
+            ?: "You do not have access to Device Streaming in project $cloudProject."
+        }
       }
     } else {
       "An unknown error occurred when checking your permissions."
     }
+  }
 
   private fun confirmSelection() {
     val directAccessService = project.service<DirectAccessService>()

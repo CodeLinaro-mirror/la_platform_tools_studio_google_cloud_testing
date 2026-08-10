@@ -23,6 +23,7 @@ import com.android.sdklib.deviceprovisioner.DeviceHandle
 import com.android.sdklib.deviceprovisioner.DeviceProvisioner
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.sdklib.deviceprovisioner.DeviceType
+import com.android.sdklib.deviceprovisioner.TemplateState
 import com.android.testutils.waitForCondition
 import com.android.tools.adtui.swing.HeadlessDialogRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
@@ -53,6 +54,7 @@ import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
+import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
@@ -243,6 +245,7 @@ class SelectProjectActionTest {
     val mockDirectAccessService = mock<DirectAccessService>()
     Mockito.doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
     Mockito.doReturn(scope).whenever(mockDirectAccessService).scope
+    Mockito.doReturn(MutableStateFlow(DirectAccessPermissionStatus.Full())).whenever(mockDirectAccessService).permissionFlow
 
     val selectedCloudProject = MutableStateFlow<String?>(null)
     Mockito.doAnswer {
@@ -361,6 +364,7 @@ class SelectProjectActionTest {
               "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
             )
         }
+        assertThat(HelpTooltip.getTooltipFor(label)?.getLink()?.text).isEqualTo("Google Cloud console")
         waitForCondition { !dialog.isOKActionEnabled }
         dialog.doCancelAction()
       }
@@ -388,6 +392,7 @@ class SelectProjectActionTest {
                 permissionFlow.value.missingPermissions.joinToString("")
             )
         }
+        assertThat(HelpTooltip.getTooltipFor(errorLabel)?.getLink()?.text).isEqualTo("Google Cloud console")
         assertThat(errorLabel.icon).isEqualTo(StudioIcons.Common.ERROR)
         waitForCondition { !dialog.isOKActionEnabled }
 
@@ -402,6 +407,7 @@ class SelectProjectActionTest {
                 permissionFlow.value.missingPermissions.joinToString("")
             )
         }
+        assertThat(HelpTooltip.getTooltipFor(errorLabel)?.getLink()?.text).isEqualTo("Google Cloud console")
         waitForCondition { !dialog.isOKActionEnabled }
 
         val sparkUsedMinutesLabel =
@@ -573,6 +579,7 @@ class SelectProjectActionTest {
     val mockDirectAccessService = mock<DirectAccessService>()
     Mockito.doReturn(cloudProjectManagerFlow).whenever(mockDirectAccessService).cloudProjectManager
     Mockito.doReturn(scope).whenever(mockDirectAccessService).scope
+    Mockito.doReturn(MutableStateFlow(DirectAccessPermissionStatus.Full())).whenever(mockDirectAccessService).permissionFlow
     val mockDeviceSelectionListFlow = MutableStateFlow(listOf<DeviceSelection>())
     doAnswer {
         mockDeviceSelectionListFlow.update {
@@ -630,6 +637,8 @@ class SelectProjectActionTest {
     val template = plugin.templates.value.first()
     yieldUntil { template.state.error?.severity == DeviceError.Severity.INFO }
     assertThat(template.state.error?.message).isEqualTo("Ready in a few minutes")
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
     yieldUntil {
       template.activationAction.presentation.value.detail == "Android Device Streaming is setting up and will be ready in a few minutes."
     }
@@ -797,6 +806,92 @@ class SelectProjectActionTest {
       .isEqualTo("Open the Device Streaming dialog to select Firebase project and devices")
   }
 
+  @Test
+  fun testIconWhenTemplateHasWarningError() = CoroutineTestUtils.runBlockingWithTimeout {
+    val mockTemplate = mock<DirectAccessDeviceTemplate>()
+    val templateState =
+      TemplateState(
+        error =
+          object : DeviceError {
+            override val severity = DeviceError.Severity.WARNING
+            override val message = "less than 15 minutes"
+          }
+      )
+    whenever(mockTemplate.stateFlow).thenReturn(MutableStateFlow(templateState))
+    val deviceInfo = mock<DeviceInfo>()
+    whenever(deviceInfo.key).thenReturn("shiba/34")
+    whenever(mockTemplate.deviceInfo).thenReturn(deviceInfo)
+
+    val mockProvisioner = mock<DeviceProvisioner>()
+    whenever(mockProvisioner.templates).thenReturn(MutableStateFlow(listOf(mockTemplate)))
+    val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
+    whenever(mockDeviceProvisionerService.deviceProvisioner).thenReturn(mockProvisioner)
+    projectRule.project.replaceService(DeviceProvisionerService::class.java, mockDeviceProvisionerService, projectRule.disposable)
+
+    val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
+    val accessibleDeviceInfoListFlow = RefreshableStateFlow(scope, Long.MAX_VALUE) { listOf(deviceInfo) }
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow).thenReturn(accessibleDeviceInfoListFlow)
+
+    val mockDirectAccessService = mock<DirectAccessService>()
+    whenever(mockDirectAccessService.cloudProjectManager).thenReturn(MutableStateFlow(mockCloudProjectManager))
+    whenever(mockDirectAccessService.permissionFlow).thenReturn(MutableStateFlow(DirectAccessPermissionStatus.Full()))
+    projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+  }
+
+  @Test
+  fun testIconWhenTemplateHasCriticalError() = CoroutineTestUtils.runBlockingWithTimeout {
+    val mockTemplate = mock<DirectAccessDeviceTemplate>()
+    val templateState =
+      TemplateState(
+        error =
+          object : DeviceError {
+            override val severity = DeviceError.Severity.ERROR
+            override val message = "Critical failure"
+          }
+      )
+    whenever(mockTemplate.stateFlow).thenReturn(MutableStateFlow(templateState))
+    val deviceInfo = mock<DeviceInfo>()
+    whenever(deviceInfo.key).thenReturn("shiba/34")
+    whenever(mockTemplate.deviceInfo).thenReturn(deviceInfo)
+
+    val mockProvisioner = mock<DeviceProvisioner>()
+    whenever(mockProvisioner.templates).thenReturn(MutableStateFlow(listOf(mockTemplate)))
+    val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
+    whenever(mockDeviceProvisionerService.deviceProvisioner).thenReturn(mockProvisioner)
+    projectRule.project.replaceService(DeviceProvisionerService::class.java, mockDeviceProvisionerService, projectRule.disposable)
+
+    val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
+    val accessibleDeviceInfoListFlow = RefreshableStateFlow(scope, Long.MAX_VALUE) { listOf(deviceInfo) }
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow).thenReturn(accessibleDeviceInfoListFlow)
+
+    val mockDirectAccessService = mock<DirectAccessService>()
+    whenever(mockDirectAccessService.cloudProjectManager).thenReturn(MutableStateFlow(mockCloudProjectManager))
+    whenever(mockDirectAccessService.permissionFlow).thenReturn(MutableStateFlow(DirectAccessPermissionStatus.Full()))
+    projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.icon).isEqualTo(firebaseIconWithErrors)
+  }
+
   private fun createCloudProjectManager(
     scope: CoroutineScope,
     name: String?,
@@ -832,7 +927,7 @@ class SelectProjectActionTest {
       }
     Mockito.doReturn(accessibleDeviceInfoListFlow).whenever(mockCloudProjectManager).accessibleDeviceInfoListFlow
 
-    Mockito.doReturn(permissionFlow).whenever(mockCloudProjectManager).permissionFlow
+    Mockito.doReturn(permissionFlow.stateFlow).whenever(mockCloudProjectManager).permissionFlow
 
     val isBillingEnabledFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
@@ -844,6 +939,8 @@ class SelectProjectActionTest {
         }
       }
     Mockito.doReturn(isBillingEnabledFlow).whenever(mockCloudProjectManager).isBillingEnabledFlow
+    val isDeviceStreamingApiEnabledFlow = RefreshableStateFlow(scope, Long.MAX_VALUE) { true }
+    Mockito.doReturn(isDeviceStreamingApiEnabledFlow).whenever(mockCloudProjectManager).isDeviceStreamingApiEnabledFlow
     return mockCloudProjectManager
   }
 }
