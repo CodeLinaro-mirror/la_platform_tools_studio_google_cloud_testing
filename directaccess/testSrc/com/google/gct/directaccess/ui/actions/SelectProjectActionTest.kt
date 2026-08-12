@@ -34,12 +34,14 @@ import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.disposable
+import com.android.tools.idea.testing.flags.overrideForTest
 import com.google.cloud.devicestreaming.v1.DeviceSession
 import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessApplicationService
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
+import com.google.gct.directaccess.DirectAccessDeprecationState
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessPersistentStateComponent
@@ -538,7 +540,7 @@ class SelectProjectActionTest {
     }
 
     selectProjectAction.update(event)
-    assertThat(selectProjectAction.templatePresentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+    assertThat(event.presentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
 
     // Do not trigger project creation when closing the dialog.
     var invocationCountBeforeClosing = 0
@@ -801,9 +803,30 @@ class SelectProjectActionTest {
   }
 
   @Test
-  fun testDescription() {
-    assertThat(SelectProjectAction().templatePresentation.description)
-      .isEqualTo("Open the Device Streaming dialog to select Firebase project and devices")
+  fun testDescription() = CoroutineTestUtils.runBlockingWithTimeout {
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.description).isEqualTo("Open the Device Streaming dialog to select Firebase project and devices")
+  }
+
+  @Test
+  fun testDescriptionWhenBrandingIsUpdated() = CoroutineTestUtils.runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.overrideForTest(true, projectRule.disposable)
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.description).isEqualTo("Open the Device Streaming dialog to select Google Cloud project and devices")
   }
 
   @Test
@@ -890,6 +913,182 @@ class SelectProjectActionTest {
 
     selectDeviceAction.update(event)
     assertThat(event.presentation.icon).isEqualTo(firebaseIconWithErrors)
+  }
+
+  @Test
+  fun testIconWhenBrandingIsUpdated() = CoroutineTestUtils.runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.overrideForTest(true, projectRule.disposable)
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.icon).isEqualTo(StudioIcons.Common.GOOGLE_CLOUD)
+    assertThat(event.presentation.description).isEqualTo("Open the Device Streaming dialog to select Google Cloud project and devices")
+  }
+
+  @Test
+  fun testErrorIconWhenBrandingIsUpdated() = CoroutineTestUtils.runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.overrideForTest(true, projectRule.disposable)
+    val mockTemplate = mock<DirectAccessDeviceTemplate>()
+    val templateState =
+      TemplateState(
+        error =
+          object : DeviceError {
+            override val severity = DeviceError.Severity.ERROR
+            override val message = "Critical failure"
+          }
+      )
+    whenever(mockTemplate.stateFlow).thenReturn(MutableStateFlow(templateState))
+    val deviceInfo = mock<DeviceInfo>()
+    whenever(deviceInfo.key).thenReturn("shiba/34")
+    whenever(mockTemplate.deviceInfo).thenReturn(deviceInfo)
+
+    val mockProvisioner = mock<DeviceProvisioner>()
+    whenever(mockProvisioner.templates).thenReturn(MutableStateFlow(listOf(mockTemplate)))
+    val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
+    whenever(mockDeviceProvisionerService.deviceProvisioner).thenReturn(mockProvisioner)
+    projectRule.project.replaceService(DeviceProvisionerService::class.java, mockDeviceProvisionerService, projectRule.disposable)
+
+    val mockCloudProjectManager = mock<DirectAccessCloudProjectManager>()
+    val accessibleDeviceInfoListFlow = RefreshableStateFlow(scope, Long.MAX_VALUE) { listOf(deviceInfo) }
+    whenever(mockCloudProjectManager.accessibleDeviceInfoListFlow).thenReturn(accessibleDeviceInfoListFlow)
+
+    val mockDirectAccessService = mock<DirectAccessService>()
+    whenever(mockDirectAccessService.cloudProjectManager).thenReturn(MutableStateFlow(mockCloudProjectManager))
+    whenever(mockDirectAccessService.permissionFlow).thenReturn(MutableStateFlow(DirectAccessPermissionStatus.Full()))
+    projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.icon).isEqualTo(googleCloudIconWithErrors)
+  }
+
+  @Test
+  fun testDeprecationTextWhenTemplatesEmptyAndBrandingNotUpdated() = CoroutineTestUtils.runBlockingWithTimeout {
+    val mockDeprecationService = mock<DirectAccessDeprecationState>()
+    whenever(mockDeprecationService.isServiceEnabledFlow).thenReturn(MutableStateFlow(false))
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessDeprecationState::class.java, mockDeprecationService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.isEnabled).isFalse()
+    assertThat(event.presentation.text).isEqualTo("Firebase Device Streaming is no longer compatible with this version of Android Studio.")
+    assertThat(event.presentation.icon).isEqualTo(FirebaseIcons.ACTION_ICON)
+    assertThat(event.presentation.description).isEqualTo("Open the Device Streaming dialog to select Firebase project and devices")
+    assertThat(event.presentation.isVisible).isTrue()
+  }
+
+  @Test
+  fun testDeprecationTextWhenTemplatesEmptyAndBrandingUpdated() = CoroutineTestUtils.runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.overrideForTest(true, projectRule.disposable)
+    val mockDeprecationService = mock<DirectAccessDeprecationState>()
+    whenever(mockDeprecationService.isServiceEnabledFlow).thenReturn(MutableStateFlow(false))
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessDeprecationState::class.java, mockDeprecationService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.isEnabled).isFalse()
+    assertThat(event.presentation.text).isEqualTo("Device Streaming is no longer compatible with this version of Android Studio.")
+    assertThat(event.presentation.icon).isEqualTo(StudioIcons.Common.GOOGLE_CLOUD)
+    assertThat(event.presentation.description).isEqualTo("Open the Device Streaming dialog to select Google Cloud project and devices")
+    assertThat(event.presentation.isVisible).isTrue()
+  }
+
+  @Test
+  fun testDeprecationVisibilityWhenDirectAccessFlagDisabled() = CoroutineTestUtils.runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS.overrideForTest(false, projectRule.disposable)
+    val mockDeprecationService = mock<DirectAccessDeprecationState>()
+    whenever(mockDeprecationService.isServiceEnabledFlow).thenReturn(MutableStateFlow(false))
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessDeprecationState::class.java, mockDeprecationService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.isEnabled).isFalse()
+    assertThat(event.presentation.isVisible).isFalse()
+  }
+
+  @Test
+  fun testDeprecationTextWhenTemplatesNotEmpty() = CoroutineTestUtils.runBlockingWithTimeout {
+    val mockDeprecationService = mock<DirectAccessDeprecationState>()
+    whenever(mockDeprecationService.isServiceEnabledFlow).thenReturn(MutableStateFlow(false))
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessDeprecationState::class.java, mockDeprecationService, projectRule.disposable)
+
+    val mockTemplate = mock<DirectAccessDeviceTemplate>()
+    val mockProvisioner = mock<DeviceProvisioner>()
+    whenever(mockProvisioner.templates).thenReturn(MutableStateFlow(listOf(mockTemplate)))
+    val mockDeviceProvisionerService = mock<DeviceProvisionerService>()
+    whenever(mockDeviceProvisionerService.deviceProvisioner).thenReturn(mockProvisioner)
+    projectRule.project.replaceService(DeviceProvisionerService::class.java, mockDeviceProvisionerService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.isEnabled).isFalse()
+    assertThat(event.presentation.text).isEqualTo("Unsupported version: update required")
+  }
+
+  @Test
+  fun testDynamicStateTransitionBetweenDeprecatedAndActive() = CoroutineTestUtils.runBlockingWithTimeout {
+    val isServiceEnabledFlow = MutableStateFlow(false)
+    val mockDeprecationService = mock<DirectAccessDeprecationState>()
+    whenever(mockDeprecationService.isServiceEnabledFlow).thenReturn(isServiceEnabledFlow)
+    ApplicationManager.getApplication()
+      .replaceService(DirectAccessDeprecationState::class.java, mockDeprecationService, projectRule.disposable)
+
+    val selectDeviceAction = SelectProjectAction()
+    val event = TestActionEvent.createTestEvent {
+      when (it) {
+        CommonDataKeys.PROJECT.name -> projectRule.project
+        else -> null
+      }
+    }
+
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.isEnabled).isFalse()
+    assertThat(event.presentation.text).isEqualTo("Firebase Device Streaming is no longer compatible with this version of Android Studio.")
+
+    isServiceEnabledFlow.value = true
+    selectDeviceAction.update(event)
+    assertThat(event.presentation.isEnabled).isTrue()
+    assertThat(event.presentation.text).isEqualTo("Configure Device Streaming Project")
   }
 
   private fun createCloudProjectManager(

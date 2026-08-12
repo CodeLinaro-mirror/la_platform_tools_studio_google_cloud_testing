@@ -1,0 +1,35 @@
+{
+  "name": "Google",
+  "icons": [
+    {
+      "formFactor": "car",
+      "pathLight": "car.svg",
+      "pathDark": "car_dark.svg"
+    },
+    {
+      "formFactor": "phone",
+      "pathLight": "phone.svg",
+      "pathDark": "phone_dark.svg"
+    },
+    {
+      "formFactor": "tv",
+      "pathLight": "tv.svg",
+      "pathDark": "tv_dark.svg"
+    },
+    {
+      "formFactor": "wear",
+      "pathLight": "wear.svg",
+      "pathDark": "wear_dark.svg"
+    },
+    {
+      "formFactor": "xr_headset",
+      "pathLight": "xr_headset.svg",
+      "pathDark": "xr_headset_dark.svg"
+    },
+    {
+      "formFactor": "ai_glasses",
+      "pathLight": "ai_glasses.svg",
+      "pathDark": "ai_glasses_dark.svg"
+    }
+  ]
+}

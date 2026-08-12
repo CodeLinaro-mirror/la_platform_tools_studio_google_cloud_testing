@@ -66,6 +66,7 @@ import com.android.tools.idea.adddevicedialog.FormFactor
 import com.android.tools.idea.adddevicedialog.Manufacturer
 import com.android.tools.idea.adddevicedialog.TextFilterState
 import com.android.tools.idea.concurrency.createCoroutineScope
+import com.android.tools.idea.flags.StudioFlags
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProfile
@@ -382,12 +383,13 @@ internal fun RemoteDeviceFilters(profiles: List<DirectAccessDeviceProfile>, filt
   SetFilter(Lab.uniqueValuesOf(profiles), filterState.labFilter) { name ->
     Text(name)
     if (profiles.any { Lab.value(it) == name && it.accessStatus.isNotEmpty() }) {
+      val branding = if (StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.get()) "Google Cloud" else "Firebase"
       @OptIn(ExperimentalFoundationApi::class)
       LingeringTooltip({
         Column {
           Text(
             "This Partner OEM device lab is currently not enabled\n" +
-              "for your Firebase project. An Owner or Editor of the\n" +
+              "for your $branding project. An Owner or Editor of the\n" +
               "project may have to take additional steps before you\n" +
               "can use a device from this lab.",
             Modifier.padding(bottom = 4.dp),

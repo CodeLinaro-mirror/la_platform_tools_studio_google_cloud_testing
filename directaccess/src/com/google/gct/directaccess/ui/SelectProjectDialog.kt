@@ -20,6 +20,7 @@ import com.android.annotations.concurrency.Slow
 import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
+import com.android.tools.idea.flags.StudioFlags
 import com.google.common.annotations.VisibleForTesting
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessApplicationService
@@ -52,7 +53,6 @@ import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.dsl.builder.Align
 import com.intellij.ui.dsl.builder.EmptySpacingConfiguration
 import com.intellij.ui.dsl.builder.panel
-import com.intellij.ui.dsl.builder.plus
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import icons.StudioIcons
@@ -145,12 +145,20 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
           row {
             // TODO (b/364673782): update text with UX requirements.
             text(
-                "Android Device Streaming, powered by Firebase, provides secure direct ADB access to a wide range of Android devices," +
-                  " which you can use to debug and interact with your app.  <br>" +
-                  "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
-                  " Select a Firebase Spark plan project for limited access at no cost," +
-                  " or select a Blaze project for pay-as-you-go access that’s billed monthly. " +
-                  "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>"
+                if (StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.get()) {
+                  "Android Device Streaming, powered by Google Cloud, provides secure direct ADB access to a wide range of Android devices," +
+                    " which you can use to debug and interact with your app.  <br>" +
+                    "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
+                    " Select a Google Cloud project to get started. " +
+                    "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>"
+                } else {
+                  "Android Device Streaming, powered by Firebase, provides secure direct ADB access to a wide range of Android devices," +
+                    " which you can use to debug and interact with your app.  <br>" +
+                    "Android Device Streaming is a Beta service and may encounter service disruptions or issues as performance improves." +
+                    " Select a Firebase Spark plan project for limited access at no cost," +
+                    " or select a Blaze project for pay-as-you-go access that’s billed monthly. " +
+                    "<a href=https://d.android.com/r/studio-ui/device-streaming/help>Learn more</a>"
+                }
               )
               .apply { align(Align.FILL) }
           }

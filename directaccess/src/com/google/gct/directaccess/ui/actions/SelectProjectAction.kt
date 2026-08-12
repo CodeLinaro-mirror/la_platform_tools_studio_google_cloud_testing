@@ -33,28 +33,43 @@ import icons.StudioIcons
 import org.jetbrains.annotations.VisibleForTesting
 
 @VisibleForTesting val firebaseIconWithErrors = layeredIcon { arrayOf(FirebaseIcons.ACTION_ICON, StudioIcons.Common.ERROR_DECORATOR) }
+@VisibleForTesting
+val googleCloudIconWithErrors = layeredIcon { arrayOf(StudioIcons.Common.GOOGLE_CLOUD, StudioIcons.Common.ERROR_DECORATOR) }
 
-class SelectProjectAction :
-  AnAction(
-    "Configure Device Streaming Project",
-    "Open the Device Streaming dialog to select Firebase project and devices",
-    FirebaseIcons.ACTION_ICON,
-  ) {
+class SelectProjectAction : AnAction() {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   override fun update(e: AnActionEvent) {
+    e.presentation.isEnabled = true
+    e.presentation.text = "Configure Device Streaming Project"
     if (e.project == null) {
       e.presentation.isVisible = false
       return
     }
+    e.presentation.isVisible = StudioFlags.DIRECT_ACCESS.get()
+    val isUpdatedBranding = StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.get()
+    val branding = if (isUpdatedBranding) "Google Cloud" else "Firebase"
+    val (defaultIcon, errorIcon) =
+      if (isUpdatedBranding) {
+        StudioIcons.Common.GOOGLE_CLOUD to googleCloudIconWithErrors
+      } else {
+        FirebaseIcons.ACTION_ICON to firebaseIconWithErrors
+      }
+    e.presentation.description = "Open the Device Streaming dialog to select $branding project and devices"
+    e.presentation.icon = defaultIcon
+
     val templates =
       e.project?.service<DeviceProvisionerService>()?.deviceProvisioner?.templates?.value?.filterIsInstance<DirectAccessDeviceTemplate>()
         ?: listOf()
     if (!service<DirectAccessDeprecationState>().isServiceEnabledFlow.value) {
       e.presentation.isEnabled = false
       e.presentation.text =
-        if (templates.isEmpty()) "Firebase Device Streaming is no longer compatible with this version of Android Studio."
-        else "Unsupported version: update required"
+        if (templates.isEmpty()) {
+          if (isUpdatedBranding) "Device Streaming is no longer compatible with this version of Android Studio."
+          else "Firebase Device Streaming is no longer compatible with this version of Android Studio."
+        } else {
+          "Unsupported version: update required"
+        }
       return
     }
     // An exception will be caught only when all selected templates are not disabled.
@@ -73,8 +88,8 @@ class SelectProjectAction :
       (permission != null && permission !is DirectAccessPermissionStatus.Full) ||
         (templates.isNotEmpty() && templates.none { it.deviceInfo.key in accessibleDevices }) ||
         templates.any { it.stateFlow.value.error?.severity == DeviceError.Severity.ERROR }
-    e.presentation.icon = if (isError) firebaseIconWithErrors else FirebaseIcons.ACTION_ICON
-    e.presentation.isVisible = StudioFlags.DIRECT_ACCESS.get()
+
+    e.presentation.icon = if (isError) errorIcon else defaultIcon
   }
 
   override fun actionPerformed(e: AnActionEvent) {

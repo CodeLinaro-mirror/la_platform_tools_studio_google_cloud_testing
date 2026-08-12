@@ -16,11 +16,15 @@
 package com.google.gct.directaccess.provisioner
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.platform.LocalDensity
 import com.android.annotations.concurrency.Slow
 import com.android.ide.common.repository.IdeNetworkCacheUtils
 import com.android.ide.common.repository.NetworkCache
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gson.GsonBuilder
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
@@ -40,10 +44,9 @@ import java.io.InputStream
 import java.net.URL
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import org.jetbrains.compose.resources.decodeToSvgPainter
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 
 private const val ASSETS_BASE_URL = "https://www.gstatic.com/android-devtools-oem-labs/labs/"
@@ -76,11 +79,24 @@ class OemLabsAssetsRegistry(
   useNetwork: Boolean = true,
 ) : NetworkCache(baseUrl, OEM_LABS_ASSETS_CACHE_DIR_KEY, cacheDir, networkTimeoutMs, cacheExpiryHours, useNetwork) {
 
-  private val assetsMap: MutableMap<String, OemLabAsset> = mutableMapOf()
+  private val assetsMap: MutableMap<String, OemLabAsset> = ConcurrentHashMap()
 
   init {
     // We load [assetsMap] with built-in data first.
-    refreshAssetsMap("google") { relativeUrl -> readDefaultData(relativeUrl) }
+    if (StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.get()) {
+      refreshAssetsMap("google_cloud") { relativeUrl -> readDefaultData(relativeUrl) }
+    } else {
+      refreshAssetsMap("google") { relativeUrl -> readDefaultData(relativeUrl) }
+    }
+  }
+
+  private fun resolveAssetId(assetId: String): String {
+    val normalizedId = assetId.lowercase()
+    return if (StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.get() && normalizedId == "google") {
+      "google_cloud"
+    } else {
+      normalizedId
+    }
   }
 
   override fun readUrlData(url: String, timeout: Int, lastModified: Long): ReadUrlDataResult {
@@ -107,11 +123,12 @@ class OemLabsAssetsRegistry(
 
   @Slow
   fun getAssetById(assetId: String): OemLabAsset? {
-    if (assetsMap[assetId] == null)
-      refreshAssetsMap(assetId) { relativeUrl ->
+    val resolvedId = resolveAssetId(assetId)
+    if (assetsMap[resolvedId] == null)
+      refreshAssetsMap(resolvedId) { relativeUrl ->
         checkNotNull(findData(relativeUrl)) // The fallback data is guaranteed.
       }
-    return assetsMap[assetId]
+    return assetsMap[resolvedId]
   }
 
   @Slow
@@ -173,11 +190,15 @@ class OemLabsAssetsRegistry(
 
     fun getIcon(): Icon = this
 
-    @OptIn(ExperimentalResourceApi::class)
     @Composable
     fun Icon(modifier: Modifier, isDark: Boolean = JewelTheme.isDark) {
       val data = if (isDark) darkThemeData else lightThemeData
-      val painter = data.decodeToSvgPainter(LocalDensity.current)
+      val density = LocalDensity.current
+      val painter =
+        remember(this, isDark, density) {
+          val image = renderSvg(data, density.density)
+          BitmapPainter(image.toComposeImageBitmap())
+        }
 
       org.jetbrains.jewel.ui.component.Icon(painter = painter, contentDescription = description, modifier = modifier)
     }
