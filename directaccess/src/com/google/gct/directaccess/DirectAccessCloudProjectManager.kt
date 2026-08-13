@@ -15,9 +15,11 @@
  */
 package com.google.gct.directaccess
 
+import com.android.flags.Flag
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.serverflags.DynamicServerFlagService
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.checkDirectAccessPermission
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -35,6 +37,18 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.time.withTimeout
+
+private val testingQuotaMetricFilters =
+  listOf(
+    "testing.googleapis.com/device_streaming/monthly_blaze_physical_minutes",
+    "testing.googleapis.com/device_streaming/monthly_spark_physical_minutes",
+  )
+
+private val deviceStreamingQuotaMetricFilters =
+  listOf(
+    "devicestreaming.googleapis.com/monthly_billable_physical_minutes",
+    "devicestreaming.googleapis.com/monthly_no_charge_physical_minutes",
+  )
 
 /**
  * The data class representing a cloud project.
@@ -75,8 +89,13 @@ class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, priva
   val usageQuota: Pair<Long, Long>?
     get() {
       val endpoint = "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}"
-      val serviceFilter = StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
-      return service<CloudClientService>().client.getQuotaUsageAndLimit(endpoint, serviceFilter, cloudProject.name)
+      val (serviceFilter, quotaMetricFilters) =
+        if (StudioFlags.DIRECT_ACCESS_QUOTA_SWITCH.getLatest()) {
+          StudioFlags.DEVICE_STREAMING_ENDPOINT.get() to deviceStreamingQuotaMetricFilters
+        } else {
+          StudioFlags.DIRECT_ACCESS_ENDPOINT.get() to testingQuotaMetricFilters
+        }
+      return service<CloudClientService>().client.getQuotaUsageAndLimit(endpoint, serviceFilter, quotaMetricFilters, cloudProject.name)
     }
 
   val reservationManager: DirectAccessReservationManager =
@@ -175,4 +194,8 @@ class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, priva
     }
     scope.cancel()
   }
+}
+
+private fun Flag<Boolean>.getLatest(): Boolean {
+  return DynamicServerFlagService.instance.getBoolean("studio_flags/$id") ?: get()
 }

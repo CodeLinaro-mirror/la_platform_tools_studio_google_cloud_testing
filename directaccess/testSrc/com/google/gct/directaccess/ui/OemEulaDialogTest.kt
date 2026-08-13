@@ -235,7 +235,7 @@ class OemEulaDialogTest {
     whenever(mockHttpClient.send(any(), any<HttpResponse.BodyHandler<String>>())).thenReturn(mockResponse)
 
     Disposer.register(projectRule.disposable) { CloudClientService.instance().overrideClientForTest = null }
-    CloudClientService.instance().overrideClientForTest = CloudClient({ "faketoken" }, httpClient = mockHttpClient)
+    CloudClientService.instance().overrideClientForTest = CloudClient({ "faketoken" }, "catalogkey", httpClient = mockHttpClient)
     return mockHttpClient
   }
 

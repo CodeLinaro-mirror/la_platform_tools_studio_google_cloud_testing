@@ -18,16 +18,16 @@ package com.google.gct.directaccess
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.sdklib.deviceprovisioner.DeviceType
 import com.android.tools.idea.adddevicedialog.FormFactors
-import com.google.api.services.testing.model.AndroidDeviceCatalog
-import com.google.api.services.testing.model.AndroidModel
-import com.google.api.services.testing.model.DirectAccessVersionInfo
-import com.google.api.services.testing.model.LabInfo
-import com.google.api.services.testing.model.PerAndroidVersionInfo
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.gct.directaccess.provisioner.DeviceSelection
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
+import com.google.services.firebase.directaccess.client.api.AndroidDeviceCatalog
+import com.google.services.firebase.directaccess.client.api.AndroidModel
+import com.google.services.firebase.directaccess.client.api.DirectAccessVersionInfo
+import com.google.services.firebase.directaccess.client.api.LabInfo
+import com.google.services.firebase.directaccess.client.api.PerAndroidVersionInfo
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationsManager
 import com.intellij.openapi.components.service
@@ -163,7 +163,7 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
-      set("formFactor", "PHONE")
+      formFactor = "PHONE"
       screenX = 100
       screenY = 200
       screenDensity = 300
@@ -179,7 +179,7 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
-      set("formFactor", "WEARABLE")
+      formFactor = "WEARABLE"
       screenX = 10
       screenY = 20
       screenDensity = 30
@@ -195,7 +195,7 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("32")
       form = "PHYSICAL"
-      set("formFactor", "TABLET")
+      formFactor = "TABLET"
       screenX = 1000
       screenY = 2000
       screenDensity = 3000
@@ -210,7 +210,7 @@ object TestUtils {
       codename = "device"
       supportedVersionIds = listOf("33")
       form = "PHYSICAL"
-      set("formFactor", "PHONE")
+      formFactor = "PHONE"
       screenX = 1000
       screenY = 2000
       // Missing screenDensity
@@ -226,7 +226,7 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("25")
       form = "PHYSICAL"
-      set("formFactor", "PHONE")
+      formFactor = "PHONE"
       screenX = 100
       screenY = 200
       screenDensity = 300
@@ -242,12 +242,12 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("30")
       form = "PHYSICAL"
-      set("formFactor", "PHONE")
+      formFactor = "PHONE"
       screenX = 100
       screenY = 200
       screenDensity = 300
       perVersionInfo =
-        listOf(generatePerVersionInfo().apply { directAccessVersionInfo.apply { minimumAndroidStudioVersion = "999.9999.99" } })
+        listOf(generatePerVersionInfo().apply { directAccessVersionInfo?.apply { minimumAndroidStudioVersion = "999.9999.99" } })
     }
 
   private val phoneWithNoCapacity =
@@ -259,7 +259,7 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("30")
       form = "PHYSICAL"
-      set("formFactor", "PHONE")
+      formFactor = "PHONE"
       screenX = 100
       screenY = 200
       screenDensity = 300
@@ -275,7 +275,7 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("30")
       form = "PHYSICAL"
-      set("formFactor", "PHONE")
+      formFactor = "PHONE"
       screenX = 100
       screenY = 200
       screenDensity = 300
@@ -293,7 +293,7 @@ object TestUtils {
       id = codename
       supportedVersionIds = listOf("30")
       form = "PHYSICAL"
-      set("formFactor", "PHONE")
+      formFactor = "PHONE"
       screenX = 100
       screenY = 200
       screenDensity = 300
@@ -325,7 +325,7 @@ object TestUtils {
   val androidDeviceCatalogWithMissingFields =
     createDeviceCatalog(phone, wearable, tablet, invalidDevice, phoneLessThanApi26, phoneSupportedOnHigherASVersion)
 
-  private fun createDeviceCatalog(vararg androidModels: AndroidModel) = AndroidDeviceCatalog().apply { models = androidModels.toList() }
+  private fun createDeviceCatalog(vararg androidModels: AndroidModel) = AndroidDeviceCatalog(models = androidModels.toList())
 
   val DirectAccessDeviceHandle.connectionState: DirectAccessConnection.ConnectionState
     get() = connection.state.value.connection
