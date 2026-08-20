@@ -323,38 +323,37 @@ class DirectAccessDeviceHandle(
     object : DeactivationAction {
       val mutex = Mutex()
 
-      override suspend fun deactivate() =
-        mutex.withLock {
-          val state = stateFlow.value
-          if (state is DeviceState.Disconnected && !state.isTransitioning) return
-          withContext(scope.coroutineContext + NonCancellable) {
-            val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
-            // Check here if notification is needed. endReservation might change the state
-            val shouldShowNotification = reservationFlow.value.state == SessionState.ACTIVE
-            hasUserDisconnectedDevice = true
-            try {
-              connection.closeConnection(StateReason.USER_INITIATED)
-            } catch (e: Exception) {
-              // TODO(b/277240160): Add correct failure reason
-              trackDisconnectMetric(false, FailureReason.UNKNOWN_FAILURE)
-              throw DeviceActionException("Failed to disconnect from device. Please try again.", e)
-            }
-            stateFlow.update {
-              when (it) {
-                // Reset isTransitioning to false if the connection is not established yet.
-                is DeviceState.Disconnected -> it.copy(isTransitioning = false)
-                // Let it.connectedDevice update the state for disconnection.
-                is DeviceState.Connected -> it
-              }
-            }
-            // Reservation enters grace period. Don't track end reservation metric.
-            connection.endReservation(withGracePeriod = true)
-            if (shouldShowNotification) {
-              notificationManager.showDeviceDisconnectedNotification(reservationFlow.value.expireTime.seconds)
-            }
-            service<DirectAccessFeatureSurveys>().trackDisconnection()
+      override suspend fun deactivate() = mutex.withLock {
+        val state = stateFlow.value
+        if (state is DeviceState.Disconnected && !state.isTransitioning) return
+        withContext(scope.coroutineContext + NonCancellable) {
+          val reservationFlow = reservationManager.fetchReservationFlow(reservationName)
+          // Check here if notification is needed. endReservation might change the state
+          val shouldShowNotification = reservationFlow.value.state == SessionState.ACTIVE
+          hasUserDisconnectedDevice = true
+          try {
+            connection.closeConnection(StateReason.USER_INITIATED)
+          } catch (e: Exception) {
+            // TODO(b/277240160): Add correct failure reason
+            trackDisconnectMetric(false, FailureReason.UNKNOWN_FAILURE)
+            throw DeviceActionException("Failed to disconnect from device. Please try again.", e)
           }
+          stateFlow.update {
+            when (it) {
+              // Reset isTransitioning to false if the connection is not established yet.
+              is DeviceState.Disconnected -> it.copy(isTransitioning = false)
+              // Let it.connectedDevice update the state for disconnection.
+              is DeviceState.Connected -> it
+            }
+          }
+          // Reservation enters grace period. Don't track end reservation metric.
+          connection.endReservation(withGracePeriod = true)
+          if (shouldShowNotification) {
+            notificationManager.showDeviceDisconnectedNotification(reservationFlow.value.expireTime.seconds)
+          }
+          service<DirectAccessFeatureSurveys>().trackDisconnection()
         }
+      }
 
       private val defaultPresentation = DeviceAction.Presentation("Disconnect", StudioIcons.Avd.STOP, true)
 
@@ -586,12 +585,11 @@ class DirectAccessDeviceHandle(
   }
 }
 
-inline fun buildDirectAccessDeviceProperties(block: DeviceProperties.Builder.() -> Unit) =
-  DeviceProperties.build {
-    // DirectAccess devices are always remote
-    isRemote = true
-    block()
-  }
+inline fun buildDirectAccessDeviceProperties(block: DeviceProperties.Builder.() -> Unit) = DeviceProperties.build {
+  // DirectAccess devices are always remote
+  isRemote = true
+  block()
+}
 
 fun ReservationState.isClosed() = this == ReservationState.ERROR || this == ReservationState.COMPLETE
 

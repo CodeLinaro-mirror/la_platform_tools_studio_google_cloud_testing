@@ -100,9 +100,9 @@ fun OemEulaDialog(labs: List<String>, project: Project): DialogWrapper =
 
     override fun createCenterPanel(): JComponent {
       return StudioComposePanel {
-          val content = OemEulaContent(labs, disposable, project)
-          content.ComposeContent()
-        }
+        val content = OemEulaContent(labs, disposable, project)
+        content.ComposeContent()
+      }
         .apply {
           preferredSize = JBUI.size(510, 280)
           minimumSize = JBUI.size(510, 280)

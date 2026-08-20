@@ -168,11 +168,10 @@ class DirectAccessOnboardingService(private val scope: CoroutineScope) {
   private suspend fun enableDeviceStreamingWithRetry(projectId: String) {
     repeat(RETRY_COUNT) { count ->
       delay(WAIT_TIME_INTERVAL_SECONDS.seconds)
-      val exception =
-        runCatching {
-            service<CloudClientService>().client.enableDeviceStreamingService(projectId, StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
-          }
-          .exceptionOrNull()
+      val exception = runCatching {
+        service<CloudClientService>().client.enableDeviceStreamingService(projectId, StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
+      }
+        .exceptionOrNull()
       if (exception == null) return
       if (count == RETRY_COUNT - 1) {
         throw exception
@@ -216,19 +215,18 @@ class DirectAccessOnboardingService(private val scope: CoroutineScope) {
     // Check permissions of the cloud project every [WAIT_TIME_INTERVAL_SECONDS].
     repeat(RETRY_COUNT) { count ->
       delay(WAIT_TIME_INTERVAL_SECONDS.seconds)
-      val exception =
-        runCatching {
-            if (
-              checkDirectAccessPermission(projectEntry, true).missingPermissions.isEmpty() &&
-                service<CloudClientService>()
-                  .client
-                  .isDeviceStreamingServiceEnabled(projectEntry.name, StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
-            ) {
-              _taskFlow.value = Task(projectEntry, State.API_ENABLED)
-              return
-            }
-          }
-          .exceptionOrNull()
+      val exception = runCatching {
+        if (
+          checkDirectAccessPermission(projectEntry, true).missingPermissions.isEmpty() &&
+            service<CloudClientService>()
+              .client
+              .isDeviceStreamingServiceEnabled(projectEntry.name, StudioFlags.DEVICE_STREAMING_ENDPOINT.get())
+        ) {
+          _taskFlow.value = Task(projectEntry, State.API_ENABLED)
+          return
+        }
+      }
+        .exceptionOrNull()
       if (count == RETRY_COUNT - 1) {
         throw exception ?: RuntimeException("Timed out waiting for permissions")
       }

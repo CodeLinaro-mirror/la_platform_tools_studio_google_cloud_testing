@@ -222,27 +222,26 @@ class DirectAccessDeviceTemplate(
         return withBackgroundProgress(project, "Reserving a ${deviceInfo.name}...", true) {
           reportProgress { progressReporter ->
             val isDefaultApiEnabled = project.directAccessCloudProjectManager?.isDefaultApiEnabled == true
-            val reservationName =
-              progressReporter.indeterminateStep {
-                try {
-                  findOrCreateReservation()
-                } catch (e: CancellationException) {
-                  isActivationStarted.value = false
-                  throw e
-                } catch (e: Exception) {
-                  isActivationStarted.value = false
-                  if (e is StatusRuntimeException && e.status.code == RESOURCE_EXHAUSTED) {
-                    trackReserveDevice(false, failureReason = FailureReason.RESOURCE_EXHAUSTED, isDefaultApiApplied = isDefaultApiEnabled)
-                    throw DeviceActionException(
-                      "All Spark plan minutes for the current period have been used. " +
-                        "Upgrade to a Blaze plan to immediately continue using this service.",
-                      e,
-                    )
-                  }
-                  trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE, isDefaultApiApplied = isDefaultApiEnabled)
-                  throw DeviceActionException("Failed to reserve a device. Please try again.", e)
+            val reservationName = progressReporter.indeterminateStep {
+              try {
+                findOrCreateReservation()
+              } catch (e: CancellationException) {
+                isActivationStarted.value = false
+                throw e
+              } catch (e: Exception) {
+                isActivationStarted.value = false
+                if (e is StatusRuntimeException && e.status.code == RESOURCE_EXHAUSTED) {
+                  trackReserveDevice(false, failureReason = FailureReason.RESOURCE_EXHAUSTED, isDefaultApiApplied = isDefaultApiEnabled)
+                  throw DeviceActionException(
+                    "All Spark plan minutes for the current period have been used. " +
+                      "Upgrade to a Blaze plan to immediately continue using this service.",
+                    e,
+                  )
                 }
+                trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE, isDefaultApiApplied = isDefaultApiEnabled)
+                throw DeviceActionException("Failed to reserve a device. Please try again.", e)
               }
+            }
             progressReporter.indeterminateStep {
               var deviceHandle: DirectAccessDeviceHandle? = null
               try {
