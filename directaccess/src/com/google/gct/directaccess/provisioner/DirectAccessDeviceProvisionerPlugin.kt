@@ -226,35 +226,34 @@ class DirectAccessDeviceProvisionerPlugin(private val scope: CoroutineScope, pri
     // Update templates with enabledDevicesFlow.
     scope.launch {
       project.service<DirectAccessService>().deviceSelectionListFlow.collect { deviceSelectionList ->
-        val newTemplates =
-          _templates.updateAndGet {
-            val existingDeviceInfoMap = it.groupBy { template -> template.deviceInfo }
-            deviceSelectionList
-              .filter { selection -> selection.isSelected }
-              .map { selection -> selection.deviceInfo }
-              .map { deviceInfo ->
-                existingDeviceInfoMap[deviceInfo]?.firstOrNull()
-                  ?: cachedTemplatesMap.computeIfAbsent(deviceInfo.key) {
-                    val templateScope = scope.createChildScope(isSupervisor = true)
-                    val deviceInfoFlow =
-                      MutableStateFlow(deviceInfo).also { flow ->
-                        templateScope.launch {
-                          accessibleDeviceInfoMapFlow.collect { deviceMap ->
-                            flow.update { oldDeviceInfo -> deviceMap[deviceInfo.key] ?: oldDeviceInfo.copy(isInCatalog = false) }
-                          }
+        val newTemplates = _templates.updateAndGet {
+          val existingDeviceInfoMap = it.groupBy { template -> template.deviceInfo }
+          deviceSelectionList
+            .filter { selection -> selection.isSelected }
+            .map { selection -> selection.deviceInfo }
+            .map { deviceInfo ->
+              existingDeviceInfoMap[deviceInfo]?.firstOrNull()
+                ?: cachedTemplatesMap.computeIfAbsent(deviceInfo.key) {
+                  val templateScope = scope.createChildScope(isSupervisor = true)
+                  val deviceInfoFlow =
+                    MutableStateFlow(deviceInfo).also { flow ->
+                      templateScope.launch {
+                        accessibleDeviceInfoMapFlow.collect { deviceMap ->
+                          flow.update { oldDeviceInfo -> deviceMap[deviceInfo.key] ?: oldDeviceInfo.copy(isInCatalog = false) }
                         }
                       }
+                    }
 
-                    DirectAccessDeviceTemplate(
-                      project,
-                      deviceInfoFlow,
-                      _devices,
-                      templateScope,
-                      reservationsFlow.map { reservations -> reservations != null },
-                    )
-                  }
-              }
-          }
+                  DirectAccessDeviceTemplate(
+                    project,
+                    deviceInfoFlow,
+                    _devices,
+                    templateScope,
+                    reservationsFlow.map { reservations -> reservations != null },
+                  )
+                }
+            }
+        }
         // Refresh the reservation flow to match the new selection list.
         // TODO (b/338286373) remove reservationListFlowWithException from CloudProjectManager.
         matchReservations(

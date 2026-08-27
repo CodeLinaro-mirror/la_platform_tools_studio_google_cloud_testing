@@ -66,11 +66,10 @@ class RefreshableStateFlow<T>(scope: CoroutineScope, refreshIntervalMs: Long, pr
    *
    * This method runs [refresher] sequentially with the internal periodic updater and resets its update interval.
    */
-  suspend fun refresh(): T =
-    mutex.withLock {
-      job?.cancelAndJoin()
-      internalRefresh()
-    }
+  suspend fun refresh(): T = mutex.withLock {
+    job?.cancelAndJoin()
+    internalRefresh()
+  }
 
   private suspend fun internalRefresh(): T {
     val result = withContext(Dispatchers.IO) { refresher() }

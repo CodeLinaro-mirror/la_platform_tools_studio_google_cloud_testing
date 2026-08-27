@@ -33,6 +33,10 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -68,22 +72,31 @@ data class CloudProjectEntry(val user: String, val name: String)
  */
 class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, private val scope: CoroutineScope) : AutoCloseable {
 
+  val isDeviceStreamingApiEnabledFlow: RefreshableStateFlow<Boolean?> =
+    RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(5)) {
+      try {
+        val endPoint = StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
+        endPoint.isNotEmpty() && service<CloudClientService>().client.isDeviceStreamingServiceEnabled(cloudProject.name, endPoint)
+      } catch (_: Exception) {
+        null
+      }
+    }
+
   /**
    * True if the new device streaming API is enabled for [cloudProject].
    *
    * TODO(b/403595323) remove the check once FTL direct access API gets disabled.
    */
   val isDefaultApiEnabled =
-    try {
-      val endPoint = StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
-      endPoint.isNotEmpty() &&
-        service<CloudClientService>().client.isDeviceStreamingServiceEnabled(cloudProject.name, endPoint) &&
-        // Fallback to old API if permissions are not full.
-        checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty()
-    } catch (_: Exception) {
-      thisLogger().info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
-      false
-    }
+    StudioFlags.DIRECT_ACCESS_MIGRATE_TO_DDP.get() ||
+      try {
+        isDeviceStreamingApiEnabledFlow.value == true &&
+          // Fallback to old API if permissions are not full.
+          checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty()
+      } catch (_: Exception) {
+        thisLogger().info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
+        false
+      }
 
   /** A pair of usage and limit numbers of quota in minutes. */
   val usageQuota: Pair<Long, Long>?
@@ -136,13 +149,30 @@ class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, priva
       }
     }
 
-  val permissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
+  val rawPermissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
     RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(5)) {
       try {
         checkDirectAccessPermission(cloudProject, isDefaultApiEnabled)
       } catch (_: Exception) {
-        DirectAccessPermissionStatus.Unknown(FULL_PERMISSIONS_SET)
+        val fullPermissions =
+          if (isDefaultApiEnabled) {
+            NEW_FULL_PERMISSIONS_SET
+          } else {
+            FULL_PERMISSIONS_SET
+          }
+        DirectAccessPermissionStatus.Unknown(fullPermissions)
       }
+    }
+
+  val permissionFlow: StateFlow<DirectAccessPermissionStatus> =
+    combine(rawPermissionFlow.stateFlow, isDeviceStreamingApiEnabledFlow.stateFlow, ::calculatePermissionStatus)
+      .stateIn(scope, SharingStarted.Eagerly, calculatePermissionStatus(rawPermissionFlow.value, isDeviceStreamingApiEnabledFlow.value))
+
+  private fun calculatePermissionStatus(permission: DirectAccessPermissionStatus, isApiEnabled: Boolean?): DirectAccessPermissionStatus =
+    if (isDefaultApiEnabled && isApiEnabled == false) {
+      DirectAccessPermissionStatus.ApiNotEnabled
+    } else {
+      permission
     }
 
   val isBillingEnabledFlow: RefreshableStateFlow<Boolean?> =

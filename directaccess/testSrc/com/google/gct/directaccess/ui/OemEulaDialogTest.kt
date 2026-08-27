@@ -33,6 +33,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
+import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gson.Gson
 import com.google.services.firebase.directaccess.client.CloudClient
@@ -84,6 +85,7 @@ class OemEulaDialogTest {
     val mockService: DirectAccessService = mock()
     val mockProjectManager: DirectAccessCloudProjectManager = mock()
     whenever(mockService.cloudProjectManager).thenReturn(projectManagerFlow)
+    whenever(mockService.permissionFlow).thenReturn(MutableStateFlow(DirectAccessPermissionStatus.Full()))
     projectManagerFlow.value = mockProjectManager
     whenever(mockProjectManager.cloudProject).thenReturn(CloudProjectEntry("myUser", "myProject"))
     projectRule.project.replaceService(DirectAccessService::class.java, mockService, projectRule.disposable)

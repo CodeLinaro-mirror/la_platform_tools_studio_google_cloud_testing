@@ -115,38 +115,36 @@ class DirectAccessNotificationManager(private val project: Project, private val 
     }
   }
 
-  private suspend fun showReservationExpiringNotification() =
-    mutex.withLock {
-      // Do not show reservation expiring notification if the device is in grace period.
-      if (deviceDisconnectedNotification?.isExpired == false) return
-      reservationExpiringNotification.show()
-    }
+  private suspend fun showReservationExpiringNotification() = mutex.withLock {
+    // Do not show reservation expiring notification if the device is in grace period.
+    if (deviceDisconnectedNotification?.isExpired == false) return
+    reservationExpiringNotification.show()
+  }
 
-  suspend fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) =
-    mutex.withLock {
-      val deviceName = deviceHandle.sourceTemplate.properties.title
-      val message =
-        reservationExpireTime?.let {
-          val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
-          getDeviceDisconnectedNotificationMessage(deviceName, phrase)
-        } ?: ""
-      deviceDisconnectedNotification =
-        notificationGroup
-          .createNotification("$deviceName on Firebase stopped", message, NotificationType.INFORMATION)
-          .addAction(
-            NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
-              deviceHandle.launchCatchingDeviceActionException(project = project) { activationAction.activate() }
-            }
-          )
-          .addAction(
-            NotificationAction.createExpiring("Return and erase device") { _, _ ->
-              deviceHandle.launchCatchingDeviceActionException(project = project) { reservationAction.endReservation() }
-            }
-          )
-          .setIcon(deviceHandle.icon)
-          .takeIf { deviceHandle.stateFlow.value.shouldShowDisconnectedNotification() }
-          ?.apply { notify(project) }
-    }
+  suspend fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) = mutex.withLock {
+    val deviceName = deviceHandle.sourceTemplate.properties.title
+    val message =
+      reservationExpireTime?.let {
+        val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
+        getDeviceDisconnectedNotificationMessage(deviceName, phrase)
+      } ?: ""
+    deviceDisconnectedNotification =
+      notificationGroup
+        .createNotification("$deviceName on Firebase stopped", message, NotificationType.INFORMATION)
+        .addAction(
+          NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
+            deviceHandle.launchCatchingDeviceActionException(project = project) { activationAction.activate() }
+          }
+        )
+        .addAction(
+          NotificationAction.createExpiring("Return and erase device") { _, _ ->
+            deviceHandle.launchCatchingDeviceActionException(project = project) { reservationAction.endReservation() }
+          }
+        )
+        .setIcon(deviceHandle.icon)
+        .takeIf { deviceHandle.stateFlow.value.shouldShowDisconnectedNotification() }
+        ?.apply { notify(project) }
+  }
 
   /** Handles panel visibility changes */
   fun onDevicePanelVisibilityChanged() {
@@ -198,11 +196,10 @@ class DirectAccessNotificationManager(private val project: Project, private val 
   private fun getDeviceDisconnectedNotificationMessage(deviceName: String, phrase: String) =
     "You can reconnect to the same $deviceName for $phrase before the device is wiped"
 
-  private suspend fun expireDeviceDisconnectedNotification() =
-    mutex.withLock {
-      deviceDisconnectedNotification?.expire()
-      deviceDisconnectedNotification = null
-    }
+  private suspend fun expireDeviceDisconnectedNotification() = mutex.withLock {
+    deviceDisconnectedNotification?.expire()
+    deviceDisconnectedNotification = null
+  }
 
   private suspend fun expireReservationExpiringNotification() = mutex.withLock { reservationExpiringNotification.expire() }
 

@@ -28,7 +28,11 @@ import com.intellij.util.application
 import com.intellij.util.messages.MessageBusConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -37,6 +41,17 @@ class DirectAccessService(val project: Project, val scope: CoroutineScope) : Dis
 
   private val _cloudProjectManager = MutableStateFlow<DirectAccessCloudProjectManager?>(null)
   val cloudProjectManager: StateFlow<DirectAccessCloudProjectManager?> = _cloudProjectManager
+
+  val permissionFlow: StateFlow<DirectAccessPermissionStatus?> = channelFlow {
+    cloudProjectManager.collectLatest { manager ->
+      if (manager == null) {
+        send(null)
+      } else {
+        manager.permissionFlow.collect { status -> send(status) }
+      }
+    }
+  }
+    .stateIn(scope, SharingStarted.Eagerly, null)
 
   /** A flow of devices with selected states. */
   val deviceSelectionListFlow =
