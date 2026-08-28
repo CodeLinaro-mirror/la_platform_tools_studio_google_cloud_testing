@@ -19,9 +19,16 @@ import com.android.adblib.testingutils.CoroutineTestUtils.runBlockingWithTimeout
 import com.android.adblib.testingutils.CoroutineTestUtils.yieldUntil
 import com.android.testutils.delayUntilCondition
 import com.android.tools.adtui.swing.findAllDescendants
+import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.testing.flags.overrideForTest
 import com.google.common.truth.Truth.assertThat
+import com.google.gct.directaccess.CloudClientService
 import com.google.services.firebase.FirebaseProjectClientRule
+import com.google.services.firebase.directaccess.client.CloudClient
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.testFramework.DisposableRule
 import com.intellij.testFramework.ProjectRule
+import com.intellij.testFramework.replaceService
 import com.intellij.ui.components.AnActionLink
 import com.intellij.util.ui.NamedColorUtil
 import java.awt.Color
@@ -33,18 +40,28 @@ import kotlinx.coroutines.job
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 class DirectAccessProjectSelectorTest {
 
   @get:Rule val projectRule = ProjectRule()
+  @get:Rule val disposableRule = DisposableRule()
   @get:Rule val firebaseProjectClientRule = FirebaseProjectClientRule()
   private val scope = CoroutineScope(EmptyCoroutineContext)
+  private val mockCloudClient = mock<CloudClient>()
   private lateinit var selector: DirectAccessProjectSelectorImpl
   private lateinit var projectList: MutableList<String>
 
   @Before
   fun setup() {
     projectList = firebaseProjectClientRule.setupFirebaseClient().toMutableList()
+    val mockClientService = mock<CloudClientService>()
+    doReturn(mockCloudClient).whenever(mockClientService).client
+    doReturn(projectList).whenever(mockCloudClient).listProjects()
+    ApplicationManager.getApplication().replaceService(CloudClientService::class.java, mockClientService, disposableRule.disposable)
   }
 
   @Test
@@ -100,7 +117,34 @@ class DirectAccessProjectSelectorTest {
 
     assertThat(selector.comboBox.isVisible).isTrue()
     assertThat(selector.comboBox.model.size).isEqualTo(1)
-    assertThat(selector.comboBox.model.selectedItem).isEqualTo("Error fetching firebase projects")
+    assertThat(selector.comboBox.model.selectedItem).isEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
+    assertThat(selector.comboBox.isEnabled).isFalse()
+    selector.assertDisabledTextColor(NamedColorUtil.getErrorForeground())
+  }
+
+  @Test
+  fun testProjectsLoadedInSelector_withGcpProjectsFlagEnabled() = runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_LIST_GCP_PROJECTS.overrideForTest(true, disposableRule.disposable)
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, projectList.last(), true, scope)
+
+    yieldUntil { selector.comboBox.model.size != 1 }
+
+    assertThat(selector.comboBox.model.size).isEqualTo(projectList.size)
+    yieldUntil { selector.comboBox.model.selectedItem == projectList.last() }
+    assertThat(selector.components[0]).isEqualTo(selector.comboBox)
+  }
+
+  @Test
+  fun testErrorWhileFetchingGcpProjectDisablesSelector() = runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_LIST_GCP_PROJECTS.overrideForTest(true, disposableRule.disposable)
+    doThrow(RuntimeException("error")).whenever(mockCloudClient).listProjects()
+    selector = DirectAccessProjectSelectorImpl(projectRule.project, "preferredProject", true, scope)
+
+    yieldUntil { scope.coroutineContext.job.children.toList().isEmpty() }
+
+    assertThat(selector.comboBox.isVisible).isTrue()
+    assertThat(selector.comboBox.model.size).isEqualTo(1)
+    assertThat(selector.comboBox.model.selectedItem).isEqualTo(ERROR_FETCHING_CLOUD_PROJECTS)
     assertThat(selector.comboBox.isEnabled).isFalse()
     selector.assertDisabledTextColor(NamedColorUtil.getErrorForeground())
   }

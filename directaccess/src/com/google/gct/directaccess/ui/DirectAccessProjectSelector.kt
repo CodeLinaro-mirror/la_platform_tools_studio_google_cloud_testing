@@ -18,6 +18,7 @@ package com.google.gct.directaccess.ui
 import com.android.adblib.tools.debugging.rethrowCancellation
 import com.android.tools.idea.deviceprovisioner.DeviceProvisionerService
 import com.android.tools.idea.flags.StudioFlags
+import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.DirectAccessOnboardingService
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.TosRedirectServer
@@ -56,6 +57,7 @@ import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +69,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.VisibleForTesting
 
 internal const val ERROR_FETCHING_FIREBASE_PROJECT = "Error fetching firebase projects"
+internal const val ERROR_FETCHING_CLOUD_PROJECTS = "Error fetching Google Cloud projects"
 internal const val NO_PROJECTS_AVAILABLE = "No project available"
 
 /** Manages a [component] to select a cloud project for [DeviceProvisionerService]. */
@@ -211,7 +214,15 @@ class DirectAccessProjectSelectorImpl(
 
   private suspend fun getProjects() =
     try {
-      withContext(Dispatchers.IO) { FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId } }
+      withContext(Dispatchers.IO) {
+        if (StudioFlags.DIRECT_ACCESS_LIST_GCP_PROJECTS.get()) {
+          CloudClientService.instance().client.listProjects()
+        } else {
+          FirebaseProjectClient.listFirebaseProjects().mapNotNull { it.projectId }
+        }
+      }
+    } catch (e: CancellationException) {
+      throw e
     } catch (e: Exception) {
       null
     }
@@ -236,8 +247,10 @@ class DirectAccessProjectSelectorImpl(
       assertEventDispatchThread()
       when {
         projects == null -> {
-          model = CollectionComboBoxModel(listOf(ERROR_FETCHING_FIREBASE_PROJECT))
-          updateSelectedItem(ERROR_FETCHING_FIREBASE_PROJECT)
+          val errorMsg =
+            if (StudioFlags.DIRECT_ACCESS_LIST_GCP_PROJECTS.get()) ERROR_FETCHING_CLOUD_PROJECTS else ERROR_FETCHING_FIREBASE_PROJECT
+          model = CollectionComboBoxModel(listOf(errorMsg))
+          updateSelectedItem(errorMsg)
           isEnabled = false
           setDisabledTextColor(NamedColorUtil.getErrorForeground())
         }

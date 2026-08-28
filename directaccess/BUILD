@@ -18,6 +18,7 @@ iml_module(
         "//tools/adt/idea/adt-ui:intellij.android.adt.ui",
         "//tools/adt/idea/android:intellij.android.core",
         "//tools/adt/idea/android-common:intellij.android.common",
+        "//tools/adt/idea/studio-flags",
         "//tools/base/flags:studio.android.sdktools.flags",
         "//tools/vendor/google/directaccess-client",
         "//tools/adt/idea/artwork:intellij.android.artwork",

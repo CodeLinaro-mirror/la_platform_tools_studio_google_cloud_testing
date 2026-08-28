@@ -58,6 +58,7 @@ import com.google.gct.directaccess.provisioner.DirectAccessDeviceHandle
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceProvisionerPlugin
 import com.google.gct.directaccess.provisioner.DirectAccessDeviceTemplate
 import com.google.gct.directaccess.ui.DirectAccessProjectSelectorImpl
+import com.google.gct.directaccess.ui.ERROR_FETCHING_CLOUD_PROJECTS
 import com.google.gct.directaccess.ui.ERROR_FETCHING_FIREBASE_PROJECT
 import com.google.gct.directaccess.ui.NO_PROJECTS_AVAILABLE
 import com.google.gct.directaccess.ui.SelectProjectDialog
@@ -439,10 +440,17 @@ class SelectProjectActionTest {
         comboBox.model.selectedItem = ERROR_FETCHING_FIREBASE_PROJECT
         assertThat(fakePropertiesComponent[projectRule.project]).isNotEqualTo(ERROR_FETCHING_FIREBASE_PROJECT)
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
+        waitForCondition { !dialog.isOKActionEnabled }
+
+        comboBox.model.selectedItem = ERROR_FETCHING_CLOUD_PROJECTS
+        assertThat(fakePropertiesComponent[projectRule.project]).isNotEqualTo(ERROR_FETCHING_CLOUD_PROJECTS)
+        assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
+        waitForCondition { !dialog.isOKActionEnabled }
 
         comboBox.model.selectedItem = NO_PROJECTS_AVAILABLE
         waitForCondition { !errorLabel.isVisible }
         assertThat(fakePropertiesComponent[projectRule.project]).isEqualTo(unknownPermissionTestProject)
+        waitForCondition { !dialog.isOKActionEnabled }
 
         // Select an invalid project that fails to fetch permissions.
         comboBox.model.selectedItem = invalidProject
@@ -455,6 +463,13 @@ class SelectProjectActionTest {
         waitForCondition { dialog.isOKActionEnabled }
         waitForCondition { planLabel.text == "Blaze Plan" }
         waitForCondition { planTooltipLabel.getHelpToolTipText().contains("Blaze plans allow extended usage and is billed monthly.") }
+
+        // Select error fetching projects after a valid project to verify OK action gets disabled.
+        comboBox.model.selectedItem = ERROR_FETCHING_FIREBASE_PROJECT
+        waitForCondition { !dialog.isOKActionEnabled }
+
+        comboBox.model.selectedItem = ERROR_FETCHING_CLOUD_PROJECTS
+        waitForCondition { !dialog.isOKActionEnabled }
 
         // Select a spark project that supports direct access.
         comboBox.model.selectedItem = supportedProjectName

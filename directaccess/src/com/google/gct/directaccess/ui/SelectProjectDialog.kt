@@ -80,6 +80,14 @@ private const val CLOUD_TEST_API_ENABLE_LINK = "https://console.developers.googl
 private const val DEVICE_STREAMING_API_ENABLE_LINK =
   "https://console.cloud.google.com/apis/api/devicestreaming.googleapis.com/overview?project="
 
+private val INVALID_PROJECT_SENTINELS =
+  setOf(
+    "",
+    NO_PROJECTS_AVAILABLE,
+    ERROR_FETCHING_FIREBASE_PROJECT,
+    ERROR_FETCHING_CLOUD_PROJECTS,
+  )
+
 class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
   val scope = project.service<DirectAccessService>().scope.createChildScope(true)
 
@@ -246,8 +254,7 @@ class SelectProjectDialog(private val project: Project) : DialogWrapper(false) {
 
   /** Returns true and updates selection if [cloudProject] is invalid. */
   private fun handleInvalidProject(cloudProject: String): Boolean {
-    if (cloudProject == ERROR_FETCHING_FIREBASE_PROJECT) return true
-    if (cloudProject.isEmpty() || cloudProject == NO_PROJECTS_AVAILABLE) {
+    if (cloudProject in INVALID_PROJECT_SENTINELS) {
       clearTemporarySelectedCloudProject()
       return true
     }
