@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 9.5.0-dev" type="baseline" client="" dependencies="true" name="" variant="all" version="9.5.0-dev">
+<issues format="6" by="lint 8.3.0-dev" type="baseline" client="" dependencies="true" name="" variant="all" version="8.3.0-dev">
 
     <issue
         id="DefaultLocale"
@@ -7,20 +7,9 @@
         errorLine1="    return originalString.substring(0, 1).toLowerCase() + (originalString.length() > 1 ? originalString.substring(1) : &quot;&quot;);"
         errorLine2="                                          ~~~~~~~~~~~">
         <location
-            file="tools/studio/google/cloud/testing/test-recorder/src/com/google/gct/testrecorder/util/StringHelper.java"
+            file="src/com/google/gct/testrecorder/util/StringHelper.java"
             line="53"
             column="43"/>
-    </issue>
-
-    <issue
-        id="WrongThread"
-        message="Argument at `x₀` must allow calling `run()` from `@UiThread`, but that call is requiring `@{Slow,WorkerThread}`."
-        errorLine1="    SwingUtilities.invokeLater(new Runnable() {"
-        errorLine2="                   ^">
-        <location
-            file="tools/studio/google/cloud/testing/test-recorder/src/com/google/gct/testrecorder/debugger/TestRecorderDebugProcessListener.java"
-            line="346"
-            column="20"/>
     </issue>
 
 </issues>
