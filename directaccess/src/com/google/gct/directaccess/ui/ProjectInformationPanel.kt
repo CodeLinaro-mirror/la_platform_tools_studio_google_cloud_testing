@@ -15,6 +15,7 @@
  */
 package com.google.gct.directaccess.ui
 
+import com.android.tools.idea.flags.StudioFlags
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
@@ -73,7 +74,14 @@ class ProjectInformationPanel(
   private val usageFlow = MutableStateFlow<Double?>(null)
   private val usageProgressBar = UsageProgressBar(scope, usageFlow)
 
-  private val informationLabel = grayLabelFactory("Estimated minutes based on usage across all Firebase project members.")
+  private val informationLabel =
+    grayLabelFactory(
+      if (StudioFlags.DIRECT_ACCESS_CLOUD_BRANDING.get()) {
+        "Estimated minutes based on usage across all Google Cloud project members."
+      } else {
+        "Estimated minutes based on usage across all Firebase project members."
+      }
+    )
   private val instructionPanel =
     JPanel(HorizontalLayout(0)).apply {
       foreground = UIUtil.getLabelInfoForeground()
