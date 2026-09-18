@@ -218,12 +218,15 @@ class DirectAccessDeviceHandle(
   private fun showReservationEndedNotification() =
     synchronized(this) {
       if (hasShownReservationEndedNotification) return@synchronized
-      if (reservationFlow.value.state == SessionState.SESSION_STATE_UNSPECIFIED) {
-        notificationManager.showReservationLostNotification()
-      } else {
-        notificationManager.showReservationExpiredNotification()
-      }
       hasShownReservationEndedNotification = true
+      val isSessionLost = reservationFlow.value.state == SessionState.SESSION_STATE_UNSPECIFIED
+      CoroutineScope(NonCancellable).launch {
+        if (isSessionLost) {
+          notificationManager.showReservationLostNotification()
+        } else {
+          notificationManager.showReservationExpiredNotification()
+        }
+      }
     }
 
   override val activationAction =
