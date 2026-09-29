@@ -45,10 +45,10 @@ import com.google.gct.testrecorder.event.ElementDescriptor;
 import com.google.gct.testrecorder.event.TestRecorderAssertion;
 import com.google.gct.testrecorder.event.TestRecorderEvent;
 import com.google.gct.testrecorder.settings.TestRecorderSettings;
-import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.pom.java.LanguageLevel;
+import com.intellij.psi.util.PsiUtil;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -267,7 +267,7 @@ public class TestCodeMapper {
 
   private String generateVariableNameFromTemplate(String template) {
     String variableName = lowerCaseFirstCharacter(template);
-    if (JavaLexer.isKeyword(variableName, LanguageLevel.HIGHEST)) {
+    if (PsiUtil.isKeyword(variableName, LanguageLevel.HIGHEST)) {
       variableName += "_";
     }
 
