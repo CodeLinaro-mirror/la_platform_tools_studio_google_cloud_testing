@@ -8,25 +8,6 @@ iml_module(
     kotlin_use_compose = True,
     resources = ["resources"],
     tags = ["noci:studio-win"],  # b/213385827
-    test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
-    # do not sort: must match IML order
-    test_deps = [
-        "//tools/adt/idea/.idea/libraries:mockito",
-        "//tools/base/testutils:studio.android.sdktools.testutils",
-        "//tools/adt/idea/.idea/libraries:truth",
-        "//tools/adt/idea/android-test-framework:intellij.android.testFramework",
-        "//tools/adt/idea/.idea/libraries:jetbrains.kotlinx.coroutines.test",
-        "//tools/base/fakeadbserver:studio.android.sdktools.fakeadbserver",
-        "//tools/analytics-library/testing:android.sdktools.analytics-testing",
-        "//tools/adt/idea/device-manager-v2:intellij.android.device-manager-v2",
-        "//tools/adt/idea/.idea/libraries:mockito-kotlin",
-        "//tools/adt/idea/.idea/libraries:junit4",
-        "//tools/adt/idea/.idea/libraries:kotlin-test",
-        "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose.tests",
-        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
-        "//tools/vendor/google/login:google-login.tests",
-    ],
-    test_srcs = ["testSrc"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
@@ -58,4 +39,52 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:jetty",
         "//tools/analytics-library/tracker:analytics-tracker",
     ],
+)
+
+# managed by go/iml_to_build
+iml_module(
+    name = "directaccess.tests",
+    iml_files = ["directaccess.tests.iml"],
+    kotlin_use_compose = True,
+    tags = ["noci:studio-win"],  # b/213385827
+    test_class = "com.google.gct.directaccess.DirectAccessTestSuite",
+    # do not sort: must match IML order
+    test_deps = [
+        "//tools/adt/idea/project-system:intellij.android.projectSystem",
+        "//tools/studio/google/cloud/testing/directaccess",
+        "@intellij//:intellij-sdk",
+        "//tools/adt/idea/adt-ui:intellij.android.adt.ui",
+        "//tools/adt/idea/android:intellij.android.core",
+        "//tools/adt/idea/android-common:intellij.android.common",
+        "//tools/base/flags:studio.android.sdktools.flags",
+        "//tools/vendor/google/directaccess-client",
+        "//tools/adt/idea/artwork:intellij.android.artwork",
+        "//tools/adt/idea/android-adb:intellij.android.adb",
+        "//tools/base/device-provisioner:studio.android.sdktools.device-provisioner",
+        "//tools/vendor/google/login:google-login",
+        "//tools/vendor/google/login/onboarding:login.onboarding",
+        "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
+        "//tools/vendor/google/firebase",
+        "//tools/adt/idea/streaming:intellij.android.streaming",
+        "//tools/adt/idea/intellij.android.device",
+        "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose",
+        "@intellij//:intellij.libraries.grpc",
+        "//tools/analytics-library/tracker:analytics-tracker",
+        "//tools/adt/idea/.idea/libraries:mockito",
+        "//tools/base/testutils:studio.android.sdktools.testutils",
+        "//tools/adt/idea/.idea/libraries:truth",
+        "//tools/adt/idea/android-test-framework:intellij.android.testFramework",
+        "//tools/adt/idea/.idea/libraries:jetbrains.kotlinx.coroutines.test",
+        "//tools/analytics-library/testing:android.sdktools.analytics-testing",
+        "//tools/adt/idea/device-manager-v2:intellij.android.device-manager-v2",
+        "//tools/adt/idea/.idea/libraries:mockito-kotlin",
+        "//tools/adt/idea/.idea/libraries:junit4",
+        "//tools/adt/idea/.idea/libraries:kotlin-test",
+        "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose.tests",
+        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
+        "//tools/vendor/google/login:google-login.tests",
+    ],
+    test_friends = ["//tools/studio/google/cloud/testing/directaccess"],
+    test_srcs = ["testSrc"],
+    visibility = ["//visibility:public"],
 )
