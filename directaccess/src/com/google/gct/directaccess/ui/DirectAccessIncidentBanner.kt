@@ -69,7 +69,7 @@ class DirectAccessIncidentBanner(incidents: List<JsonElement>) : EditorNotificat
   }
 
   /** Calculates the height of text label, links panel and their respective insets. Adds an extra buffer to the height for spacing. */
-  fun getCorrectedPreferredHeight() = myLabel.getPreferredFullHeight() + myLinksPanel.getPreferredFullHeight() + 20.scaled
+  fun getCorrectedPreferredHeight() = myTextLabel.getPreferredFullHeight() + myLinksPanel.getPreferredFullHeight() + 20.scaled
 
   private fun JComponent.getPreferredFullHeight(): Int = preferredHeight + insets.top + insets.bottom
 
@@ -81,10 +81,10 @@ class DirectAccessIncidentBanner(incidents: List<JsonElement>) : EditorNotificat
   private fun moveActionLabels() {
     val parent = myLinksPanel.parent
     if (parent.layout is BorderLayout) {
-      myLabel.verticalTextPosition = SwingConstants.TOP
+      myTextLabel.verticalTextPosition = SwingConstants.TOP
       parent.add(myLinksPanel, BorderLayout.SOUTH)
-      // Align firstActionLabel vertically with myLabel.
-      myLinksPanel.border = JBUI.Borders.empty(2, myLabel.icon.iconWidth + myLabel.iconTextGap - 2, 0, 0)
+      // Align firstActionLabel vertically with myTextLabel.
+      myLinksPanel.border = JBUI.Borders.empty(2, myTextLabel.icon.iconWidth + myTextLabel.iconTextGap - 2, 0, 0)
     }
   }
 
