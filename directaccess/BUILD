@@ -83,6 +83,7 @@ iml_module(
         "//tools/adt/idea/adt-ui-compose:intellij.android.adt.ui.compose.tests",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
         "//tools/vendor/google/login:google-login.tests",
+        "//tools/adt/idea/adt-ui:intellij.android.adt.ui.tests",
     ],
     test_friends = ["//tools/studio/google/cloud/testing/directaccess"],
     test_srcs = ["testSrc"],
