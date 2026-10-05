@@ -84,6 +84,8 @@ iml_module(
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils",
         "//tools/vendor/google/login:google-login.tests",
         "//tools/adt/idea/adt-ui:intellij.android.adt.ui.tests",
+        "//tools/base/adblib:studio.android.sdktools.adblib.tests",
+        "//tools/base/flags:studio.android.sdktools.flags.tests",
     ],
     test_friends = ["//tools/studio/google/cloud/testing/directaccess"],
     test_srcs = ["testSrc"],
