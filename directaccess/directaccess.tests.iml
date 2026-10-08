@@ -61,6 +61,11 @@
     <orderEntry type="module" module-name="intellij.android.adt.ui.compose.tests" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.adt.testutils" scope="TEST" />
     <orderEntry type="module" module-name="google-login.tests" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.android.adt.ui.tests" scope="TEST" />
+    <orderEntry type="module" module-name="android.sdktools.adblib.tests" scope="TEST" />
+    <orderEntry type="module" module-name="android.sdktools.flags.tests" scope="TEST" />
+    <orderEntry type="module" module-name="directaccess-client.tests" scope="TEST" />
+    <orderEntry type="module" module-name="firebase.tests" scope="TEST" />
   </component>
   <component name="TestModuleProperties" production-module="directaccess" />
 </module>
