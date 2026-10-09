@@ -366,7 +366,7 @@ class SelectProjectActionTest {
               "You do not have full access to Device Streaming in project $unsupportedTestProjectWithoutServiceUse. You are missing the following permissions:serviceusage.services.use"
             )
         }
-        assertThat(HelpTooltip.getTooltipFor(label)?.getLink()?.text).isEqualTo("Google Cloud console")
+        assertThat(HelpTooltip.getTooltipFor(label)?.link?.text).isEqualTo("Google Cloud console")
         waitForCondition { !dialog.isOKActionEnabled }
         dialog.doCancelAction()
       }
@@ -394,7 +394,7 @@ class SelectProjectActionTest {
                 permissionFlow.value.missingPermissions.joinToString("")
             )
         }
-        assertThat(HelpTooltip.getTooltipFor(errorLabel)?.getLink()?.text).isEqualTo("Google Cloud console")
+        assertThat(HelpTooltip.getTooltipFor(errorLabel)?.link?.text).isEqualTo("Google Cloud console")
         assertThat(errorLabel.icon).isEqualTo(StudioIcons.Common.ERROR)
         waitForCondition { !dialog.isOKActionEnabled }
 
@@ -409,7 +409,7 @@ class SelectProjectActionTest {
                 permissionFlow.value.missingPermissions.joinToString("")
             )
         }
-        assertThat(HelpTooltip.getTooltipFor(errorLabel)?.getLink()?.text).isEqualTo("Google Cloud console")
+        assertThat(HelpTooltip.getTooltipFor(errorLabel)?.link?.text).isEqualTo("Google Cloud console")
         waitForCondition { !dialog.isOKActionEnabled }
 
         val sparkUsedMinutesLabel =
