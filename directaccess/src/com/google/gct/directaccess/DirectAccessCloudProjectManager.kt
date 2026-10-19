@@ -15,9 +15,11 @@
  */
 package com.google.gct.directaccess
 
+import com.android.flags.Flag
 import com.android.tools.idea.adblib.AdbLibApplicationService
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.serverflags.DynamicServerFlagService
 import com.google.gct.directaccess.DirectAccessPermissionStatus.Companion.checkDirectAccessPermission
 import com.google.gct.directaccess.provisioner.DeviceInfo
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -31,10 +33,26 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.time.withTimeout
+
+private val testingQuotaMetricFilters =
+  listOf(
+    "testing.googleapis.com/device_streaming/monthly_blaze_physical_minutes",
+    "testing.googleapis.com/device_streaming/monthly_spark_physical_minutes",
+  )
+
+private val deviceStreamingQuotaMetricFilters =
+  listOf(
+    "devicestreaming.googleapis.com/monthly_billable_physical_minutes",
+    "devicestreaming.googleapis.com/monthly_no_charge_physical_minutes",
+  )
 
 /**
  * The data class representing a cloud project.
@@ -54,29 +72,43 @@ data class CloudProjectEntry(val user: String, val name: String)
  */
 class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, private val scope: CoroutineScope) : AutoCloseable {
 
+  val isDeviceStreamingApiEnabledFlow: RefreshableStateFlow<Boolean?> =
+    RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(5)) {
+      try {
+        val endPoint = StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
+        endPoint.isNotEmpty() && service<CloudClientService>().client.isDeviceStreamingServiceEnabled(cloudProject.name, endPoint)
+      } catch (_: Exception) {
+        null
+      }
+    }
+
   /**
    * True if the new device streaming API is enabled for [cloudProject].
    *
    * TODO(b/403595323) remove the check once FTL direct access API gets disabled.
    */
   val isDefaultApiEnabled =
-    try {
-      val endPoint = StudioFlags.DEVICE_STREAMING_ENDPOINT.get()
-      endPoint.isNotEmpty() &&
-        service<CloudClientService>().client.isDeviceStreamingServiceEnabled(cloudProject.name, endPoint) &&
-        // Fallback to old API if permissions are not full.
-        checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty()
-    } catch (_: Exception) {
-      thisLogger().info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
-      false
-    }
+    StudioFlags.DIRECT_ACCESS_MIGRATE_TO_DDP.get() ||
+      try {
+        isDeviceStreamingApiEnabledFlow.value == true &&
+          // Fallback to old API if permissions are not full.
+          checkDirectAccessPermission(cloudProject, true).missingPermissions.isEmpty()
+      } catch (_: Exception) {
+        thisLogger().info("DeviceStreaming API not enabled, fallback to ${StudioFlags.DIRECT_ACCESS_ENDPOINT.get()}")
+        false
+      }
 
   /** A pair of usage and limit numbers of quota in minutes. */
   val usageQuota: Pair<Long, Long>?
     get() {
       val endpoint = "https://${StudioFlags.DIRECT_ACCESS_MONITORING_ENDPOINT.get()}"
-      val serviceFilter = StudioFlags.DIRECT_ACCESS_ENDPOINT.get()
-      return service<CloudClientService>().client.getQuotaUsageAndLimit(endpoint, serviceFilter, cloudProject.name)
+      val (serviceFilter, quotaMetricFilters) =
+        if (StudioFlags.DIRECT_ACCESS_QUOTA_SWITCH.getLatest()) {
+          StudioFlags.DEVICE_STREAMING_ENDPOINT.get() to deviceStreamingQuotaMetricFilters
+        } else {
+          StudioFlags.DIRECT_ACCESS_ENDPOINT.get() to testingQuotaMetricFilters
+        }
+      return service<CloudClientService>().client.getQuotaUsageAndLimit(endpoint, serviceFilter, quotaMetricFilters, cloudProject.name)
     }
 
   val reservationManager: DirectAccessReservationManager =
@@ -117,13 +149,30 @@ class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, priva
       }
     }
 
-  val permissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
+  val rawPermissionFlow: RefreshableStateFlow<DirectAccessPermissionStatus> =
     RefreshableStateFlow(scope, TimeUnit.MINUTES.toMillis(5)) {
       try {
         checkDirectAccessPermission(cloudProject, isDefaultApiEnabled)
       } catch (_: Exception) {
-        DirectAccessPermissionStatus.Unknown(FULL_PERMISSIONS_SET)
+        val fullPermissions =
+          if (isDefaultApiEnabled) {
+            NEW_FULL_PERMISSIONS_SET
+          } else {
+            FULL_PERMISSIONS_SET
+          }
+        DirectAccessPermissionStatus.Unknown(fullPermissions)
       }
+    }
+
+  val permissionFlow: StateFlow<DirectAccessPermissionStatus> =
+    combine(rawPermissionFlow.stateFlow, isDeviceStreamingApiEnabledFlow.stateFlow, ::calculatePermissionStatus)
+      .stateIn(scope, SharingStarted.Eagerly, calculatePermissionStatus(rawPermissionFlow.value, isDeviceStreamingApiEnabledFlow.value))
+
+  private fun calculatePermissionStatus(permission: DirectAccessPermissionStatus, isApiEnabled: Boolean?): DirectAccessPermissionStatus =
+    if (isDefaultApiEnabled && isApiEnabled == false) {
+      DirectAccessPermissionStatus.ApiNotEnabled
+    } else {
+      permission
     }
 
   val isBillingEnabledFlow: RefreshableStateFlow<Boolean?> =
@@ -175,4 +224,8 @@ class DirectAccessCloudProjectManager(val cloudProject: CloudProjectEntry, priva
     }
     scope.cancel()
   }
+}
+
+private fun Flag<Boolean>.getLatest(): Boolean {
+  return DynamicServerFlagService.instance.getBoolean("studio_flags/$id") ?: get()
 }

@@ -161,6 +161,14 @@ class DirectAccessDeviceTemplate(
             },
         )
       }
+      .combine(project.service<DirectAccessService>().permissionFlow) { templateState, permission ->
+        val permErrorMsg = permission?.templateErrorMessage
+        if (permErrorMsg != null) {
+          templateState.copy(error = DirectAccessDeviceError(DeviceError.Severity.WARNING, permErrorMsg))
+        } else {
+          templateState
+        }
+      }
       .stateIn(scope, SharingStarted.Eagerly, TemplateState())
 
   /** Icon to show for the template and handle */
@@ -209,6 +217,12 @@ class DirectAccessDeviceTemplate(
        * TODO (b/246171065): activating multiple devices.
        */
       override suspend fun activate(duration: Duration?): DeviceHandle {
+        val permission = project.service<DirectAccessService>().permissionFlow.value
+        val cloudProjectName = project.directAccessCloudProjectManager?.cloudProject?.name ?: ""
+        val errorMsg = permission?.getDetailedErrorMessage(cloudProjectName)
+        if (errorMsg != null) {
+          throw DeviceActionException(errorMsg)
+        }
         // Disable further activate actions to avoid multiple devices.
         if (!isActivationStarted.compareAndSet(expect = false, update = true)) {
           throw DeviceActionDisabledException(this)
@@ -222,27 +236,26 @@ class DirectAccessDeviceTemplate(
         return withBackgroundProgress(project, "Reserving a ${deviceInfo.name}...", true) {
           reportProgress { progressReporter ->
             val isDefaultApiEnabled = project.directAccessCloudProjectManager?.isDefaultApiEnabled == true
-            val reservationName =
-              progressReporter.indeterminateStep {
-                try {
-                  findOrCreateReservation()
-                } catch (e: CancellationException) {
-                  isActivationStarted.value = false
-                  throw e
-                } catch (e: Exception) {
-                  isActivationStarted.value = false
-                  if (e is StatusRuntimeException && e.status.code == RESOURCE_EXHAUSTED) {
-                    trackReserveDevice(false, failureReason = FailureReason.RESOURCE_EXHAUSTED, isDefaultApiApplied = isDefaultApiEnabled)
-                    throw DeviceActionException(
-                      "All Spark plan minutes for the current period have been used. " +
-                        "Upgrade to a Blaze plan to immediately continue using this service.",
-                      e,
-                    )
-                  }
-                  trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE, isDefaultApiApplied = isDefaultApiEnabled)
-                  throw DeviceActionException("Failed to reserve a device. Please try again.", e)
+            val reservationName = progressReporter.indeterminateStep {
+              try {
+                findOrCreateReservation()
+              } catch (e: CancellationException) {
+                isActivationStarted.value = false
+                throw e
+              } catch (e: Exception) {
+                isActivationStarted.value = false
+                if (e is StatusRuntimeException && e.status.code == RESOURCE_EXHAUSTED) {
+                  trackReserveDevice(false, failureReason = FailureReason.RESOURCE_EXHAUSTED, isDefaultApiApplied = isDefaultApiEnabled)
+                  throw DeviceActionException(
+                    "All Spark plan minutes for the current period have been used. " +
+                      "Upgrade to a Blaze plan to immediately continue using this service.",
+                    e,
+                  )
                 }
+                trackReserveDevice(false, failureReason = FailureReason.UNKNOWN_FAILURE, isDefaultApiApplied = isDefaultApiEnabled)
+                throw DeviceActionException("Failed to reserve a device. Please try again.", e)
               }
+            }
             progressReporter.indeterminateStep {
               var deviceHandle: DirectAccessDeviceHandle? = null
               try {

@@ -36,20 +36,27 @@ import com.android.sdklib.deviceprovisioner.Resolution
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.idea.adddevicedialog.FormFactors
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.streaming.RUNNING_DEVICES_TOOL_WINDOW_ID
 import com.android.tools.idea.streaming.core.DeviceDisplayListener
 import com.android.tools.idea.streaming.core.DevicePanel
 import com.android.tools.idea.streaming.emulator.DisplayViewContainer
 import com.android.tools.idea.testing.DebugLoggerRule
 import com.android.tools.idea.testing.disposable
+import com.android.tools.idea.testing.flags.overrideForTest
 import com.android.tools.idea.testing.ui.createFakeToolWindow
 import com.google.cloud.devicestreaming.v1.DeviceSession as Reservation
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
+import com.google.gct.directaccess.CloudClientService
 import com.google.gct.directaccess.CloudProjectEntry
 import com.google.gct.directaccess.DirectAccessCloudProjectManager
+import com.google.gct.directaccess.DirectAccessPermissionStatus
 import com.google.gct.directaccess.DirectAccessService
 import com.google.gct.directaccess.DirectAccessServiceSetup
+import com.google.gct.directaccess.FULL_PERMISSIONS_SET
+import com.google.gct.directaccess.NEW_FULL_PERMISSIONS_SET
+import com.google.gct.directaccess.NEW_VIEWER_PERMISSIONS_SET
 import com.google.gct.directaccess.RefreshableStateFlow
 import com.google.gct.directaccess.TestUtils.connectionState
 import com.google.gct.directaccess.TestUtils.deviceInfoListProvider
@@ -64,6 +71,7 @@ import com.google.gct.directaccess.rule.CleanUpNotificationRule
 import com.google.gct.directaccess.rule.PropertiesComponentRule
 import com.google.gct.login2.GoogleLoginService
 import com.google.gct.login2.LoginUsersRule
+import com.google.services.firebase.directaccess.client.CloudClient
 import com.google.services.firebase.directaccess.client.DirectAccessConnection
 import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.DirectAccessConnectionManager
@@ -105,17 +113,22 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import javax.swing.JPanel
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -130,6 +143,7 @@ import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
@@ -178,6 +192,7 @@ class DirectAccessDeviceProvisionerTest {
 
     val mockDirectAccessServiceSetup = mock<DirectAccessServiceSetup>()
     whenever(mockDirectAccessServiceSetup.getAccessibleDeviceInfoList(null)).thenReturn(listOf())
+    whenever(mockDirectAccessServiceSetup.channel(any())).thenReturn(grpcConnectionRule.channel)
     ApplicationManager.getApplication()
       .replaceService(DirectAccessServiceSetup::class.java, mockDirectAccessServiceSetup, projectRule.disposable)
 
@@ -218,6 +233,12 @@ class DirectAccessDeviceProvisionerTest {
     whenever(mockDirectAccessService.deviceSelectionListFlow).thenReturn(deviceSelectionListFlow)
     whenever(mockDirectAccessService.cloudProjectManager).thenReturn(cloudProjectManagerFlow)
     whenever(mockDirectAccessService.scope).thenReturn(scope)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val servicePermissionFlow =
+      cloudProjectManagerFlow
+        .flatMapLatest { manager -> manager?.permissionFlow ?: flowOf(null) }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+    whenever(mockDirectAccessService.permissionFlow).thenReturn(servicePermissionFlow)
     doAnswer { runBlocking { fakeConnection.endReservation(true) } }.whenever(mockDirectAccessService).selectCloudProject(eq(null))
     projectRule.project.replaceService(DirectAccessService::class.java, mockDirectAccessService, projectRule.disposable)
 
@@ -229,6 +250,13 @@ class DirectAccessDeviceProvisionerTest {
     }
 
     // Sets up APIs im cloudProjectManager
+    val permissionFlow = RefreshableStateFlow<DirectAccessPermissionStatus>(scope, Long.MAX_VALUE) { DirectAccessPermissionStatus.Full() }
+    doReturn(permissionFlow.stateFlow).whenever(mockCloudProjectManager).permissionFlow
+    doReturn(permissionFlow).whenever(mockCloudProjectManager).rawPermissionFlow
+
+    val isDeviceStreamingApiEnabledFlow = RefreshableStateFlow<Boolean?>(scope, Long.MAX_VALUE) { true }
+    doReturn(isDeviceStreamingApiEnabledFlow).whenever(mockCloudProjectManager).isDeviceStreamingApiEnabledFlow
+
     val reservationListFlow =
       RefreshableStateFlow(scope, Long.MAX_VALUE) {
         if (loginUsersRule.loginService.isLoggedIn() && isOAuthTokenAvailable) Pair(directAccessReservationManager.listReservations(), null)
@@ -1423,6 +1451,147 @@ class DirectAccessDeviceProvisionerTest {
     plugin.templates.value[4].activationAction.activate()
     yieldUntil { plugin.devices.value.size == 2 }
     assertThat(countDownLatch.count).isEqualTo(0)
+  }
+
+  @Test
+  fun testTemplateStateAndActivationWithViewerPermission() = runBlockingWithTimeout {
+    yieldUntil { provisioner.templates.value.isNotEmpty() }
+    val cloudProjectManager = projectRule.project.directAccessCloudProjectManager!!
+    val newPermissionFlow =
+      RefreshableStateFlow<DirectAccessPermissionStatus>(scope, Long.MAX_VALUE) {
+        DirectAccessPermissionStatus.parseFrom(NEW_VIEWER_PERMISSIONS_SET, true)
+      }
+    val mockCloudProjectManager2 = mock<DirectAccessCloudProjectManager>()
+    doReturn(cloudProjectManager.cloudProject).whenever(mockCloudProjectManager2).cloudProject
+    doReturn(newPermissionFlow.stateFlow).whenever(mockCloudProjectManager2).permissionFlow
+    doReturn(newPermissionFlow).whenever(mockCloudProjectManager2).rawPermissionFlow
+    doReturn(cloudProjectManager.isDeviceStreamingApiEnabledFlow).whenever(mockCloudProjectManager2).isDeviceStreamingApiEnabledFlow
+    doReturn(cloudProjectManager.reservationListFlowWithException).whenever(mockCloudProjectManager2).reservationListFlowWithException
+    doReturn(cloudProjectManager.accessibleDeviceInfoListFlow).whenever(mockCloudProjectManager2).accessibleDeviceInfoListFlow
+    doReturn(cloudProjectManager.reservationManager).whenever(mockCloudProjectManager2).reservationManager
+    doReturn(cloudProjectManager.connectionManager).whenever(mockCloudProjectManager2).connectionManager
+
+    val directAccessService = projectRule.project.service<DirectAccessService>()
+    val cloudProjectManagerFlow = directAccessService.cloudProjectManager as MutableStateFlow
+    cloudProjectManagerFlow.value = mockCloudProjectManager2
+
+    val template = provisioner.templates.value[0] as DirectAccessDeviceTemplate
+    yieldUntil { template.stateFlow.value.error?.message == "Insufficient permissions" }
+
+    val exception = assertFailsWith<DeviceActionException> { template.activationAction.activate() }
+    assertThat(exception.message).contains("You do not have full access to Device Streaming")
+  }
+
+  @Test
+  fun testTemplateStateAndActivationWithNoPermission() = runBlockingWithTimeout {
+    yieldUntil { provisioner.templates.value.isNotEmpty() }
+    val cloudProjectManager = projectRule.project.directAccessCloudProjectManager!!
+    val newPermissionFlow =
+      RefreshableStateFlow<DirectAccessPermissionStatus>(scope, Long.MAX_VALUE) { DirectAccessPermissionStatus.parseFrom(emptySet(), true) }
+    val mockCloudProjectManager2 = mock<DirectAccessCloudProjectManager>()
+    doReturn(cloudProjectManager.cloudProject).whenever(mockCloudProjectManager2).cloudProject
+    doReturn(newPermissionFlow.stateFlow).whenever(mockCloudProjectManager2).permissionFlow
+    doReturn(newPermissionFlow).whenever(mockCloudProjectManager2).rawPermissionFlow
+    doReturn(cloudProjectManager.isDeviceStreamingApiEnabledFlow).whenever(mockCloudProjectManager2).isDeviceStreamingApiEnabledFlow
+    doReturn(cloudProjectManager.reservationListFlowWithException).whenever(mockCloudProjectManager2).reservationListFlowWithException
+    doReturn(cloudProjectManager.accessibleDeviceInfoListFlow).whenever(mockCloudProjectManager2).accessibleDeviceInfoListFlow
+    doReturn(cloudProjectManager.reservationManager).whenever(mockCloudProjectManager2).reservationManager
+    doReturn(cloudProjectManager.connectionManager).whenever(mockCloudProjectManager2).connectionManager
+
+    val directAccessService = projectRule.project.service<DirectAccessService>()
+    val cloudProjectManagerFlow = directAccessService.cloudProjectManager as MutableStateFlow
+    cloudProjectManagerFlow.value = mockCloudProjectManager2
+
+    val template = provisioner.templates.value[0] as DirectAccessDeviceTemplate
+    yieldUntil { template.stateFlow.value.error?.message == "No permission in project" }
+
+    val exception = assertFailsWith<DeviceActionException> { template.activationAction.activate() }
+    assertThat(exception.message).contains("You do not have access to Device Streaming")
+  }
+
+  @Test
+  fun testTemplateStateAndActivationWithApiDisabled() = runBlockingWithTimeout {
+    yieldUntil { provisioner.templates.value.isNotEmpty() }
+    val cloudProjectManager = projectRule.project.directAccessCloudProjectManager!!
+    val newPermissionFlow = MutableStateFlow<DirectAccessPermissionStatus>(DirectAccessPermissionStatus.ApiNotEnabled)
+    val mockCloudProjectManager2 = mock<DirectAccessCloudProjectManager>()
+    doReturn(cloudProjectManager.cloudProject).whenever(mockCloudProjectManager2).cloudProject
+    doReturn(newPermissionFlow).whenever(mockCloudProjectManager2).permissionFlow
+    doReturn(cloudProjectManager.isDeviceStreamingApiEnabledFlow).whenever(mockCloudProjectManager2).isDeviceStreamingApiEnabledFlow
+    doReturn(cloudProjectManager.reservationListFlowWithException).whenever(mockCloudProjectManager2).reservationListFlowWithException
+    doReturn(cloudProjectManager.accessibleDeviceInfoListFlow).whenever(mockCloudProjectManager2).accessibleDeviceInfoListFlow
+    doReturn(cloudProjectManager.reservationManager).whenever(mockCloudProjectManager2).reservationManager
+    doReturn(cloudProjectManager.connectionManager).whenever(mockCloudProjectManager2).connectionManager
+
+    val directAccessService = projectRule.project.service<DirectAccessService>()
+    val cloudProjectManagerFlow = directAccessService.cloudProjectManager as MutableStateFlow
+    cloudProjectManagerFlow.value = mockCloudProjectManager2
+
+    val template = provisioner.templates.value[0] as DirectAccessDeviceTemplate
+    yieldUntil { template.stateFlow.value.error?.message == "API is not enabled in project" }
+
+    val exception = assertFailsWith<DeviceActionException> { template.activationAction.activate() }
+    assertThat(exception.message).contains("Android Device Streaming API is not enabled in project")
+  }
+
+  @Test
+  fun testDirectAccessCloudProjectManagerRawPermissionFlowFallback() = runBlockingWithTimeout {
+    val mockClientService = mock<CloudClientService>()
+    val mockClient = mock<CloudClient>()
+    whenever(mockClientService.client).thenReturn(mockClient)
+    whenever(mockClient.testIamPermissions(any(), any(), any())).thenThrow(RuntimeException("API error"))
+    ApplicationManager.getApplication().replaceService(CloudClientService::class.java, mockClientService, projectRule.disposable)
+
+    val cloudProject = CloudProjectEntry("user", "project")
+    val manager = DirectAccessCloudProjectManager(cloudProject, scope)
+
+    val rawPermission = manager.rawPermissionFlow.value
+    assertThat(rawPermission).isInstanceOf(DirectAccessPermissionStatus.Unknown::class.java)
+    if (StudioFlags.DIRECT_ACCESS_MIGRATE_TO_DDP.get() || manager.isDefaultApiEnabled) {
+      assertThat(rawPermission.missingPermissions).isEqualTo(NEW_FULL_PERMISSIONS_SET)
+    } else {
+      assertThat(rawPermission.missingPermissions).isEqualTo(FULL_PERMISSIONS_SET)
+    }
+  }
+
+  @Test
+  fun testIsDeviceStreamingApiEnabledFlowWhenEndpointIsEmpty() = runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_MIGRATE_TO_DDP.overrideForTest(true, projectRule.disposable)
+    StudioFlags.DEVICE_STREAMING_ENDPOINT.overrideForTest("", projectRule.disposable)
+    val cloudProject = CloudProjectEntry("user", "project")
+    val manager = DirectAccessCloudProjectManager(cloudProject, scope)
+
+    assertThat(manager.isDeviceStreamingApiEnabledFlow.value).isFalse()
+    assertThat(manager.permissionFlow.value).isInstanceOf(DirectAccessPermissionStatus.ApiNotEnabled::class.java)
+  }
+
+  @Test
+  fun testPermissionFlowFallbackWhenDdpFlagIsOffAndApiDisabled() = runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_MIGRATE_TO_DDP.overrideForTest(false, projectRule.disposable)
+    StudioFlags.DEVICE_STREAMING_ENDPOINT.overrideForTest("", projectRule.disposable)
+    val cloudProject = CloudProjectEntry("user", "project")
+    val manager = DirectAccessCloudProjectManager(cloudProject, scope)
+
+    assertThat(manager.isDeviceStreamingApiEnabledFlow.value).isFalse()
+    assertThat(manager.isDefaultApiEnabled).isFalse()
+    assertThat(manager.permissionFlow.value).isNotInstanceOf(DirectAccessPermissionStatus.ApiNotEnabled::class.java)
+  }
+
+  @Test
+  fun testIsDeviceStreamingApiEnabledFlowReturnsNullOnException() = runBlockingWithTimeout {
+    StudioFlags.DIRECT_ACCESS_MIGRATE_TO_DDP.overrideForTest(true, projectRule.disposable)
+    StudioFlags.DEVICE_STREAMING_ENDPOINT.overrideForTest("directaccess.googleapis.com", projectRule.disposable)
+    val mockClientService = mock<CloudClientService>()
+    val mockClient = mock<CloudClient>()
+    whenever(mockClientService.client).thenReturn(mockClient)
+    whenever(mockClient.isDeviceStreamingServiceEnabled(any(), any())).thenThrow(RuntimeException("Network error"))
+    ApplicationManager.getApplication().replaceService(CloudClientService::class.java, mockClientService, projectRule.disposable)
+
+    val cloudProject = CloudProjectEntry("user", "project")
+    val manager = DirectAccessCloudProjectManager(cloudProject, scope)
+
+    assertThat(manager.isDeviceStreamingApiEnabledFlow.value).isNull()
+    assertThat(manager.permissionFlow.value).isNotInstanceOf(DirectAccessPermissionStatus.ApiNotEnabled::class.java)
   }
 
   private suspend fun testCorrectIcon(template: DirectAccessDeviceTemplate, iconDescription: String) {

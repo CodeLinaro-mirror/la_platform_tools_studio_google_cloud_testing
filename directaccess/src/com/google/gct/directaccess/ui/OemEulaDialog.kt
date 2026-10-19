@@ -72,10 +72,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
-import org.jetbrains.jewel.bridge.LocalComponent
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.bridge.toComposeColor
 import org.jetbrains.jewel.foundation.ExperimentalJewelApi
+import org.jetbrains.jewel.foundation.LocalComponent
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.CircularProgressIndicator
 import org.jetbrains.jewel.ui.component.ExternalLink
@@ -100,9 +100,9 @@ fun OemEulaDialog(labs: List<String>, project: Project): DialogWrapper =
 
     override fun createCenterPanel(): JComponent {
       return StudioComposePanel {
-          val content = OemEulaContent(labs, disposable, project)
-          content.ComposeContent()
-        }
+        val content = OemEulaContent(labs, disposable, project)
+        content.ComposeContent()
+      }
         .apply {
           preferredSize = JBUI.size(510, 280)
           minimumSize = JBUI.size(510, 280)

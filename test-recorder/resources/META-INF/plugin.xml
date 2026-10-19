@@ -31,12 +31,6 @@
     <module name="intellij.java.debugger.impl"/>
   </dependencies>
 
-  <!-- This is temporary mechanism to mark certain plugins as K2-compatible. See IntelliJ commit cf213fb139 for details. -->
-  <extensions defaultExtensionNs="org.jetbrains.kotlin">
-    <!--suppress PluginXmlValidity -->
-    <supportsKotlinPluginMode supportsK2="true"/>
-  </extensions>
-
   <description>Test recorder project.</description>
 
   <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Build+Number+Ranges for description -->
