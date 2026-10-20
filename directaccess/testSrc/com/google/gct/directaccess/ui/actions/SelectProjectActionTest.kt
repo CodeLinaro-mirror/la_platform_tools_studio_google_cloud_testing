@@ -926,7 +926,7 @@ class SelectProjectActionTest {
       }
     }
     selectDeviceAction.update(event)
-    assertThat(event.presentation.icon).isEqualTo(StudioIcons.Common.GOOGLE_CLOUD)
+    assertThat(event.presentation.icon).isEqualTo(StudioIcons.DeviceExplorer.DEVICE_LAB_SETTINGS)
     assertThat(event.presentation.description).isEqualTo("Open the Device Streaming dialog to select Google Cloud project and devices")
   }
 
@@ -1014,7 +1014,7 @@ class SelectProjectActionTest {
     selectDeviceAction.update(event)
     assertThat(event.presentation.isEnabled).isFalse()
     assertThat(event.presentation.text).isEqualTo("Device Streaming is no longer compatible with this version of Android Studio.")
-    assertThat(event.presentation.icon).isEqualTo(StudioIcons.Common.GOOGLE_CLOUD)
+    assertThat(event.presentation.icon).isEqualTo(StudioIcons.DeviceExplorer.DEVICE_LAB_SETTINGS)
     assertThat(event.presentation.description).isEqualTo("Open the Device Streaming dialog to select Google Cloud project and devices")
     assertThat(event.presentation.isVisible).isTrue()
   }

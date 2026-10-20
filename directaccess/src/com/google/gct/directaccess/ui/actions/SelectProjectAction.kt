@@ -34,7 +34,7 @@ import org.jetbrains.annotations.VisibleForTesting
 
 @VisibleForTesting val firebaseIconWithErrors = layeredIcon { arrayOf(FirebaseIcons.ACTION_ICON, StudioIcons.Common.ERROR_DECORATOR) }
 @VisibleForTesting
-val googleCloudIconWithErrors = layeredIcon { arrayOf(StudioIcons.Common.GOOGLE_CLOUD, StudioIcons.Common.ERROR_DECORATOR) }
+val googleCloudIconWithErrors = layeredIcon { arrayOf(StudioIcons.DeviceExplorer.DEVICE_LAB_SETTINGS, StudioIcons.Common.ERROR_DECORATOR) }
 
 class SelectProjectAction : AnAction() {
   override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -51,7 +51,7 @@ class SelectProjectAction : AnAction() {
     val branding = if (isUpdatedBranding) "Google Cloud" else "Firebase"
     val (defaultIcon, errorIcon) =
       if (isUpdatedBranding) {
-        StudioIcons.Common.GOOGLE_CLOUD to googleCloudIconWithErrors
+        StudioIcons.DeviceExplorer.DEVICE_LAB_SETTINGS to googleCloudIconWithErrors
       } else {
         FirebaseIcons.ACTION_ICON to firebaseIconWithErrors
       }
