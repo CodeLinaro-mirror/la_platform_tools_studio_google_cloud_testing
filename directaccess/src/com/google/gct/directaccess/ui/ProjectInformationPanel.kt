@@ -23,6 +23,7 @@ import com.intellij.ide.HelpTooltip
 import com.intellij.ui.HyperlinkLabel
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.panels.HorizontalLayout
+import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.util.applyIf
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
@@ -39,7 +40,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jdesktop.swingx.VerticalLayout
 
 private const val VIEW_PRICING_DETAILS_LINK = "https://d.android.com/r/studio-ui/device-streaming/pricing"
 private const val SPARK_PLAN_KEY = "Spark"
@@ -49,7 +49,7 @@ class ProjectInformationPanel(
   scope: CoroutineScope,
   uiContext: CoroutineContext,
   cloudProjectManagerFlow: StateFlow<DirectAccessCloudProjectManager?>,
-) : JPanel(VerticalLayout()) {
+) : JPanel(VerticalLayout(0)) {
   private val planLabel =
     JBLabel().apply {
       horizontalTextPosition = JBLabel.LEFT
