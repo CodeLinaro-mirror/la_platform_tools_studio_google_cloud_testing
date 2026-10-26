@@ -19,12 +19,16 @@ import com.android.sdklib.deviceprovisioner.DeviceState
 import com.android.tools.idea.deviceprovisioner.launchCatchingDeviceActionException
 import com.android.tools.idea.deviceprovisioner.runCatchingDeviceActionException
 import com.android.tools.idea.streaming.core.DevicePanel
+import com.google.services.firebase.directaccess.client.DirectAccessConnection.ConnectionState
 import com.google.services.firebase.directaccess.client.deviceAddress
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroup
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -40,18 +44,20 @@ import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Manages [Notification]s linked to a [DirectAccessDeviceHandle].
@@ -81,29 +87,29 @@ class DirectAccessNotificationManager(private val project: Project, private val 
     get() =
       DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault()).format(deviceHandle.state.reservation?.endTime)
 
-  private val mutex = Mutex()
-
   init {
     deviceHandle.scope.launch {
-      deviceHandle.stateFlow
-        .mapNotNull {
-          if (!it.shouldShowDisconnectedNotification()) {
-            expireDeviceDisconnectedNotification()
-          }
-          it.reservation?.endTime?.epochSecond
+      deviceHandle.stateFlow.collect {
+        if (!it.shouldShowDisconnectedNotification()) {
+          expireDeviceDisconnectedNotification()
         }
-        .distinctUntilChanged()
-        .mapLatest {
+      }
+    }
+    deviceHandle.scope.launch {
+      // The warning is only scheduled while the device is connected. In particular, it is not shown when the reservation is shortened to
+      // the grace period after the user disconnects: the connection is closed before that happens.
+      deviceHandle.connection.state
+        .map { if (it.connection is ConnectionState.Connected) it.reservation.expireTime.seconds else null }
+        .distinctUntilChanged { a, b ->
+          // sometimes we get a small update to the expiration time soon after a reservation starts
+          a == b || (a != null && b != null && abs(a - b) < 60)
+        }
+        .mapLatest { endTime ->
           expireReservationExpiringNotification()
-          val timeLeft = it - Instant.now().epochSecond
-          // Do not show expiring notifications when a device is in grace period, which is implied
-          // here as the durations of devices in grace period are less than
-          // RESERVATION_EXPIRING_SECONDS.
-          // TODO (b/290674109): access grace period status from device handle.
-          if (timeLeft > RESERVATION_EXPIRING_SECONDS) {
-            delay(TimeUnit.SECONDS.toMillis(timeLeft - RESERVATION_EXPIRING_SECONDS))
-            showReservationExpiringNotification()
-          }
+          if (endTime == null) return@mapLatest
+          // Shows the warning right away when connecting to a reservation that ends in less than RESERVATION_EXPIRING_SECONDS.
+          delay((endTime - Instant.now().epochSecond - RESERVATION_EXPIRING_SECONDS).seconds)
+          showReservationExpiringNotification()
         }
         .collect()
     }
@@ -115,35 +121,42 @@ class DirectAccessNotificationManager(private val project: Project, private val 
     }
   }
 
-  private suspend fun showReservationExpiringNotification() = mutex.withLock {
-    // Do not show reservation expiring notification if the device is in grace period.
-    if (deviceDisconnectedNotification?.isExpired == false) return
-    reservationExpiringNotification.show()
+  /**
+   * Runs [block] on the EDT, including while a modal dialog is shown. All notification state and UI is only accessed on the EDT, which
+   * serializes it with the UI callbacks that also access it.
+   */
+  private suspend fun <T> onEdt(block: () -> T): T = withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) { block() }
+
+  private suspend fun showReservationExpiringNotification() = onEdt {
+    if (!project.isDisposed) reservationExpiringNotification.show()
   }
 
-  suspend fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) = mutex.withLock {
+  suspend fun showDeviceDisconnectedNotification(reservationExpireTime: Long?) {
     val deviceName = deviceHandle.sourceTemplate.properties.title
     val message =
       reservationExpireTime?.let {
         val phrase = getDeviceDisconnectedNotificationPhrase(it) ?: return
         getDeviceDisconnectedNotificationMessage(deviceName, phrase)
       } ?: ""
-    deviceDisconnectedNotification =
-      notificationGroup
-        .createNotification("$deviceName on Firebase stopped", message, NotificationType.INFORMATION)
-        .addAction(
-          NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
-            deviceHandle.launchCatchingDeviceActionException(project = project) { activationAction.activate() }
-          }
-        )
-        .addAction(
-          NotificationAction.createExpiring("Return and erase device") { _, _ ->
-            deviceHandle.launchCatchingDeviceActionException(project = project) { reservationAction.endReservation() }
-          }
-        )
-        .setIcon(deviceHandle.icon)
-        .takeIf { deviceHandle.stateFlow.value.shouldShowDisconnectedNotification() }
-        ?.apply { notify(project) }
+    onEdt {
+      if (project.isDisposed) return@onEdt
+      deviceDisconnectedNotification =
+        notificationGroup
+          .createNotification("$deviceName on Firebase stopped", message, NotificationType.INFORMATION)
+          .addAction(
+            NotificationAction.createExpiring("Reconnect to Device") { _, _ ->
+              deviceHandle.launchCatchingDeviceActionException(project = project) { activationAction.activate() }
+            }
+          )
+          .addAction(
+            NotificationAction.createExpiring("Return and erase device") { _, _ ->
+              deviceHandle.launchCatchingDeviceActionException(project = project) { reservationAction.endReservation() }
+            }
+          )
+          .setIcon(deviceHandle.icon)
+          .takeIf { deviceHandle.stateFlow.value.shouldShowDisconnectedNotification() }
+          ?.apply { notify(project) }
+    }
   }
 
   /** Handles panel visibility changes */
@@ -196,12 +209,12 @@ class DirectAccessNotificationManager(private val project: Project, private val 
   private fun getDeviceDisconnectedNotificationMessage(deviceName: String, phrase: String) =
     "You can reconnect to the same $deviceName for $phrase before the device is wiped"
 
-  private suspend fun expireDeviceDisconnectedNotification() = mutex.withLock {
+  private suspend fun expireDeviceDisconnectedNotification() = onEdt {
     deviceDisconnectedNotification?.expire()
     deviceDisconnectedNotification = null
   }
 
-  private suspend fun expireReservationExpiringNotification() = mutex.withLock { reservationExpiringNotification.expire() }
+  private suspend fun expireReservationExpiringNotification() = onEdt { reservationExpiringNotification.expire() }
 
   private fun DeviceState.shouldShowDisconnectedNotification() =
     this is DeviceState.Disconnected && !isTransitioning && reservation?.state?.isClosed() == false
@@ -220,6 +233,9 @@ class DirectAccessNotificationManager(private val project: Project, private val 
     /** [EditorNotificationPanel] that is being shown in RDW */
     private var bannerNotification: EditorNotificationPanel? = null
 
+    /** [DevicePanel] that [bannerNotification] was added to, if any */
+    private var attachedPanel: DevicePanel<*>? = null
+
     /** [Notification] that is being shown in studio when device panel is not visible */
     private var balloonNotification: Notification? = null
 
@@ -233,15 +249,14 @@ class DirectAccessNotificationManager(private val project: Project, private val 
      */
     fun show() {
       when {
-        // Device is visible and balloon notification is not showing.
-        // Show the banner notification in RDW panel
-        isDeviceVisible && balloonNotification == null -> {
-          bannerNotification =
-            createEditorNotificationPanel().also {
-              // Content in the devicePanel may not have been created by the time addNotification is
-              // called. Call it in invokeLater to ensure content is created
-              invokeLater { devicePanel?.addNotification(it) }
-            }
+        // Device is visible. Show the banner notification in RDW panel, replacing the balloon
+        // notification if it is showing (e.g. it was shown before the device panel was selected).
+        isDeviceVisible -> {
+          dismissBalloon()
+          // Reuse the existing banner so that repeated calls (e.g. each time RDW is shown) don't
+          // stack multiple banners in the panel.
+          val banner = bannerNotification ?: createEditorNotificationPanel().also { bannerNotification = it }
+          attachBanner(banner)
         }
         // Device is not visible and the notification was not shown on the panel
         // so show the balloon notification
@@ -258,7 +273,8 @@ class DirectAccessNotificationManager(private val project: Project, private val 
                   object : JBPopupListener {
                     override fun onClosed(event: LightweightWindowEvent) {
                       super.onClosed(event)
-                      expire()
+                      // Not when the balloon was dismissed in favor of the banner.
+                      if (balloonNotification === this@apply) expire()
                     }
                   }
                 )
@@ -279,13 +295,11 @@ class DirectAccessNotificationManager(private val project: Project, private val 
     /** Removes the notifications */
     fun expire() {
       bannerNotification?.let {
-        devicePanel?.removeNotification(it)
+        attachedPanel?.removeNotification(it)
+        attachedPanel = null
         bannerNotification = null
       }
-      balloonNotification?.let {
-        it.expire()
-        balloonNotification = null
-      }
+      dismissBalloon()
       notificationVisible = false
     }
 
@@ -294,22 +308,41 @@ class DirectAccessNotificationManager(private val project: Project, private val 
         text = RESERVATION_EXPIRING_BANNER_TITLE
         icon(deviceHandle.icon)
         createActionLabel("Extend 15 mins") { extendReservation() }
-        setCloseAction {
-          devicePanel?.removeNotification(this)
-          expire()
-        }
+        setCloseAction { expire() }
       }
 
-    private fun createBalloonNotification() =
-      notificationGroup
-        .createNotification(
-          RESERVATION_EXPIRING_BANNER_TITLE,
-          "${deviceHandle.sourceTemplate.properties.title} will disconnect in less than 5 mins. Extend reservation to continue access to the device.",
-          NotificationType.INFORMATION,
-        )
-        .addAction(NotificationAction.createExpiring("Extend 15 mins") { _, _ -> extendReservation() })
-        .setIcon(deviceHandle.icon)
-        .whenExpired { expire() }
+    /**
+     * Adds [banner] to the current [devicePanel] unless it was already added there. If the banner was added to a different panel (e.g. one
+     * from before the device was reconnected), it is moved.
+     */
+    private fun attachBanner(banner: EditorNotificationPanel) {
+      val panel = devicePanel ?: return
+      if (panel === attachedPanel) return
+      attachedPanel?.removeNotification(banner)
+      panel.addNotification(banner)
+      attachedPanel = panel
+    }
+
+    private fun createBalloonNotification(): Notification {
+      val notification =
+        notificationGroup
+          .createNotification(
+            RESERVATION_EXPIRING_BANNER_TITLE,
+            "${deviceHandle.sourceTemplate.properties.title} will disconnect in less than 5 mins. Extend reservation to continue access to the device.",
+            NotificationType.INFORMATION,
+          )
+          .addAction(NotificationAction.createExpiring("Extend 15 mins") { _, _ -> extendReservation() })
+          .setIcon(deviceHandle.icon)
+      // Not when the balloon was dismissed in favor of the banner.
+      return notification.whenExpired { if (balloonNotification === notification) expire() }
+    }
+
+    /** Expires the balloon notification, without removing the banner notification that replaces it. */
+    private fun dismissBalloon() {
+      val balloon = balloonNotification ?: return
+      balloonNotification = null
+      balloon.expire()
+    }
 
     /** Extends the reservation and expires notification */
     private fun extendReservation() =

@@ -99,8 +99,10 @@ import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.openapi.ui.messages.MessageDialog
 import com.intellij.openapi.wm.ToolWindow
+import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.replaceService
+import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
@@ -920,16 +922,89 @@ class DirectAccessDeviceProvisionerTest {
     yieldUntil { bannerNotifications.isNotEmpty() }
     assertThat(bannerNotifications.size).isEqualTo(1)
     assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+    val banner = bannerNotifications[0]
 
-    fakeToolWindow.hide()
-    // Actual tool window cleans everything when hidden and recreates when shown
-    // We only clean the notifications in test
-    bannerNotifications.clear()
-    fakeToolWindow.show()
+    // Notifications added to a device panel persist while RDW is hidden, so re-showing RDW must not add the banner again.
+    repeat(3) {
+      fakeToolWindow.hide()
+      fakeToolWindow.show()
+      runInEdtAndWait { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
+    }
+
+    assertThat(bannerNotifications.single()).isSameAs(banner)
+  }
+
+  @Test
+  fun testBannerNotificationWhenConnectingWithLessThanFiveMinutesLeft() = runBlockingWithTimeout {
+    val deviceInfo = deviceInfoListProvider()[0]
+    val reservation = directAccessReservationManager.createReservation(deviceInfo.codename, deviceInfo.api.toString())
+    directAccessReservationManager.fetchReservationFlow(reservation.name).waitUntilActive()
+    directAccessReservationManager.extendReservation(
+      reservation.name,
+      Duration.ofMinutes(4),
+      DirectAccessReservationManager.ReservationExtendType.TTL,
+    )
+    projectRule.project.refreshReservations()
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    val handle = provisioner.devices.value[0] as DirectAccessDeviceHandle
+    yieldUntil { handle.activationAction.presentation.value.enabled }
+    val bannerNotifications = mutableListOf<EditorNotificationPanel>()
+    val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
+    fakeToolWindow.contentManager.addContent(setupContentForRunningDevicePanel(fakeToolWindow.contentManager.factory, bannerNotifications))
+
+    handle.activationAction.activate()
+
+    // The warning is shown right away, in the panel of the device rather than in a balloon.
+    yieldUntil { bannerNotifications.isNotEmpty() }
+    assertThat(bannerNotifications.single().text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+    assertThat(getNotifications(projectRule.project)).isEmpty()
+  }
+
+  @Test
+  fun testNoReservationExpiringNotificationWhenDisconnectingStartsGracePeriod() = runBlockingWithTimeout {
+    val template = plugin.templates.value[0]
+    val handle = template.activationAction.activate() as DirectAccessDeviceHandle
+    yieldUntil { provisioner.devices.value.isNotEmpty() }
+    directAccessReservationManager.fetchReservationFlow(handle.reservation.name).waitUntilActive()
+    yieldUntil { handle.connectionState is ConnectionState.Connected }
+    val originalExpireTime = handle.reservation.expireTime.seconds
+
+    handle.deactivationAction.deactivate()
+
+    // The grace period ends the reservation in at most 5 minutes, which is when the reservation expiring warning would be shown.
+    yieldUntil { handle.reservation.expireTime.seconds < originalExpireTime }
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    runInEdtAndWait { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
+    assertThat(getNotifications(projectRule.project).map { it.title }).isEqualTo(listOf("${handle.deviceName} on Firebase stopped"))
+  }
+
+  @Test
+  fun testBalloonNotificationReplacedByBannerWhenDeviceBecomesVisible() = runBlockingWithTimeout {
+    val bannerNotifications = mutableListOf<EditorNotificationPanel>()
+    val handle = setupReservationExpiringTest()
+    val fakeToolWindow = fakeToolWindowRule.fakeToolWindow
+    val content = setupContentForRunningDevicePanel(fakeToolWindow.contentManager.factory, bannerNotifications)
+    fakeToolWindow.contentManager.addContent(content)
+    val otherContent = fakeToolWindow.contentManager.factory.createContent(JPanel(), "Other Content", false)
+    fakeToolWindow.contentManager.addContent(otherContent)
+    fakeToolWindow.contentManager.setSelectedContent(otherContent)
+
+    directAccessReservationManager.extendReservation(
+      handle.reservation.name,
+      Duration.ofMinutes(5).plus(Duration.ofSeconds(10)),
+      DirectAccessReservationManager.ReservationExtendType.TTL,
+    )
+    yieldUntil { getNotifications(projectRule.project).isNotEmpty() }
+    val balloon = getNotifications(projectRule.project).single()
+    assertThat(bannerNotifications).isEmpty()
+
+    fakeToolWindow.contentManager.setSelectedContent(content)
 
     yieldUntil { bannerNotifications.isNotEmpty() }
-    assertThat(bannerNotifications.size).isEqualTo(1)
-    assertThat(bannerNotifications[0].text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
+    yieldUntil { balloon.isExpired }
+    // Expiring the balloon must not remove the banner that replaced it.
+    runInEdtAndWait { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
+    assertThat(bannerNotifications.single().text).isEqualTo(RESERVATION_EXPIRING_BANNER_TITLE)
   }
 
   @Test
