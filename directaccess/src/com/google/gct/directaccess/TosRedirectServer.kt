@@ -25,9 +25,11 @@ import java.net.URLEncoder
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import kotlinx.coroutines.CompletableDeferred
-import org.mortbay.jetty.Request
-import org.mortbay.jetty.Server
-import org.mortbay.jetty.handler.AbstractHandler
+import org.eclipse.jetty.ee8.nested.AbstractHandler
+import org.eclipse.jetty.ee8.nested.ContextHandler
+import org.eclipse.jetty.ee8.nested.Request
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.ServerConnector
 
 private const val CALLBACK_PATH = "/CALLBACK_Device_Streaming"
 private val log = Logger.getInstance(TosRedirectServer::class.java)
@@ -47,15 +49,16 @@ class TosRedirectServer(var port: Int = -1) {
   suspend fun run() {
     val requestedPort = if (port == -1) 0 else port
     server =
-      Server(requestedPort).also {
-        for (c in it.connectors) {
-          c.host = "localhost"
-        }
-        it.addHandler(CallbackHandler())
+      Server().also {
+        val connector = ServerConnector(it)
+        connector.host = "localhost"
+        connector.port = requestedPort
+        it.addConnector(connector)
+        it.handler = ContextHandler("/", CallbackHandler()).coreContextHandler
         it.start()
 
         if (port == -1) {
-          port = it.connectors[0].localPort
+          port = connector.localPort
         }
 
         val tosUrl = "https://console.firebase.google.com/?forceCheckTos=1&dlAction=AndroidStudioSignIn&localPort=$port$CALLBACK_PATH"
@@ -91,13 +94,18 @@ class TosRedirectServer(var port: Int = -1) {
   }
 
   inner class CallbackHandler : AbstractHandler() {
-    override fun handle(target: String, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int) {
+    override fun handle(
+      target: String,
+      baseRequest: Request,
+      request: HttpServletRequest,
+      response: HttpServletResponse,
+    ) {
       try {
         if (target != CALLBACK_PATH) {
           return // Ignore other requests
         }
 
-        (request as? Request)?.isHandled = true
+        baseRequest.isHandled = true
         val errorMessage = request.getParameter("error")
         if (errorMessage == null) {
           response.status = HttpServletResponse.SC_OK

@@ -62,7 +62,6 @@ import com.intellij.platform.ide.progress.ModalTaskOwner
 import com.intellij.platform.ide.progress.TaskCancellation
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.util.ui.JBUI
-import java.net.Socket
 import java.net.URI
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -72,6 +71,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import org.eclipse.jetty.ee8.nested.AbstractHandler
+import org.eclipse.jetty.ee8.nested.ContextHandler
+import org.eclipse.jetty.ee8.nested.Request
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.ServerConnector
 import org.jetbrains.jewel.bridge.icon.fromPlatformIcon
 import org.jetbrains.jewel.bridge.toComposeColor
 import org.jetbrains.jewel.foundation.ExperimentalJewelApi
@@ -85,8 +89,6 @@ import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.icon.IntelliJIconKey
 import org.jetbrains.jewel.ui.theme.defaultButtonStyle
 import org.jetbrains.jewel.ui.typography
-import org.mortbay.jetty.Server
-import org.mortbay.jetty.handler.AbstractHandler
 
 @Suppress("FunctionName")
 fun OemEulaDialog(labs: List<String>, project: Project): DialogWrapper =
@@ -272,38 +274,43 @@ class OemEulaContent(
       }
     }
 
-    val port =
-      Socket().use { s ->
-        s.bind(null)
-        s.localPort
-      }
-
     val handler =
       object : AbstractHandler() {
-        override fun handle(target: String?, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int) {
+        override fun handle(
+          target: String?,
+          baseRequest: Request,
+          request: HttpServletRequest,
+          response: HttpServletResponse,
+        ) {
           if (target == "/CALLBACK_Cloud_PartnerLab") {
+            baseRequest.isHandled = true
+            metricsReceivedCallback = true
             disposable.createCoroutineScope().launch {
               project.service<DirectAccessService>().cloudProjectManager.value?.accessibleDeviceInfoListFlow?.refresh()
             }
 
-            lock?.unlock()
-            lock = null
+            synchronized(serverDisposeLock) {
+              lock?.unlock()
+              lock = null
+            }
             response.status = 200
             response.flushBuffer()
-            metricsReceivedCallback = true
           }
         }
       }
 
+    var port = 0
     synchronized(serverDisposeLock) {
       if (disposed) return // should probably only happen in tests
       server =
-        Server(port).apply {
-          for (c in connectors) {
-            c.host = "localhost"
-          }
-          addHandler(handler)
+        Server().apply {
+          val connector = ServerConnector(this)
+          connector.host = "localhost"
+          connector.port = 0
+          addConnector(connector)
+          setHandler(ContextHandler("/", handler).coreContextHandler)
           start()
+          port = connector.localPort
         }
     }
     BrowserUtil.browse(
